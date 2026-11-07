@@ -1,0 +1,241 @@
+{
+  "unit": "mm",
+  "cases": {
+    "m5_hemisphere": {
+      "triangles": 1534,
+      "faces": 2,
+      "planes": 1,
+      "cylinders": 0,
+      "cones": 0,
+      "spheres": [
+        {
+          "radius_mm": 6.0,
+          "latitudes_deg": [
+            0.0,
+            90.0
+          ]
+        }
+      ],
+      "tori": [],
+      "volume_mm3": 452.3893421169302,
+      "rotated": false,
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "bounds_mm": [
+        [
+          -6.0,
+          -6.0,
+          0.0
+        ],
+        [
+          6.0,
+          6.0,
+          6.0
+        ]
+      ]
+    },
+    "m5_hemisphere_rotated": {
+      "triangles": 1534,
+      "faces": 2,
+      "planes": 1,
+      "cylinders": 0,
+      "cones": 0,
+      "spheres": [
+        {
+          "radius_mm": 6.0,
+          "latitudes_deg": [
+            0.0,
+            90.0
+          ]
+        }
+      ],
+      "tori": [],
+      "volume_mm3": 452.3893421169302,
+      "rotated": true,
+      "axis": [
+        0.35604808185222936,
+        -0.07518163466476757,
+        0.9314383958257686
+      ],
+      "bounds_mm": [
+        [
+          7.393194181823617,
+          -13.0,
+          8.81660573140473
+        ],
+        [
+          19.0,
+          -1.0169808637169808,
+          17.0
+        ]
+      ]
+    },
+    "m5_toroidal_fillet": {
+      "triangles": 1792,
+      "faces": 4,
+      "planes": 2,
+      "cylinders": 1,
+      "cones": 0,
+      "spheres": [],
+      "tori": [
+        {
+          "major_radius_mm": 6.0,
+          "minor_radius_mm": 2.0,
+          "meridian_deg": [
+            0.0,
+            90.0
+          ]
+        }
+      ],
+      "toroidal_fillets": 1,
+      "volume_mm3": 1567.7566636691636,
+      "rotated": false,
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "bounds_mm": [
+        [
+          -8.0,
+          -8.0,
+          0.0
+        ],
+        [
+          8.0,
+          8.0,
+          8.0
+        ]
+      ]
+    },
+    "m5_fillet_instances": {
+      "format": "3mf",
+      "bodies": [
+        "m5_toroidal_fillet",
+        "m5_toroidal_fillet"
+      ],
+      "translations_mm": [
+        [
+          0.0,
+          0,
+          0
+        ],
+        [
+          30.0,
+          0,
+          0
+        ]
+      ]
+    },
+    "m5_fillet_touching": {
+      "format": "3mf",
+      "bodies": [
+        "m5_toroidal_fillet",
+        "m5_toroidal_fillet"
+      ],
+      "translations_mm": [
+        [
+          0.0,
+          0,
+          0
+        ],
+        [
+          16.0,
+          0,
+          0
+        ]
+      ],
+      "expected_refusal": "corps en contact"
+    },
+    "m5_toroidal_fillet_rotated": {
+      "triangles": 1792,
+      "faces": 4,
+      "planes": 2,
+      "cylinders": 1,
+      "cones": 0,
+      "spheres": [],
+      "tori": [
+        {
+          "major_radius_mm": 6.0,
+          "minor_radius_mm": 2.0,
+          "meridian_deg": [
+            0.0,
+            90.0
+          ]
+        }
+      ],
+      "toroidal_fillets": 1,
+      "volume_mm3": 1567.7566636691636,
+      "rotated": true,
+      "axis": [
+        0.35604808185222936,
+        -0.07518163466476757,
+        0.9314383958257686
+      ],
+      "bounds_mm": [
+        [
+          5.524258909098156,
+          -15.434108944271625,
+          8.088807641872972
+        ],
+        [
+          22.74309430928976,
+          0.9773588483773592,
+          20.772024643549884
+        ]
+      ]
+    },
+    "m5_rounded_mixed": {
+      "triangles": 4504,
+      "faces": 11,
+      "planes": 7,
+      "cylinders": 2,
+      "cones": 1,
+      "spheres": [],
+      "tori": [
+        {
+          "major_radius_mm": 6.0,
+          "minor_radius_mm": 2.0,
+          "meridian_deg": [
+            0.0,
+            90.0
+          ]
+        }
+      ],
+      "toroidal_fillets": 1,
+      "volume_mm3": 55936.13565206597,
+      "bounds_mm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          60.0,
+          60.0,
+          28.0
+        ]
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "m5_warped_sphere": {
+      "expected_refusal": "latitudes déformées"
+    },
+    "m5_sparse_sphere": {
+      "expected_refusal": "anneau limite insuffisamment échantillonné"
+    },
+    "m5_warped_torus": {
+      "expected_refusal": "méridien déformé"
+    },
+    "m5_non_tangent_torus": {
+      "expected_refusal": "bords de tore sans tangence aux plans adjacents"
+    }
+  }
+}

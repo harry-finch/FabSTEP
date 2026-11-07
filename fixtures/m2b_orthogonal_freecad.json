@@ -1,0 +1,33 @@
+{
+  "generator": "FreeCAD Part",
+  "version": "1.1.1",
+  "case": "m2b_orthogonal_freecad",
+  "unit": "mm",
+  "faces": 10,
+  "planes": 8,
+  "cylinders": 2,
+  "radii_mm": [
+    2,
+    3
+  ],
+  "depths_mm": [
+    5,
+    6
+  ],
+  "axes": [
+    [
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      1
+    ]
+  ],
+  "volume_mm3": 5767.522143634355,
+  "tessellation_deflection_mm": 0.005,
+  "source_triangles": 3364,
+  "nominal_volume_check": 5767.5221436343545
+}

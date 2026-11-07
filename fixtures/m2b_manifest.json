@@ -1,0 +1,142 @@
+{
+  "unit": "mm",
+  "cases": {
+    "m2b_blind": {
+      "faces": 8,
+      "cylinders": 1,
+      "radii_mm": [
+        3
+      ],
+      "depths_mm": [
+        6
+      ],
+      "volume_mm3": 5830.3539967061515,
+      "max_chord_error_mm": 0.012873480884271538
+    },
+    "m2b_blind_subdivided": {
+      "same_as": "m2b_blind",
+      "axial_intervals": 4,
+      "max_chord_error_mm": 0.012873480884271538
+    },
+    "m2b_blind_rotated": {
+      "same_as": "m2b_blind",
+      "axial_intervals": 4,
+      "transformed": true,
+      "max_chord_error_mm": 0.012873480884271538,
+      "axis": [
+        0.35604808185222936,
+        -0.07518163466476757,
+        0.9314383958257686
+      ],
+      "translation_mm": [
+        13.0,
+        -7.0,
+        11.0
+      ]
+    },
+    "m2b_two_holes": {
+      "faces": 9,
+      "cylinders": 2,
+      "radii_mm": [
+        3,
+        3
+      ],
+      "depths_mm": [
+        6,
+        10
+      ],
+      "volume_mm3": 5547.6106578830695,
+      "max_chord_error_mm": 0.010221971910849947
+    },
+    "m2b_boss": {
+      "faces": 8,
+      "cylinders": 1,
+      "radii_mm": [
+        3
+      ],
+      "heights_mm": [
+        5
+      ],
+      "volume_mm3": 6141.371669411541,
+      "max_chord_error_mm": 0.012873480884271538
+    },
+    "m2b_boss_blind": {
+      "faces": 10,
+      "cylinders": 2,
+      "radii_mm": [
+        3,
+        3
+      ],
+      "depths_mm": [
+        6
+      ],
+      "heights_mm": [
+        5
+      ],
+      "volume_mm3": 5971.725666117692,
+      "max_chord_error_mm": 0.010221971910849947
+    },
+    "m2b_boss_blind_rotated": {
+      "same_as": "m2b_boss_blind",
+      "transformed": true,
+      "max_chord_error_mm": 0.010221971910849947,
+      "axis": [
+        0.35604808185222936,
+        -0.07518163466476757,
+        0.9314383958257686
+      ],
+      "translation_mm": [
+        13.0,
+        -7.0,
+        11.0
+      ]
+    },
+    "m2b_conical_blind": {
+      "negative": "paroi conique, pas un cylindre droit",
+      "radii_mm": [
+        2.4,
+        3
+      ],
+      "depths_mm": [
+        6
+      ],
+      "volume_mm3": 5862.021250654337,
+      "max_chord_error_mm": 0.012873480884271538
+    },
+    "m2b_nonflat_floor": {
+      "negative": "fond conique, pas un fond plan",
+      "radii_mm": [
+        3
+      ],
+      "depths_mm": [
+        6
+      ],
+      "volume_mm3": 5839.778774666921,
+      "max_chord_error_mm": 0.012873480884271538
+    },
+    "m2b_bulged_boss": {
+      "negative": "saillie intermédiaire, pas un cylindre droit",
+      "radii_mm": [
+        3,
+        4
+      ],
+      "heights_mm": [
+        5
+      ],
+      "volume_mm3": 6167.551608191456,
+      "max_chord_error_mm": 0.017164641179028717
+    },
+    "m2b_low_sample_blind": {
+      "negative": "cercle échantillonné seulement sur 8 sommets ; intention ambiguë",
+      "radii_mm": [
+        3
+      ],
+      "depths_mm": [
+        6
+      ],
+      "vertices_per_ring": 8,
+      "volume_mm3": 5830.3539967061515,
+      "max_chord_error_mm": 0.3549762036961688
+    }
+  }
+}

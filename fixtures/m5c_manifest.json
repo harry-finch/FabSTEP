@@ -1,0 +1,298 @@
+{
+  "unit": "mm",
+  "cases": {
+    "m5c_icosphere": {
+      "triangles": 1280,
+      "faces": 1,
+      "planes": 0,
+      "cylinders": 0,
+      "cones": 0,
+      "complete_spheres": 1,
+      "tori": [],
+      "spheres": [
+        {
+          "radius_mm": 6.0,
+          "center_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "latitudes_deg": [
+            -90.0,
+            90.0
+          ]
+        }
+      ],
+      "bounds_mm": [
+        [
+          -6.0,
+          -6.0,
+          -6.0
+        ],
+        [
+          6.0,
+          6.0,
+          6.0
+        ]
+      ],
+      "volume_mm3": 904.7786842338604
+    },
+    "m5c_icosphere_transformed": {
+      "triangles": 1280,
+      "faces": 1,
+      "planes": 0,
+      "cylinders": 0,
+      "cones": 0,
+      "complete_spheres": 1,
+      "tori": [],
+      "spheres": [
+        {
+          "radius_mm": 6.0,
+          "center_mm": [
+            13.0,
+            -7.0,
+            11.0
+          ],
+          "latitudes_deg": [
+            -90.0,
+            90.0
+          ]
+        }
+      ],
+      "bounds_mm": [
+        [
+          7.0,
+          -13.0,
+          5.0
+        ],
+        [
+          19.0,
+          -1.0,
+          17.0
+        ]
+      ],
+      "volume_mm3": 904.7786842338604
+    },
+    "m5c_uv_sphere": {
+      "triangles": 3968,
+      "faces": 1,
+      "planes": 0,
+      "cylinders": 0,
+      "cones": 0,
+      "complete_spheres": 1,
+      "tori": [],
+      "spheres": [
+        {
+          "radius_mm": 6.0,
+          "center_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "latitudes_deg": [
+            -90.0,
+            90.0
+          ]
+        }
+      ],
+      "bounds_mm": [
+        [
+          -6.0,
+          -6.0,
+          -6.0
+        ],
+        [
+          6.0,
+          6.0,
+          6.0
+        ]
+      ],
+      "volume_mm3": 904.7786842338604
+    },
+    "m5c_spheres_contact_source": {
+      "format": "3mf",
+      "expected_refusal": "contact des corps",
+      "contact_stage": "source",
+      "triangles": 2944
+    },
+    "m5c_spheres_contact_result": {
+      "format": "3mf",
+      "expected_refusal": "contact des corps",
+      "contact_stage": "result",
+      "triangles": 2560
+    },
+    "m5c_sphere_instances": {
+      "format": "3mf",
+      "bodies": [
+        {
+          "triangles": 1280,
+          "faces": 1,
+          "planes": 0,
+          "cylinders": 0,
+          "cones": 0,
+          "complete_spheres": 1,
+          "tori": [],
+          "spheres": [
+            {
+              "radius_mm": 6.0,
+              "center_mm": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "latitudes_deg": [
+                -90.0,
+                90.0
+              ]
+            }
+          ],
+          "bounds_mm": [
+            [
+              -6.0,
+              -6.0,
+              -6.0
+            ],
+            [
+              6.0,
+              6.0,
+              6.0
+            ]
+          ],
+          "volume_mm3": 904.7786842338604
+        },
+        {
+          "triangles": 1280,
+          "faces": 1,
+          "planes": 0,
+          "cylinders": 0,
+          "cones": 0,
+          "complete_spheres": 1,
+          "tori": [],
+          "spheres": [
+            {
+              "radius_mm": 6.0,
+              "center_mm": [
+                20.0,
+                2.0,
+                1.0
+              ],
+              "latitudes_deg": [
+                -90.0,
+                90.0
+              ]
+            }
+          ],
+          "bounds_mm": [
+            [
+              14.0,
+              -4.0,
+              -5.0
+            ],
+            [
+              26.0,
+              8.0,
+              7.0
+            ]
+          ],
+          "volume_mm3": 904.7786842338604
+        }
+      ],
+      "triangles": 2560
+    },
+    "m5c_sphere_scaled": {
+      "format": "3mf",
+      "triangles": 1280,
+      "faces": 1,
+      "planes": 0,
+      "cylinders": 0,
+      "cones": 0,
+      "complete_spheres": 1,
+      "tori": [],
+      "spheres": [
+        {
+          "radius_mm": 9.0,
+          "center_mm": [
+            3.0,
+            -4.0,
+            5.0
+          ],
+          "latitudes_deg": [
+            -90.0,
+            90.0
+          ]
+        }
+      ],
+      "bounds_mm": [
+        [
+          -6.0,
+          -13.0,
+          -4.0
+        ],
+        [
+          12.0,
+          5.0,
+          14.0
+        ]
+      ],
+      "volume_mm3": 3053.6280592892786
+    },
+    "m5c_truncated_cospherical": {
+      "faces": 2,
+      "planes": 1,
+      "cylinders": 0,
+      "cones": 0,
+      "tori": [],
+      "spheres": [
+        {
+          "radius_mm": 6.0,
+          "height_mm": 2.0,
+          "latitudes_deg": [
+            41.810314895778596,
+            90.0
+          ],
+          "center_mm": [
+            0.0,
+            0.0,
+            -4.0
+          ]
+        }
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "bounds_mm": [
+        [
+          -4.47213595499958,
+          -4.47213595499958,
+          0.0
+        ],
+        [
+          4.47213595499958,
+          4.47213595499958,
+          2.0
+        ]
+      ],
+      "volume_mm3": 67.02064327658225,
+      "triangles": 592,
+      "complete_spheres": 0
+    },
+    "m5c_sparse_sphere": {
+      "triangles": 20,
+      "expected_refusal": "arêtes angulaires trop grandes"
+    },
+    "m5c_spheroid": {
+      "triangles": 1280,
+      "expected_refusal": "sphéroïde allongé"
+    },
+    "m5c_sphere_dent": {
+      "triangles": 1280,
+      "expected_refusal": "un sommet en retrait de 0,04 mm"
+    },
+    "m5c_open_sphere": {
+      "triangles": 1279,
+      "expected_refusal": "maillage ouvert"
+    }
+  }
+}

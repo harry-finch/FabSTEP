@@ -1,0 +1,18 @@
+[package]
+name = "fabstep-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "fabstep"
+path = "src/main.rs"
+
+[dependencies]
+fabstep-core.workspace = true
+fabstep-app.workspace = true
+serde_json.workspace = true
+tempfile = "3"

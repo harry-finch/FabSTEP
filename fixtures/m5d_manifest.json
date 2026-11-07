@@ -1,0 +1,179 @@
+{
+  "unit": "mm",
+  "cases": {
+    "m5d_ring_torus": {
+      "triangles": 4800,
+      "faces": 1,
+      "bounds_mm": [
+        [
+          -8.0,
+          -8.0,
+          -2.0
+        ],
+        [
+          8.0,
+          8.0,
+          2.0
+        ]
+      ],
+      "volume_mm3": 473.7410112522892,
+      "tori": [
+        {
+          "center_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "major_radius_mm": 6.0,
+          "minor_radius_mm": 2.0,
+          "angular_span_rad": 6.283185307179586,
+          "meridian_span_rad": 6.283185307179586
+        }
+      ]
+    },
+    "m5d_torus_transformed": {
+      "triangles": 4800,
+      "faces": 1,
+      "bounds_mm": [
+        [
+          5.393194181823617,
+          -14.98301913628302,
+          6.81660573140473
+        ],
+        [
+          20.606805818176383,
+          0.9830191362830192,
+          15.18339426859527
+        ]
+      ],
+      "volume_mm3": 473.7410112522892,
+      "tori": [
+        {
+          "center_mm": [
+            13.0,
+            -7.0,
+            11.0
+          ],
+          "axis": [
+            0.35604808185222936,
+            -0.07518163466476757,
+            0.9314383958257686
+          ],
+          "major_radius_mm": 6.0,
+          "minor_radius_mm": 2.0,
+          "angular_span_rad": 6.283185307179586,
+          "meridian_span_rad": 6.283185307179586
+        }
+      ]
+    },
+    "m5d_torus_instances": {
+      "format": "3mf",
+      "triangles": 9600,
+      "bodies": [
+        {
+          "triangles": 4800,
+          "faces": 1,
+          "bounds_mm": [
+            [
+              -8.0,
+              -8.0,
+              -2.0
+            ],
+            [
+              8.0,
+              8.0,
+              2.0
+            ]
+          ],
+          "volume_mm3": 473.7410112522892,
+          "tori": [
+            {
+              "center_mm": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "axis": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "major_radius_mm": 6.0,
+              "minor_radius_mm": 2.0,
+              "angular_span_rad": 6.283185307179586,
+              "meridian_span_rad": 6.283185307179586
+            }
+          ]
+        },
+        {
+          "triangles": 4800,
+          "faces": 1,
+          "bounds_mm": [
+            [
+              16.0,
+              -4.0,
+              0.0
+            ],
+            [
+              32.0,
+              12.0,
+              4.0
+            ]
+          ],
+          "volume_mm3": 473.7410112522892,
+          "tori": [
+            {
+              "center_mm": [
+                24.0,
+                4.0,
+                2.0
+              ],
+              "axis": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "major_radius_mm": 6.0,
+              "minor_radius_mm": 2.0,
+              "angular_span_rad": 6.283185307179586,
+              "meridian_span_rad": 6.283185307179586
+            }
+          ]
+        }
+      ]
+    },
+    "m5d_tori_contact_source": {
+      "format": "3mf",
+      "triangles": 5632,
+      "contact_stage": "source",
+      "expected_refusal": "contact des corps"
+    },
+    "m5d_tori_contact_result": {
+      "format": "3mf",
+      "triangles": 5632,
+      "contact_stage": "result",
+      "expected_refusal": "contact des corps"
+    },
+    "m5d_open_torus": {
+      "triangles": 4799,
+      "expected_refusal": "maillage ouvert"
+    },
+    "m5d_torus_dent": {
+      "triangles": 4800,
+      "expected_refusal": "sommet déplacé de 0,06 mm"
+    },
+    "m5d_elliptic_torus": {
+      "triangles": 4800,
+      "expected_refusal": "mise à l’échelle non uniforme"
+    },
+    "m5d_sparse_torus": {
+      "triangles": 140,
+      "expected_refusal": "échantillonnage insuffisant"
+    }
+  }
+}

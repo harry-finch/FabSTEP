@@ -1,0 +1,425 @@
+{
+  "unit": "mm",
+  "cases": {
+    "m4_frustum": {
+      "triangles": 192,
+      "planes": 2,
+      "faces": 3,
+      "cylinders": [],
+      "cones": [
+        {
+          "height_mm": 8.0,
+          "end_radii_mm": [
+            3.0,
+            7.0
+          ],
+          "semi_angle_deg": 26.56505117707799
+        }
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds_mm": [
+        [
+          -7.0,
+          -7.0,
+          0.0
+        ],
+        [
+          7.0,
+          7.0,
+          8.0
+        ]
+      ],
+      "volume_mm3": 661.8288523562497,
+      "max_chord_error_mm": 0.014987537329775646
+    },
+    "m4_frustum_instances": {
+      "format": "3mf",
+      "triangles": 384,
+      "bodies": [
+        "m4_frustum",
+        "m4_frustum"
+      ],
+      "body_bounds_mm": [
+        [
+          [
+            -7.0,
+            -7.0,
+            0.0
+          ],
+          [
+            7.0,
+            7.0,
+            8.0
+          ]
+        ],
+        [
+          [
+            23.0,
+            3.0,
+            2.0
+          ],
+          [
+            37.0,
+            17.0,
+            10.0
+          ]
+        ]
+      ]
+    },
+    "m4_frustum_touching": {
+      "format": "3mf",
+      "triangles": 384,
+      "bodies": [
+        "m4_frustum",
+        "m4_frustum"
+      ],
+      "body_bounds_mm": [
+        [
+          [
+            -7.0,
+            -7.0,
+            0.0
+          ],
+          [
+            7.0,
+            7.0,
+            8.0
+          ]
+        ],
+        [
+          [
+            7.0,
+            -7.0,
+            0.0
+          ],
+          [
+            21.0,
+            7.0,
+            8.0
+          ]
+        ]
+      ],
+      "expected_refusal": "contact entre les deux bases circulaires"
+    },
+    "m4_frustum_rotated": {
+      "triangles": 384,
+      "planes": 2,
+      "faces": 3,
+      "cylinders": [],
+      "cones": [
+        {
+          "height_mm": 8.0,
+          "end_radii_mm": [
+            3.0,
+            7.0
+          ],
+          "semi_angle_deg": 26.56505117707799
+        }
+      ],
+      "axis": [
+        0.35604808185222936,
+        -0.07518163466476757,
+        0.9314383958257686
+      ],
+      "bounds_mm": [
+        [
+          6.458726545460887,
+          -13.98018899233019,
+          8.452706686638852
+        ],
+        [
+          19.541273454539112,
+          -0.019811007669810365,
+          19.543204300903785
+        ]
+      ],
+      "volume_mm3": 661.8288523562497,
+      "max_chord_error_mm": 0.014987537329775646
+    },
+    "m4_cone_tip": {
+      "triangles": 192,
+      "planes": 1,
+      "faces": 2,
+      "cylinders": [],
+      "cones": [
+        {
+          "height_mm": 9.0,
+          "end_radii_mm": [
+            0.0,
+            6.0
+          ],
+          "semi_angle_deg": 33.690067525979785
+        }
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds_mm": [
+        [
+          -6.0,
+          -6.0,
+          0.0
+        ],
+        [
+          6.0,
+          6.0,
+          9.0
+        ]
+      ],
+      "volume_mm3": 339.29200658769764,
+      "max_chord_error_mm": 0.012846460568379126
+    },
+    "m4_chamfered_cylinder": {
+      "triangles": 192,
+      "planes": 2,
+      "faces": 4,
+      "cylinders": [
+        {
+          "height_mm": 8.0,
+          "radius_mm": 5.0
+        }
+      ],
+      "cones": [
+        {
+          "height_mm": 2.0,
+          "end_radii_mm": [
+            3.0,
+            5.0
+          ],
+          "semi_angle_deg": 45.0
+        }
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds_mm": [
+        [
+          -5.0,
+          -5.0,
+          0.0
+        ],
+        [
+          5.0,
+          5.0,
+          10.0
+        ]
+      ],
+      "volume_mm3": 730.9438907352252,
+      "max_chord_error_mm": 0.024076366639015356
+    },
+    "m4_chamfered_cylinder_placed": {
+      "triangles": 192,
+      "planes": 2,
+      "faces": 4,
+      "cylinders": [
+        {
+          "height_mm": 8.0,
+          "radius_mm": 5.0
+        }
+      ],
+      "cones": [
+        {
+          "height_mm": 2.0,
+          "end_radii_mm": [
+            3.0,
+            5.0
+          ],
+          "semi_angle_deg": 45.0
+        }
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds_mm": [
+        [
+          6.0,
+          -12.0,
+          4.0
+        ],
+        [
+          16.0,
+          -2.0,
+          14.0
+        ]
+      ],
+      "volume_mm3": 730.9438907352252,
+      "max_chord_error_mm": 0.024076366639015356,
+      "format": "3mf"
+    },
+    "m4_chamfered_boss": {
+      "triangles": 896,
+      "planes": 7,
+      "faces": 9,
+      "cylinders": [
+        {
+          "height_mm": 5.0,
+          "radius_mm": 5.0
+        }
+      ],
+      "cones": [
+        {
+          "height_mm": 2.0,
+          "end_radii_mm": [
+            3.0,
+            5.0
+          ],
+          "semi_angle_deg": 45.0
+        }
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds_mm": [
+        [
+          -15,
+          -10,
+          0
+        ],
+        [
+          15,
+          10,
+          17.0
+        ]
+      ],
+      "volume_mm3": 6495.32444171599,
+      "max_chord_error_mm": 0.021455801473785896
+    },
+    "m4_countersink": {
+      "triangles": 896,
+      "planes": 6,
+      "faces": 8,
+      "cylinders": [
+        {
+          "height_mm": 7.0,
+          "radius_mm": 3.0
+        }
+      ],
+      "cones": [
+        {
+          "height_mm": 3.0,
+          "end_radii_mm": [
+            3.0,
+            6.0
+          ],
+          "semi_angle_deg": 45.0
+        }
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds_mm": [
+        [
+          -15,
+          -10,
+          0
+        ],
+        [
+          15,
+          10,
+          10
+        ]
+      ],
+      "volume_mm3": 5604.159325647686,
+      "max_chord_error_mm": 0.025746961768543075
+    },
+    "m4_drill_tip": {
+      "triangles": 768,
+      "planes": 6,
+      "faces": 8,
+      "cylinders": [
+        {
+          "height_mm": 5.0,
+          "radius_mm": 3.0
+        }
+      ],
+      "cones": [
+        {
+          "height_mm": 2.0,
+          "end_radii_mm": [
+            0.0,
+            3.0
+          ],
+          "semi_angle_deg": 56.309932474020215
+        }
+      ],
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "bounds_mm": [
+        [
+          -15,
+          -10,
+          0
+        ],
+        [
+          15,
+          10,
+          10
+        ]
+      ],
+      "volume_mm3": 5839.778774666921,
+      "max_chord_error_mm": 0.012873480884271538
+    },
+    "m4_planar_chamfer": {
+      "triangles": 20,
+      "planes": 7,
+      "faces": 7,
+      "cylinders": [],
+      "cones": [],
+      "bounds_mm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          30.0,
+          20.0,
+          10.0
+        ]
+      ],
+      "volume_mm3": 5955.0,
+      "mode": "planar"
+    },
+    "m4_sparse_cone": {
+      "triangles": 16,
+      "expected_refusal": "anneau de huit sommets"
+    },
+    "m4_shifted_tip": {
+      "triangles": 96,
+      "expected_refusal": "pointe hors de l'axe"
+    },
+    "m4_warped_frustum": {
+      "triangles": 384,
+      "expected_refusal": "paroi intermédiaire à trois lobes"
+    },
+    "m4_piecewise_taper": {
+      "triangles": 288,
+      "expected_refusal": "deux pentes coniques contiguës, hors périmètre"
+    },
+    "m4_curved_meridian": {
+      "triangles": 672,
+      "expected_refusal": "méridienne sphérique à sept anneaux coaxiaux"
+    },
+    "m4_alternating_taper": {
+      "triangles": 576,
+      "expected_refusal": "pentes distinctes avec deux transitions coniques très courtes et presque cylindriques"
+    }
+  }
+}

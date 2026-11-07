@@ -1,0 +1,18 @@
+[package]
+name = "fabstep-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+fabstep-core.workspace = true
+fabstep-cad.workspace = true
+fabstep-verify.workspace = true
+fabstep-import.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

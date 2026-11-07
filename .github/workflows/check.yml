@@ -1,0 +1,33 @@
+name: Check macOS
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '26.0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.10.0'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Install build dependencies
+        run: |
+          brew install opencascade
+          rustup toolchain install 1.88.0 --profile minimal --component rustfmt --component clippy
+          rustup override set 1.88.0
+          npm --prefix ui ci
+          cargo fetch --locked
+          cargo fetch --manifest-path crates/fabstep-desktop/Cargo.toml --locked
+      - name: Validate
+        run: sh scripts/check.sh

@@ -1,0 +1,240 @@
+{
+  "unit": "mm",
+  "cases": {
+    "m5b_small_cap": {
+      "faces": 2,
+      "planes": 1,
+      "cylinders": 0,
+      "cones": 0,
+      "tori": [],
+      "spheres": [
+        {
+          "radius_mm": 6.0,
+          "height_mm": 2.0,
+          "latitudes_deg": [
+            41.810314895778596,
+            90.0
+          ],
+          "center_mm": [
+            0.0,
+            0.0,
+            -4.0
+          ]
+        }
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "bounds_mm": [
+        [
+          -4.47213595499958,
+          -4.47213595499958,
+          0.0
+        ],
+        [
+          4.47213595499958,
+          4.47213595499958,
+          2.0
+        ]
+      ],
+      "volume_mm3": 67.02064327658225,
+      "triangles": 594
+    },
+    "m5b_cap_instances": {
+      "format": "3mf",
+      "triangles": 1188,
+      "bodies": [
+        "m5b_small_cap",
+        "m5b_small_cap"
+      ],
+      "body_bounds_mm": [
+        [
+          [
+            -4.47213595499958,
+            -4.47213595499958,
+            0.0
+          ],
+          [
+            4.47213595499958,
+            4.47213595499958,
+            2.0
+          ]
+        ],
+        [
+          [
+            15.52786404500042,
+            -4.47213595499958,
+            0.0
+          ],
+          [
+            24.47213595499958,
+            4.47213595499958,
+            2.0
+          ]
+        ]
+      ],
+      "mirrored_z": [
+        false,
+        true
+      ],
+      "translations_mm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          20.0,
+          0.0,
+          2.0
+        ]
+      ]
+    },
+    "m5b_cap_touching": {
+      "format": "3mf",
+      "expected_refusal": "anneaux des bases tangents"
+    },
+    "m5b_large_cap": {
+      "faces": 2,
+      "planes": 1,
+      "cylinders": 0,
+      "cones": 0,
+      "tori": [],
+      "spheres": [
+        {
+          "radius_mm": 6.0,
+          "height_mm": 10.0,
+          "latitudes_deg": [
+            -41.810314895778596,
+            90.0
+          ],
+          "center_mm": [
+            0.0,
+            0.0,
+            4.0
+          ]
+        }
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "bounds_mm": [
+        [
+          -6.0,
+          -6.0,
+          0.0
+        ],
+        [
+          6.0,
+          6.0,
+          10.0
+        ]
+      ],
+      "volume_mm3": 837.7580409572781,
+      "triangles": 2604
+    },
+    "m5b_large_cap_rotated": {
+      "faces": 2,
+      "planes": 1,
+      "cylinders": 0,
+      "cones": 0,
+      "tori": [],
+      "spheres": [
+        {
+          "radius_mm": 6.0,
+          "height_mm": 10.0,
+          "latitudes_deg": [
+            -41.810314895778596,
+            90.0
+          ],
+          "center_mm": [
+            14.424192327408921,
+            -7.300726538659071,
+            14.725753583303074
+          ]
+        }
+      ],
+      "axis": [
+        0.35604808185222936,
+        -0.07518163466476757,
+        0.9314383958257686
+      ],
+      "bounds_mm": [
+        [
+          8.424192327408921,
+          -13.30072653865907,
+          9.372593997912514
+        ],
+        [
+          20.42419232740892,
+          -1.3007265386590712,
+          20.725753583303074
+        ]
+      ],
+      "volume_mm3": 837.7580409572781,
+      "triangles": 2604
+    },
+    "m5b_concave_cap": {
+      "triangles": 850,
+      "faces": 7,
+      "planes": 6,
+      "cylinders": 0,
+      "cones": 0,
+      "tori": [],
+      "spheres": [
+        {
+          "radius_mm": 6.0,
+          "height_mm": 2.0,
+          "latitudes_deg": [
+            -90.0,
+            -41.810314895778596
+          ],
+          "center_mm": [
+            0.0,
+            0.0,
+            14.0
+          ]
+        }
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "bounds_mm": [
+        [
+          -10.0,
+          -10.0,
+          0.0
+        ],
+        [
+          10.0,
+          10.0,
+          10.0
+        ]
+      ],
+      "volume_mm3": 3932.979356723418,
+      "concave": true
+    },
+    "m5b_spheroid": {
+      "triangles": 594,
+      "expected_refusal": "sphéroïde aplati"
+    },
+    "m5b_shifted_pole": {
+      "triangles": 2604,
+      "expected_refusal": "pôle source hors de l’axe"
+    },
+    "m5b_spherical_zone": {
+      "triangles": 1132,
+      "expected_refusal": "zone sphérique à deux plans et sans pôle"
+    },
+    "m5b_sparse_cap": {
+      "triangles": 160,
+      "expected_refusal": "huit sommets sur l’anneau"
+    }
+  }
+}

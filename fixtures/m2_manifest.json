@@ -1,0 +1,80 @@
+{
+  "unit": "mm",
+  "circumferential_segments": 64,
+  "cases": {
+    "m2_cylinder": {
+      "analytic_faces": 3,
+      "planes": 2,
+      "cylinders": 1,
+      "radii_mm": [
+        10
+      ],
+      "volume_mm3": 6283.185307179587,
+      "max_chord_error_mm": 0.01204543794827595
+    },
+    "m2_cylinder_subdivided": {
+      "analytic_faces": 3,
+      "planes": 2,
+      "cylinders": 1,
+      "radii_mm": [
+        10
+      ],
+      "volume_mm3": 6283.185307179587,
+      "max_chord_error_mm": 0.01204543794827595
+    },
+    "m2_cylinder_rotated": {
+      "analytic_faces": 3,
+      "planes": 2,
+      "cylinders": 1,
+      "radii_mm": [
+        10
+      ],
+      "volume_mm3": 6283.185307179587,
+      "max_chord_error_mm": 0.01204543794827595,
+      "axis": [
+        0.35604808185222936,
+        -0.07518163466476757,
+        0.9314383958257686
+      ]
+    },
+    "m2_tube": {
+      "analytic_faces": 4,
+      "planes": 2,
+      "cylinders": 2,
+      "radii_mm": [
+        5,
+        10
+      ],
+      "volume_mm3": 4712.38898038469,
+      "max_chord_error_mm": 0.01204543794827595
+    },
+    "m2_plate_hole": {
+      "analytic_faces": 7,
+      "planes": 6,
+      "cylinders": 1,
+      "radii_mm": [
+        3
+      ],
+      "volume_mm3": 2858.628330588459,
+      "max_chord_error_mm": 0.012873480884271538
+    },
+    "m2_conical_frustum": {
+      "negative": "tronc de cône ; ne pas reconnaître comme cylindre droit",
+      "radii_mm": [
+        8,
+        10
+      ],
+      "volume_mm3": 5110.324049839397,
+      "max_chord_error_mm": 0.01204543794827595
+    },
+    "m2_waisted": {
+      "negative": "constriction intermédiaire ; ne pas reconnaître comme cylindre droit",
+      "radii_mm": [
+        8,
+        10
+      ],
+      "volume_mm3": 5696.754678509492,
+      "max_chord_error_mm": 0.01204543794827595
+    }
+  }
+}

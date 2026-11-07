@@ -1,0 +1,96 @@
+{
+  "units": "mm",
+  "tessellation_deflection_mm": 0.01,
+  "settings": {"mode": "surfaces", "fit_mm": 0.00001, "max_deviation_mm": 0.05},
+  "cases": [
+    {
+      "id": "01-manifold",
+      "expectation": "analytic",
+      "bounds_mm": [0, 0, 0, 48, 36, 18],
+      "volume_mm3": 30317.816438439153,
+      "surfaces": {"Plane": 8, "Cylinder": 3},
+      "cylinder_radii_mm": [2, 2.5, 3],
+      "probes": [
+        {"point_mm": [10, 10, 1], "inside": false},
+        {"point_mm": [10, 10, 17], "inside": false},
+        {"point_mm": [41, 13, 8], "inside": false},
+        {"point_mm": [39, 13, 8], "inside": true},
+        {"point_mm": [28, 8, 8], "inside": false},
+        {"point_mm": [28, 10, 8], "inside": true}
+      ]
+    },
+    {
+      "id": "02-double-chamfer",
+      "expectation": "analytic",
+      "bounds_mm": [-15, -15, 0, 15, 15, 17],
+      "volume_mm3": 9598.612754268013,
+      "surfaces": {"Plane": 2, "Cylinder": 2, "Cone": 2},
+      "cylinder_radii_mm": [5, 15],
+      "cone_semi_angles_deg": [45, 45],
+      "probes": [
+        {"point_mm": [0, 0, 0.5], "inside": false},
+        {"point_mm": [0, 0, 16.5], "inside": false},
+        {"point_mm": [14, 0, 1], "inside": false},
+        {"point_mm": [14, 0, 6], "inside": true},
+        {"point_mm": [14, 0, 16], "inside": false}
+      ]
+    },
+    {
+      "id": "03-mixed-housing",
+      "expectation": "analytic",
+      "bounds_mm": [0, 0, 0, 50, 40, 24],
+      "volume_mm3": 32855.66232885548,
+      "surfaces": {"Plane": 8, "Cylinder": 3, "Cone": 1, "Sphere": 1, "Toroid": 1},
+      "cylinder_radii_mm": [2, 3, 8],
+      "cone_semi_angles_deg": [45],
+      "sphere_radii_mm": [5],
+      "torus_radii_mm": [[6, 2]],
+      "tangent_pairs": {"Cylinder/Toroid": 1, "Plane/Toroid": 1},
+      "probes": [
+        {"point_mm": [14, 13, 1], "inside": false},
+        {"point_mm": [18, 13, 15.5], "inside": false},
+        {"point_mm": [18, 13, 13.5], "inside": true},
+        {"point_mm": [43, 10, 8], "inside": false},
+        {"point_mm": [41, 10, 8], "inside": true},
+        {"point_mm": [14, 28, 13.5], "inside": false},
+        {"point_mm": [14, 28, 12.5], "inside": true},
+        {"point_mm": [41.5, 26, 21.5], "inside": true},
+        {"point_mm": [41.5, 26, 23.75], "inside": false}
+      ]
+    },
+    {
+      "id": "04-rounded-enclosure",
+      "expectation": "analytic",
+      "bounds_mm": [0, 0, 0, 28, 20, 14],
+      "volume_mm3": 7637.82885235625,
+      "surfaces": {"Plane": 6, "Cylinder": 12, "Sphere": 8},
+      "cylinder_radii_mm": [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+      "sphere_radii_mm": [2, 2, 2, 2, 2, 2, 2, 2],
+      "tangent_pairs": {"Cylinder/Plane": 24, "Cylinder/Sphere": 24},
+      "probes": [
+        {"point_mm": [0.25, 0.25, 7], "inside": false},
+        {"point_mm": [1, 1, 7], "inside": true},
+        {"point_mm": [0.75, 0.75, 0.75], "inside": false},
+        {"point_mm": [1, 1, 1], "inside": true}
+      ]
+    },
+    {
+      "id": "05-elliptic-bore",
+      "expectation": "reject-analytic",
+      "error_code": "recognition.surface_unproven",
+      "bounds_mm": [0, 0, 0, 28, 26, 10],
+      "volume_mm3": 6651.681469282042,
+      "reference_volume_tolerance_mm3": 0.001,
+      "surfaces": {"Plane": 6, "SurfaceOfExtrusion": 1},
+      "probes": [
+        {"point_mm": [18.5, 13, 5], "inside": false},
+        {"point_mm": [14, 17.5, 5], "inside": true}
+      ]
+    },
+    {
+      "id": "06-open-manifold",
+      "expectation": "reject-all",
+      "error_code": "mesh.open"
+    }
+  ]
+}

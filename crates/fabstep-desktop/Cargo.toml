@@ -1,0 +1,28 @@
+[package]
+name = "fabstep-desktop"
+version = "1.0.0-rc.1"
+edition = "2021"
+rust-version = "1.88"
+authors = ["Stéphane Muller"]
+license = "GPL-3.0-or-later"
+publish = false
+resolver = "3"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tempfile = "3"
+serde = { version = "1", features = ["derive"] }
+fabstep-core = { path = "../fabstep-core" }
+fabstep-app = { path = "../fabstep-app" }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+opt-level = 3

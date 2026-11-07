@@ -1,0 +1,41 @@
+{
+  "unit": "mm",
+  "synthetic_source": "m2c_open_arc_mixed.stl",
+  "generator": "Python standard library; indexed mesh extracted from synthetic M2c fixture",
+  "triangles": 2114,
+  "vertices": 1057,
+  "serialization": "six significant decimal digits, same indexed topology",
+  "max_vertex_displacement_mm": 6.194098631050126e-05,
+  "negative_outlier": {
+    "vertex": 1000,
+    "original_mm": [
+      50.0,
+      45.0,
+      23.0
+    ],
+    "changed_mm": [
+      50.002,
+      45.0,
+      23.0
+    ]
+  },
+  "expectations_to_verify": {
+    "precision_exact": {
+      "default_fit_mm": 1e-05,
+      "cylinders": 3,
+      "planes": 7
+    },
+    "precision_rounded": {
+      "strict_refusal": true,
+      "explicit_fit_mm": 0.0001,
+      "cylinders": 3,
+      "planes": 7
+    },
+    "precision_outlier": {
+      "refused_with_explicit_fit_mm": 0.0001
+    },
+    "deviation_budget": {
+      "rounded_refused_below_chord_mm": 0.001
+    }
+  }
+}

@@ -1,0 +1,10 @@
+/target/
+/crates/fabstep-desktop/target/
+/crates/fabstep-desktop/gen/
+/ui/node_modules/
+/ui/dist/
+.DS_Store
+/artifacts/
+/ui/.vite/
+__pycache__/
+*.pyc

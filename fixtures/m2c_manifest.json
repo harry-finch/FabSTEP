@@ -1,0 +1,158 @@
+{
+  "unit": "mm",
+  "cases": {
+    "m2c_open_arc": {
+      "radius_mm": 18.0,
+      "arc_sweep_rad": 2.524170533697723,
+      "height_mm": 18.0,
+      "arc_segments": 36,
+      "axial_intervals": 1,
+      "max_chord_error_mm": 0.011060389475308519,
+      "nominal_volume_mm3": 53857.34658341286,
+      "nominal_faces": 7,
+      "nominal_cylindrical_faces": 1,
+      "note_budget": "Un budget inférieur à max_chord_error_mm doit refuser la reconstruction analytique."
+    },
+    "m2c_open_arc_subdivided": {
+      "radius_mm": 18.0,
+      "arc_sweep_rad": 2.524170533697723,
+      "height_mm": 18.0,
+      "arc_segments": 36,
+      "axial_intervals": 4,
+      "max_chord_error_mm": 0.011060389475308519,
+      "nominal_volume_mm3": 53857.34658341286,
+      "nominal_faces": 7,
+      "nominal_cylindrical_faces": 1,
+      "note_budget": "Un budget inférieur à max_chord_error_mm doit refuser la reconstruction analytique."
+    },
+    "m2c_open_arc_rotated": {
+      "radius_mm": 18.0,
+      "arc_sweep_rad": 2.524170533697723,
+      "height_mm": 18.0,
+      "arc_segments": 36,
+      "axial_intervals": 4,
+      "max_chord_error_mm": 0.011060389475308519,
+      "rotated": true,
+      "translation_mm": [
+        13.0,
+        -7.0,
+        11.0
+      ],
+      "axis": [
+        0.35604808185222936,
+        -0.07518163466476757,
+        0.9314383958257686
+      ],
+      "nominal_volume_mm3": 53857.34658341286,
+      "nominal_faces": 7,
+      "nominal_cylindrical_faces": 1,
+      "note_budget": "Un budget inférieur à max_chord_error_mm doit refuser la reconstruction analytique."
+    },
+    "m2c_open_arc_hole": {
+      "radius_mm": 18.0,
+      "arc_sweep_rad": 2.524170533697723,
+      "height_mm": 18.0,
+      "arc_segments": 36,
+      "axial_intervals": 4,
+      "max_chord_error_mm": 0.011060389475308519,
+      "complete_hole_radius_mm": 4.0,
+      "nominal_volume_mm3": 52952.567899179,
+      "nominal_faces": 8,
+      "nominal_cylindrical_faces": 2,
+      "note_budget": "Un budget inférieur à max_chord_error_mm doit refuser la reconstruction analytique."
+    },
+    "m2c_open_arc_mixed": {
+      "radius_mm": 18.0,
+      "arc_sweep_rad": 2.524170533697723,
+      "height_mm": 18.0,
+      "arc_segments": 36,
+      "axial_intervals": 4,
+      "max_chord_error_mm": 0.011060389475308519,
+      "complete_hole_radius_mm": 4.0,
+      "boss_radius_mm": 5.0,
+      "boss_height_mm": 5.0,
+      "nominal_volume_mm3": 53345.26698087772,
+      "nominal_faces": 10,
+      "nominal_cylindrical_faces": 3,
+      "note_budget": "Un budget inférieur à max_chord_error_mm doit refuser la reconstruction analytique."
+    },
+    "m2c_open_arc_mixed_rotated": {
+      "radius_mm": 18.0,
+      "arc_sweep_rad": 2.524170533697723,
+      "height_mm": 18.0,
+      "arc_segments": 36,
+      "axial_intervals": 4,
+      "max_chord_error_mm": 0.011060389475308519,
+      "complete_hole_radius_mm": 4.0,
+      "boss_radius_mm": 5.0,
+      "boss_height_mm": 5.0,
+      "rotated": true,
+      "translation_mm": [
+        13.0,
+        -7.0,
+        11.0
+      ],
+      "axis": [
+        0.35604808185222936,
+        -0.07518163466476757,
+        0.9314383958257686
+      ],
+      "nominal_volume_mm3": 53345.26698087772,
+      "nominal_faces": 10,
+      "nominal_cylindrical_faces": 3,
+      "note_budget": "Un budget inférieur à max_chord_error_mm doit refuser la reconstruction analytique."
+    },
+    "m2c_arc_conical": {
+      "radius_mm": 18.0,
+      "arc_sweep_rad": 2.524170533697723,
+      "height_mm": 18.0,
+      "arc_segments": 36,
+      "axial_intervals": 4,
+      "max_chord_error_mm": 0.011060389475308519,
+      "negative": "cone"
+    },
+    "m2c_arc_bulge": {
+      "radius_mm": 18.0,
+      "arc_sweep_rad": 2.524170533697723,
+      "height_mm": 18.0,
+      "arc_segments": 36,
+      "axial_intervals": 4,
+      "max_chord_error_mm": 0.011060389475308519,
+      "negative": "bulge"
+    },
+    "m2c_arc_mismatch": {
+      "radius_mm": 18.0,
+      "arc_sweep_rad": 2.524170533697723,
+      "height_mm": 18.0,
+      "arc_segments": 36,
+      "axial_intervals": 4,
+      "max_chord_error_mm": 0.011060389475308519,
+      "negative": "mismatch"
+    },
+    "m2c_arc_few_segments": {
+      "radius_mm": 18.0,
+      "arc_sweep_rad": 2.524170533697723,
+      "height_mm": 18.0,
+      "arc_segments": 5,
+      "axial_intervals": 1,
+      "max_chord_error_mm": 0.5703911377834971,
+      "negative": "six points : échantillonnage insuffisant ; tester avec budget 1 mm",
+      "nominal_volume_mm3": 53857.34658341286,
+      "nominal_faces": 7,
+      "nominal_cylindrical_faces": 1,
+      "note_budget": "Un budget inférieur à max_chord_error_mm doit refuser la reconstruction analytique."
+    },
+    "m2c_arc_other_angle": {
+      "radius_mm": 21.0,
+      "arc_sweep_rad": 2.3789145921589023,
+      "height_mm": 18.0,
+      "arc_segments": 36,
+      "axial_intervals": 1,
+      "max_chord_error_mm": 0.011461527411610661,
+      "nominal_volume_mm3": 51282.20548677901,
+      "nominal_faces": 7,
+      "nominal_cylindrical_faces": 1,
+      "note_budget": "Un budget inférieur à max_chord_error_mm doit refuser la reconstruction analytique."
+    }
+  }
+}
