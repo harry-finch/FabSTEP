@@ -69,7 +69,7 @@ dependencies = [
 
 [[package]]
 name = "fabstep-app"
-version = "1.0.0-rc.1"
+version = "1.0.0"
 dependencies = [
  "fabstep-cad",
  "fabstep-core",
@@ -81,7 +81,7 @@ dependencies = [
 
 [[package]]
 name = "fabstep-cad"
-version = "1.0.0-rc.1"
+version = "1.0.0"
 dependencies = [
  "cc",
  "fabstep-core",
@@ -90,7 +90,7 @@ dependencies = [
 
 [[package]]
 name = "fabstep-cli"
-version = "1.0.0-rc.1"
+version = "1.0.0"
 dependencies = [
  "fabstep-app",
  "fabstep-core",
@@ -100,14 +100,14 @@ dependencies = [
 
 [[package]]
 name = "fabstep-core"
-version = "1.0.0-rc.1"
+version = "1.0.0"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "fabstep-import"
-version = "1.0.0-rc.1"
+version = "1.0.0"
 dependencies = [
  "fabstep-core",
  "flate2",
@@ -118,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "fabstep-verify"
-version = "1.0.0-rc.1"
+version = "1.0.0"
 dependencies = [
  "fabstep-core",
  "serde",

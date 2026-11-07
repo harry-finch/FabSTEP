@@ -1,8 +1,11 @@
 # fabstep-core
 
-Analyse géométrique Rust sans dépendance CAO. Les API publiques principales sont
-`analyze_stl`, `recognize_extrusion`, `recognize_mixed`, `recognize_revolved` et `recognize_rounded`.
-Toutes les coordonnées et tolérances internes sont en millimètres.
+Analyse géométrique Rust pure et déterministe, sans dépendance CAO. Les API
+`analyze_stl` et `analyze_mesh` analysent un corps ; `analyze_stl_bodies` et
+`analyze_mesh_bodies` séparent plusieurs composantes. Les reconnaisseurs explicites
+produisent des modèles analytiques et la provenance des triangles ; leur périmètre
+actuel est détaillé dans la dernière section. Toutes les coordonnées et tolérances
+internes sont en millimètres.
 
 Le pipeline lit les STL ASCII ou binaires, même lorsque l'en-tête binaire
 commence par `solid`. Les normales déclarées dans le fichier sont ignorées.
@@ -10,7 +13,9 @@ Les sommets sont soudés à distance euclidienne réelle dans les 27 cellules
 voisines ; le représentant admissible d'indice minimal est retenu. Ce soudage
 est déterministe pour un même fichier et n'effectue pas une fermeture transitive.
 
-Un seul composant fermé est accepté. Les triangles dégénérés ou dupliqués, les
+`analyze_stl` et `analyze_mesh` acceptent un seul composant fermé. Leurs variantes
+`*_bodies` admettent jusqu’à 32 composantes, sous les limites globales décrites en M3.
+Les triangles dégénérés ou dupliqués, les
 arêtes ouvertes ou non manifold, les sommets pincés et les orientations locales
 incohérentes sont refusés. Une inversion globale est corrigée avec un diagnostic.
 Le volume utilise une origine locale et une sommation compensée.
@@ -37,8 +42,10 @@ imbriqués. Leur orientation est relative à la normale sortante de la face.
   prédicats arithmétiques exacts. Les cas ambigus peuvent être refusés.
 - Les faces presque planes conservent leurs sommets originaux et peuvent être
   refusées par un noyau plus strict ; `planar.approximate` signale ces régions.
-- Les cavités représentées par des coques séparées sont refusées à ce jalon,
-  comme tous les composants multiples.
+- Les API monocomposants refusent plusieurs coques. Les API `*_bodies` les
+  séparent sans prouver leur séparation spatiale : une coque de cavité ne doit
+  pas devenir un solide positif imbriqué. Le contrôle natif de l’application
+  refuse contacts, recouvrements et imbrications avant tout export.
 
 Les erreurs portent des codes stables (`mesh.open`, `mesh.non_manifold_edge`,
 `mesh.inconsistent_orientation`, etc.) et un message lisible en français.
@@ -234,11 +241,11 @@ silencieusement un second solide positif.
 
 ## Cônes et chanfreins circulaires (M4a)
 
-Le mode explicite `Primitives` ajoute `RevolvedRecognition`. Son `RevolvedModel` contient un modèle mixte et des cônes référençant deux anneaux. Un anneau de rayon nul représente uniquement une pointe existante prouvée ; l’API mixte historique conserve son interdiction. Les axes viennent de contours circulaires plans source. Les anneaux exigent au moins douze points, un pas maximal de 45°, des échantillons angulaires compatibles et une couverture triangulaire complète. Les bandes coniques collinéaires sont regroupées, avec une seule plage conique par chaîne connectée, même si des cylindres séparent plusieurs plages candidates.
+Le mode explicite `Primitives` ajoute `RevolvedRecognition`. Son `RevolvedModel` contient un modèle mixte et des cônes référençant deux anneaux. Un anneau de rayon nul représente uniquement une pointe existante prouvée ; l’API mixte historique conserve son interdiction. Les axes viennent de contours circulaires plans source. Les anneaux exigent au moins douze points, un pas maximal de 45°, des échantillons angulaires compatibles et une couverture triangulaire complète. Les bandes coniques collinéaires sont regroupées. La limite initiale d’une plage conique par chaîne admet une exception prouvée : exactement deux cônes de pentes opposées séparés par une portée cylindrique résolue. La hauteur de cette portée et les intervalles d’incertitude des pentes doivent satisfaire le garde partagé de l’[ADR-0010](../../docs/adr/0010-resolved-revolutions.md). Les séparateurs presque cylindriques ambigus, pentes de même signe et chaînes arbitraires restent refusés.
 
-Chaque triangle reçoit une face de provenance. La correspondance des sommets avec les facettes idéales, les résidus de paroi, la flèche et le soudage composent la borne ; le volume analytique provient du flux des surfaces. `recognition.conic_unproven` bloque tout repli pour un candidat non démontré ; seule l’absence de candidat (`recognition.unsupported`) autorise l’appel historique par l’orchestrateur. Les budgets restent explicites. Aucun cône partiel, sphère, tore ou congé n’est reconstruit. Les arcs cylindriques ouverts ne sont pas promus par ce modèle ; ils restent disponibles dans le chemin historique sans cône.
+Chaque triangle reçoit une face de provenance. La correspondance des sommets avec les facettes idéales, les résidus de paroi, la flèche et le soudage composent la borne ; le volume analytique provient du flux des surfaces. `recognition.conic_unproven` bloque tout repli pour un candidat non démontré ; seule l’absence de candidat (`recognition.unsupported`) autorise l’appel historique par l’orchestrateur. Les budgets restent explicites. Ce reconnaisseur ne construit pas de cône partiel, sphère, tore ou congé. Les arcs cylindriques ouverts ne sont pas promus par ce modèle ; ils restent disponibles dans le chemin historique sans cône.
 
-Les six tests M4 couvrent formes indépendantes, pointes source, incidences, provenance, volumes, budgets, opt-in et refus non affines. Le noyau natif doit encore vérifier source, résultat, réimport et fidélité. Une conicité très faible répartie sur de nombreux niveaux peut être refusée par ces critères conservateurs.
+Les tests M4 et `double_chamfers.rs` couvrent formes indépendantes, pointes source, incidences, provenance, volumes, budgets, opt-in, séparation des chanfreins et refus non affines. Le noyau natif doit encore vérifier source, résultat, réimport et fidélité. Une conicité très faible répartie sur de nombreux niveaux peut être refusée par ces critères conservateurs.
 
 ## Hémisphères et congés toriques (M5a)
 
@@ -250,8 +257,9 @@ référence CAO n'intervient dans la reconnaissance.
 Le sous-ensemble initial couvre un hémisphère délimité par un équateur source et
 un pôle source, ainsi qu'un congé torique quart de cercle raccordant un cylindre
 et un plan. Il peut être combiné aux plans, cônes et cylindres complets ou
-partiels du même corps. Les sphères complètes, autres calottes, tores complets,
-raccords à rayon variable et surfaces libres restent hors de ce périmètre.
+partiels du même corps. Ce socle M5a a depuis été étendu aux calottes et complété
+par des reconnaisseurs terminaux distincts, décrits ci-dessous. Les raccords
+à rayon variable et les surfaces libres restent hors des contrats actuels.
 
 Les contours circulaires isolent des patchs topologiques. La preuve n'exige pas
 de correspondance entre les sommets des anneaux : la demi-sphère accepte une
@@ -271,6 +279,42 @@ contrôles natifs ni l'audit de distance échantillonné.
 
 Les diagnostics `recognition.rounded_intent_assumed` et
 `recognition.rounded_coverage` décrivent l'interprétation et l'attribution des
-triangles. Les comptes `spheres`, `tori` et `toroidal_fillets` sont séparés ; à ce
-jalon, chaque tore accepté possède un raccord cylindre–plan tangent prouvé.
+triangles. Les comptes `spheres`, `tori` et `toroidal_fillets` sont séparés :
+les congés du parcours par patchs ont un raccord cylindre–plan tangent prouvé,
+contrairement au contrat distinct du tore complet.
 Le corpus et les essais exécutés sont décrits dans [VALIDATION](../../docs/VALIDATION.md).
+
+
+## Reconnaisseurs actuels en mode Surfaces
+
+| API | Modèle et périmètre démontré |
+| --- | --- |
+| `recognize_rounded` | `RoundedRecognition` : calottes convexes ou concaves avec anneau et pôle source, congés toriques quart cylindre–plan, parois planes/coniques/cylindriques associées et arcs ouverts. Le double chanfrein opposé résolu peut aussi utiliser sa preuve UV sans anneaux appariés, même sans sphère ni tore. |
+| `recognize_rounded_box` | `RoundedBoxRecognition` isolé : six rectangles plans source, douze quarts de cylindre et huit octants sphériques à rayon commun. Attribution des 26 domaines, coutures partagées, orientation locale et couverture globale de degré un. |
+| `recognize_complete_torus` | `RoundedRecognition` isolé : tore annulaire complet R > r, sans anneaux source imposés. Ajustement normalisé, raffinement géométrique borné, résidus physiques et couverture UV orientée de degré un. |
+| `recognize_complete_sphere` | `RoundedRecognition` isolé : sphère entière sans anneau ni pôle inventé. Ajustement normalisé, topologie χ = 2, orientation et couverture 4π. |
+
+Les calottes sont décrites dans l’[ADR-0008](../../docs/adr/0008-spherical-caps.md),
+les sphères complètes dans l’[ADR-0009](../../docs/adr/0009-complete-spheres.md),
+les doubles chanfreins et tores complets dans l’[ADR-0010](../../docs/adr/0010-resolved-revolutions.md),
+et le boîtier convexe entièrement arrondi dans l’[ADR-0011](../../docs/adr/0011-uniform-rounded-box.md).
+Les boîtiers creux ou percés, arrondis partiels, rayons variables et congés
+généraux ne sont pas couverts par le dernier contrat.
+
+L’orchestrateur `fabstep-app`, et non le core, décide des replis. En mode
+Surfaces, il conserve tous les succès et refus bloquants du parcours historique
+Surfaces → Primitives → Cylindres. Seulement après `recognition.unsupported` de
+ce parcours, il essaie le boîtier arrondi complet, puis le tore complet, puis
+la sphère complète. Chaque nouvel essai exige encore `recognition.unsupported`
+du précédent ; une preuve échouée, une déviation excessive ou un budget dépassé
+reste bloquant. Aucun passage implicite au mode Plans n’a lieu.
+
+Tous ces contrats conservent la source et attribuent chaque triangle. Les
+corrections des sommets, coutures et frontières sont comptées dans les résidus ;
+les bornes incluent les intérieurs triangulaires et restent indépendantes du
+fit. Les tores complets peuvent être raffinés même sous le fit pour réduire le
+biais algébrique f32, mais chaque pas doit améliorer l’objectif géométrique sans
+invalider un maximum déjà admissible. Aucun seuil ni budget n’est augmenté.
+La construction, le réimport et la séparation natifs, puis l’audit bidirectionnel,
+restent obligatoires avant export. Pour le boîtier, le natif vérifie également
+les 26 faces et les 48 raccords ; sa permission d’octants est limitée à ce corps.

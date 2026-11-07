@@ -148,3 +148,11 @@ La demande de v1 inclut les pièces mécaniques complexes. Le corpus indépendan
 - `1.0.0-rc.1` : 204 tests workspace, cinq bureau, sept UI ; formatage, Clippy strict, Svelte et build réussis. Paquet autonome de 29 bibliothèques, quatre conversions isolées de Homebrew et signatures/empreinte vérifiées. Vite conserve son avertissement de taille du module JS.
 
 Le premier historique local utilise Stéphane Muller et l’adresse communiquée par l’utilisateur ; branche `codex/v1-mechanical`, aucun distant ni publication. La candidate n’est pas encore déclarée finale : le contrôle du dialogue natif d’import/export doit être terminé. Les congés arbitraires, boîtiers percés/creux, intersections de perçages, surfaces libres, 3MF Production et autres plateformes ne sont pas annoncés.
+
+## 7 novembre 2026 — livraison locale 1.0.0
+
+L’utilisateur confirme l’aperçu et l’export du boîtier tourné à 26 faces depuis RC1. Son fichier exact `artifacts/v1/m6a_rounded_box_rotated.step` est réimporté dans FreeCAD 1.1.1 : un solide fermé valide, 6 plans, 12 cylindres partiels, 8 octants sphériques et 48 raccords tangents. Le volume vaut 7 637,829026775005 mm³ et l’empreinte du fichier reste inchangée. Cette preuve complète la confirmation manuelle après les difficultés de pilotage.
+
+La finale conserve le code fonctionnel du commit candidat `030fd56` ; seules les versions et la documentation évoluent. La revue croisée confirme les sept manifestes/verrous en 1.0.0. Les 204 tests workspace, cinq bureau et sept UI passent à nouveau, ainsi que le formatage, Clippy strict, Svelte et le build. Le README core décrit désormais les APIs actuelles et distingue correctement les analyses mono/multi-corps.
+
+Le paquet Apple Silicon/macOS 26 contient 29 bibliothèques avec leurs notices ; la signature ad hoc, les liens et les quatre conversions de contrôle passent après extraction avec lectures Homebrew bloquées. L’archive ZIP, l’archive des sources comparée au commit et le tag `v1.0.0` restent locaux. Aucune publication ni notarisation. Les périmètres différés restent explicités dans la feuille de route ; aucun historique paramétrique ni support universel des géométries mécaniques n’est annoncé.

@@ -1,12 +1,12 @@
 # État — 7 novembre 2026
 
-**1.0.0-rc.1 — candidate mécanique ; qualification native finale en cours.** FabApps, Rust/OCCT, Svelte/Tauri, GPL-3.0-or-later. Cible locale : Apple Silicon, macOS 26 ou ultérieur.
+**1.0.0 — v1 mécanique locale.** FabApps, Rust/OCCT, Svelte/Tauri, GPL-3.0-or-later. Cible : Apple Silicon, macOS 26 ou ultérieur. Référence Git : tag local `v1.0.0`, branche `codex/v1-mechanical`, après la candidate `030fd56`.
 
-- STL et 3MF Core, unités et placements conservés, 32 corps et 100 000 triangles maximum ; pas d’export partiel ni de corps en contact.
-- Plans, cylindres complets et ouverts, pièces mixtes et borgnes plans, cônes et doubles chanfreins résolus, calottes et sphères entières, tores entiers, congés toriques quart cylindre–plan, boîtiers convexes entièrement arrondis à rayon uniforme.
-- Les quatre positifs et les deux négatifs du [corpus mécanique indépendant](fixtures/complex_v1/README.md) passent. Les deux pièces utilisateur conservent leurs surfaces et mesures dans les deux formats ; six STEP privés ont été réimportés dans FreeCAD. [Validation](docs/VALIDATION.md)
-- Audit de distance optimisé sans modifier les échantillons, les distances ni son budget. Le carter de 41 290 triangles passe désormais sous ce budget.
-- Réglages et erreurs structurés, aide FR/EN, transport binaire de la source avec cache natif par identité. 204 tests workspace, cinq bureau et sept UI passent ; formatage, Clippy strict, Svelte et build réussis. Transfert natif STL/3MF et export de deux cubes observés. Le pilotage perd l’accès à la fenêtre après import par dialogue ; vérification manuelle du boîtier demandée.
-- Paquet autonome avec notices, signature ad hoc et contrôles des bibliothèques. La candidate intègre les bibliothèques nécessaires aux congés. Pas de notarisation ou publication. [Livraison](docs/RELEASE.md)
+- STL et 3MF Core, unités et placements conservés ; 32 corps, 64 Mio et 100 000 triangles maximum. Aucun export partiel ni corps en contact.
+- Plans, cylindres complets et ouverts, pièces mixtes et borgnes plans, cônes et doubles chanfreins résolus, calottes et sphères entières, tores entiers, congés toriques quart cylindre–plan et boîtiers convexes entièrement arrondis à rayon uniforme.
+- Les quatre positifs et deux négatifs du [corpus indépendant](fixtures/complex_v1/README.md) passent. Six STEP issus des deux pièces utilisateur ont été réimportés dans FreeCAD. [Validation](docs/VALIDATION.md)
+- 204 tests workspace, cinq bureau et sept UI réussis en 1.0.0 ; formatage, Clippy strict, Svelte et build réussis. La revue indépendante confirme l’absence de changement fonctionnel depuis RC1.
+- Transfert natif STL/3MF, aperçu et export de deux cubes observés automatiquement. Aperçu et export du boîtier à 26 faces confirmés par l’utilisateur sur RC1 ; cet export a passé son réimport FreeCAD indépendant, avec 48 raccords tangents.
+- Paquet autonome `artifacts/release/1.0.0/FabSTEP.app`, ZIP, notices et 29 bibliothèques, signature ad hoc. Conversions de contrôle exécutées avec lectures Homebrew bloquées. [Livraison](docs/RELEASE.md)
 
-**Suite active** — confirmer le parcours du boîtier dans le paquet candidat. La vérification manuelle a été demandée après pertes répétées d’accès de l’outil ; aucune cause applicative n’est établie. Le premier historique local est préparé sur `codex/v1-mechanical`. La v1 n’est pas encore déclarée achevée. Fusion, autres Mac, Windows/Linux, intersections de perçages, congés généraux à rayon variable, surfaces libres et 3MF Production multi-modèles restent non qualifiés. Aucun distant Git configuré.
+**Suite** — essais sur un autre Mac et dans Fusion, puis distribution signée/notarisée et Windows/Linux. Congés partiels ou à rayon variable, boîtiers creux/percés avec arrondis, intersections de perçages, surfaces libres et 3MF Production multi-modèles restent hors du périmètre reconnu. Aucun distant Git ni publication ; la v1 locale ne prétend pas couvrir toutes les géométries mécaniques.

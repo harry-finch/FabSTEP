@@ -1,6 +1,6 @@
 # ADR-0012 — Transport binaire de la source
 
-Statut : acceptée pour la candidate 1.0.0-rc.1
+Statut : acceptée pour 1.0.0 ; implémentation issue de la candidate 1.0.0-rc.1
 
 Date : 7 novembre 2026
 
@@ -30,4 +30,4 @@ Le remplacement des options conserve l’aperçu du même fichier lorsque son un
 
 ## Validation
 
-Les tests UI couvrent une sous-vue binaire et le refus d’une taille excessive avant IPC. Les tests bureau couvrent les limites, l’ordre des invalidations et transferts, les changements de source ou de réglage, les résultats tardifs et les doublons conflictuels. Ces tests ne mesurent pas les allocations de la WebView et ne vérifient pas le transport réel de WKWebView : un essai natif avec import, conversion et export reste requis pour la candidate. Voir [VALIDATION](../VALIDATION.md) pour les résultats et essais manuels effectivement consignés.
+Les tests UI couvrent une sous-vue binaire et le refus d’une taille excessive avant IPC. Les tests bureau couvrent les limites, l’ordre des invalidations et transferts, les changements de source ou de réglage, les résultats tardifs et les doublons conflictuels. Ces tests ne mesurent pas les allocations de la WebView. Sur la candidate, l’utilisateur confirme l’aperçu et l’export natifs d’un boîtier à 26 faces ; ce parcours est déclaré par l’utilisateur, puis le fichier exporté a été réimporté avec succès dans FreeCAD de manière indépendante. La version 1.0.0 utilise le même code que la candidate, hors métadonnées de version. Voir [VALIDATION](../VALIDATION.md) pour les résultats et essais manuels effectivement consignés.

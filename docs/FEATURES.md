@@ -1,6 +1,6 @@
 # Fonctionnalités
 
-Identifiants stables ; preuves et limites dans [VALIDATION](VALIDATION.md). Candidate mécanique 1.0.0-rc.1.
+Identifiants stables ; preuves et limites dans [VALIDATION](VALIDATION.md). Version mécanique 1.0.0 sur le même code que la candidate 1.0.0-rc.1, hors métadonnées de version.
 
 | ID | Fonction | État |
 | --- | --- | --- |
@@ -10,7 +10,7 @@ Identifiants stables ; preuves et limites dans [VALIDATION](VALIDATION.md). Cand
 | FS-004 | Construction OCCT, STEP et réimport contrôlé | Solides, types de surfaces, volume et dimensions vérifiés |
 | FS-005 | CLI check/convert et rapports JSON | Implémenté ; réglages, provenance et codes d’erreur stables |
 | FS-006 | Interface FabApps et aperçu 3D | Thèmes sombre/clair, FR/EN, aide et indicateur de calcul |
-| FS-007 | Bureau Tauri et export du résultat courant | Révisions, source binaire en cache et sauvegarde atomique ; dernière qualification native en cours |
+| FS-007 | Bureau Tauri et export du résultat courant | Révisions, source binaire en cache et sauvegarde atomique ; aperçu et export du boîtier à 26 faces confirmés par l’utilisateur sur la candidate |
 | FS-008 | Cylindres et trous traversants dans une extrusion constante | Mode explicite, réimports FreeCAD |
 | FS-009 | Import 3MF Core, composants et placements | Implémenté ; 32 corps / 100 000 triangles, contacts refusés. Production multi-modèles non pris en charge |
 | FS-010 | Historique paramétrique reconstruit | Hors périmètre ; export BRep |
@@ -22,5 +22,7 @@ Identifiants stables ; preuves et limites dans [VALIDATION](VALIDATION.md). Cand
 | FS-016 | Calottes et sphères entières | Couverture et courbure démontrées ; réimports et faux positifs testés |
 | FS-017 | Congés toriques cylindre–plan et tores entiers | Contrats distincts ; rayons, couverture, raccords et refus vérifiés |
 | FS-018 | Boîtes convexes entièrement arrondies à rayon uniforme | 6 plans, 12 cylindres partiels, 8 octants sphériques et 48 raccords contrôlés |
-| FS-019 | Paquet macOS autonome | Apple Silicon/macOS 26 ; signature ad hoc, notices et isolation Homebrew. Candidate en qualification |
+| FS-019 | Paquet macOS autonome | Apple Silicon/macOS 26 ; signature ad hoc, notices et isolation Homebrew |
 | FS-020 | Congés arbitraires, intersections de perçages, surfaces libres | Recherche, non annoncés dans la v1 mécanique |
+
+L’utilisateur confirme l’aperçu et l’export natifs du boîtier à 26 faces sur la candidate. L’usage a été confirmé manuellement ; le fichier exporté a ensuite passé son réimport FreeCAD indépendant.
