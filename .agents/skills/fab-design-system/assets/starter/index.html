@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <!-- Thème appliqué avant le premier affichage (choix mémorisé, sinon thème du système). -->
+    <script>
+      try {
+        var c = localStorage.getItem('__app__.theme.v1');
+        var light = c === 'light' || (c !== 'dark' && matchMedia('(prefers-color-scheme: light)').matches);
+        document.documentElement.dataset.theme = light ? 'light' : 'dark';
+      } catch (e) {}
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <title>__App__</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
