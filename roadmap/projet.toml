@@ -1,8 +1,42 @@
 format = 1
 nom = "FabSTEP"
-resume = "Sous-titre court de l’application"
+resume = "Du maillage au solide"
 identite = "#ad8de4"
 logo = "ui/public/logo.svg"
+figure = "mesh-flange"
+
+agent = "codex"
 
 [[test]]
-type = "release"
+type = "build"
+titre = "Bureau — développement post-v1"
+motif = "artifacts/FabSTEP.app/Contents/MacOS/FabSTEP"
+
+[[test]]
+type = "build"
+titre = "Paquet autonome 1.0.0 qualifié"
+motif = "artifacts/release/1.0.0/FabSTEP.app/Contents/MacOS/FabSTEP"
+
+[[jalons]]
+id = "v1.0"
+titre = "V1 mécanique et paquet macOS local"
+
+[[jalons]]
+id = "audit"
+titre = "Audit et performances"
+
+[[jalons]]
+id = "post-v1"
+titre = "Géométries après v1"
+
+[[jalons]]
+id = "atelier"
+titre = "Inspection, guidage et atelier"
+
+[[jalons]]
+id = "dxf"
+titre = "Profils et sections DXF"
+
+[[jalons]]
+id = "distribution"
+titre = "Distribution signée et autres plateformes"
