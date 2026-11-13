@@ -114,8 +114,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-027](roadmap/actions/A-027-essayer-les-coupes-du-maillage-source-dans-le.md) Essayer les coupes du maillage source dans le bureau (tester, R-054)
 - [ ] [A-028](roadmap/actions/A-028-verifier-les-coupes-polygonales-source-dans.md) Vérifier les coupes polygonales source dans Fusion (tester, R-054)
 - [ ] [A-029](roadmap/actions/A-029-valider-la-migration-de-la-feuille-de-route-de.md) Valider la migration de la feuille de route de FabSTEP (valider)
-- [ ] [A-030](roadmap/actions/A-030-valider-la-documentation-de-fabstep.md) Valider la documentation de FabSTEP (valider)
 - [ ] [A-031](roadmap/actions/A-031-examiner-la-figure-de-la-bride-percee-de-fabstep.md) Examiner la figure de la bride percée de FabSTEP (tester)
+- [ ] [A-032](roadmap/actions/A-032-valider-la-mise-d-equerre-de-fabstep.md) Valider la mise d’équerre de FabSTEP (valider)
 
 ## Livré
 
