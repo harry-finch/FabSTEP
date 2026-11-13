@@ -1,0 +1,8 @@
+format = 1
+nom = "FabSTEP"
+resume = "Sous-titre court de l’application"
+identite = "#ad8de4"
+logo = "ui/public/logo.svg"
+
+[[test]]
+type = "release"
