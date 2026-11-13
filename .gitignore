@@ -8,3 +8,7 @@
 /ui/.vite/
 __pycache__/
 *.pyc
+
+# Planches de contrôle Hairline, régénérables.
+/branding/illustrations/*.png
+/branding/illustrations/*-source.txt
