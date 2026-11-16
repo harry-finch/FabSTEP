@@ -6,6 +6,7 @@ logo = "ui/public/logo.svg"
 figure = "mesh-flange"
 
 agent = "codex"
+equerre = "2026-11-16"
 
 [[test]]
 type = "build"

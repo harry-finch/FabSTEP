@@ -6,7 +6,7 @@ L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée i
 
 L’ordre des lots restants reprend le document d’origine ; les priorités et dépendances exprimées dans leurs textes restent applicables. Aucun nouveau développement n’est autorisé par cette migration.
 
-**Avancement : 19 livrés sur 55** (35 %)
+**Avancement : 19 livrés sur 56** (34 %)
 
 ## Restant à faire
 
@@ -73,7 +73,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 31. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · Idée · jalon atelier
    Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
 32. **[R-050 I2 — élargir les familles guidées](roadmap/items/R-050-i2-elargir-les-familles-guidees.md)** · Idée · jalon atelier
-   Après Cylindre/Cône, préciser et prouver les autres familles guidées, dont les sphères.
+   Après Plan (R-056), ajouter le raccord torique guidé puis étudier les sphères.
 33. **[R-052 DXF1 — exporter une face plane](roadmap/items/R-052-dxf1-exporter-une-face-plane.md)** · À tester · jalon dxf
    Sélectionner une face du STEP validé, prévisualiser son contour dans son plan, puis **Exporter le profil DXF**
 34. **[R-053 DXF2a — coupe du STEP et ellipses exactes](roadmap/items/R-053-dxf2a-coupe-du-step-et-ellipses-exactes.md)** · À tester · jalon dxf
@@ -82,6 +82,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Couper le maillage préparé sans exiger un STEP réussi ; profils polygonaux et export DXF distinct.
 36. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
+37. **[R-056 I2d — fusion plane guidée](roadmap/items/R-056-i2d-fusion-plane-guidee.md)** · À tester · jalon atelier
+   Ajouter Plan aux familles guidées : fusionner une sélection contiguë presque plane, sans déplacer ses sommets, après contrôle du solide.
 
 ## Actions à faire
 
@@ -115,7 +117,10 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-028](roadmap/actions/A-028-verifier-les-coupes-polygonales-source-dans.md) Vérifier les coupes polygonales source dans Fusion (tester, R-054)
 - [ ] [A-029](roadmap/actions/A-029-valider-la-migration-de-la-feuille-de-route-de.md) Valider la migration de la feuille de route de FabSTEP (valider)
 - [ ] [A-031](roadmap/actions/A-031-examiner-la-figure-de-la-bride-percee-de-fabstep.md) Examiner la figure de la bride percée de FabSTEP (tester)
-- [ ] [A-032](roadmap/actions/A-032-valider-la-mise-d-equerre-de-fabstep.md) Valider la mise d’équerre de FabSTEP (valider)
+- [ ] [A-033](roadmap/actions/A-033-verifier-la-correction-contextuelle-et-la.md) Vérifier la correction contextuelle et la lisibilité de FabSTEP (tester, R-042)
+- [ ] [A-034](roadmap/actions/A-034-choisir-la-portee-de-la-selection-pour-tore.md) Choisir la portée de la sélection pour Tore (decider, R-050)
+- [ ] [A-035](roadmap/actions/A-035-essayer-plan-dans-la-correction-guidee.md) Essayer Plan dans la correction guidée (tester, R-056)
+- [ ] [A-036](roadmap/actions/A-036-verifier-le-step-apres-correction-plane-dans.md) Vérifier le STEP après correction plane dans Fusion (tester, R-056)
 
 ## Livré
 
