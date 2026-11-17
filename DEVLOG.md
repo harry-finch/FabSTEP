@@ -318,3 +318,10 @@ R-065 observe les checkpoints du moteur par instantané borné et interrogation 
 ### 17 novembre — diagnostic des STL trop denses
 
 Ajout du nombre exact dans le refus STL (R-066), à la demande de l’utilisateur. Son fichier comporte 540 170 triangles, confirmé par longueur binaire et CLI ; le plafond de 100 000 reste en place. Comptage ASCII complet à stockage borné, format d’erreur conservé et message FR/EN. Tests et limites dans V-1190.
+
+
+## 17 novembre 2026 — R-067, essai dense isolé et annulation réelle
+
+Accord A-055 enregistré. Capacité source `large-stl` compilée exclusivement dans un helper distinct ; interface d’essai avec compte, avertissement, accord par fichier et Annuler. Supervision versionnée/bornée, publication après validation, arrêt/récupération et nettoyage, seuil RSS surveillé de 4 Gio et délai de 30 minutes. Aperçu dense préparé hors fil UI ; provenance guidée non transférée, fonctions source associées indisponibles pour ce nouveau mode. Revues helper/desktop acceptées et deux courses de nettoyage/progression corrigées avant validation.
+
+Contrôles et essais réels consignés dans V-1191 : cube 101 568 triangles validé après relance, arrêts en analyse et validation source vérifiés ; fichier utilisateur 540 170 triangles admis mais refusé au budget des contours. Ce dernier constat devient l’idée R-068, sans assouplissement du contrôle. Paquet de développement reconstruit avec helper, empreintes vérifiées. Le pilotage graphique reste bloqué au dialogue de fichier ; actions de qualification utilisateur R-067 conservées.

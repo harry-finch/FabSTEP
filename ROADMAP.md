@@ -6,7 +6,7 @@ L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée i
 
 L’ordre des lots restants reprend le document d’origine ; les priorités et dépendances exprimées dans leurs textes restent applicables. Aucun nouveau développement n’est autorisé par cette migration.
 
-**Avancement : 20 livrés sur 66** (30 %)
+**Avancement : 20 livrés sur 68** (29 %)
 
 ## Restant à faire
 
@@ -102,6 +102,10 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Afficher les étapes observées du moteur et le corps en cours, sans pourcentage ni temps restant inventés.
 46. **[R-066 UX8 — préciser le nombre de triangles refusés](roadmap/items/R-066-ux8-preciser-le-nombre-de-triangles-refuses.md)** · À tester · jalon atelier
    Afficher le nombre exact de triangles d’un STL trop dense et le maximum autorisé.
+47. **[R-067 G1 — gros maillages sur accord et calcul annulable](roadmap/items/R-067-g1-gros-maillages-sur-accord-et-calcul-annulable.md)** · À tester · jalon post-v1
+   Autoriser un essai explicite au-delà de 100 000 triangles, avec avertissement, limites distinctes et arrêt du calcul ; qualifier d’abord le STL de 540 170 triangles.
+48. **[R-068 G2 — accélérer la vérification des contours denses](roadmap/items/R-068-g2-accelerer-la-verification-des-contours-denses.md)** · Idée · jalon post-v1
+   Étudier une vérification spatiale bornée des contours sans relâcher la preuve : le STL FlanschTurboLuftfilter_REV02 de 540 170 triangles est admis par G1, puis refusé au budget de cinq millions de comparaisons. Mesurer avant et après sur ce cas.
 
 ## Actions à faire
 
@@ -155,6 +159,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-052](roadmap/actions/A-052-essayer-le-lancement-manuel-du-step.md) Essayer le lancement manuel du STEP (tester, R-064)
 - [ ] [A-053](roadmap/actions/A-053-verifier-le-suivi-de-reconstruction.md) Vérifier le suivi de reconstruction (tester, R-065)
 - [ ] [A-054](roadmap/actions/A-054-verifier-le-compte-du-stl-trop-dense.md) Vérifier le compte du STL trop dense (tester, R-066)
+- [ ] [A-056](roadmap/actions/A-056-essayer-et-annuler-un-gros-stl.md) Essayer et annuler un gros STL (tester, R-067)
+- [ ] [A-057](roadmap/actions/A-057-verifier-un-step-issu-du-mode-gros-stl.md) Vérifier un STEP issu du mode gros STL (tester, R-067)
 
 ## Livré
 

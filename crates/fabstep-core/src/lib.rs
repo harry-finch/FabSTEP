@@ -1,6 +1,14 @@
 //! Géométrie pure et déterministe de FabSTEP, en millimètres.
 use serde::{Deserialize, Serialize};
 
+/// Source-only storage bounds. The larger profile is compiled only into the
+/// isolated STL helper; result tessellation, DXF and 3MF keep their own bounds.
+#[cfg(not(feature = "large-stl"))]
+pub const SOURCE_MAX_TRIANGLES: usize = 100_000;
+#[cfg(feature = "large-stl")]
+pub const SOURCE_MAX_TRIANGLES: usize = 600_000;
+pub const SOURCE_MAX_VERTICES: usize = 3 * SOURCE_MAX_TRIANGLES;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FabError {
     pub code: String,

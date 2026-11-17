@@ -13,6 +13,8 @@ use fabstep_core::{
 use fabstep_verify::{compare_meshes, FidelityReport};
 use serde::Serialize;
 
+pub use fabstep_core::{SOURCE_MAX_TRIANGLES, SOURCE_MAX_VERTICES};
+
 mod control;
 use control::{controlled, ConversionControl};
 pub use control::{ConversionCheckpoint, ConversionPhase};

@@ -7,6 +7,10 @@ authors.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[features]
+default = []
+large-stl = ["fabstep-core/large-stl", "fabstep-cad/large-stl", "fabstep-verify/large-stl"]
+
 [dependencies]
 fabstep-core.workspace = true
 fabstep-cad.workspace = true

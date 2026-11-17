@@ -1251,3 +1251,37 @@ R-066 : diagnostic dynamique sans changement de code d’erreur, de format FabEr
 Preuve privée : FlanschTurboLuftfilter_REV02.STL, 27 008 584 octets = 84 + 50 × 540 170. Le CLI réellement compilé retourne code 1 attendu et `input.too_many_triangles`, message `STL : 540170 triangles ; limite : 100000.`. Aucun triangle du fichier privé n’est ajouté au dépôt. Tests : cinq nouveaux cas du lecteur, quatorze régressions d’analyse et 220 tests UI réussis ; Svelte 0 erreur/0 avertissement, formatage workspace et Clippy core strict réussis. Pas de reprise des suites géométriques complètes pour ce diagnostic ; dernières preuves V-1186. Logs `artifacts/triangle-count/` ; le refus CLI se trouve dans `private-check.stderr`. Aucun nouveau contrôle graphique revendiqué, pilote natif précédemment bloqué.
 
 Build macOS réussi ; binaire du bundle identique au build, SHA-256 `cd3636a8fbb331a73c47a4d0576457c75eda175c302c6a9421b0472a17c6ad4d`. Paquet release inchangé.
+
+## V-1191 — G1 : gros STL sur accord, calcul isolé et annulable (17 novembre 2026)
+
+**Périmètre :** R-067, ADR-0034, macOS Apple Silicon. Accord du processus séparé reçu et consigné dans A-055. STL binaires de 100 001 à 600 000 triangles, 64 Mio maximum ; parcours ordinaire/3MF inchangés. Le helper compile `large-stl` séparément ; limites source et résultat distinctes. Aucun audit, budget de reconnaissance ou contrôle de fermeture supprimé.
+
+**Implémentation et revue :** avertissement avec compte exact, accord lié au fichier, Annuler et rejet des réponses tardives. Supervision native avec contrôle des identités, fichiers bornés, marqueur final et sortie réussie avant cache exportable. Arrêt/récupération avant nettoyage sur erreur, annulation, invalidation ou fermeture normale de l’application. Surveillance macOS `libproc` à 4 Gio de RSS toutes les secondes et délai de 30 minutes ; refus si le moniteur est indisponible. L’ABI est vérifiée contre les en-têtes du SDK local. Ce seuil surveillé ne borne pas le pic entre observations ni toute la mémoire du bureau. Pas de qualification Windows/Linux : ce parcours y est refusé.
+
+Revue indépendante du helper et du superviseur acceptée. La revue principale a fait corriger deux courses avant validation finale : destruction du dossier temporaire avant récupération du child, et lecture des métadonnées de l’ancien fichier de progression avant ouverture de sa nouvelle version. La revue UI a conduit à déplacer également la préparation de l’aperçu dense dans un Web Worker. Les petits STL/ASCII et le STEP gardent leur parcours ; aucune provenance source guidée n’est inventée pour le STEP transféré.
+
+### Contrôles exécutés
+
+- `cargo test --workspace --offline --locked` : **470 PASS**, 12 tests opt-in ignorés par la suite ordinaire.
+- Bureau : **49 PASS**, 1 test opt-in ignoré par défaut, puis **ce test réel exécuté séparément : PASS**. Il utilise le vrai helper, son rapport/STEP, la publication dans le cache et l’inspection native du cube de référence (1 mm³, six faces planes). Le premier passage a corrigé une attente de test erronée à 8 000 mm³ ; la fixture a bien des coordonnées 0..1. Aucun contournement de validation produit.
+- Helper : **8 PASS**. Profil `large-stl` : **36 tests ciblés PASS** (lecteur, frontières, analyse/sélection, 3MF après placement, rôles CAD et audit asymétrique), construits dans le target séparé du helper.
+- UI : **229 PASS**, dont consentement, annulation/réponse tardive et vrai worker d’affichage à 100 001 triangles ; Svelte **0 erreur / 0 avertissement**.
+- Formatage Rust, Clippy strict workspace/bureau/helper, contrôle bureau, build UI, **12 tests Python et 4 tests SDK PASS**. Avertissement Vite connu sur la taille de bundle, sans erreur.
+- `scripts/build-macos-dev.sh` : PASS. Les deux binaires dans `artifacts/FabSTEP.app/Contents/MacOS/` correspondent par SHA-256 aux sorties compilées. Le script `check.sh` inclut désormais les contrôles isolés et le transfert réel sur macOS. Les commandes de cette validation ont été exécutées en lots séquentiels, pas par une invocation unique du script complet.
+
+### Essais de processus réels
+
+Build de développement non optimisé, machine 16 Gio ; durées indicatives sous charge de validation concurrente, pas un benchmark comparatif avant/après. RSS échantillonnée par `ps`, pas un pic instrumenté exhaustif. Source privée jamais ajoutée au dépôt.
+
+| Source / essai | Issue constatée | Durée | RSS maximale observée |
+|---|---|---:|---:|
+| FlanschTurboLuftfilter_REV02.STL, 540 170 triangles | Admission réussie, puis `planar.too_complex` : budget de cinq millions de comparaisons de contours dépassé ; aucun STEP | 108,125 s | 363,59 Mio |
+| Même fichier, annulation en analyse | Processus tué/récupéré, aucune sortie exportable | 2,080 s ; kill/wait 3,4 ms | 172,89 Mio |
+| Cube maillé synthétique, 101 568 triangles, annulation en phase `source_validation` | Processus tué/récupéré, aucune sortie exportable | 23,516 s ; kill/wait 2,2 ms | 125,41 Mio |
+| Relance du même cube dense | Pipeline complet validé, sortie réussie ; rapport 11 208 277 octets et STEP 1 300 141 octets | 174,356 s | 2 600,33 Mio |
+
+Ces mesures ont motivé le garde RSS de 4 Gio. Elles n’établissent pas qu’un modèle quelconque de 600 000 triangles sera convertible. La limite de comparaisons rencontrée par le fichier utilisateur reste entière ; piste d’optimisation séparée R-068, sans relèvement du budget dans G1.
+
+**Limites graphiques :** le pilotage natif a ouvert l’application et le dialogue de fichier, mais « Open » est resté désactivé malgré sélection et chemin complet ; une tentative par coordonnées a aussi rencontré une erreur du pilote. Dialogue annulé, application laissée sans fichier. Comme lors des validations précédentes, cela ne suffit pas à conclure à un défaut d’import utilisateur. Le parcours visuel complet avertissement → essai → Annuler, les thèmes/langues montés et Fusion restent à confirmer via les actions R-067. Aucun succès graphique de ce parcours n’est revendiqué.
+
+**Traces locales :** `artifacts/g1/` contient les journaux workspace/bureau/helper/UI, le test de transfert réel, les quatre rapports JSON de processus, l’outil de mesure local, les empreintes du bundle et le cube synthétique. Ces traces reconstruisibles ne sont pas versionnées. La qualification du paquet autonome v1 reste distincte et inchangée.

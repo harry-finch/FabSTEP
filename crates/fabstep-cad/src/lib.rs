@@ -5,6 +5,10 @@ use fabstep_core::{
     MixedSegment, MixedSphere, MixedTorus, PlanarFaceProfile, PlanarModel, PlanarProfileLoop,
     ProfileFrame, ProfileLoop, ProfileSegment, RevolvedModel, RoundedBoxModel, RoundedModel,
 };
+
+const MAX_RESULT_FACES: usize = 100_000;
+const MAX_SOURCE_TRIANGLES: usize = fabstep_core::SOURCE_MAX_TRIANGLES;
+const MAX_SOURCE_VERTICES: usize = fabstep_core::SOURCE_MAX_VERTICES;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::f64::consts::TAU;
@@ -630,10 +634,10 @@ pub fn validate_sources_separated(models: &[PlanarModel]) -> Result<(), FabError
     for model in models {
         triangles = triangles.saturating_add(model.faces.len());
         vertices = vertices.saturating_add(model.vertices.len());
-        if triangles > 100_000 || vertices > 300_000 {
+        if triangles > MAX_SOURCE_TRIANGLES || vertices > MAX_SOURCE_VERTICES {
             return Err(FabError::new(
                 "cad.source_document_too_large",
-                "Le document source dépasse 100 000 triangles ou 300 000 sommets.",
+                format!("Le document source dépasse {MAX_SOURCE_TRIANGLES} triangles ou {MAX_SOURCE_VERTICES} sommets."),
             ));
         }
         if model
@@ -649,7 +653,7 @@ pub fn validate_sources_separated(models: &[PlanarModel]) -> Result<(), FabError
     }
     let prepared: Vec<_> = models
         .iter()
-        .map(prepare_planar)
+        .map(|model| prepare_planar_for(model, PlanarRole::Source))
         .collect::<Result<_, _>>()?;
     let inputs: Vec<_> = models
         .iter()
@@ -749,7 +753,7 @@ pub fn build_step_with_provenance(
 /// Construit et contrôle la B-Rep planaire source sans passer par un fichier STEP.
 /// Utiliser des contours triangulaires pour préserver exactement un STL soudé.
 pub fn validate_source(model: &PlanarModel) -> Result<CadReport, FabError> {
-    let input = prepare_planar(model)?;
+    let input = prepare_planar_for(model, PlanarRole::Source)?;
     let mut metrics = Metrics::default();
     let mut error = [0; 512];
     // Les indices et offsets ont été vérifiés et les tableaux restent valides.
@@ -780,7 +784,41 @@ struct PlanarInput {
     vertex_ids: Vec<usize>,
 }
 
+#[derive(Clone, Copy)]
+enum PlanarRole {
+    Source,
+    Result,
+}
+
 fn prepare_planar(model: &PlanarModel) -> Result<PlanarInput, FabError> {
+    prepare_planar_for(model, PlanarRole::Result)
+}
+
+fn prepare_planar_for(model: &PlanarModel, role: PlanarRole) -> Result<PlanarInput, FabError> {
+    let max_faces = match role {
+        PlanarRole::Source => MAX_SOURCE_TRIANGLES,
+        PlanarRole::Result => MAX_RESULT_FACES,
+    };
+    if model.faces.len() > max_faces || model.vertices.len() > MAX_SOURCE_VERTICES {
+        return Err(FabError::new(
+            "cad.invalid_model",
+            "Le modèle dépasse le plafond de faces ou de coordonnées de son profil de traitement.",
+        ));
+    }
+    // Preserve the historical <=100k planar-source API (including quads).
+    // The newly admitted large profile only validates exact source triangles.
+    if matches!(role, PlanarRole::Source)
+        && model.faces.len() > MAX_RESULT_FACES
+        && model
+            .faces
+            .iter()
+            .any(|face| face.loops.len() != 1 || face.loops[0].len() != 3)
+    {
+        return Err(FabError::new(
+            "cad.invalid_model",
+            "Le profil source étendu exige un unique contour triangulaire par face.",
+        ));
+    }
     if model.faces.len() < 4 || model.vertices.len() < 4 {
         return Err(FabError::new(
             "cad.invalid_model",
@@ -816,6 +854,14 @@ fn prepare_planar(model: &PlanarModel) -> Result<PlanarInput, FabError> {
         }
         normals.push(face.normal);
         for boundary in &face.loops {
+            if vertex_ids.len().saturating_add(boundary.len()) > 6 * MAX_SOURCE_TRIANGLES
+                || loop_vertices.len() > 2 * MAX_SOURCE_TRIANGLES
+            {
+                return Err(FabError::new(
+                    "cad.invalid_model",
+                    "Les contours dépassent le budget du modèle planaire.",
+                ));
+            }
             if boundary.len() < 3
                 || boundary.iter().any(|id| *id >= model.vertices.len())
                 || boundary.windows(2).any(|pair| pair[0] == pair[1])
@@ -843,6 +889,22 @@ fn prepare_planar(model: &PlanarModel) -> Result<PlanarInput, FabError> {
 /// Extrude un profil plan et réimporte le solide STEP avant de rendre ses octets.
 /// Les cercles et les parois cylindriques restent analytiques après réimport.
 pub fn build_extrusion_step(model: &AnalyticExtrusion) -> Result<ValidatedStep, FabError> {
+    let result_faces =
+        std::iter::once(&model.outer)
+            .chain(&model.holes)
+            .try_fold(2usize, |count, boundary| {
+                let walls = match boundary {
+                    ProfileLoop::Circle { .. } => 1,
+                    ProfileLoop::Polygon { points } => points.len(),
+                };
+                count.checked_add(walls)
+            });
+    if result_faces.is_none_or(|count| count > MAX_RESULT_FACES) {
+        return Err(FabError::new(
+            "cad.invalid_model",
+            "Le résultat extrudé dépasse 100 000 faces.",
+        ));
+    }
     let dot = |a: [f64; 3], b: [f64; 3]| a.into_iter().zip(b).map(|(a, b)| a * b).sum::<f64>();
     if model
         .origin
@@ -1360,6 +1422,26 @@ fn build_surface_step_with_tokens(
     partial_cones: &[MixedPartialCone],
     tokens: Option<SurfaceTokens<'_>>,
 ) -> Result<ValidatedStep, FabError> {
+    let counts = [
+        model.planes.len(),
+        model.cylinders.len(),
+        model.partial_cylinders.len(),
+        cones.len(),
+        spheres.len(),
+        tori.len(),
+        partial_cones.len(),
+    ];
+    if counts
+        .into_iter()
+        .try_fold(0usize, usize::checked_add)
+        .is_none_or(|count| count > MAX_RESULT_FACES)
+        || model.vertices.len() > MAX_SOURCE_VERTICES
+    {
+        return Err(FabError::new(
+            "cad.invalid_model",
+            "Le résultat mixte dépasse 100 000 faces ou le plafond de coordonnées source.",
+        ));
+    }
     let invalid = |message| FabError::new("cad.invalid_model", message);
     let legacy =
         cones.is_empty() && spheres.is_empty() && tori.is_empty() && partial_cones.is_empty();
@@ -5666,5 +5748,54 @@ mod tests {
             assert_eq!(step.report.conical_faces, 1);
             assert!((step.report.volume_mm3 - volume).abs() < 1e-7);
         }
+    }
+}
+
+#[cfg(test)]
+mod size_profile_tests {
+    use super::*;
+    use fabstep_core::PlanarFace;
+
+    fn triangles(count: usize) -> PlanarModel {
+        PlanarModel {
+            vertices: vec![[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
+            faces: vec![
+                PlanarFace {
+                    normal: [0., 0., 1.],
+                    loops: vec![vec![0, 1, 2]]
+                };
+                count
+            ],
+        }
+    }
+
+    #[test]
+    fn source_profile_does_not_raise_result_faces_or_lose_historical_quads() {
+        let mut model = triangles(MAX_RESULT_FACES + 1);
+        assert_eq!(build_step(&model).unwrap_err().code, "cad.invalid_model");
+        let source = prepare_planar_for(&model, PlanarRole::Source);
+        if cfg!(feature = "large-stl") {
+            assert_eq!(source.unwrap().normals.len(), MAX_RESULT_FACES + 1);
+            model.faces[0].loops[0] = vec![0, 1, 2, 3];
+            assert!(prepare_planar_for(&model, PlanarRole::Source).is_err());
+        } else {
+            assert!(source.is_err());
+        }
+        model.faces.truncate(6);
+        model.faces[0].loops[0] = vec![0, 1, 2, 3];
+        assert!(prepare_planar_for(&model, PlanarRole::Source).is_ok());
+    }
+
+    #[test]
+    fn source_face_cap_is_checked_before_native_construction() {
+        let model = triangles(MAX_SOURCE_TRIANGLES + 1);
+        assert_eq!(
+            validate_source(&model).unwrap_err().code,
+            "cad.invalid_model"
+        );
+        assert_eq!(
+            validate_sources_separated(&[model]).unwrap_err().code,
+            "cad.source_document_too_large"
+        );
     }
 }

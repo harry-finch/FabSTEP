@@ -1,5 +1,6 @@
 /target/
 /crates/fabstep-desktop/target/
+/crates/fabstep-worker/target/
 /crates/fabstep-desktop/gen/
 /ui/node_modules/
 /ui/dist/

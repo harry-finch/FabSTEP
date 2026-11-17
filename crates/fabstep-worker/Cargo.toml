@@ -1,0 +1,20 @@
+[package]
+name = "fabstep-worker"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.88"
+authors = ["Stéphane Muller"]
+license = "GPL-3.0-or-later"
+publish = false
+resolver = "3"
+
+[dependencies]
+fabstep-app = { path = "../fabstep-app", features = ["large-stl"] }
+fabstep-core = { path = "../fabstep-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+opt-level = 3

@@ -296,7 +296,7 @@ fn repeated_analysis_has_identical_topology() {
 
 #[test]
 fn binary_triangle_count_is_bounded() {
-    let count = 100_001_u32;
+    let count = (fabstep_core::SOURCE_MAX_TRIANGLES + 1) as u32;
     let mut bytes = vec![0; 84 + 50 * count as usize];
     bytes[80..84].copy_from_slice(&count.to_le_bytes());
     assert_eq!(error(&bytes), "input.too_many_triangles");

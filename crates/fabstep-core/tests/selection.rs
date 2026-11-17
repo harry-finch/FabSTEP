@@ -141,7 +141,9 @@ fn topology_is_deterministic_exhaustive_and_bounded() {
         "input.too_many_bodies"
     );
     let mut oversized = cubes(1);
-    oversized.triangles.resize(100_001, [0, 1, 2]);
+    oversized
+        .triangles
+        .resize(fabstep_core::SOURCE_MAX_TRIANGLES + 1, [0, 1, 2]);
     assert_eq!(
         selection_mesh_topology(&oversized, &options)
             .unwrap_err()

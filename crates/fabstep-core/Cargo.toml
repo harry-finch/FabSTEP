@@ -7,5 +7,10 @@ authors.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[features]
+default = []
+# Only the separately compiled, isolated STL helper enables this feature.
+large-stl = []
+
 [dependencies]
 serde.workspace = true

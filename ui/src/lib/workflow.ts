@@ -1,9 +1,13 @@
+import { largeStlTriangles } from './large-stl.ts';
 import { validPreferences } from './editing.ts';
 import { acceptsGuidedResult } from './guided.ts';
 import { uploadSource, type SourceBridge } from './source.ts';
 import type { Key } from './i18n.svelte';
 import type { DocumentPreview, GuidedFamily, GuidedReport, Options, Result } from './types.ts';
 export type WorkflowState = {
+  largeTriangles: number | null;
+  largeAccepted: boolean;
+  cancelling: boolean;
   options: Options;
   bytes: Uint8Array | null;
   name: string;
@@ -125,11 +129,13 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     const id = state.current, source = state.bytes, key = state.sourceId;
     const opts = deps.serializableOptions(state.options), format = state.format;
     const shouldConvert = reconstructionRequested;
+    const large = state.largeTriangles !== null;
     if (state.processing?.requestId === id) {
       state.processing.phase = 'preview';
     }
     let previewComplete = false;
     try {
+      if (large && (!shouldConvert || !state.largeAccepted)) return;
       if (state.uploadedSourceId !== key) {
         await uploadSource(bridge, source, key, format);
         if (!disposed && state.sourceId === key) {
@@ -139,20 +145,24 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
       if (disposed || id !== state.current || state.sourceId !== key) {
         return;
       }
-      const doc = await bridge.invoke<DocumentPreview>('preview_document', { requestId: id, sourceId: key, options: opts });
-      if (disposed || id !== state.current || doc.request_id !== id) {
-        return;
+      if (!large) {
+        const doc = await bridge.invoke<DocumentPreview>('preview_document', { requestId: id, sourceId: key, options: opts });
+        if (disposed || id !== state.current || doc.request_id !== id) {
+          return;
+        }
+        state.preview = doc;
+        previewComplete = true;
+        void deps.prepareSelection(id, key, opts, doc, state.sourceRevision);
+      } else {
+        state.topologyState = 'unavailable';
       }
-      state.preview = doc;
-      previewComplete = true;
-      void deps.prepareSelection(id, key, opts, doc, state.sourceRevision);
       if (!shouldConvert) {
         return;
       }
       if (state.processing?.requestId === id) {
         state.processing.phase = 'converting';
       }
-      const converted = await bridge.invoke<Result>('convert_document', { requestId: id, sourceId: key, options: opts });
+      const converted = await bridge.invoke<Result>(large ? 'convert_large_document' : 'convert_document', { requestId: id, sourceId: key, options: opts, ...(large ? { confirmed: true } : {}) });
       if (!disposed && id === state.current && converted.request_id === id) {
         state.selectedId = '';
         state.result = converted;
@@ -224,6 +234,7 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     }
     resetReconstruction();
     state.bytes = data;
+    state.largeTriangles = largeStlTriangles(data, state.format);
     state.sourceId = state.current + 1;
     state.uploadedSourceId = null;
     invalidate();
@@ -231,6 +242,8 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
 
   function resetReconstruction() {
     reconstructionRequested = false;
+    state.largeTriangles = null;
+    state.largeAccepted = false;
     state.result = null;
     state.guidedAttempt = null;
     state.guidanceHints = [];
@@ -238,13 +251,17 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
 
   function canReconstruct() {
     return !disposed && !!deps.native() && !!state.bytes && state.sourceId !== null
-      && !state.busy && (!state.processing || state.processing.phase === 'queued')
+      && !state.busy && !state.cancelling && (!state.processing || state.processing.phase === 'queued')
       && validPreferences(state.options);
   }
 
-  async function reconstruct() {
+  async function reconstruct(acceptLarge = false) {
     if (!canReconstruct()) {
       return;
+    }
+    if (state.largeTriangles !== null) {
+      if (!acceptLarge && !state.largeAccepted) return;
+      state.largeAccepted = true;
     }
     reconstructionRequested = true;
     invalidate(true);
@@ -252,6 +269,32 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     clearTimer();
     state.queued = true;
     await run();
+  }
+
+  async function cancelLarge() {
+    const bridge = deps.native();
+    if (!bridge || !state.largeTriangles || !state.busy || state.cancelling || state.sourceId === null) return;
+    const requestId = state.current, sourceId = state.sourceId;
+    state.cancelling = true;
+    reconstructionRequested = false;
+    clearTimer();
+    state.queued = false;
+    state.current++;
+    const cancelledRevision = state.current;
+    state.result = null;
+    deps.resetStepInspection();
+    try {
+      await bridge.invoke<void>('cancel_large_conversion', { requestId, sourceId });
+      if (!disposed && state.current === cancelledRevision) {
+        state.processing = null;
+        state.errorState = null;
+        state.noteKey = 'workspace.cancelled';
+      }
+    } catch (value) {
+      if (!disposed && state.current === cancelledRevision) state.errorState = { kind: 'native', value };
+    } finally {
+      state.cancelling = false;
+    }
   }
 
   async function mutateGuidance(command: 'guided_convert' | 'remove_guidance' | 'recompute_guidance', payload: {
@@ -341,6 +384,9 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
   }
 
   function dispose() {
+    if (state.largeTriangles && state.busy && state.sourceId !== null) {
+      void deps.native()?.invoke<void>('cancel_large_conversion', { requestId: state.current, sourceId: state.sourceId }).catch(() => { /* Supervisor also checks native invalidation. */ });
+    }
     disposed = true;
     clearTimer();
     state.current++;
@@ -348,5 +394,5 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     state.queued = false;
     state.processing = null;
   }
-  return { invalidate, run, load, setSource, reconstruct, canReconstruct, mutateGuidance, canExport, exportStep, dispose };
+  return { invalidate, run, load, setSource, reconstruct, cancelLarge, canReconstruct, mutateGuidance, canExport, exportStep, dispose };
 }

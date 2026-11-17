@@ -102,9 +102,10 @@ pub fn recognize_guided_cylinder(
     options: &Options,
     triangle_ids: &[usize],
 ) -> Result<MixedRecognition, FabError> {
+    crate::recognition::validate_guidance_size(analysis)?;
     if triangle_ids.is_empty()
         || triangle_ids.len() > analysis.mesh.triangles.len()
-        || triangle_ids.len() > crate::stl::MAX_TRIANGLES
+        || triangle_ids.len() > 100_000
     {
         return Err(invalid_selection());
     }
@@ -117,6 +118,7 @@ pub fn recognize_guided_cylinders(
     options: &Options,
     triangle_sets: &[Vec<usize>],
 ) -> Result<MixedRecognition, FabError> {
+    crate::recognition::validate_guidance_size(analysis)?;
     if triangle_sets.is_empty() || triangle_sets.len() > 16 {
         return Err(FabError::new(
             "guidance.limit",
@@ -128,7 +130,7 @@ pub fn recognize_guided_cylinders(
     let mut selections = Vec::with_capacity(triangle_sets.len());
     for triangle_ids in triangle_sets {
         total = total.saturating_add(triangle_ids.len());
-        if triangle_ids.is_empty() || total > count || total > crate::stl::MAX_TRIANGLES {
+        if triangle_ids.is_empty() || total > count || total > 100_000 {
             return Err(invalid_selection());
         }
         let mut selected = BTreeSet::new();
@@ -209,6 +211,7 @@ pub fn recognize_guided_surfaces(
     options: &Options,
     triangle_sets: &[(GuidanceFamily, Vec<usize>)],
 ) -> Result<RevolvedRecognition, FabError> {
+    crate::recognition::validate_guidance_size(analysis)?;
     if triangle_sets
         .iter()
         .any(|(family, _)| *family == GuidanceFamily::Plane)
@@ -226,7 +229,7 @@ pub fn recognize_guided_surfaces(
     let mut selections = Vec::with_capacity(triangle_sets.len());
     for (family, triangle_ids) in triangle_sets {
         total = total.saturating_add(triangle_ids.len());
-        if triangle_ids.is_empty() || total > count || total > crate::stl::MAX_TRIANGLES {
+        if triangle_ids.is_empty() || total > count || total > 100_000 {
             return Err(invalid_selection());
         }
         let mut selected = BTreeSet::new();

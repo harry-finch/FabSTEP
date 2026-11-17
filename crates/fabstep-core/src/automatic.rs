@@ -476,6 +476,7 @@ pub fn recognize_automatic_guided(
     o: &Options,
     requests: &[(GuidanceFamily, Vec<usize>)],
 ) -> Result<RoundedRecognition, FabError> {
+    crate::recognition::validate_guidance_size(a)?;
     validate(a, o)?;
     if requests.len() > 16 {
         return Err(FabError::new(

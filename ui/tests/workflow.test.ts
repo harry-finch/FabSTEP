@@ -42,7 +42,7 @@ const hint: GuidedReport = {
 };
 function fixture() {
   const state: WorkflowState = {
-    options: { ...initial }, bytes: null, name: 'part.stl', format: 'stl', current: 1, fileToken: 0, sourceId: null, uploadedSourceId: null, sourceRevision: 0, result: null, preview: null, selectedId: '', errorState: null, noteKey: null, recognitionFailed: false, busy: false, queued: false, processing: null, topologyState: 'unavailable', guidanceHints: [], guidedAttempt: null, fitSignal: 0
+    largeTriangles: null, largeAccepted: false, cancelling: false, options: { ...initial }, bytes: null, name: 'part.stl', format: 'stl', current: 1, fileToken: 0, sourceId: null, uploadedSourceId: null, sourceRevision: 0, result: null, preview: null, selectedId: '', errorState: null, noteKey: null, recognitionFailed: false, busy: false, queued: false, processing: null, topologyState: 'unavailable', guidanceHints: [], guidedAttempt: null, fitSignal: 0
   };
   const calls: {
     command: string;
@@ -769,3 +769,64 @@ for (const command of ['guided_convert', 'remove_guidance', 'recompute_guidance'
     assert.equal(isRefusal(), false);
   });
 }
+
+function denseStl(count = 100_001) {
+  const bytes = new Uint8Array(84 + count * 50);
+  new DataView(bytes.buffer).setUint32(80, count, true);
+  return bytes;
+}
+
+test('dense binary STL waits for explicit consent and skips ordinary native preview', async () => {
+  const f = fixture();
+  f.workflow.setSource(denseStl());
+  f.flush(); await tick();
+  assert.equal(f.state.largeTriangles, 100_001);
+  assert.equal(f.count('upload_source'), 0);
+  assert.equal(f.state.busy, false);
+  await f.workflow.reconstruct();
+  assert.equal(f.count('convert_large_document'), 0);
+  const task = f.workflow.reconstruct(true);
+  await f.uploaded();
+  assert.equal(f.count('preview_document'), 0);
+  assert.equal(f.count('convert_document'), 0);
+  const call = f.latest('convert_large_document');
+  assert.equal((call.args as Record<string, unknown>).confirmed, true);
+  call.pending.resolve(result(f.state.current));
+  await task;
+  assert.ok(f.workflow.canExport());
+  assert.equal(f.state.preview, null);
+  assert.equal(f.hooks.filter(hook => hook.startsWith('prepare:')).length, 0);
+});
+
+test('dense cancellation waits for supervisor and rejects even a late successful result', async () => {
+  const f = fixture(); f.workflow.setSource(denseStl());
+  const task = f.workflow.reconstruct(true); await f.uploaded();
+  const id = f.state.current;
+  const cancel = f.workflow.cancelLarge();
+  assert.equal(f.state.cancelling, true);
+  assert.equal(f.workflow.canExport(), false);
+  f.latest('convert_large_document').pending.resolve(result(id));
+  await task;
+  assert.equal(f.state.result, null);
+  assert.equal(f.state.cancelling, true);
+  assert.equal(f.workflow.canReconstruct(), false);
+  f.latest('cancel_large_conversion').pending.resolve(undefined);
+  await cancel;
+  assert.equal(f.state.cancelling, false);
+  assert.equal(f.state.noteKey, 'workspace.cancelled');
+  assert.equal(f.workflow.canReconstruct(), true);
+  assert.ok(f.state.bytes);
+});
+
+test('dense consent resets on a new file and cancellation during upload prevents spawning', async () => {
+  const f = fixture(); f.workflow.setSource(denseStl());
+  const task = f.workflow.reconstruct(true);
+  const cancel = f.workflow.cancelLarge();
+  await f.uploaded(); await task;
+  assert.equal(f.count('convert_large_document'), 0);
+  f.latest('cancel_large_conversion').pending.resolve(undefined); await cancel;
+  f.workflow.setSource(denseStl(100_002)); f.flush(); await tick();
+  assert.equal(f.state.largeAccepted, false);
+  assert.equal(f.count('upload_source'), 1);
+  assert.equal(f.count('convert_large_document'), 0);
+});

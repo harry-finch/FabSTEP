@@ -12,6 +12,7 @@ pub(crate) fn recognize(
     options: &Options,
     requests: &[(GuidanceFamily, Vec<usize>)],
 ) -> Result<RevolvedRecognition, FabError> {
+    crate::recognition::validate_guidance_size(analysis)?;
     for tolerance in [
         options.weld_tolerance_mm,
         options.plane_tolerance_mm,

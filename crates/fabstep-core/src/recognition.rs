@@ -101,6 +101,7 @@ pub fn recognize_extrusion(
 pub(crate) fn validate_analysis(a: &Analysis) -> Result<(), FabError> {
     let valid = !a.mesh.triangles.is_empty()
         && a.mesh.triangles.len() <= crate::stl::MAX_TRIANGLES
+        && a.mesh.vertices.len() <= crate::SOURCE_MAX_VERTICES
         && a.mesh.vertices == a.model.vertices
         && a.mesh.vertices.iter().flatten().all(|x| x.is_finite())
         && a.mesh
@@ -124,6 +125,16 @@ pub(crate) fn validate_analysis(a: &Analysis) -> Result<(), FabError> {
             "Analyse source invalide ou incohérente.",
         ))
     }
+}
+
+pub(crate) fn validate_guidance_size(a: &Analysis) -> Result<(), FabError> {
+    if a.mesh.triangles.len() > 100_000 {
+        return Err(FabError::new(
+            "guidance.limit",
+            "Le guidage interactif reste limité à 100 000 triangles source.",
+        ));
+    }
+    Ok(())
 }
 
 fn candidate(

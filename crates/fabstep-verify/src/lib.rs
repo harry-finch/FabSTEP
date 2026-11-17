@@ -32,7 +32,11 @@ pub fn compare_meshes(
             "La déflexion de tessellation doit être positive et finie.",
         ));
     }
-    let source_tree = Tree::new(source)?;
+    let source_tree = Tree::new_bounded(
+        source,
+        fabstep_core::SOURCE_MAX_TRIANGLES,
+        fabstep_core::SOURCE_MAX_VERTICES,
+    )?;
     let result_tree = Tree::new(result)?;
     let mut work = Work(0);
     let (source_to_result_mm, source_samples) = sample(source, &result_tree, &mut work)?;
@@ -126,10 +130,17 @@ struct Tree {
 }
 impl Tree {
     fn new(mesh: &Mesh) -> Result<Self, FabError> {
+        Self::new_bounded(mesh, MAX_TRIANGLES, MAX_VERTICES)
+    }
+    fn new_bounded(
+        mesh: &Mesh,
+        max_triangles: usize,
+        max_vertices: usize,
+    ) -> Result<Self, FabError> {
         if mesh.triangles.is_empty()
             || mesh.vertices.is_empty()
-            || mesh.triangles.len() > MAX_TRIANGLES
-            || mesh.vertices.len() > MAX_VERTICES
+            || mesh.triangles.len() > max_triangles
+            || mesh.vertices.len() > max_vertices
         {
             return Err(invalid(
                 "Le maillage de comparaison est vide ou dépasse les limites de taille.",
@@ -334,6 +345,24 @@ mod tests {
             vertices: vec![[-2., -2., z], [2., -2., z], [2., 2., z], [-2., 2., z]],
             triangles: vec![[0, 1, 2], [0, 2, 3]],
         }
+    }
+
+    #[test]
+    fn source_storage_profile_never_increases_the_result_tree_cap() {
+        let mut mesh = square(0.);
+        mesh.triangles.resize(MAX_TRIANGLES + 1, [0, 1, 2]);
+        assert!(Tree::new(&mesh).is_err());
+        let source = Tree::new_bounded(
+            &mesh,
+            fabstep_core::SOURCE_MAX_TRIANGLES,
+            fabstep_core::SOURCE_MAX_VERTICES,
+        );
+        if cfg!(feature = "large-stl") {
+            assert!(source.is_ok());
+        } else {
+            assert!(source.is_err());
+        }
+        assert_eq!(MAX_WORK, 50_000_000);
     }
     #[test]
     fn distances_are_to_triangle_interiors_and_work_after_translation() {

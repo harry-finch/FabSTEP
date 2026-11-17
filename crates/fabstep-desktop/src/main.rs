@@ -22,6 +22,7 @@ use tauri_plugin_dialog::DialogExt;
 mod progress;
 mod section;
 mod source_section;
+mod supervisor;
 
 const MAX_SOURCE_BYTES: usize = 64 * 1024 * 1024;
 
@@ -29,6 +30,7 @@ const MAX_SOURCE_BYTES: usize = 64 * 1024 * 1024;
 struct EngineState {
     inner: Mutex<CacheState>,
     uploading: AtomicBool,
+    large_worker: supervisor::WorkerRegistry,
 }
 #[derive(Default)]
 struct CacheState {
@@ -40,6 +42,7 @@ struct CacheState {
     guidance_session: Option<Arc<DocumentStep>>,
     progress_generation: u64,
     progress: Option<progress::ActiveProgress>,
+    cancelled_large: Option<(u64, u64)>,
     face_profile_generation: u64,
     face_profile: Option<FaceProfileContext>,
     section_generation: u64,
@@ -83,6 +86,7 @@ impl CacheState {
             self.face_profile = None;
             self.guidance_session = None;
             self.progress = None;
+            self.cancelled_large = None;
             if self.expected_source != source_id {
                 self.source = None;
             }
@@ -1091,7 +1095,7 @@ fn io_error(e: std::io::Error) -> FabError {
 }
 
 fn main() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(Arc::new(EngineState::default()))
         .invoke_handler(tauri::generate_handler![
@@ -1114,6 +1118,8 @@ fn main() {
             recompute_guidance,
             invalidate_result,
             get_conversion_progress,
+            supervisor::convert_large_document,
+            supervisor::cancel_large_conversion,
             export_step
         ])
         .setup(|app| {
@@ -1127,8 +1133,16 @@ fn main() {
             let _ = app.get_webview_window("main");
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("Impossible de démarrer FabSTEP");
+    app.run(|app, event| {
+        if matches!(
+            event,
+            tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+        ) {
+            app.state::<Arc<EngineState>>().large_worker.shutdown();
+        }
+    });
 }
 
 #[cfg(test)]

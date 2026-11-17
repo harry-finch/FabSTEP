@@ -69,6 +69,8 @@ R-064 : chaque ouverture affiche seulement le maillage ; « Reconstruire le STEP
 R-065 affiche les étapes natives, la sous-opération et le corps courant, avec durée et activité indéterminée pendant les appels longs. 219 tests UI, 38 bureau, Svelte, Clippy et build macOS réussis. Vérification visuelle empêchée par le pilote natif ; V-1189 distingue les preuves et limites. Aucun compteur de zones ni pourcentage de temps estimé.
 
 
-## Refus des STL denses — UX8
+## Gros STL — G1
 
-R-066 affiche le compte exact et le plafond dans l’erreur des STL valides trop denses. FlanschTurboLuftfilter_REV02.STL : 540 170 triangles, refus à 100 000 confirmé par le CLI. Cinq tests lecteur, quatorze tests analyse et 220 UI passent ; preuves V-1190. Aucun relèvement de limite ni simplification du modèle.
+R-066 conserve le compte exact dans les refus ordinaires. R-067 ajoute l’essai explicite des STL binaires jusqu’à 600 000 triangles dans un processus isolé, Annuler, surveillance RSS à 4 Gio et délai de 30 minutes. Aperçu dense hors fil UI ; correction guidée, recherche de paramètres et coupe source non proposées pour ce nouveau domaine. Le bureau/3MF ordinaires et les plafonds résultat restent inchangés.
+
+**V-1191 : 470 tests workspace, 49 bureau, 1 transfert réel, 8 helper, 36 ciblés avec capacité élargie, 229 UI, 12 Python et 4 SDK réussis ; formatage, Clippy, Svelte et builds passent.** `artifacts/FabSTEP.app` embarque les deux binaires vérifiés. Cube dense à 101 568 triangles reconstruit, annulation/récupération prouvées. FlanschTurboLuftfilter_REV02.STL est admis mais reste refusé au budget de contours (`planar.too_complex`, 108 s), sans STEP : piste R-068. Essai graphique complet bloqué par le pilote de dialogue ; qualification utilisateur R-067 ouverte. Détails, mesures et limites : [V-1191](docs/VALIDATION.md).

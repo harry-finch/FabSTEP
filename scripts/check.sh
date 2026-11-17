@@ -17,3 +17,16 @@ cargo fmt --manifest-path crates/fabstep-desktop/Cargo.toml -- --check
 cargo check --manifest-path crates/fabstep-desktop/Cargo.toml --offline --locked
 cargo test --manifest-path crates/fabstep-desktop/Cargo.toml --offline --locked
 cargo clippy --manifest-path crates/fabstep-desktop/Cargo.toml --all-targets --offline --locked -- -D warnings
+# The large-source capability is built in its own target, never into the desktop.
+cargo fmt --manifest-path crates/fabstep-worker/Cargo.toml -- --check
+cargo test --manifest-path crates/fabstep-worker/Cargo.toml --offline --locked
+cargo clippy --manifest-path crates/fabstep-worker/Cargo.toml --all-targets --offline --locked -- -D warnings
+cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib stl::tests
+cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --test source_size_profiles --test analysis --test selection
+cargo test --target-dir crates/fabstep-worker/target -p fabstep-app --features large-stl --offline --locked --test source_size_profiles
+cargo test --target-dir crates/fabstep-worker/target -p fabstep-cad --features large-stl --offline --locked --lib size_profile_tests
+cargo test --target-dir crates/fabstep-worker/target -p fabstep-verify --features large-stl --offline --locked --lib
+if [ "$(uname -s)" = Darwin ]; then
+    cargo build --manifest-path crates/fabstep-worker/Cargo.toml --offline --locked
+    FABSTEP_TEST_WORKER="$PWD/crates/fabstep-worker/target/debug/fabstep-worker" cargo test --manifest-path crates/fabstep-desktop/Cargo.toml --offline --locked real_worker_handoff -- --ignored
+fi

@@ -8,6 +8,7 @@ fn main() {
     println!("cargo:rerun-if-changed=src/occt.cpp");
     println!("cargo:rerun-if-env-changed=OCCT_ROOT");
     println!("cargo:rerun-if-env-changed=HOMEBREW_PREFIX");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_LARGE_STL");
 
     let candidates = if let Some(root) = env::var_os("OCCT_ROOT") {
         vec![PathBuf::from(root)]
@@ -43,7 +44,11 @@ fn main() {
         .unwrap_or_else(|error| panic!("SDK OCCT {} : {error}", version_header.display()));
     println!("cargo:metadata=occt_version={version}");
 
-    cc::Build::new()
+    let mut native = cc::Build::new();
+    if env::var_os("CARGO_FEATURE_LARGE_STL").is_some() {
+        native.define("FABSTEP_LARGE_STL_SOURCE", None);
+    }
+    native
         .cpp(true)
         .std("c++17")
         .flag("-isystem")

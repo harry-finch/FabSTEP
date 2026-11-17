@@ -4,6 +4,8 @@
   import * as THREE from 'three';
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
+  import { largeStlTriangles } from '../lib/large-stl';
+  import { createStlPreviewWorker } from '../lib/stl-preview-worker';
   import {TransformControls} from 'three/examples/jsm/controls/TransformControls.js';
   import { STEP_PALETTE_SIZE, type StepDisplay } from '../lib/step-display';
   import { theme } from '../lib/theme.svelte';
@@ -38,6 +40,9 @@
     const overlay = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ transparent:true, opacity:0.65, side:THREE.DoubleSide, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-2 })); scene.add(overlay);
     const meshes = new Map<string, THREE.Mesh>();
     let renderedRevision = -1, renderedNative = false, renderedStep:ResultFaces|null = null;
+    let renderedBytes:Uint8Array|null=null, renderedUnit=unit, renderedFormat=format;
+    let rawGeneration=0, denseRaw=false;
+    let rawPreview:ReturnType<typeof createStlPreviewWorker>|null=null;
     const gesture = new SourceClickGesture();
     const raycaster = new THREE.Raycaster();
     function finishManipulation(cancelled:boolean,notify=true){
@@ -197,15 +202,18 @@
     };
     rebuild = () => {
       // Les résultats et changements de sélection ne reconstruisent jamais les meshes source.
-      if (renderedRevision === sourceRevision && renderedNative === !!preview && renderedStep === stepPreview) return;
+      if (renderedRevision === sourceRevision && renderedNative === !!preview && renderedStep === stepPreview && renderedBytes === bytes && renderedUnit === unit && renderedFormat === format) return;
       const shouldFit = renderedRevision !== sourceRevision || !meshes.size;
+      const generation=++rawGeneration;rawPreview?.clear();
+      renderedBytes=bytes;renderedUnit=unit;renderedFormat=format;
+      denseRaw=!stepPreview&&!preview&&!!bytes&&largeStlTriangles(bytes,format)!==null;
       renderedRevision = sourceRevision; renderedNative = !!preview; renderedStep = stepPreview; finishPaint(false);gesture.cancel();clicks.clear();
       scene.remove(group); disposeGroup(group); group = new THREE.Group(); scene.add(group); meshes.clear();
-      const addMesh = (id:string, geometry:THREE.BufferGeometry) => {
-        geometry.computeVertexNormals();
+      const addMesh = (id:string, geometry:THREE.BufferGeometry, sourceTriangles?:Uint32Array) => {
+        if(!sourceTriangles)geometry.computeVertexNormals();
         const mesh = new THREE.Mesh(geometry,id === 'step' ? stepMaterial : material);
         mesh.userData.previewBodyId = id;
-        mesh.userData.sourceTriangles = Uint32Array.from({ length:geometry.getAttribute('position').count/3 },(_,i) => i);
+        mesh.userData.sourceTriangles = sourceTriangles??Uint32Array.from({ length:geometry.getAttribute('position').count/3 },(_,i) => i);
         meshes.set(id,mesh); group.add(mesh);
       };
       if (stepPreview) {
@@ -215,7 +223,27 @@
         for (const face of stepPreview.faces) owners.fill(face.id,face.triangle_start,face.triangle_start+face.triangle_count);
         meshes.get('step')!.userData.stepFaces = owners;
       } else if (preview) { for (const body of preview.bodies) { const positions = body.mesh.triangles.flatMap(triangle => triangle.flatMap(index => body.mesh.vertices[index] ?? [])); if (positions.length) { const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); addMesh(body.id,geo); } } }
-      else if (bytes && format === 'stl') { try { const data = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer; const geometry = new STLLoader().parse(data); if (unit === 'inch') geometry.scale(25.4, 25.4, 25.4); addMesh('stl',geometry); } catch { /* Le moteur explique les fichiers invalides. */ } }
+      else if (bytes && format === 'stl') {
+        if(denseRaw) {
+          if(!rawPreview) {
+            try {rawPreview=createStlPreviewWorker(new Worker(new URL('../lib/stl-preview.worker.ts',import.meta.url),{type:'module'}));}
+            catch {/* A dense display never falls back to parsing on the UI thread. */}
+          }
+          const source=bytes,sourceUnit=unit,revision=sourceRevision;
+          void rawPreview?.prepare(source,sourceUnit).then(prepared=>{
+            if(disposing||generation!==rawGeneration||bytes!==source||unit!==sourceUnit||sourceRevision!==revision||preview||stepPreview||format!=='stl')return;
+            const geometry=new THREE.BufferGeometry();
+            geometry.setAttribute('position',new THREE.BufferAttribute(prepared.positions,3));
+            geometry.setAttribute('normal',new THREE.BufferAttribute(prepared.normals,3));
+            geometry.boundingBox=new THREE.Box3(new THREE.Vector3(...prepared.bounds[0] as [number,number,number]),new THREE.Vector3(...prepared.bounds[1] as [number,number,number]));
+            geometry.boundingSphere=new THREE.Sphere(new THREE.Vector3(...prepared.sphere.center as [number,number,number]),prepared.sphere.radius);
+            addMesh('stl',geometry,prepared.sourceTriangles);
+            recolor();highlight();rebuildEdges();if(shouldFit)fit();draw();
+          }).catch(()=>{/* Display refusal leaves the conversion and source intact. */});
+        } else {
+          try { const data = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer; const geometry = new STLLoader().parse(data); if (unit === 'inch') geometry.scale(25.4, 25.4, 25.4); addMesh('stl',geometry); } catch { /* Le moteur explique les fichiers invalides. */ }
+        }
+      }
       recolor(); highlight(); if (shouldFit) fit(); draw();
     };
     rebuildEdges = () => {
@@ -223,7 +251,7 @@
       if (stepPreview && stepDisplay && showEdges) {
         const geo = new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(stepDisplay.boundaries,3));
         const contours = new THREE.LineSegments(geo,stepLineMaterial); contours.renderOrder = 1; edges.add(contours);
-      } else if (!stepPreview && results.length && showEdges) {
+      } else if (!stepPreview && !denseRaw && results.length && showEdges) {
         const points: number[] = [];
         for (const result of results) {
         if (result.rounded_box_recognition) {
@@ -305,7 +333,7 @@
     };
     const resize = new ResizeObserver(() => { const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); draw(); }); resize.observe(host);
     recolor(); rebuild(); rebuildEdges();
-    return () => { disposing=true;window.removeEventListener('keydown',cancelPaintKey,true);finishPaint(false);updatePicking=()=>{};renderer.domElement.removeEventListener('pointerdown',paintDown,true);renderer.domElement.removeEventListener('lostpointercapture',paintLost);if(manipulation.blocksPicking())finishManipulation(true,false);updateSectionControls=()=>{};transform.removeEventListener('mouseDown',transformDown);transform.removeEventListener('mouseUp',transformUp);transform.removeEventListener('objectChange',transformChanged);transform.removeEventListener('change',draw);transform.dispose();resize.disconnect(); controls.dispose();renderer.domElement.removeEventListener('pointerdown',claimManipulation,true);for(const type of ['pointermove','pointerup','pointercancel'])renderer.domElement.removeEventListener(type,guardOtherPointer as EventListener,true);renderer.domElement.removeEventListener('lostpointercapture',lostCapture);window.removeEventListener('keydown',cancelTransformKey,true); renderer.domElement.removeEventListener('pointerdown',pointerDown); renderer.domElement.removeEventListener('pointermove',pointerMove); renderer.domElement.removeEventListener('pointerup',pointerUp); renderer.domElement.removeEventListener('pointercancel',pointerCancel); window.removeEventListener('blur',pointerCancel); disposeGroup(edges);disposeSection();overlay.geometry.dispose(); overlay.material.dispose(); cancelAnimationFrame(frame); group.traverse(o => { if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) o.geometry.dispose(); }); material.dispose(); stepMaterial.dispose(); lineMaterial.dispose(); stepLineMaterial.dispose(); renderer.dispose(); renderer.domElement.remove(); };
+    return () => { disposing=true;rawGeneration++;rawPreview?.dispose();window.removeEventListener('keydown',cancelPaintKey,true);finishPaint(false);updatePicking=()=>{};renderer.domElement.removeEventListener('pointerdown',paintDown,true);renderer.domElement.removeEventListener('lostpointercapture',paintLost);if(manipulation.blocksPicking())finishManipulation(true,false);updateSectionControls=()=>{};transform.removeEventListener('mouseDown',transformDown);transform.removeEventListener('mouseUp',transformUp);transform.removeEventListener('objectChange',transformChanged);transform.removeEventListener('change',draw);transform.dispose();resize.disconnect(); controls.dispose();renderer.domElement.removeEventListener('pointerdown',claimManipulation,true);for(const type of ['pointermove','pointerup','pointercancel'])renderer.domElement.removeEventListener(type,guardOtherPointer as EventListener,true);renderer.domElement.removeEventListener('lostpointercapture',lostCapture);window.removeEventListener('keydown',cancelTransformKey,true); renderer.domElement.removeEventListener('pointerdown',pointerDown); renderer.domElement.removeEventListener('pointermove',pointerMove); renderer.domElement.removeEventListener('pointerup',pointerUp); renderer.domElement.removeEventListener('pointercancel',pointerCancel); window.removeEventListener('blur',pointerCancel); disposeGroup(edges);disposeSection();overlay.geometry.dispose(); overlay.material.dispose(); cancelAnimationFrame(frame); group.traverse(o => { if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) o.geometry.dispose(); }); material.dispose(); stepMaterial.dispose(); lineMaterial.dispose(); stepLineMaterial.dispose(); renderer.dispose(); renderer.domElement.remove(); };
   });
   $effect(() => { void bytes; void preview; void format; void unit; void sourceRevision; void stepPreview; rebuild(); });
   $effect(() => { void results; void showEdges; void stepPreview; void stepDisplay; rebuildEdges(); });

@@ -10,7 +10,7 @@ La [roadmap détaillée](ROADMAP.md) et la [recherche technique](docs/POST_V1_RE
 
 ### Reconstruire et corriger dans le build de développement
 
-**Ouvrir STL / 3MF** lance désormais **Automatique** : le moteur recherche les familles compatibles, conserve les régions prouvées et garde les zones incertaines en facettes. Il ne modifie pas les tolérances en silence. Le document entier doit passer les contrôles source, solide réimporté, dimensions, volume et fidélité avant export. Un défaut du maillage, des corps en contact ou une limite de calcul dépassée restent bloquants.
+**Ouvrir STL / 3MF** affiche le maillage. **Reconstruire le STEP**, dans l’inspecteur, lance **Automatique** : le moteur recherche les familles compatibles, conserve les régions prouvées et garde les zones incertaines en facettes. Il ne modifie pas les tolérances en silence. Le document entier doit passer les contrôles source, solide réimporté, dimensions, volume et fidélité avant export. Un défaut du maillage, des corps en contact ou une limite de calcul dépassée restent bloquants.
 
 La vue passe au **Résultat STEP** après conversion. **Double-cliquer sur une face** sélectionne sa paroi prouvée, sans propager la sélection à tout le corps ; **Maj-clic** ajoute ou retire une face. En mode sélection STEP, **maintenir le clic gauche et glisser** ajoute les faces visibles survolées à la sélection ; repasser dessus ne les retire pas. Le bouton droit tourne la pièce, le bouton du milieu déplace la vue et la molette zoome. Sans paroi prouvée, la sélection reste limitée à une face ou un refus est expliqué. Les commandes de voisinage Agrandir/Réduire sont dans Avancé de la sélection. Le calcul de sélection est une lecture : il ne retire pas un export valide. Une demande active et la dernière demande en attente bornent les double-clics successifs.
 
@@ -21,6 +21,14 @@ Dans la barre contextuelle, choisir **Auto, Plan, Cylindre, Cône ou Tore**, pui
 **Avancé** conserve les stratégies historiques (facettes, cylindres, cônes et surfaces arrondies), les tolérances et la recherche de paramètres. La première ouverture du nouveau parcours sélectionne Auto tout en conservant unité et tolérances enregistrées ; les choix explicites suivants restent mémorisés. Les anciens résultats sans provenance exacte proposent encore une préparation explicite vers les facettes. **Détails techniques** rassemble les diagnostics de routine, sans cacher les erreurs ni les avertissements géométriques.
 
 Limites : Auto ne reconnaît pas les formes libres ; certains arcs ouverts partageant des contours ambigus restent facettisés par prudence. Le reconnaisseur spécifique des boîtiers arrondis reste dans la stratégie avancée Surfaces arrondies : son modèle dédié n’entre pas encore dans la correction locale. Voir [ADR-0029](docs/adr/0029-automatic-local-reconstruction.md), [R-057](roadmap/items/R-057-ux5-reconstruction-automatique-et-selection-des.md) et [VALIDATION](docs/VALIDATION.md).
+
+### Essayer un gros STL — build de développement
+
+Un STL binaire de 100 001 à 600 000 triangles affiche un avertissement et son compte exact. **Essayer quand même** lance un processus séparé ; **Annuler** l’arrête et conserve le fichier chargé. L’accord est remis à zéro à chaque nouveau fichier. La limite de 64 Mio demeure et aucune simplification automatique n’est effectuée. Le processus est également arrêté après 30 minutes ou au-delà de 4 Gio de mémoire résidente observée.
+
+L’essai ne garantit pas la conversion : la validité géométrique, les budgets de travail et les plafonds du résultat restent obligatoires. Dans cette première tranche, correction guidée, recherche de paramètres et coupe source sont indisponibles pour ces nouveaux fichiers denses. Les fonctions habituelles restent disponibles sous le seuil. Voir [ADR-0034](docs/adr/0034-isolated-large-stl-worker.md) et [R-067](roadmap/items/R-067-g1-gros-maillages-sur-accord-et-calcul-annulable.md).
+
+Le script `scripts/build-macos-dev.sh` construit le bureau et son helper séparément et copie les deux dans `artifacts/FabSTEP.app`. Ne pas activer `large-stl` sur le bureau ordinaire ni réunir leurs builds Cargo. Le paquet autonome v1 n’est pas modifié.
 
 ### Exporter une face en DXF — build de développement
 

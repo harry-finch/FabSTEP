@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["crates/fabstep-core", "crates/fabstep-import", "crates/fabstep-cad", "crates/fabstep-verify", "crates/fabstep-app", "crates/fabstep-cli"]
-exclude = ["crates/fabstep-desktop"]
+exclude = ["crates/fabstep-desktop", "crates/fabstep-worker"]
 
 [workspace.package]
 version = "1.0.0"

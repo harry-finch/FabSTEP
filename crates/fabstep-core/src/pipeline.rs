@@ -141,10 +141,16 @@ fn read_stl_mm(bytes: &[u8], options: &Options) -> Result<Vec<[V; 3]>, FabError>
 }
 
 fn mesh_triangles(mesh: &Mesh) -> Result<Vec<[V; 3]>, FabError> {
-    if mesh.triangles.len() > crate::stl::MAX_TRIANGLES || mesh.vertices.len() > 300_000 {
+    if mesh.triangles.len() > crate::SOURCE_MAX_TRIANGLES
+        || mesh.vertices.len() > crate::SOURCE_MAX_VERTICES
+    {
         return Err(FabError::new(
             "input.too_many_triangles",
-            "Maillage limité à 100 000 triangles et 300 000 sommets.",
+            format!(
+                "Maillage limité à {} triangles et {} sommets.",
+                crate::SOURCE_MAX_TRIANGLES,
+                crate::SOURCE_MAX_VERTICES
+            ),
         ));
     }
     if mesh.vertices.iter().flatten().any(|x| !x.is_finite()) {
@@ -183,7 +189,10 @@ fn validate_raw(raw: &[[V; 3]], options: &Options) -> Result<(), FabError> {
     if raw.len() > crate::stl::MAX_TRIANGLES {
         return Err(FabError::new(
             "input.too_many_triangles",
-            "Maillage limité à 100 000 triangles.",
+            format!(
+                "Maillage limité à {} triangles.",
+                crate::SOURCE_MAX_TRIANGLES
+            ),
         ));
     }
     if raw.iter().flatten().flatten().any(|c| !c.is_finite()) {

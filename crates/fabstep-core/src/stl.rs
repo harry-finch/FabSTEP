@@ -1,6 +1,6 @@
 use crate::FabError;
 
-pub(crate) const MAX_TRIANGLES: usize = 100_000;
+pub(crate) const MAX_TRIANGLES: usize = crate::SOURCE_MAX_TRIANGLES;
 const MAX_BYTES: usize = 64 * 1024 * 1024;
 
 pub(crate) fn read(bytes: &[u8]) -> Result<Vec<[[f64; 3]; 3]>, FabError> {
@@ -141,6 +141,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "large-stl"))]
     fn binary_oversize_reports_the_exact_length_validated_triangle_count() {
         let count = 540_170u32;
         let mut source = vec![0; 84 + 50 * count as usize];
@@ -165,7 +166,10 @@ mod tests {
         let count = MAX_TRIANGLES + 17;
         let error = read(ascii_source(count, "").as_bytes()).unwrap_err();
         assert_eq!(error.code, "input.too_many_triangles");
-        assert_eq!(error.message, "STL : 100017 triangles ; limite : 100000.");
+        assert_eq!(
+            error.message,
+            format!("STL : {count} triangles ; limite : {MAX_TRIANGLES}.")
+        );
     }
 
     #[test]
@@ -189,5 +193,31 @@ mod tests {
         let tiny = read(ascii_source(1, "").as_bytes()).unwrap();
         assert_eq!(tiny.len(), 1);
         assert_eq!(tiny.capacity(), 1);
+    }
+
+    #[test]
+    fn binary_source_cap_is_checked_before_triangle_allocation() {
+        let count = MAX_TRIANGLES + 1;
+        let mut source = vec![0; 84 + 50 * count];
+        source[80..84].copy_from_slice(&(count as u32).to_le_bytes());
+        let error = read(&source).unwrap_err();
+        assert_eq!(error.code, "input.too_many_triangles");
+        assert_eq!(
+            error.message,
+            format!("STL : {count} triangles ; limite : {MAX_TRIANGLES}.")
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "large-stl")]
+    fn isolated_reader_accepts_the_540170_record_count_without_claiming_valid_geometry() {
+        let count = 540_170usize;
+        let mut source = vec![0; 84 + 50 * count];
+        source[80..84].copy_from_slice(&(count as u32).to_le_bytes());
+        let raw = read(&source).unwrap();
+        assert_eq!(raw.len(), count);
+        assert_eq!(raw.capacity(), count);
+        // Zero records only prove reader storage/count handling. Topology and
+        // native validation still reject this degenerate synthetic input.
     }
 }

@@ -255,6 +255,14 @@ struct CadFailure {
   std::string message;
 };
 
+constexpr size_t result_face_limit = 100'000;
+#ifdef FABSTEP_LARGE_STL_SOURCE
+constexpr size_t source_triangle_limit = 600'000;
+#else
+constexpr size_t source_triangle_limit = 100'000;
+#endif
+constexpr size_t source_vertex_limit = 3 * source_triangle_limit;
+
 struct SurfaceCounts {
   size_t planar;
   size_t cylindrical;
@@ -433,7 +441,20 @@ void track_sewn_faces(const TopoDS_Solid& solid, BRepBuilderAPI_Sewing& sewing,
 TopoDS_Solid build_solid(
     const double* points, size_t point_count, const double* normals, size_t face_count,
     const size_t* face_loops, const size_t* loop_vertices, const size_t* vertex_ids,
-    const size_t* tokens = nullptr, FaceLabels* labels = nullptr) {
+    const size_t* tokens = nullptr, FaceLabels* labels = nullptr,
+    bool source = false) {
+  const size_t face_limit = source ? source_triangle_limit : result_face_limit;
+  if (face_count > face_limit || point_count > source_vertex_limit) {
+    throw CadFailure{invalid_model, "Le modèle planaire dépasse les limites de son profil source ou résultat."};
+  }
+  if (source && face_count > result_face_limit) {
+    for (size_t i = 0; i < face_count; ++i) {
+      if (face_loops[i + 1] - face_loops[i] != 1 ||
+          loop_vertices[face_loops[i] + 1] - loop_vertices[face_loops[i]] != 3) {
+        throw CadFailure{invalid_model, "Le profil source étendu exige des faces triangulaires."};
+      }
+    }
+  }
   IndexedWires wires(points, point_count);
   BRepBuilderAPI_Sewing sewing(Precision::Confusion());
   sewing.SetMaxTolerance(Precision::Confusion());
@@ -1763,6 +1784,16 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
     }
     stage = invalid_solid;
     auto report = measure_solid(shape, stage);
+    size_t total_faces = report.metrics.faces;
+    for (const auto& body : before) {
+      if (body.report.metrics.faces > result_face_limit - std::min(total_faces, result_face_limit)) {
+        throw CadFailure{invalid_model, "Le document STEP dépasse 100 000 faces résultat."};
+      }
+      total_faces += body.report.metrics.faces;
+    }
+    if (total_faces > result_face_limit) {
+      throw CadFailure{invalid_model, "Le document STEP dépasse 100 000 faces résultat."};
+    }
     before.push_back({std::move(shape), report});
   }
   check_bodies_separated(before, parts);
@@ -2882,6 +2913,14 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
                    FaceLabels* labels = nullptr) noexcept {
   *output = {};
   return with_occt(invalid_model, error, error_capacity, [&](Status& stage) {
+    size_t face_count = 0;
+    for (const size_t count : {expected.planar, expected.cylindrical, expected.conical,
+                               expected.spherical, expected.toroidal}) {
+      if (count > result_face_limit - face_count) {
+        throw CadFailure{invalid_model, "Le STEP reconstruit dépasse 100 000 faces résultat."};
+      }
+      face_count += count;
+    }
     const TopoDS_Solid solid = build();
     stage = invalid_solid;
     const CadMetrics before = measure(solid, expected, stage, expected_box);
@@ -2943,7 +2982,7 @@ extern "C" int fabstep_validate_source(
   *output = {};
   return with_occt(invalid_model, error, error_capacity, [&](Status& stage) {
     const auto solid = build_solid(points, point_count, normals, face_count,
-                                   face_loops, loop_vertices, vertex_ids);
+                                   face_loops, loop_vertices, vertex_ids, nullptr, nullptr, true);
     stage = invalid_solid;
     *output = measure(solid, {face_count, 0}, stage);
   });
@@ -3206,13 +3245,21 @@ extern "C" int fabstep_combine_steps_with_provenance(
 extern "C" int fabstep_validate_sources_separated(const PlanarPartInput* parts, size_t count,
                                                    char* error, size_t error_capacity) noexcept {
   return with_occt(invalid_model, error, error_capacity, [&](Status& stage) {
+    if (count == 0 || count > 32) throw CadFailure{invalid_model, "Le document source est limité à 32 corps."};
+    size_t total_triangles = 0, total_vertices = 0;
     std::vector<Body> bodies;
     bodies.reserve(count);
     for (size_t i = 0; i < count; ++i) {
       const auto& p = parts[i];
+      if (p.face_count > source_triangle_limit - total_triangles ||
+          p.point_count > source_vertex_limit - total_vertices) {
+        throw CadFailure{invalid_model, "Le document dépasse les limites cumulées du profil source."};
+      }
+      total_triangles += p.face_count;
+      total_vertices += p.point_count;
       stage = invalid_model;
       auto shape = build_solid(p.points, p.point_count, p.normals, p.face_count,
-                               p.face_loops, p.loop_vertices, p.vertex_ids);
+                               p.face_loops, p.loop_vertices, p.vertex_ids, nullptr, nullptr, true);
       stage = invalid_solid;
       const SurfaceCounts expected{p.face_count, 0};
       auto report = measure_solid(shape, stage, &expected);
