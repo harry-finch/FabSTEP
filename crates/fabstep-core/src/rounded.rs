@@ -846,18 +846,8 @@ fn classify(
     }
     // Discover genuine complete intermediate circles from horizontal source edges.
     let selected: BTreeSet<_> = triangles.iter().copied().collect();
-    let mut incident: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
-    work.spend(edges.len())?;
-    for (&(u, v), uses) in edges {
-        if uses.iter().any(|t| selected.contains(t))
-            && projected.contains_key(&u)
-            && projected.contains_key(&v)
-            && (projected[&u][2] - projected[&v][2]).abs() <= tol
-        {
-            incident.entry(u).or_default().push(v);
-            incident.entry(v).or_default().push(u);
-        }
-    }
+    let incident =
+        horizontal_patch_incident(&a.mesh, &triangles, &selected, &projected, edges, tol, work)?;
     let mut visited = BTreeSet::new();
     for &start in incident.keys() {
         if visited.contains(&start) {
@@ -1197,6 +1187,78 @@ fn classify(
         sphere: None,
         triangles,
     })
+}
+
+fn local_patch_edges(
+    mesh: &crate::Mesh,
+    triangles: &[usize],
+    work: &mut Work,
+) -> Result<BTreeSet<Edge>, FabError> {
+    // Precharge the real three insertions per source triangle before allocating
+    // an index. Shared edges retain their original source vertex identifiers.
+    work.spend(triangles.len().saturating_mul(3))?;
+    let mut local = BTreeSet::new();
+    for &triangle in triangles {
+        let [a, b, c] = mesh.triangles[triangle];
+        for (u, v) in [(a, b), (b, c), (c, a)] {
+            local.insert(edge(u, v));
+        }
+    }
+    Ok(local)
+}
+
+fn horizontal_patch_incident(
+    mesh: &crate::Mesh,
+    triangles: &[usize],
+    selected: &BTreeSet<usize>,
+    projected: &BTreeMap<usize, V>,
+    edges: &BTreeMap<Edge, Vec<usize>>,
+    tol: f64,
+    work: &mut Work,
+) -> Result<BTreeMap<usize, Vec<usize>>, FabError> {
+    // Global traversal costs E; the local construction plus traversal costs at
+    // most 3T + 3T. Keep the historical path when that bound cannot improve it.
+    // This choice is made before any search; an exhausted budget is never retried.
+    if edges.len() <= triangles.len().saturating_mul(6) {
+        work.spend(edges.len())?;
+        return Ok(collect_horizontal_edges(
+            edges.iter().map(|(&key, uses)| (key, uses.as_slice())),
+            selected,
+            projected,
+            tol,
+        ));
+    }
+    let local = local_patch_edges(mesh, triangles, work)?;
+    work.spend(local.len())?;
+    Ok(collect_horizontal_edges(
+        local.into_iter().map(|key| (key, edges[&key].as_slice())),
+        selected,
+        projected,
+        tol,
+    ))
+}
+
+fn collect_horizontal_edges<'a>(
+    candidates: impl Iterator<Item = (Edge, &'a [usize])>,
+    selected: &BTreeSet<usize>,
+    projected: &BTreeMap<usize, V>,
+    tol: f64,
+) -> BTreeMap<usize, Vec<usize>> {
+    let mut incident: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    for ((u, v), uses) in candidates {
+        // Incidences always come from the complete source mesh, including the
+        // other side of a patch boundary. Predicate order and arithmetic match
+        // the original full-map scan exactly. BTree traversal preserves order.
+        if uses.iter().any(|t| selected.contains(t))
+            && projected.contains_key(&u)
+            && projected.contains_key(&v)
+            && (projected[&u][2] - projected[&v][2]).abs() <= tol
+        {
+            incident.entry(u).or_default().push(v);
+            incident.entry(v).or_default().push(u);
+        }
+    }
+    incident
 }
 
 // Returns the upper arc's major radius. The two source planes fix the axial
@@ -2043,5 +2105,213 @@ mod trim_regression {
             .unwrap();
             assert!(errors.radial >= displacement * (1. - 1e-8));
         }
+    }
+}
+
+#[cfg(test)]
+mod horizontal_patch_edge_tests {
+    use super::*;
+
+    fn mesh() -> crate::Mesh {
+        crate::analyze_stl(
+            include_bytes!("../../../fixtures/cube.stl"),
+            &Options::default(),
+        )
+        .unwrap()
+        .mesh
+    }
+    fn global_edges(mesh: &crate::Mesh) -> BTreeMap<Edge, Vec<usize>> {
+        let mut edges = BTreeMap::<Edge, Vec<usize>>::new();
+        for (t, &[a, b, c]) in mesh.triangles.iter().enumerate() {
+            for (u, v) in [(a, b), (b, c), (c, a)] {
+                edges.entry(edge(u, v)).or_default().push(t);
+            }
+        }
+        edges
+    }
+    fn oracle(
+        edges: &BTreeMap<Edge, Vec<usize>>,
+        selected: &BTreeSet<usize>,
+        projected: &BTreeMap<usize, V>,
+        tol: f64,
+    ) -> BTreeMap<usize, Vec<usize>> {
+        // Original global loop, independent of the new candidate iterator.
+        let mut incident = BTreeMap::<usize, Vec<usize>>::new();
+        for (&(u, v), uses) in edges {
+            if uses.iter().any(|t| selected.contains(t))
+                && projected.contains_key(&u)
+                && projected.contains_key(&v)
+                && (projected[&u][2] - projected[&v][2]).abs() <= tol
+            {
+                incident.entry(u).or_default().push(v);
+                incident.entry(v).or_default().push(u);
+            }
+        }
+        incident
+    }
+
+    #[test]
+    fn local_membership_is_exact_for_interior_and_boundary_edges() {
+        let mesh = mesh();
+        let edges = global_edges(&mesh);
+        let triangles = [0, 1];
+        let selected: BTreeSet<_> = triangles.into_iter().collect();
+        let local = local_patch_edges(&mesh, &triangles, &mut Work::default()).unwrap();
+        let expected: BTreeSet<_> = edges
+            .iter()
+            .filter(|(_, uses)| uses.iter().any(|t| selected.contains(t)))
+            .map(|(&key, _)| key)
+            .collect();
+        assert_eq!(local, expected);
+        assert_eq!(local.len(), 5);
+        assert!(local
+            .iter()
+            .any(|key| edges[key].iter().all(|t| selected.contains(t))));
+        assert!(local
+            .iter()
+            .any(|key| edges[key].iter().any(|t| !selected.contains(t))));
+    }
+
+    #[test]
+    fn local_and_global_paths_match_original_order_projection_and_tolerance() {
+        let mesh = mesh();
+        let edges = global_edges(&mesh);
+        let tol = 1e-5_f64;
+        let heights = [
+            0.,
+            tol,
+            f64::from_bits(tol.to_bits() + 1),
+            2. * tol,
+            -tol,
+            f64::from_bits(tol.to_bits() - 1),
+        ];
+        for triangles in [
+            vec![0],
+            vec![0, 1],
+            vec![7, 0],
+            (0..mesh.triangles.len()).collect(),
+        ] {
+            let selected: BTreeSet<_> = triangles.iter().copied().collect();
+            for subset in [false, true] {
+                for near_tolerance in [false, true] {
+                    let mut projected: BTreeMap<_, _> = mesh
+                        .vertices
+                        .iter()
+                        .enumerate()
+                        .map(|(id, &p)| {
+                            let mut q = p;
+                            if near_tolerance {
+                                q[2] = heights[id % heights.len()];
+                            }
+                            (id, q)
+                        })
+                        .collect();
+                    if subset {
+                        let vertices: BTreeSet<_> =
+                            triangles.iter().flat_map(|&t| mesh.triangles[t]).collect();
+                        projected.retain(|id, _| vertices.contains(id));
+                        projected.remove(&mesh.triangles[triangles[0]][0]);
+                    }
+                    let expected = oracle(&edges, &selected, &projected, tol);
+                    let actual = horizontal_patch_incident(
+                        &mesh,
+                        &triangles,
+                        &selected,
+                        &projected,
+                        &edges,
+                        tol,
+                        &mut Work::default(),
+                    )
+                    .unwrap();
+                    assert_eq!(
+                        actual, expected,
+                        "vectors must preserve global BTree traversal order"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn construction_and_traversal_are_charged_exactly_and_exhaustion_is_blocking() {
+        let mesh = mesh();
+        let edges = global_edges(&mesh);
+        assert_eq!(edges.len(), 18);
+        let projected = mesh.vertices.iter().copied().enumerate().collect();
+        for (triangles, cost) in [
+            (vec![0], 6),
+            (vec![0, 1], 11),
+            ((0..mesh.triangles.len()).collect(), 18),
+        ] {
+            let selected = triangles.iter().copied().collect();
+            let mut exact = Work::default();
+            exact.spend(10_000_000 - cost).unwrap();
+            horizontal_patch_incident(
+                &mesh, &triangles, &selected, &projected, &edges, 1e-5, &mut exact,
+            )
+            .unwrap();
+            assert_eq!(exact.spend(1).unwrap_err().code, "recognition.too_complex");
+            let mut short = Work::default();
+            short.spend(10_000_000 - cost + 1).unwrap();
+            assert_eq!(
+                horizontal_patch_incident(
+                    &mesh, &triangles, &selected, &projected, &edges, 1e-5, &mut short
+                )
+                .unwrap_err()
+                .code,
+                "recognition.too_complex"
+            );
+            assert_eq!(short.spend(0).unwrap_err().code, "recognition.too_complex");
+        }
+        let mut exhausted = Work::default();
+        exhausted.spend(10_000_000).unwrap();
+        assert_eq!(
+            local_patch_edges(&mesh, &[0, 1], &mut exhausted)
+                .unwrap_err()
+                .code,
+            "recognition.too_complex"
+        );
+    }
+
+    #[test]
+    #[ignore = "collector-only timing; disconnected test copies do not claim an admissible source document"]
+    fn benchmark_sparse_patch_avoids_global_source_edge_scan() {
+        use std::time::Instant;
+        let base = mesh();
+        let mut mesh = crate::Mesh {
+            vertices: vec![],
+            triangles: vec![],
+        };
+        for copy in 0..4096 {
+            let offset = mesh.vertices.len();
+            mesh.vertices.extend(
+                base.vertices
+                    .iter()
+                    .map(|p| [p[0] + copy as f64 * 40., p[1], p[2]]),
+            );
+            mesh.triangles
+                .extend(base.triangles.iter().map(|t| t.map(|v| v + offset)));
+        }
+        let edges = global_edges(&mesh);
+        let triangles = [0, 1];
+        let selected = triangles.into_iter().collect();
+        let projected = mesh.vertices.iter().copied().enumerate().collect();
+        let start = Instant::now();
+        let old = oracle(&edges, &selected, &projected, 1e-5);
+        let old_time = start.elapsed();
+        let start = Instant::now();
+        let new = horizontal_patch_incident(
+            &mesh,
+            &triangles,
+            &selected,
+            &projected,
+            &edges,
+            1e-5,
+            &mut Work::default(),
+        )
+        .unwrap();
+        let new_time = start.elapsed();
+        assert_eq!(old, new);
+        eprintln!("horizontal source edges: global={} units time={old_time:?}; local=11 units time={new_time:?}",edges.len());
     }
 }

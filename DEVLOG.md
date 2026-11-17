@@ -332,3 +332,10 @@ Contrôles et essais réels consignés dans V-1191 : cube 101 568 triangles vali
 G2 conserve les prédicats historiques et remplace la recherche exhaustive des couples d’arêtes par un index spatial déterministe au-delà de 64 segments, dans un domaine numérique démontré. Construction et parcours débitent le même budget de cinq millions ; aucune tolérance ni limite G1 n’est augmentée. Revue indépendante favorable après correction des réservations et copies ; tests différentiels, cas adverses et prisme dense ajoutés.
 
 Le fichier privé de 540 170 triangles franchit désormais les contours, puis atteint `recognition.too_complex` : aucun STEP n’est produit. L’idée R-069 suit ce second coût, sans élargissement opportuniste de G2. Les mesures locales et la validation complète sont centralisées dans V-1192. Le benchmark de contours isolé ne constitue pas une accélération mesurée de la conversion entière.
+
+
+## 17 novembre 2026 — R-069, préparation et reconnaissance denses
+
+G3 réutilise le soudage et la topologie du mono-corps identité, et limite le scan des arêtes horizontales à celles du patch lorsque son coût borné est inférieur au scan global. Le multi-corps, les prédicats, les incidences complètes et les budgets restent inchangés. Revue indépendante favorable ; huit tests de régression ajoutés et deux benchmarks opt-in exécutés.
+
+Sur Flansch (540 170 triangles), l’analyse historique et réutilisée est identique bit à bit, pour 99 s contre 51 s dans le benchmark dédié. L’essai complet passe de 111 à 66 s, mais reste refusé : le budget partagé est désormais épuisé dans la recherche des arcs ouverts, sans STEP produit. Cette suite devient l’idée R-070/G4 ; sa recherche non monotone ne doit pas être raccourcie sans preuve. Mesures, tests et limites : V-1193 dans VALIDATION.

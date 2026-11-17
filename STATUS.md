@@ -80,4 +80,11 @@ R-066 conserve le compte exact dans les refus ordinaires. R-067 ajoute l’essai
 
 R-068 ajoute un filtrage spatial borné, sans changer les prédicats ni les seuils. **V-1192 : 476 tests workspace, 49 bureau, 1 transfert réel, 8 helper, 46 ciblés `large-stl`, 229 UI, 12 Python et 4 SDK réussis** ; benchmark opt-in, formatage, Clippy, Svelte et builds passent. Les deux exécutables de `artifacts/FabSTEP.app` correspondent aux builds vérifiés.
 
-Le fichier Flansch de 540 170 triangles franchit les contours, puis refuse sur `recognition.too_complex` après 108,8 s : **aucun STEP produit**. Le gain mesuré sur les contours isolés ne vaut pas gain global de conversion. La suite est suivie dans R-069 (idée) ; R-068 attend sa qualification utilisateur. Mesures, domaine numérique, limites et contrôles : [V-1192](docs/VALIDATION.md). Aucun nouvel essai graphique ou Fusion revendiqué.
+Le fichier Flansch de 540 170 triangles franchit les contours, puis refuse sur `recognition.too_complex` après 108,8 s : **aucun STEP produit**. Le gain mesuré sur les contours isolés ne vaut pas gain global de conversion. R-069 (G3 ci-dessous) prolonge cette optimisation ; R-068 attend sa qualification utilisateur. Mesures, domaine numérique, limites et contrôles : [V-1192](docs/VALIDATION.md). Aucun nouvel essai graphique ou Fusion revendiqué.
+
+
+## Préparation et reconnaissance denses — G3
+
+R-069 réutilise la préparation mono-corps strictement identique et visite les arêtes locales des patchs lorsque cela évite un scan global. Prédicats, provenance et budgets conservés. Sur Flansch (540 170 triangles), le benchmark d’analyse passe de **99 à 51 s avec égalité bit à bit**. L’essai complet passe de 111 à 66 s, mais **aucun STEP n’est produit** : le budget partagé est désormais épuisé dans la recherche d’arcs ouverts (`partial::candidates`). Suite R-070/G4 au stade idée.
+
+**V-1193 : 484 tests workspace, 49 bureau, 8 helper, 54 ciblés `large-stl`, 1 transfert réel, 229 UI, 12 Python et 4 SDK réussis**, avec deux benchmarks opt-in, formatage, Clippy, Svelte et builds réussis. `artifacts/FabSTEP.app` contient les deux exécutables vérifiés ; R-069 attend sa qualification utilisateur. Mesures et limites dans [V-1193](docs/VALIDATION.md). Aucun nouvel essai graphique ni Fusion.

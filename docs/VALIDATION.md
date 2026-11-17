@@ -1316,3 +1316,35 @@ Journaux locaux non versionnés : `artifacts/g2/{flansch-before.json,flansch-aft
 `scripts/check.sh` termine avec code 0 : **476 tests workspace réussis**, 13 opt-in ignorés par défaut (le nouveau benchmark exécuté séparément réussit) ; **49 bureau**, 1 transfert réel opt-in exécuté après le passage ordinaire ; **8 helper** ; **46 ciblés avec `large-stl`** (dont les neuf tests de contours et le prisme) ; **229 UI**, **12 Python**, **4 SDK**. Formatage, Clippy strict workspace/bureau/helper, contrôle bureau hors workspace, Svelte (0 erreur/0 avertissement) et build UI réussis. Les plafonds source et résultat sont revérifiés dans les deux profils. Aucun échec dans la suite globale finale ; une compilation intermédiaire pendant écriture a signalé deux littéraux Rust incomplets, corrigés avant cette suite.
 
 `scripts/build-macos-dev.sh` réussit. `artifacts/FabSTEP.app` contient les exécutables identiques aux builds (SHA-256 bureau `6bfedb1969f6d45707ee44101930e514fe2a795b4096a9ddb032a58e664cf322`, helper `8462b4d5c43c6cc843842299c7353982fbd8d2080e041323d866b2e2e98fabf8`). Le paquet autonome 1.0.0 reste inchangé. Aucun nouvel essai graphique ni Fusion exécuté ; l’interface n’est pas modifiée. Le parcours manuel dense et l’annulation restent à qualifier dans l’action utilisateur R-068.
+
+
+## V-1193 — G3 : préparation réutilisée et recherches d’arêtes locales (17 novembre 2026)
+
+R-069 comporte deux optimisations locales du core, sans nouveau contrat public ni changement de tolérance. `pipeline.rs` conserve le soudage, ses statistiques et l’adjacence globale originale uniquement pour un mono-corps dont les indices source sont exactement 0..N. La finition volume/inversion et la segmentation restent partagées avec le parcours historique. Les corps multiples gardent leur préparation séparée, après libération du maillage et de l’adjacence globaux.
+
+Dans `rounded::classify`, l’union des arêtes des triangles du patch remplace le scan global lorsqu’une borne 6T est inférieure à E. Trois insertions par triangle puis une unité par arête locale sont débitées avant les opérations correspondantes. Le scan global historique reste préféré pour les grandes couvertures ; aucun repli n’est tenté après épuisement. Les incidences du maillage entier, l’ordre BTree et le prédicat de hauteur sont inchangés. Le budget reste à dix millions.
+
+**Preuves et revue :** le premier dépassement a été localisé par LLDB dans le binaire G2, `rounded.rs:850`, avec un débit de 810 255 unités. La revue indépendante du diff G3 est favorable. Cinq tests de préparation comparent bits des coordonnées/normales/volume/dimensions, triangles, contours, diagnostics et provenance ; ils couvrent unités, soudage déplacé et choix du représentant, inversion, composantes entrelacées, premiers refus et annulation coopérative. Trois tests du collecteur comparent l’oracle global avec appartenance intérieure/frontière, projections partielles, seuils à une ULP, ordre et débits exacts (6, 11 et 18 unités).
+
+### Mesures et refus restant
+
+Build debug, même Mac et mêmes options que V-1192 ; mesures chronométrées sans débogueur ni autre calcul lourd concurrent. Un passage par version, donc pas de garantie de latence. Fichier privé FlanschTurboLuftfilter_REV02.STL, 540 170 triangles :
+
+| Version | Entrée en reconnaissance | Fin de l’essai | RSS maximale échantillonnée | Résultat |
+| --- | --- | --- | --- | --- |
+| G2 (`ffcb5d4`) | 97,329 s | 111,285 s | 489,94 Mio | `recognition.too_complex`, scan global des arêtes |
+| G3 | 50,910 s | 66,177 s | 541,33 Mio | `recognition.too_complex`, recherche des arcs ouverts |
+
+La phase d’analyse passe à environ 52 % de sa durée antérieure. La durée totale baisse, mais le moteur exécute davantage de reconnaissance : les deux refus ne terminent pas le même travail. Aucun rapport de succès ni STEP n’a été produit. Un second lancement sous LLDB, séparé des mesures, localise le refus restant dans `partial::candidates` (`partial.rs:221`, débit de 216 unités). Ce lancement de diagnostic est volontairement tué au point d’arrêt ; ce n’est pas une qualification de conversion. Le compteur est partagé avec les preuves précédentes : cette trace ne mesure pas le coût isolé des arcs, à profiler avant leur évolution. Les ajustements contraints par les extrémités n’étant pas monotones, supprimer des longueurs candidates demande une preuve distincte.
+
+Benchmark différentiel de préparation sur le même fichier privé, dans le profil `large-stl` : **99,049 s historique contre 51,167 s réutilisé**, résultats d’analyse réussis et comparés bit à bit (géométrie, rapport, diagnostics, provenance). Ordre historique puis réutilisé, un seul passage ; il s’agit de l’analyse, pas d’une conversion CAO. Commande : `FABSTEP_PREPARATION_BENCH_STL=chemin cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib benchmark_single_component_reuse_against_historical_preparation -- --ignored --nocapture`.
+
+Benchmark du seul collecteur, corpus synthétique clairsemé : 73 728 unités / 10,182 ms en global contre 11 unités / 14,666 µs en local, avec même résultat. Ce corpus de copies déconnectées ne prétend pas être un document convertible et ce ratio ne mesure pas la conversion complète. Le lanceur réel conserve ses gardes de qualification (300 s après, 180 s avant, 4 Gio), distinctes des 30 minutes du produit. Les tentatives d’attachement du débogueur à ce lanceur ont perturbé son suivi de processus et sont exclues des mesures ; seul le lancement LLDB autonome fournit la seconde trace.
+
+Traces locales : `artifacts/g3/{flansch-before.json,flansch-after.json,budget-stack.log,second-budget-launch.log,edge-benchmark.log,preparation-tests.log,patch-tests.log,core-integration.log}`. Le fichier privé n’est pas versionné.
+
+### Contrôles finaux
+
+`scripts/check.sh` termine avec code 0 : **484 tests workspace**, **49 bureau**, **8 helper**, **54 ciblés `large-stl`**, **1 transfert réel opt-in**, **229 UI**, **12 Python** et **4 SDK** réussis. Formatage, Clippy strict des trois builds, contrôle bureau hors workspace, Svelte (0 erreur/0 avertissement) et build UI passent. Quinze tests workspace opt-in sont ignorés par défaut ; les deux nouveaux benchmarks G3 ont été exécutés séparément avec succès, les autres opt-in ne sont pas rejoués dans ce lot. Aucun échec dans la suite globale finale.
+
+Le build de développement macOS réussit et ses deux exécutables correspondent à ceux de `artifacts/FabSTEP.app` : SHA-256 bureau `0264065da6c131980b4367db03f3173ae0053b1514b23e869fd745037f662103`, helper `fdc26fcf28c7b93d52f64e8f2cf37a21ca1f35c53d9d487885df4164e3a2be91`. Journaux complémentaires : `artifacts/g3/{preparation-benchmark.log,check.log,build-app.log,bundle-hashes.json}`. Aucun essai graphique ni Fusion exécuté ; le paquet autonome 1.0.0 est inchangé. Le parcours manuel et son annulation restent à qualifier dans l’action liée à R-069 ; la recherche d’arcs relève de R-070 (G4), encore au stade idée.

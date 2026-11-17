@@ -215,7 +215,42 @@ fn analyze_bodies_with_provenance(
     raw: Vec<[V; 3]>,
     options: &Options,
 ) -> Result<Vec<crate::ProvenancedAnalysis>, FabError> {
-    source_components(&raw, options)?
+    let SourcePreparation {
+        mesh,
+        welded,
+        adjacency,
+        mut components,
+    } = prepare_source_components_controlled(&raw, options, &mut || Ok(()))?;
+    // Only the identity component can reuse the global preparation unchanged.
+    // Its welding visited exactly the same original coordinates in the same
+    // order as the historical per-body pass. Component discovery has already
+    // proved connectivity, and the original adjacency order is retained.
+    if components.len() == 1
+        && components[0].analysis_to_source_triangles.len() == raw.len()
+        && components[0]
+            .analysis_to_source_triangles
+            .iter()
+            .enumerate()
+            .all(|(index, &source)| index == source)
+    {
+        let input_triangles = raw.len();
+        drop(raw);
+        let topology = components.pop().unwrap();
+        let (prepared, adjacency) =
+            finish_preparation(mesh, welded, input_triangles, adjacency, &mut || Ok(()))?;
+        let (analysis, planar_triangle_faces) =
+            analyze_prepared_with_provenance(prepared, adjacency, options)?;
+        return Ok(vec![crate::ProvenancedAnalysis {
+            analysis,
+            topology,
+            planar_triangle_faces,
+        }]);
+    }
+    // Distinct components retain their original per-body representative order
+    // and diagnostics. Do not retain unused global geometry during that work.
+    drop(mesh);
+    drop(adjacency);
+    components
         .into_iter()
         .map(|topology| {
             // Reanalyze original coordinates, not welded representatives, so
@@ -250,9 +285,24 @@ fn source_components_controlled(
     options: &Options,
     check_current: &mut impl FnMut() -> Result<(), FabError>,
 ) -> Result<Vec<crate::SourceComponentTopology>, FabError> {
+    Ok(prepare_source_components_controlled(raw, options, check_current)?.components)
+}
+
+struct SourcePreparation {
+    mesh: Mesh,
+    welded: WeldStats,
+    adjacency: Vec<Vec<usize>>,
+    components: Vec<crate::SourceComponentTopology>,
+}
+
+fn prepare_source_components_controlled(
+    raw: &[[V; 3]],
+    options: &Options,
+    check_current: &mut impl FnMut() -> Result<(), FabError>,
+) -> Result<SourcePreparation, FabError> {
     check_current()?;
     validate_raw(raw, options)?;
-    let (mesh, _) = weld_controlled(raw.to_vec(), options.weld_tolerance_mm, check_current)?;
+    let (mesh, welded) = weld_controlled(raw.to_vec(), options.weld_tolerance_mm, check_current)?;
     let adjacency = validate_topology_impl_controlled(&mesh, false, check_current)?;
     let mut seen = vec![false; raw.len()];
     let mut result = Vec::new();
@@ -298,7 +348,12 @@ fn source_components_controlled(
             source_triangle_neighbors,
         });
     }
-    Ok(result)
+    Ok(SourcePreparation {
+        mesh,
+        welded,
+        adjacency,
+        components: result,
+    })
 }
 
 fn analyze_raw(raw: Vec<[V; 3]>, options: &Options) -> Result<Analysis, FabError> {
@@ -310,6 +365,14 @@ fn analyze_raw_with_provenance(
     options: &Options,
 ) -> Result<(Analysis, Vec<usize>), FabError> {
     let (prepared, adjacency) = prepare_raw(raw, options, &mut || Ok(()))?;
+    analyze_prepared_with_provenance(prepared, adjacency, options)
+}
+
+fn analyze_prepared_with_provenance(
+    prepared: PreparedMesh,
+    adjacency: Vec<Vec<usize>>,
+    options: &Options,
+) -> Result<(Analysis, Vec<usize>), FabError> {
     let PreparedMesh {
         mesh,
         input_triangles,
@@ -355,9 +418,19 @@ fn prepare_raw(
     check_current()?;
     validate_raw(&raw, options)?;
     let input_triangles = raw.len();
-    let (mut mesh, welded) = weld_controlled(raw, options.weld_tolerance_mm, check_current)?;
+    let (mesh, welded) = weld_controlled(raw, options.weld_tolerance_mm, check_current)?;
     check_current()?;
     let adjacency = validate_topology_controlled(&mesh, check_current)?;
+    finish_preparation(mesh, welded, input_triangles, adjacency, check_current)
+}
+
+fn finish_preparation(
+    mut mesh: Mesh,
+    welded: WeldStats,
+    input_triangles: usize,
+    adjacency: Vec<Vec<usize>>,
+    check_current: &mut impl FnMut() -> Result<(), FabError>,
+) -> Result<(PreparedMesh, Vec<Vec<usize>>), FabError> {
     check_current()?;
     let bbox = bounds(&mesh.vertices);
     let reference = std::array::from_fn(|i| bbox[0][i] + (bbox[1][i] - bbox[0][i]) * 0.5);
@@ -645,3 +718,7 @@ fn vertex_error() -> FabError {
         "Le voisinage d'un sommet ne forme pas un disque topologique.",
     )
 }
+
+#[cfg(test)]
+#[path = "pipeline_reuse_tests.rs"]
+mod reuse_tests;
