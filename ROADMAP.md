@@ -6,7 +6,7 @@ L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée i
 
 L’ordre des lots restants reprend le document d’origine ; les priorités et dépendances exprimées dans leurs textes restent applicables. Aucun nouveau développement n’est autorisé par cette migration.
 
-**Avancement : 20 livrés sur 73** (27 %)
+**Avancement : 21 livrés sur 73** (29 %)
 
 ## Restant à faire
 
@@ -112,9 +112,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Après G3, le fichier Flansch de 540 170 triangles s’arrête dans partial::candidates sur le budget partagé de reconnaissance. Mesurer la consommation avant cette recherche et ses fenêtres, puis étudier une réduction prouvée du travail ; les ajustements contraints par les extrémités ne sont pas monotones. Ne pas sauter des candidats ni relever le budget sans preuve.
 51. **[R-071 Accélérer les fenêtres d’arcs des contours complexes](roadmap/items/R-071-accelerer-les-fenetres-d-arcs-des-contours.md)** · À tester · jalon post-v1
    Après G4, Flansch franchit le cercle dense mais épuise encore le budget sur la face 7 278, contour de 300 points réellement non circulaire. Étudier une réduction prouvée du coût des fenêtres, sans supposer la monotonie des ajustements ni augmenter le budget ; une nouvelle preuve numérique exige une qualification distincte.
-52. **[R-072 Qualifier les résultats très facettisés des gros STL](roadmap/items/R-072-qualifier-les-resultats-tres-facettises-des-gros.md)** · À tester · jalon post-v1
-   Flansch franchit désormais la reconnaissance avec 4 cylindres et 8 cônes, mais conserve 501 900 plans, soit 501 912 faces au total. Le suivi du résultat est limité à 100 000 faces. Identifier les zones qui restent facettisées et les réductions géométriquement prouvées possibles ; examiner les coûts CAO, mémoire et inspection avant toute proposition de changement de limite ou de simplification.
-53. **[R-073 Qualifier la surveillance mémoire des gros STL sur macOS](roadmap/items/R-073-qualifier-la-surveillance-memoire-des-gros-stl.md)** · Idée · jalon post-v1
+52. **[R-073 Qualifier la surveillance mémoire des gros STL sur macOS](roadmap/items/R-073-qualifier-la-surveillance-memoire-des-gros-stl.md)** · À tester · jalon post-v1
    La sonde R-072 rapporte une empreinte physique de 6.9G malgré un RSS maximal échantillonné de 2,35 Gio. Comparer les métriques macOS et qualifier une surveillance adaptée avant toute augmentation de capacité ; préserver arrêt et nettoyage du helper.
 
 ## Actions à faire
@@ -175,7 +173,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-059](roadmap/actions/A-059-verifier-le-gros-stl-apres-l-optimisation-g3.md) Vérifier le gros STL après l’optimisation G3 (tester, R-069)
 - [ ] [A-060](roadmap/actions/A-060-verifier-le-gros-stl-apres-g4.md) Vérifier le gros STL après G4 (tester, R-070)
 - [ ] [A-061](roadmap/actions/A-061-verifier-flansch-apres-l-optimisation-des-arcs.md) Vérifier Flansch après l’optimisation des arcs complexes (tester, R-071)
-- [ ] [A-062](roadmap/actions/A-062-valider-les-conclusions-de-qualification-des.md) Valider les conclusions de qualification des gros STL (valider, R-072)
+- [ ] [A-063](roadmap/actions/A-063-verifier-l-annulation-apres-la-correction-du.md) Vérifier l’annulation après la correction du suivi mémoire (tester, R-073)
 
 ## Livré
 
@@ -225,5 +223,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 ### post-v1 : Géométries après v1
 
+- [R-072 Qualifier les résultats très facettisés des gros STL](roadmap/items/R-072-qualifier-les-resultats-tres-facettises-des-gros.md) · livrée le 2026-11-17
+  Flansch franchit désormais la reconnaissance avec 4 cylindres et 8 cônes, mais conserve 501 900 plans, soit 501 912 faces au total. Le suivi du résultat est limité à 100 000 faces. Identifier les zones qui restent facettisées et les réductions géométriquement prouvées possibles ; examiner les coûts CAO, mémoire et inspection avant toute proposition de changement de limite ou de simplification.
 - [R-058 Raccords ouverts cylindre–chanfrein](roadmap/items/R-058-raccords-ouverts-cylindre-chanfrein.md) · livrée le 2026-11-17
   Reconstruire ensemble les parois cylindriques ouvertes et leurs chanfreins coniques partiels, avec contours partagés et validation du solide entier.

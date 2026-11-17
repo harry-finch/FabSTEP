@@ -2,11 +2,11 @@
 id: R-072
 titre: "Qualifier les résultats très facettisés des gros STL"
 resume: "Flansch franchit désormais la reconnaissance avec 4 cylindres et 8 cônes, mais conserve 501 900 plans, soit 501 912 faces au total. Le suivi du résultat est limité à 100 000 faces. Identifier les zones qui restent facettisées et les réductions géométriquement prouvées possibles ; examiner les coûts CAO, mémoire et inspection avant toute proposition de changement de limite ou de simplification."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-17
 maj: 2026-11-17
-livree:
+livree: 2026-11-17
 ---
 
 ## But

@@ -217,3 +217,8 @@ L’interface interroge cet instantané seulement pendant la conversion, au plus
 ## Gros STL — processus isolé
 
 `fabstep-worker`, exclu du workspace comme le bureau, compile la capacité source `large-stl` séparément. Le bureau conserve les limites ordinaires et supervise un seul processus d’essai explicite. Le protocole privé et versionné borne entrées, progression, rapport et STEP ; publication seulement après sortie réussie et contrôle de l’identité courante. Annulation et invalidation arrêtent le processus, puis récupèrent sa fin avant nettoyage. Le résultat transféré ne contient pas d’objet OCCT et ne revendique pas de provenance guidée. Voir [ADR-0034](docs/adr/0034-isolated-large-stl-worker.md) pour limites, portée et qualification.
+
+
+### Surveillance mémoire du helper macOS — R-073
+
+Le superviseur lit `proc_pid_rusage(RUSAGE_INFO_V0)` chaque seconde : mémoire résidente et empreinte physique. L’une ou l’autre atteignant 4 Gio déclenche `worker.memory_limit`. La lecture invalide reste un refus `worker.monitor_failed`, avec vérification de la sortie concurrente du processus. Le nettoyage existant tue et récolte l’enfant avant de supprimer son dossier privé ; aucun résultat n’est publié sur ces erreurs. Le SDK local fixe la disposition du tampon et des assertions Rust contrôlent taille, alignement et offsets. Le seuil est observé, sans garantie de plafond entre échantillons. Les autres plateformes restent non qualifiées ; aucune limite de géométrie ou de durée n’est changée.

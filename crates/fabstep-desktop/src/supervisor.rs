@@ -26,7 +26,7 @@ const PROGRESS_LIMIT: usize = 1024;
 const COMPLETION_LIMIT: usize = 8 * 1024;
 const TIMEOUT: Duration = Duration::from_secs(30 * 60);
 const POLL: Duration = Duration::from_millis(50);
-const RSS_LIMIT: u64 = 4 * 1024 * 1024 * 1024;
+const MEMORY_LIMIT: u64 = 4 * 1024 * 1024 * 1024;
 
 fn problem(code: &str, message: &str) -> FabError {
     FabError::new(format!("worker.{code}"), message)
@@ -41,61 +41,65 @@ fn cancelled() -> FabError {
     problem("cancelled", "La conversion isolée a été annulée.")
 }
 
-fn enforce_rss(bytes: u64) -> Result<(), FabError> {
-    if bytes >= RSS_LIMIT {
+#[derive(Clone, Copy)]
+struct ProcessMemory {
+    resident: u64,
+    footprint: u64,
+}
+
+fn enforce_memory(memory: ProcessMemory) -> Result<(), FabError> {
+    if memory.resident.max(memory.footprint) >= MEMORY_LIMIT {
         return Err(problem(
             "memory_limit",
-            "Le moteur isolé a atteint la limite de 4 Gio de mémoire résidente.",
+            "Le moteur isolé a atteint la limite de 4 Gio de mémoire.",
         ));
     }
     Ok(())
 }
 
 #[cfg(target_os = "macos")]
-fn resident_bytes(pid: u32) -> Result<u64, FabError> {
-    // SDK sys/proc_info.h: proc_taskinfo has six u64 then twelve i32 fields;
-    // libproc.h: proc_pidinfo(pid, PROC_PIDTASKINFO=4, arg, buffer, size).
+fn process_memory(pid: u32) -> Result<ProcessMemory, FabError> {
+    // SDK sys/resource.h: RUSAGE_INFO_V0, UUID followed by ten u64 fields.
+    // libproc.h: proc_pid_rusage returns 0 on success, -1 on failure.
     #[repr(C)]
     #[derive(Default)]
-    struct TaskInfo {
-        _virtual_size: u64,
+    struct UsageInfo {
+        _uuid: [u8; 16],
+        _times_and_counters: [u64; 6],
         resident_size: u64,
-        _times: [u64; 4],
-        _counters: [i32; 12],
+        physical_footprint: u64,
+        _lifetime: [u64; 2],
     }
     #[link(name = "proc")]
     unsafe extern "C" {
-        fn proc_pidinfo(
-            pid: i32,
-            flavor: i32,
-            arg: u64,
-            buffer: *mut std::ffi::c_void,
-            size: i32,
-        ) -> i32;
+        fn proc_pid_rusage(pid: i32, flavor: i32, buffer: *mut *mut std::ffi::c_void) -> i32;
     }
-    const _: [(); 96] = [(); std::mem::size_of::<TaskInfo>()];
-    let mut info = TaskInfo::default();
-    let size = std::mem::size_of::<TaskInfo>();
-    let pid = i32::try_from(pid).map_err(|_| {
+    const _: [(); 96] = [(); std::mem::size_of::<UsageInfo>()];
+    const _: [(); 8] = [(); std::mem::align_of::<UsageInfo>()];
+    const _: [(); 64] = [(); std::mem::offset_of!(UsageInfo, resident_size)];
+    const _: [(); 72] = [(); std::mem::offset_of!(UsageInfo, physical_footprint)];
+    let unavailable = || {
         problem(
             "monitor_failed",
             "Le suivi mémoire du moteur isolé est indisponible.",
         )
-    })?;
-    // The writable buffer exactly matches the SDK's fixed 96-byte C layout.
-    let copied =
-        unsafe { proc_pidinfo(pid, 4, 0, std::ptr::from_mut(&mut info).cast(), size as i32) };
-    if copied != size as i32 || info.resident_size == 0 {
-        return Err(problem(
-            "monitor_failed",
-            "Le suivi mémoire du moteur isolé est indisponible.",
-        ));
+    };
+    let pid = i32::try_from(pid).map_err(|_| unavailable())?;
+    let mut info = UsageInfo::default();
+    // Despite the opaque pointer-to-pointer typedef, the API writes directly
+    // into the 96-byte struct, not into a separately allocated pointer slot.
+    let status = unsafe { proc_pid_rusage(pid, 0, std::ptr::from_mut(&mut info).cast()) };
+    if status != 0 || info.resident_size == 0 || info.physical_footprint == 0 {
+        return Err(unavailable());
     }
-    Ok(info.resident_size)
+    Ok(ProcessMemory {
+        resident: info.resident_size,
+        footprint: info.physical_footprint,
+    })
 }
 
 #[cfg(not(target_os = "macos"))]
-fn resident_bytes(_pid: u32) -> Result<u64, FabError> {
+fn process_memory(_pid: u32) -> Result<ProcessMemory, FabError> {
     Err(problem(
         "monitor_failed",
         "Le moteur isolé avec suivi mémoire est qualifié uniquement sur macOS.",
@@ -404,6 +408,17 @@ fn wait_for_child(
     directory: &Path,
     timeout: Duration,
 ) -> Result<ExitStatus, FabError> {
+    wait_for_child_with_monitor(lease, state, observer, directory, timeout, process_memory)
+}
+
+fn wait_for_child_with_monitor(
+    lease: &Lease,
+    state: &EngineState,
+    observer: &progress::ProgressObserver,
+    directory: &Path,
+    timeout: Duration,
+    mut monitor: impl FnMut(u32) -> Result<ProcessMemory, FabError>,
+) -> Result<ExitStatus, FabError> {
     let started = Instant::now();
     let mut memory_checked = Instant::now();
     loop {
@@ -423,11 +438,11 @@ fn wait_for_child(
             return Ok(status);
         }
         if memory_checked.elapsed() >= Duration::from_secs(1) {
-            match resident_bytes(pid) {
-                Ok(bytes) => enforce_rss(bytes)?,
+            match monitor(pid) {
+                Ok(memory) => enforce_memory(memory)?,
                 Err(error) => {
                     lease.job.check(state)?;
-                    // A process can exit between try_wait and proc_pidinfo.
+                    // A process can exit between try_wait and the memory query.
                     let mut slot = lease.job.child.lock().map_err(lock_error)?;
                     if let Some(status) = slot
                         .as_mut()
@@ -822,21 +837,50 @@ mod tests {
 
     #[test]
     fn memory_guard_rejects_the_limit_without_allocating_gigabytes() {
-        enforce_rss(RSS_LIMIT - 1).unwrap();
-        assert_eq!(
-            enforce_rss(RSS_LIMIT).unwrap_err().code,
-            "worker.memory_limit"
-        );
+        enforce_memory(ProcessMemory {
+            resident: MEMORY_LIMIT - 1,
+            footprint: MEMORY_LIMIT - 1,
+        })
+        .unwrap();
+        for memory in [
+            ProcessMemory {
+                resident: 1,
+                footprint: MEMORY_LIMIT,
+            },
+            ProcessMemory {
+                resident: MEMORY_LIMIT,
+                footprint: 1,
+            },
+            ProcessMemory {
+                resident: 1,
+                footprint: MEMORY_LIMIT + 1,
+            },
+        ] {
+            assert_eq!(
+                enforce_memory(memory).unwrap_err().code,
+                "worker.memory_limit"
+            );
+        }
     }
 
     #[cfg(target_os = "macos")]
     #[test]
     fn native_memory_monitor_reads_its_own_task_and_rejects_invalid_pid() {
-        assert!(resident_bytes(std::process::id()).unwrap() > 0);
-        assert_eq!(
-            resident_bytes(u32::MAX).unwrap_err().code,
-            "worker.monitor_failed"
-        );
+        let memory = process_memory(std::process::id()).unwrap();
+        assert!(memory.resident > 0 && memory.footprint > 0);
+        for pid in [u32::MAX, i32::MAX as u32] {
+            assert_eq!(
+                process_memory(pid).err().unwrap().code,
+                "worker.monitor_failed"
+            );
+        }
+        let state = installed();
+        let (lease, _guard) = reservation(&state);
+        let pid = sleeping_child(&lease);
+        let memory = process_memory(pid).unwrap();
+        assert!(memory.resident > 0 && memory.footprint > 0);
+        drop(lease);
+        assert_reaped(pid);
     }
 
     #[cfg(unix)]
@@ -856,6 +900,55 @@ mod tests {
             .status()
             .unwrap()
             .success());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn memory_limit_and_monitor_failure_reap_child_without_publishing() {
+        for case in 0..3 {
+            let state = installed();
+            let (lease, guard) = reservation(&state);
+            let pid = sleeping_child(&lease);
+            let dir = tempfile::tempdir().unwrap();
+            let error = {
+                let _reaper = ReapBeforeDirectory(Arc::clone(&lease.job));
+                wait_for_child_with_monitor(
+                    &lease,
+                    &state,
+                    &guard.observer(),
+                    dir.path(),
+                    TIMEOUT,
+                    |observed_pid| {
+                        assert_eq!(observed_pid, pid);
+                        match case {
+                            0 => Ok(ProcessMemory {
+                                resident: 1,
+                                footprint: MEMORY_LIMIT,
+                            }),
+                            1 => Ok(ProcessMemory {
+                                resident: MEMORY_LIMIT,
+                                footprint: 1,
+                            }),
+                            _ => Err(problem("monitor_failed", "test")),
+                        }
+                    },
+                )
+                .unwrap_err()
+            };
+            assert_eq!(
+                error.code,
+                if case == 2 {
+                    "worker.monitor_failed"
+                } else {
+                    "worker.memory_limit"
+                }
+            );
+            assert_reaped(pid);
+            assert!(dir.path().exists());
+            drop(lease);
+            assert!(state.large_worker.inner.job.lock().unwrap().is_none());
+            assert!(state.inner.lock().unwrap().result.is_none());
+        }
     }
 
     #[cfg(unix)]

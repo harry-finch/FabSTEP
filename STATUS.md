@@ -106,4 +106,9 @@ Les comparaisons de maximalité utilisent des intervalles cycliques après contr
 
 ## Qualification des gros résultats — R-072
 
-Qualification documentée dans V-1196 ; code de production et application R-071 inchangés. Le regroupement des plans ne suffit pas : 480 024 faces planes précèdent déjà leur sécurisation. Quatre zones courbes refusées couvrent 278 642 triangles, sans famille exacte encore prouvée. La sonde native source a été arrêtée à 241,622 s : RSS maximal observé 2,35 Gio, mais empreinte physique `sample` de 6.9G. Validation native non terminée, aucun STEP. Le suivi mémoire mérite une qualification dédiée ; ni hausse de plafond ni simplification intégrée. R-072 attend validation des conclusions via A-062 ; suite globale V-1195 non rejouée, aucun nouveau test graphique/Fusion.
+Qualification documentée dans V-1196 ; code de production et application R-071 inchangés. Le regroupement des plans ne suffit pas : 480 024 faces planes précèdent déjà leur sécurisation. Quatre zones courbes refusées couvrent 278 642 triangles, sans famille exacte encore prouvée. La sonde native source a été arrêtée à 241,622 s : RSS maximal observé 2,35 Gio, mais empreinte physique `sample` de 6.9G. Validation native non terminée, aucun STEP. Le suivi mémoire mérite une qualification dédiée ; ni hausse de plafond ni simplification intégrée. R-072 accepté par l’utilisateur (A-062) ; suite globale V-1195 non rejouée, aucun nouveau test graphique/Fusion.
+
+
+## Suivi mémoire macOS — R-073
+
+Le helper est arrêté dès que le RSS ou l’empreinte physique observée atteint 4 Gio. Lecture libproc vérifiée contre le SDK, sans nouvelle dépendance ; plafond et cadence inchangés. Les seuils, erreurs de lecture et récolte d’un vrai enfant sont testés. **496 tests workspace, 50 bureau, 8 helper, 68 ciblés large-stl, 1 transfert réel, 229 UI, 12 Python et 4 SDK réussis** ; formatage, Clippy, Svelte et builds passent. Revue indépendante acceptée. `artifacts/FabSTEP.app` reconstruit, empreintes des exécutables vérifiées. Détails V-1197 ; essai manuel d’annulation A-063 ouvert, aucun test graphique/Fusion ni nouvelle conversion Flansch revendiqués.

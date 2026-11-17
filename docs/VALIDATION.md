@@ -1473,3 +1473,29 @@ Aucun regroupement local utile n’est démontré pour franchir le plafond ; auc
 Traces locales : `artifacts/r072/planes-profile.log`, `patch-profile.log`, `source-build.jsonl`, `source-native.log`, `source-capacity.json`. Les copies `automatic-instrumented.rs`, `rounded-instrumented.rs`, `cad-instrumented.rs` conservent l’instrumentation ; `guard_source.py` lance le test isolé avec une limite externe de 300 s et 4 Gio. Les profils core sont des tests ignorés activés explicitement, avec `FABSTEP_PROFILE_STL` ; ils terminent en environ 72 et 71 s. Le test natif utilise le profil `large-stl` et le même modèle triangulé que l’application, sans produire de STEP. Ce n’est pas un benchmark statistique ni une mesure de la conversion complète.
 
 Le code de production est identique à e29f1ad ; la suite globale V-1195 n’est pas relancée pour cette qualification documentaire. Aucun nouveau build d’application, contrôle graphique ou réimport Fusion. `artifacts/FabSTEP.app` reste le build R-071 ; Flansch reste refusé sans STEP. La qualification ne revendique pas une conversion réussie.
+
+## V-1197 — R-073 : RSS et empreinte physique du helper macOS (17 novembre 2026)
+
+Le superviseur utilise désormais `proc_pid_rusage(RUSAGE_INFO_V0)` et refuse si **la mémoire résidente ou l’empreinte physique** atteint 4 Gio. Le contrôle du RSS est conservé. Le code `worker.memory_limit`, les 30 minutes, l’échantillonnage chaque seconde, le repli sur `try_wait` si l’enfant vient de sortir et le nettoyage avant suppression du dossier privé restent inchangés. Aucun plafond géométrique relevé, aucune nouvelle dépendance. `worker.monitor_failed` reste bloquant si la lecture échoue ; aucun repli silencieux sur le RSS seul.
+
+### Contrat natif et mesures
+
+Le SDK local (`sys/resource.h`, `libproc.h`) définit `rusage_info_v0` : UUID de 16 octets et dix `u64`, taille 96, alignement 8, offsets RSS 64 et empreinte 72. Assertions C compilées avec Clang contre les headers, assertions Rust constantes sur les mêmes valeurs. Le tampon direct est transmis selon le typedef opaque de l’API, sans indirection supplémentaire. L’API est disponible depuis macOS 10.9 ; cible FabSTEP macOS 26. Aucun portage Windows/Linux revendiqué.
+
+Sonde indépendante sur un enfant Python, allocation touchée de 64 Mio : empreinte **5 833 136 → 73 056 736 octets**, RSS **14 041 088 → 81 231 872 octets**. L’empreinte augmente de plus de 60 Mio ; l’enfant est tué et récolté à la fin. Dix mille lectures successives prennent en moyenne **0,764 µs par lecture**, boucle Python comprise, sur un passage local ; ce n’est ni un benchmark statistique ni une garantie de coût sous pression. Cette sonde ne cherche pas à provoquer de compression ou à atteindre 4 Gio. Traces locales : `artifacts/r073/memory_probe.c`, `qualify_memory.py`, `memory-measures.json`.
+
+### Non-régression
+
+Les tests couvrent la limite moins un, la limite exacte, le dépassement avec RSS faible et empreinte haute, et RSS haut avec empreinte faible. La lecture native est exercée sur soi et sur un vrai enfant ; les PID hors domaine et inexistant sont refusés. Le chemin réel d’attente reçoit ensuite des mesures contrôlées ou une panne de lecture : chaque cas tue et récolte un vrai enfant, libère la réservation, conserve le dossier jusqu’à la récolte et ne publie aucun résultat. Aucun test n’alloue plusieurs Gio.
+
+Les **12 tests ciblés du superviseur réussissent** (un transfert réel opt-in ignoré lors de cette exécution ciblée). Revue indépendante de l’ABI, du diff et des chemins d’erreur : aucun défaut relevé. Les essais d’annulation, d’invalidation, d’expiration et de nettoyage pendant unwind restent couverts.
+
+### Portée
+
+Le seuil est une observation périodique, pas une limite matérielle : le pic peut dépasser 4 Gio entre deux lectures ou pendant l’arrêt. Le RSS et l’empreinte physique sont des comptabilités différentes ; aucune relation d’ordre entre elles n’est supposée. L’essai source privé R-072 n’est pas relancé pour provoquer une allocation massive. Il n’y a donc pas de mesure d’arrêt à 4 Gio sur Flansch, ni de preuve nouvelle de sa convertibilité. Son refus de 501 912 faces demeure en amont de la validation source. Aucun essai graphique/Fusion nouveau ; le comportement d’annulation dans le build mis à jour reste proposé à l’utilisateur.
+
+### Contrôles globaux et paquet
+
+`sh scripts/check.sh` termine avec code 0 : **496 tests workspace, 50 bureau, 8 helper, 68 ciblés large-stl, 1 transfert réel opt-in, 229 UI, 12 Python et 4 SDK réussis**. Formatage, Clippy strict, contrôle bureau, Svelte (zéro erreur/avertissement) et build UI passent. Les 16 tests workspace opt-in restent ignorés par la suite ordinaire ; les benchmarks et fichiers privés ne sont pas rejoués pour ce correctif. L’avertissement Vite connu sur la taille du bundle demeure. Journaux : `artifacts/r073/{targeted.log,check.log,build.log}`.
+
+`sh scripts/build-macos-dev.sh` réussit ; les exécutables embarqués correspondent octet pour octet aux builds contrôlés. SHA-256 bureau `055918cb118617a159ae81e6465b585aa48a1abf45ac8c020a33647ca581f585`, helper `1bab9ac76c82f4e43f3a6576a8fd83d0fb7c295548b1d141876f25851d86205f`. Paquet de développement : `artifacts/FabSTEP.app`. Release v1 inchangée. R-073 attend l’essai manuel d’annulation A-063.
