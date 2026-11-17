@@ -1,12 +1,49 @@
 ---
-id: "R-042"
+id: R-042
 titre: "UX4 — simplifier l’atelier"
 resume: "Donner la priorité à la pièce et aux actions courantes ; retirer les exemples de l’écran principal ; options et données techniques à la demande"
-statut: "a-tester"
-jalon: "atelier"
-cree: "2026-11-13"
-maj: "2026-11-13"
+statut: a-tester
+jalon: atelier
+cree: 2026-11-13
+maj: 2026-11-17
+livree:
 ---
+
+## But
+
+Rendre les actions utiles accessibles dans l’inspecteur sans noyer la pièce et la sélection sous les diagnostics. Le retour du 15 novembre montre un bouton de guidage introuvable et des informations techniques trop présentes.
+
+## Inclus
+
+- État du résultat compact ; diagnostics de routine et explications générales dans les détails techniques.
+- Erreurs bloquantes, modifications réelles de géométrie et avertissements inconnus encore visibles.
+- Afficher les actions de guidage dans une barre contextuelle près de la vue 3D après sélection, inspirée de la capture Cutaway fournie le 15 novembre : Cylindre/Cône puis Essayer, sans familles fictives ni duplication dans l’inspecteur.
+- Ouvrir les informations de sélection lors d’une nouvelle sélection de faces, même après repli manuel ; permettre de les replier ensuite.
+- Présenter une action explicite pour préparer une correction lorsque le résultat analytique ne dispose pas de la provenance nécessaire ; annoncer qu’elle remplace le résultat par une reconstruction en facettes et nécessite de resélectionner la zone.
+- Conserver unités explicites, modes, paramètres avancés, Source/STEP et outils DXF.
+
+## Hors périmètre
+
+Nouveau reconnaisseur, correction directe sur une provenance analytique indisponible, changement de tolérances, nouvelle disposition générale ou moteur CAO.
+
+## Dépendances
+
+R-048 pour le guidage Cylindre/Cône déjà développé. Correction de lisibilité dans le périmètre UX4 demandé et validé précédemment, reprise sur le retour utilisateur du 15 novembre ; aucune nouvelle idée produit à approuver.
+
+## Critères d'acceptation
+
+- Les diagnostics courants de la capture restent consultables sans occuper l’écran principal.
+- Une sélection rend la barre de correction accessible directement dans la vue 3D ; les clics sur ses contrôles ne sélectionnent pas la pièce ni ne déclenchent l’orbite. Le panneau de sélection peut être replié sans cacher cette barre.
+- Un repli manuel de l’inspecteur n’est pas annulé par un rendu sans changement de sélection.
+- La préparation n’agit qu’au clic, invalide l’ancien export via le parcours habituel et ne promet pas de conserver les formes reconnues ni la sélection.
+- Français/anglais complets, contrôles compacts et vérification clair/sombre à 1100/1440 px ; contrôles impossibles explicitement consignés.
+- Tests UI, Svelte et build réussis ; aucun changement des validations natives.
+
+## Vérifications de l'utilisateur
+
+- Vérifier sur le sock-clip que la prochaine action est compréhensible et accessible après préparation et sélection.
+
+## Historique conservé
 
 | UX4 — simplifier l’atelier | Donner la priorité à la pièce et aux actions courantes ; retirer les exemples de l’écran principal ; options et données techniques à la demande | Parcours lisible sans ouvrir Avancé, outils contextuels, alertes essentielles visibles, contrôles clavier et qualification clair/sombre FR/EN | Implémenté ; tests de parcours du contrôleur validés, accueil natif FR sombre et EN clair observé ; qualification graphique complète restante |
 
@@ -34,3 +71,11 @@ Demande utilisateur du 10 novembre 2026, **implémentée ; qualification graphiq
 Source : [ancienne feuille de route](../../docs/ROADMAP-avant-fabboard.md). Les validations historiques sont conservées ; aucun essai nouveau n’est déduit de la migration.
 
 La livraison de ce lot attend toutes ses vérifications utilisateur rattachées ; une réponse positive à une seule action ne clôt pas les autres.
+
+## Suite demandée le 17 novembre
+
+Après validation de R-058, l’utilisateur demande de poursuivre la reconnaissance géométrique puis la simplification et l’amélioration de l’interface. La prochaine reprise UX suivra C1b (R-032) : inspecteur contextuel, suppression des répétitions dans le parcours normal, détails techniques repliés et actions de correction évidentes. Préserver toutes les capacités, avertissements utiles, FR/EN et validité des exports.
+
+### Simplification contextuelle implémentée le 17 novembre
+
+Essayer devient l’action primaire ; les compteurs et consignes répétés sont retirés du panneau STEP. Les familles, identités et correspondances techniques sont repliées ; Agrandir/Réduire côté source restent accessibles sous Avancé, l’effacement reste en en-tête. Retour au STEP précède les statistiques. Les indications acceptées conservent leurs actions et montrent leurs métadonnées à la demande ; aucune section vide après un refus. Unité, alertes, récupération et DXF préservés. 208 tests UI, Svelte et build passent ; qualification visuelle restante (V-1184).

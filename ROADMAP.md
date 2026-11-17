@@ -6,40 +6,40 @@ L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée i
 
 L’ordre des lots restants reprend le document d’origine ; les priorités et dépendances exprimées dans leurs textes restent applicables. Aucun nouveau développement n’est autorisé par cette migration.
 
-**Avancement : 19 livrés sur 56** (34 %)
+**Avancement : 20 livrés sur 59** (34 %)
 
 ## Restant à faire
 
-1. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
-   Signer et notariser le paquet macOS ; ces étapes restent ouvertes.
-2. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
-   Construire et qualifier la distribution sur Windows et Linux.
-3. **[R-042 UX4 — simplifier l’atelier](roadmap/items/R-042-ux4-simplifier-latelier.md)** · À tester · jalon atelier
+1. **[R-032 C1b1 — chaînes coniques de même signe avec portées](roadmap/items/R-032-c1b-chaines-sans-portee-ou-de-meme-signe.md)** · À tester · jalon post-v1
+   Reconnaître deux à huit cônes de signes libres séparés par des portées cylindriques prouvées ; conserver les garde-fous contre les fausses ruptures.
+2. **[R-042 UX4 — simplifier l’atelier](roadmap/items/R-042-ux4-simplifier-latelier.md)** · À tester · jalon atelier
    Donner la priorité à la pièce et aux actions courantes ; retirer les exemples de l’écran principal ; options et données techniques à la demande
-4. **[R-021 Étudier la réutilisation entre instances 3MF](roadmap/items/R-021-etudier-la-reutilisation-entre-instances-3mf.md)** · Idée · jalon audit
+3. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
+   Signer et notariser le paquet macOS ; ces étapes restent ouvertes.
+4. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
+   Construire et qualifier la distribution sur Windows et Linux.
+5. **[R-021 Étudier la réutilisation entre instances 3MF](roadmap/items/R-021-etudier-la-reutilisation-entre-instances-3mf.md)** · Idée · jalon audit
    AUD-006 — Démontrer un gain sur plusieurs instances ; établir un contrat tenant compte des transformations, de l’arrondi, du soudage et de la provenance avant tout cache
-5. **[R-022 Réduire le coût de démarrage du frontend](roadmap/items/R-022-reduire-le-cout-de-demarrage-du-frontend.md)** · Idée · jalon audit
+6. **[R-022 Réduire le coût de démarrage du frontend](roadmap/items/R-022-reduire-le-cout-de-demarrage-du-frontend.md)** · Idée · jalon audit
    AUD-009 — Mesurer le démarrage réel de la WebView ; retenir un chargement différé ou un découpage uniquement si le gain est démontré
-6. **[R-023 Durcir les permissions locales Tauri](roadmap/items/R-023-durcir-les-permissions-locales-tauri.md)** · Idée · jalon audit
+7. **[R-023 Durcir les permissions locales Tauri](roadmap/items/R-023-durcir-les-permissions-locales-tauri.md)** · Idée · jalon audit
    AUD-014 — Définir le manifeste applicatif et tester les commandes autorisées/refusées, fenêtres et origines ; ne pas ajouter un fichier de capacités supposé suffisant
-7. **[R-024 Préserver les caractères composés dans les noms de produits tronqués](roadmap/items/R-024-preserver-les-caracteres-composes-dans-les-noms-de-produits-tronques.md)** · Idée · jalon audit
+8. **[R-024 Préserver les caractères composés dans les noms de produits tronqués](roadmap/items/R-024-preserver-les-caracteres-composes-dans-les-noms-de-produits-tronques.md)** · Idée · jalon audit
    AUD-011 — Reproduire les cas Unicode utiles ; conserver le nom source et éviter une dépendance disproportionnée pour ce seul besoin
-8. **[R-025 Découper les gros modules et mutualiser les helpers au besoin](roadmap/items/R-025-decouper-les-gros-modules-et-mutualiser-les-helpers-au-besoin.md)** · Idée · jalon audit
+9. **[R-025 Découper les gros modules et mutualiser les helpers au besoin](roadmap/items/R-025-decouper-les-gros-modules-et-mutualiser-les-helpers-au-besoin.md)** · Idée · jalon audit
    AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes
-9. **[R-026 Qualifier le garde de cocircularité des anneaux fermés](roadmap/items/R-026-qualifier-le-garde-de-cocircularite-des-anneaux-fermes.md)** · Idée · jalon audit
+10. **[R-026 Qualifier le garde de cocircularité des anneaux fermés](roadmap/items/R-026-qualifier-le-garde-de-cocircularite-des-anneaux-fermes.md)** · Idée · jalon audit
    AUD-017 — Construire une reproduction du défaut supposé ; conserver la protection des anneaux peu échantillonnés. Aucun remplacement direct par `fit_circle` sans cette preuve
-10. **[R-027 A — cône et encoche ouverte](roadmap/items/R-027-a-cone-et-encoche-ouverte.md)** · À tester · jalon post-v1
+11. **[R-027 A — cône et encoche ouverte](roadmap/items/R-027-a-cone-et-encoche-ouverte.md)** · À tester · jalon post-v1
    Fraisure complète et cylindre ouvert distincts dans un même corps, en Surfaces
-11. **[R-028 B — zones sphériques](roadmap/items/R-028-b-zones-spheriques.md)** · À tester · jalon post-v1
+12. **[R-028 B — zones sphériques](roadmap/items/R-028-b-zones-spheriques.md)** · À tester · jalon post-v1
    Zone entre deux anneaux plans sans pôle, puis variante concave
-12. **[R-029 Consolidation M2c — arcs décalés et adjacents](roadmap/items/R-029-consolidation-m2c-arcs-decales-et-adjacents.md)** · À tester · jalon post-v1
+13. **[R-029 Consolidation M2c — arcs décalés et adjacents](roadmap/items/R-029-consolidation-m2c-arcs-decales-et-adjacents.md)** · À tester · jalon post-v1
    Recherche bornée d'arcs fragmentés, angles de triangulation différents selon la hauteur, génératrices source partagées par deux parois
-13. **[R-030 Petits raccords cylindriques contextuels](roadmap/items/R-030-petits-raccords-cylindriques-contextuels.md)** · À tester · jalon post-v1
+14. **[R-030 Petits raccords cylindriques contextuels](roadmap/items/R-030-petits-raccords-cylindriques-contextuels.md)** · À tester · jalon post-v1
    Intervalle entier de 4–7 points entre deux parois prouvées ; rayon résolu et tangentes compatibles
-14. **[R-031 C1a — chaînes coniques alternées](roadmap/items/R-031-c1a-chaines-coniques-alternees.md)** · À tester · jalon post-v1
+15. **[R-031 C1a — chaînes coniques alternées](roadmap/items/R-031-c1a-chaines-coniques-alternees.md)** · À tester · jalon post-v1
    Trois à huit cônes alternés et portées résolues ; réimport indépendant et parcours graphique à qualifier.
-15. **[R-032 C1b — chaînes sans portée ou de même signe](roadmap/items/R-032-c1b-chaines-sans-portee-ou-de-meme-signe.md)** · Idée · jalon post-v1
-   Étudier les ruptures de pente sans portée et les cônes de même signe.
 16. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · Idée · jalon post-v1
    Lignes et arcs circulaires, puis méridienne lisse de complexité bornée
 17. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · Idée · jalon post-v1
@@ -84,6 +84,10 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
 37. **[R-056 I2d — fusion plane guidée](roadmap/items/R-056-i2d-fusion-plane-guidee.md)** · À tester · jalon atelier
    Ajouter Plan aux familles guidées : fusionner une sélection contiguë presque plane, sans déplacer ses sommets, après contrôle du solide.
+38. **[R-057 UX5 — reconstruction automatique et sélection des parois](roadmap/items/R-057-ux5-reconstruction-automatique-et-selection-des.md)** · À tester · jalon atelier
+   Ouvrir et obtenir le meilleur STEP prouvé, sélectionner une paroi en un geste et corriger localement sans perdre les surfaces reconnues.
+39. **[R-059 C1b2 — chaînes coniques sans portée intermédiaire](roadmap/items/R-059-c1b2-chaines-coniques-sans-portee-intermediaire.md)** · Idée · jalon post-v1
+   Prouver les ruptures de pente entre cônes directement adjacents, sans découper artificiellement une méridienne courbe.
 
 ## Actions à faire
 
@@ -121,6 +125,13 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-034](roadmap/actions/A-034-choisir-la-portee-de-la-selection-pour-tore.md) Choisir la portée de la sélection pour Tore (decider, R-050)
 - [ ] [A-035](roadmap/actions/A-035-essayer-plan-dans-la-correction-guidee.md) Essayer Plan dans la correction guidée (tester, R-056)
 - [ ] [A-036](roadmap/actions/A-036-verifier-le-step-apres-correction-plane-dans.md) Vérifier le STEP après correction plane dans Fusion (tester, R-056)
+- [ ] [A-037](roadmap/actions/A-037-essayer-la-selection-rapide-et-la-correction.md) Essayer la sélection rapide et la correction automatique (tester, R-057)
+- [ ] [A-038](roadmap/actions/A-038-verifier-tore-et-le-step-automatique-dans-fusion.md) Vérifier Tore et le STEP automatique dans Fusion (tester, R-057)
+- [ ] [A-039](roadmap/actions/A-039-essayer-la-selection-de-faces-en-maintenant-le.md) Essayer la sélection de faces en maintenant le clic (tester, R-057)
+- [ ] [A-041](roadmap/actions/A-041-verifier-les-raccords-de-rainures-dans-fusion.md) Vérifier les raccords de rainures dans Fusion (tester, R-058)
+- [ ] [A-042](roadmap/actions/A-042-examiner-les-chaines-de-chanfreins-de-meme-signe.md) Examiner les chaînes de chanfreins de même signe (tester, R-032)
+- [ ] [A-043](roadmap/actions/A-043-reimporter-une-chaine-conique-dans-fusion.md) Réimporter une chaîne conique dans Fusion (tester, R-032)
+- [ ] [A-044](roadmap/actions/A-044-verifier-l-inspecteur-et-la-correction.md) Vérifier l’inspecteur et la correction simplifiés (tester, R-042)
 
 ## Livré
 
@@ -167,3 +178,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
   Cache privé et exact à chaque recherche ; mesures avant/après et équivalence des résultats consignées.
 - [R-020 INT-AUDIT-01 — intégration initiale](roadmap/items/R-020-int-audit-01-integration-initiale.md) · livrée le 2026-11-10
   Cinq jalons validés ; huit recommandations traitées, preuves et suites dans le registre.
+
+### post-v1 : Géométries après v1
+
+- [R-058 Raccords ouverts cylindre–chanfrein](roadmap/items/R-058-raccords-ouverts-cylindre-chanfrein.md) · livrée le 2026-11-17
+  Reconstruire ensemble les parois cylindriques ouvertes et leurs chanfreins coniques partiels, avec contours partagés et validation du solide entier.

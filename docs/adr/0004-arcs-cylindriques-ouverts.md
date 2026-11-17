@@ -3,6 +3,8 @@
 Statut : accepté et implémenté
 Date : 2026-11-06
 
+Amendement du build de développement : [ADR-0021](0021-staggered-open-cylinder-walls.md) ajoute une récupération bornée des fragments d'arcs, une preuve des triangulations décalées et des génératrices source partagées entre deux cylindres prouvés. Le contrat historique ci-dessous reste la référence du paquet 1.0.0.
+
 ## Contexte
 
 Le premier STL utilisateur présente un évidement circulaire ouvert sur deux faces du bord. Les deux contours de son extrusion sont des chaînes ouvertes dans les contours des plans, et non des anneaux. M2b conserve donc ses 36 facettes alors que le trou et le bossage complets sont reconstruits. Les raccords verticaux contiennent aussi des sommets collinéaires intermédiaires.

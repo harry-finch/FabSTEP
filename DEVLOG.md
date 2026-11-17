@@ -241,3 +241,52 @@ Skills locales de la famille installées, Hairline ajouté pour la figure, sans 
 Contrôles exécutés : `sh scripts/check.sh`, code 0 — 391 tests workspace, 32 bureau, 175 UI, 12 Python et 4 SDK ; formatage workspace/bureau, Clippy strict, Svelte sans erreur/avertissement, build UI et contrôle bureau réussis. Onze tests Rust opt-in sont ignorés par la suite ordinaire, non présentés comme passés. Avertissement Vite de taille du bundle conservé. [Journal local](artifacts/mise-d-equerre/check.log).
 
 Figure : validateur Hairline et look Chrome, code 0 ; huit vues cadrées, lecture correcte, console propre, stabilisation en 1,8 s au plus, réponse visible à 240 px (47 % de l’encre). Planches clair/sombre, miniature et mouvement regardées. Le moteur et la page d’essai n’ont pas été modifiés. FabBoard affiche le suivi et les actions ; le rendu intégré de la figure n’a pas pu être confirmé, la fenêtre devenant indisponible lors du défilement. A-031 conserve cet essai et le jugement utilisateur sur le parcours. Aucun nouvel essai natif FabSTEP ni Fusion réalisé. Les validations de migration et de mise d’équerre restent A-029/A-032 ; les tests des extensions ne sont pas clos par ces validations documentaires.
+
+
+## 15 novembre 2026 — reprise UX4 sur retour utilisateur
+
+Capture de l’inspecteur : diagnostics trop présents, section Faces STEP repliée et aucune entrée explicite au guidage depuis un résultat analytique. Inspiration Cutaway fournie ensuite par l’utilisateur : choix de famille près du modèle. R-042 repris dans son périmètre existant, sans nouveau reconnaisseur.
+
+Barre contextuelle Cylindre/Cône/Essayer indépendante du repli de l’inspecteur ; préparation explicite par le changement de mode existant, avertissant du remplacement du résultat automatique et de la nouvelle sélection. Diagnostics de routine consultables dans Détails techniques ; alertes géométriques et codes inconnus conservés. Revue indépendante sans défaut bloquant, ajustement de rôle accessible appliqué. 181 tests UI, Svelte et builds réussis ; détails des contrôles et impossibilités visuelles en V-1178. Aucun commit ni push ; état local antérieur conservé.
+
+
+## 2026-11-15 — Diagnostic de planéité sur body 26mm
+
+Échec à l’ouverture reproduit sur le STL privé. Un réglage explicite « Conserver les facettes » avec planéité 1e-7 mm produit un STEP validé nativement : un solide, 13 397 faces planes, dimensions 90 × 50 × 11 mm. Les essais analytiques restent refusés ; aucun changement de code, assouplissement du noyau ou ajustement silencieux. Matrice, rapport et limites dans [V-1179](docs/VALIDATION.md#v-1179--diagnostic-de-body-26mmstl-15-novembre-2026).
+
+
+## 2026-11-15 — I2d : fusion plane guidée
+
+Ajout de Plan dans la barre contextuelle et la session guidée. La fusion porte sur des faces polygonales contiguës entièrement sélectionnées, conserve les coordonnées source et borne le résidu ; les contours courbes sont refusés. Parcours entièrement plan construit via l’API native planaire suivie ; coexistence Cylindre/Cône, provenance, retrait et recalcul conservés. ADR-0028 décrit les limites, dont la simplification possible d’un faible relief. Revue indépendante acceptée ; 400 tests workspace, 32 bureau, 184 UI, 12 Python et 4 SDK passent avec formatage, Clippy, Svelte et builds. V-1180 conserve les preuves et les limites graphiques.
+
+Tore est préparé dans R-050 : le raccord actuel exige une portée cylindrique voisine reconstruite. Arbitrage produit A-034 entre sélection explicite des deux surfaces et extension proposée à confirmer ; pas de changement voisin implicite. Aucun commit/push.
+
+
+## 2026-11-16 — UX5 : reconstruction automatique et parois
+
+Parcours global approuvé par l’utilisateur et développé dans R-057 : Auto initial, stratégies dans Avancé, sélection géométrique par double-clic et correction locale sur résultat suivi. Le moteur retient les candidats locaux prouvés, conserve les zones incertaines en facettes et subdivise les regroupements plans non constructibles sans déplacer les sommets. Les limites de travail, source invalide et contrôles natifs restent bloquants. Provenance additive Rounded pour cylindres partiels, sphères et tores ; guidage Tore avec portée associée, refus des voisins coniques hors périmètre. Migration des préférences conserve unité/tolérances et ne force Auto qu’une fois.
+
+Revue indépendante acceptée, puis 415 tests workspace, 32 bureau, 197 UI, 12 Python et 4 SDK passent avec Clippy strict, formatage, Svelte et builds. Premier essai body 26mm : 1 solide, 6 cylindres, 3 cônes, tolérances initiales ; résultats finaux et limites dans V-1181. Sock_clip absent du chemin historique. Aucun parcours visuel/Fusion revendiqué : le pilote est indisponible. A-032 valide l’organisation du projet, sans accepter implicitement les fonctionnalités à tester. Aucun commit/push.
+
+
+## 2026-11-16 — Sélection manuelle par balayage
+
+Après le retour sur le double-clic limité à une face, ajout du clic gauche maintenu pour sélectionner les faces STEP visibles sans dépendre de la reconnaissance. Déduplication par balayage, interpolation bornée, file worker avec un actif et une union en attente ; rotation déplacée au bouton droit en mode sélection. Les commandes de clic et Maj-clic sont préservées, message neutre lorsque la proposition géométrique n’étend pas la sélection. 204 tests UI, Svelte et build réussis ; revue de l’intégration par l’orchestrateur. Les tests ne remplacent pas un essai graphique natif, impossible avec le pilote actuel. V-1182 et R-057 conservent les preuves et la qualification restante. Aucun code géométrique changé, aucun commit/push.
+
+
+## 16–17 novembre 2026 — Raccords de rainures et refus guidé
+
+Le refus `guidance.family_unproven` sur une extrémité de rainure de body 26mm est reproduit. La sélection correspond bien à une bande cylindrique, mais son raccord conique partiel n’était pas représenté. Après accord explicite de l’utilisateur sur l’extension du modèle interne, R-058 ajoute une chaîne demi-circulaire cylindrique/conique, avec arcs partagés et preuve exhaustive, sans changement des tolérances. L’app conserve la provenance native et étend la correction aux bandes dépendantes. Le titre « Correction non appliquée » et le recalcul visible remplacent la présentation trompeuse d’un échec de conversion général.
+
+La revue indépendante a conduit au contrôle de tous les contours des supports plans et au rejet avant mutation des chaînes dont les supports seraient consommés par une autre chaîne. Les groupes sont parcourus par incidences d’arcs. Contrôles ciblés core/CAD/app et UI réussis ; les résultats finaux de la suite globale et du fichier privé sont consignés dans V-1183. Aucun commit/push ni modification du paquet autonome 1.0.0. Qualification utilisateur dans A-040/A-041.
+
+
+## 17 novembre 2026 — Acceptation des raccords ouverts
+
+L’utilisateur valide le correctif R-058 et demande de poursuivre. A-040 est terminée ; A-041 reste ouverte, sans déduire un essai Fusion de cette acceptation générale. L’utilisateur choisit ensuite l’élargissement géométrique, puis demande explicitement de reprendre la simplification de l’interface. Séquence retenue : C1b (R-032), puis UX4 (R-042) ; I3 reste différé.
+
+### 17 novembre — C1b1 puis simplification contextuelle
+
+Sur demande de poursuivre la géométrie avant l’interface, R-032 admet deux à huit cônes de signes libres séparés par des portées prouvées ; témoins intérieurs obligatoires et compatibilité historique préservée. Corpus indépendant STL/3MF, volumes et surfaces attendus, refus et budgets couverts ; revue indépendante acceptée. Le volet sans portée reste identifié dans R-059. ADR-0031 documente ce choix sans changement de format ni de dépendance.
+
+R-042 allège l’inspecteur, replie familles/provenance et métadonnées, met Essayer en évidence, conserve les actions et alertes. Validation finale V-1184 : 433 tests workspace, 32 bureau, 208 UI, 12 Python, 4 SDK ; formatage, Clippy strict, Svelte et build macOS passent. Premier Clippy corrigé dans un test (`div_ceil`), sans changement du moteur après la suite globale. Paquet `artifacts/FabSTEP.app` reconstruit et vérifié. Qualification graphique impossible ici, Fusion non exécuté ; actions A-042 à A-044. Modifications locales antérieures conservées, aucun commit ni push.
