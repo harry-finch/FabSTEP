@@ -325,3 +325,10 @@ Ajout du nombre exact dans le refus STL (R-066), à la demande de l’utilisateu
 Accord A-055 enregistré. Capacité source `large-stl` compilée exclusivement dans un helper distinct ; interface d’essai avec compte, avertissement, accord par fichier et Annuler. Supervision versionnée/bornée, publication après validation, arrêt/récupération et nettoyage, seuil RSS surveillé de 4 Gio et délai de 30 minutes. Aperçu dense préparé hors fil UI ; provenance guidée non transférée, fonctions source associées indisponibles pour ce nouveau mode. Revues helper/desktop acceptées et deux courses de nettoyage/progression corrigées avant validation.
 
 Contrôles et essais réels consignés dans V-1191 : cube 101 568 triangles validé après relance, arrêts en analyse et validation source vérifiés ; fichier utilisateur 540 170 triangles admis mais refusé au budget des contours. Ce dernier constat devient l’idée R-068, sans assouplissement du contrôle. Paquet de développement reconstruit avec helper, empreintes vérifiées. Le pilotage graphique reste bloqué au dialogue de fichier ; actions de qualification utilisateur R-067 conservées.
+
+
+## 17 novembre 2026 — R-068, contours denses bornés
+
+G2 conserve les prédicats historiques et remplace la recherche exhaustive des couples d’arêtes par un index spatial déterministe au-delà de 64 segments, dans un domaine numérique démontré. Construction et parcours débitent le même budget de cinq millions ; aucune tolérance ni limite G1 n’est augmentée. Revue indépendante favorable après correction des réservations et copies ; tests différentiels, cas adverses et prisme dense ajoutés.
+
+Le fichier privé de 540 170 triangles franchit désormais les contours, puis atteint `recognition.too_complex` : aucun STEP n’est produit. L’idée R-069 suit ce second coût, sans élargissement opportuniste de G2. Les mesures locales et la validation complète sont centralisées dans V-1192. Le benchmark de contours isolé ne constitue pas une accélération mesurée de la conversion entière.

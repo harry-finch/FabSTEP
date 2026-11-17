@@ -6,7 +6,7 @@ L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée i
 
 L’ordre des lots restants reprend le document d’origine ; les priorités et dépendances exprimées dans leurs textes restent applicables. Aucun nouveau développement n’est autorisé par cette migration.
 
-**Avancement : 20 livrés sur 68** (29 %)
+**Avancement : 20 livrés sur 69** (29 %)
 
 ## Restant à faire
 
@@ -104,8 +104,10 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Afficher le nombre exact de triangles d’un STL trop dense et le maximum autorisé.
 47. **[R-067 G1 — gros maillages sur accord et calcul annulable](roadmap/items/R-067-g1-gros-maillages-sur-accord-et-calcul-annulable.md)** · À tester · jalon post-v1
    Autoriser un essai explicite au-delà de 100 000 triangles, avec avertissement, limites distinctes et arrêt du calcul ; qualifier d’abord le STL de 540 170 triangles.
-48. **[R-068 G2 — accélérer la vérification des contours denses](roadmap/items/R-068-g2-accelerer-la-verification-des-contours-denses.md)** · Idée · jalon post-v1
-   Étudier une vérification spatiale bornée des contours sans relâcher la preuve : le STL FlanschTurboLuftfilter_REV02 de 540 170 triangles est admis par G1, puis refusé au budget de cinq millions de comparaisons. Mesurer avant et après sur ce cas.
+48. **[R-068 G2 — accélérer la vérification des contours denses](roadmap/items/R-068-g2-accelerer-la-verification-des-contours-denses.md)** · À tester · jalon post-v1
+   Filtrage spatial borné des contours intégré et testé, avec prédicats inchangés. Le fichier de 540 170 triangles franchit ce contrôle puis atteint le budget de reconnaissance (R-069) ; aucun STEP produit. Build de développement mis à jour, qualification utilisateur ouverte.
+49. **[R-069 G3 — réduire le coût de reconnaissance des maillages denses](roadmap/items/R-069-g3-reduire-le-cout-de-reconnaissance-des.md)** · Idée · jalon post-v1
+   Après G2, FlanschTurboLuftfilter_REV02.STL franchit les contours mais atteint recognition.too_complex après environ 109 s. Profiler la reconnaissance et réduire les recherches inutiles sans relever les budgets ni assouplir les preuves ; mesurer également la phase d’analyse (environ 95 s), dont la préparation topologique.
 
 ## Actions à faire
 
@@ -161,6 +163,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-054](roadmap/actions/A-054-verifier-le-compte-du-stl-trop-dense.md) Vérifier le compte du STL trop dense (tester, R-066)
 - [ ] [A-056](roadmap/actions/A-056-essayer-et-annuler-un-gros-stl.md) Essayer et annuler un gros STL (tester, R-067)
 - [ ] [A-057](roadmap/actions/A-057-verifier-un-step-issu-du-mode-gros-stl.md) Vérifier un STEP issu du mode gros STL (tester, R-067)
+- [ ] [A-058](roadmap/actions/A-058-verifier-le-passage-des-contours-du-gros-stl.md) Vérifier le passage des contours du gros STL avec G2 (tester, R-068)
 
 ## Livré
 

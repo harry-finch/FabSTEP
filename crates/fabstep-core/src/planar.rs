@@ -6,6 +6,9 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 const MAX_SEGMENT_CHECKS: usize = 5_000_000;
 const NORMAL_DOT_MIN: f64 = 1.0 - 1e-10;
 type P2 = [f64; 2];
+mod broad_phase;
+
+const EXHAUSTIVE_EDGE_LIMIT: usize = 64;
 
 #[cfg(test)]
 pub(crate) fn build(
@@ -259,18 +262,66 @@ fn validate_loops(
     }
     loops.swap(0, outer);
     projected.swap(0, outer);
-    for (index, lp) in projected.iter().enumerate() {
-        for i in 0..lp.len() {
-            let previous = lp[(i + lp.len() - 1) % lp.len()];
-            let current = lp[i];
-            let following = lp[(i + 1) % lp.len()];
-            let a = [previous[0] - current[0], previous[1] - current[1]];
-            let b = [following[0] - current[0], following[1] - current[1]];
-            if orientation(previous, current, following) == 0 && a[0] * b[0] + a[1] * b[1] > 0.0 {
+    validate_edge_pairs(&projected, checks)?;
+    for i in 1..projected.len() {
+        if !inside(projected[i][0], &projected[0], checks)? {
+            return Err(contour_error("Contour intérieur situé hors de la face."));
+        }
+        for j in 1..projected.len() {
+            if i != j && inside(projected[i][0], &projected[j], checks)? {
                 return Err(contour_error(
-                    "Arêtes consécutives superposées dans un contour.",
+                    "Trous imbriqués non représentables par une seule face.",
                 ));
             }
+        }
+    }
+    // No per-face collinear simplification: every shared boundary vertex is kept.
+    Ok(loops)
+}
+
+fn validate_edge_pairs(projected: &[Vec<P2>], checks: &mut usize) -> Result<(), FabError> {
+    let count = projected
+        .iter()
+        .try_fold(0usize, |n, lp| n.checked_add(lp.len()));
+    let Some(count) = count.filter(|n| *n <= 3 * crate::SOURCE_MAX_TRIANGLES) else {
+        return Err(too_complex());
+    };
+    if count <= EXHAUSTIVE_EDGE_LIMIT || !broad_phase::eligible(projected) {
+        return validate_edge_pairs_exhaustive(projected, checks);
+    }
+    for lp in projected {
+        for i in 0..lp.len() {
+            budget(checks)?;
+            consecutive(lp, i)?;
+        }
+    }
+    broad_phase::prove(projected, count, checks)
+}
+
+fn consecutive(lp: &[P2], i: usize) -> Result<(), FabError> {
+    let previous = lp[(i + lp.len() - 1) % lp.len()];
+    let current = lp[i];
+    let following = lp[(i + 1) % lp.len()];
+    let a = [previous[0] - current[0], previous[1] - current[1]];
+    let b = [following[0] - current[0], following[1] - current[1]];
+    if orientation(previous, current, following) == 0 && a[0] * b[0] + a[1] * b[1] > 0.0 {
+        return Err(contour_error(
+            "Arêtes consécutives superposées dans un contour.",
+        ));
+    }
+    Ok(())
+}
+
+// Retained verbatim as the small/extreme-coordinate path and differential oracle.
+fn validate_edge_pairs_exhaustive(
+    projected: &[Vec<P2>],
+    checks: &mut usize,
+) -> Result<(), FabError> {
+    for (index, lp) in projected.iter().enumerate() {
+        for i in 0..lp.len() {
+            let current = lp[i];
+            let following = lp[(i + 1) % lp.len()];
+            consecutive(lp, i)?;
             for (other_index, other) in projected.iter().enumerate().skip(index) {
                 for j in 0..other.len() {
                     if index == other_index
@@ -288,34 +339,27 @@ fn validate_loops(
             }
         }
     }
-    for i in 1..projected.len() {
-        if !inside(projected[i][0], &projected[0], checks)? {
-            return Err(contour_error("Contour intérieur situé hors de la face."));
-        }
-        for j in 1..projected.len() {
-            if i != j && inside(projected[i][0], &projected[j], checks)? {
-                return Err(contour_error(
-                    "Trous imbriqués non représentables par une seule face.",
-                ));
-            }
-        }
-    }
-    // No per-face collinear simplification: every shared boundary vertex is kept.
-    Ok(loops)
+    Ok(())
 }
 fn contour_error(message: &str) -> FabError {
     FabError::new("planar.invalid_contour", message)
 }
 fn budget(checks: &mut usize) -> Result<(), FabError> {
-    *checks += 1;
+    budget_units(checks, 1)
+}
+fn budget_units(checks: &mut usize, units: usize) -> Result<(), FabError> {
+    *checks = checks.saturating_add(units);
     if *checks > MAX_SEGMENT_CHECKS {
-        Err(FabError::new(
-            "planar.too_complex",
-            "Budget de validation des contours dépassé (5 millions de comparaisons).",
-        ))
+        Err(too_complex())
     } else {
         Ok(())
     }
+}
+fn too_complex() -> FabError {
+    FabError::new(
+        "planar.too_complex",
+        "Budget de validation des contours dépassé (5 millions d’unités de travail).",
+    )
 }
 fn area(lp: &[P2]) -> f64 {
     let origin = lp[0];
@@ -490,5 +534,252 @@ mod tests {
     fn contour_work_budget_is_enforced() {
         let mut checks = MAX_SEGMENT_CHECKS;
         assert_eq!(budget(&mut checks).unwrap_err().code, "planar.too_complex");
+    }
+
+    fn circle(count: usize, scale: f64) -> Vec<P2> {
+        (0..count)
+            .map(|i| {
+                let angle = std::f64::consts::TAU * i as f64 / count as f64;
+                [scale * angle.cos(), scale * angle.sin()]
+            })
+            .collect()
+    }
+    fn rectangle(x: f64, y: f64, right: f64, top: f64) -> Vec<P2> {
+        let mut out = Vec::new();
+        for (a, b) in [
+            ([x, y], [right, y]),
+            ([right, y], [right, top]),
+            ([right, top], [x, top]),
+            ([x, top], [x, y]),
+        ] {
+            for i in 0..8 {
+                let t = i as f64 / 8.;
+                out.push([a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]);
+            }
+        }
+        out
+    }
+    fn equivalent(polygons: &[Vec<P2>]) -> (usize, usize) {
+        let (mut old_checks, mut new_checks) = (0, 0);
+        let old = validate_edge_pairs_exhaustive(polygons, &mut old_checks);
+        let new = validate_edge_pairs(polygons, &mut new_checks);
+        assert_eq!(
+            old.as_ref()
+                .err()
+                .map(|e| (e.code.as_str(), e.message.as_str())),
+            new.as_ref()
+                .err()
+                .map(|e| (e.code.as_str(), e.message.as_str()))
+        );
+        (old_checks, new_checks)
+    }
+
+    #[test]
+    fn indexed_edges_preserve_crossings_contacts_collinearity_and_small_path() {
+        let small = vec![circle(EXHAUSTIVE_EDGE_LIMIT, 1.)];
+        let (old, new) = equivalent(&small);
+        assert_eq!(old, new);
+        let ordinary = vec![circle(128, 1.)];
+        let (old, new) = equivalent(&ordinary);
+        assert!(new < old);
+        let mut crossing = ordinary;
+        crossing[0].swap(1, 65);
+        equivalent(&crossing);
+        for second in [
+            rectangle(6., 2., 8., 4.),
+            rectangle(4., 2., 6., 4.),
+            rectangle(4., 4., 6., 6.),
+        ] {
+            equivalent(&[
+                rectangle(0., 0., 10., 10.),
+                rectangle(2., 2., 4., 4.),
+                second,
+            ]);
+        }
+        let gap = f64::from_bits(1_f64.to_bits() + 1);
+        equivalent(&[
+            rectangle(-2., -2., 3., 3.),
+            rectangle(0., 0., 1., 1.),
+            rectangle(gap, 0., 2., 1.),
+        ]);
+        // Adjacent collinear edges are retained, including vertical edges and
+        // signed zero. Their only common point is never treated as a crossing.
+        equivalent(&[
+            rectangle(-0., -0., 4., 4.),
+            rectangle(1., 1., 2., 2.),
+            rectangle(2.5, 1., 3.5, 2.),
+        ]);
+    }
+
+    #[test]
+    fn dyadic_filter_window_and_extreme_fallback_match_the_original_predicate() {
+        for exponent in [-200, -190, 190, 200] {
+            let s = 2_f64.powi(exponent);
+            let polygons = vec![
+                rectangle(0., 0., s, s),
+                rectangle(s / 4., s / 4., s / 2., s / 2.),
+                rectangle(s * 0.75, s / 4., s * 0.875, s / 2.),
+            ];
+            // At the lower bound, subdivision can create coordinates outside
+            // the window. The fallback must preserve those cases as well.
+            equivalent(&polygons);
+        }
+        for exponent in [-600, 600] {
+            let polygons = vec![circle(96, 2_f64.powi(exponent))];
+            assert!(!broad_phase::eligible(&polygons));
+            let (old, new) = equivalent(&polygons);
+            assert_eq!(old, new);
+        }
+        let low = 2_f64.powi(-200);
+        let high = 2_f64.powi(200);
+        assert!(broad_phase::eligible(&[vec![[0., -0.], [low, high]]]));
+        assert!(!broad_phase::eligible(&[vec![[
+            f64::from_bits(low.to_bits() - 1),
+            1.
+        ]]]));
+        assert!(!broad_phase::eligible(&[vec![[
+            f64::from_bits(high.to_bits() + 1),
+            1.
+        ]]]));
+    }
+
+    #[test]
+    fn indexed_work_remains_bounded_for_overlapping_boxes_and_exhausted_setup() {
+        let polygons = vec![circle(128, 1.)];
+        let mut checks = MAX_SEGMENT_CHECKS;
+        assert_eq!(
+            validate_edge_pairs(&polygons, &mut checks)
+                .unwrap_err()
+                .code,
+            "planar.too_complex"
+        );
+        // Parallel, disjoint diagonals have heavily overlapping AABBs. This
+        // isolates broad-phase work; no complete polygon/solid is claimed.
+        let polygons: Vec<_> = (0..256)
+            .map(|i| {
+                let offset = i as f64 / 1024.;
+                vec![[-1., -1. + offset], [1., 1. + offset]]
+            })
+            .collect();
+        let mut checks = MAX_SEGMENT_CHECKS - 10_000;
+        assert_eq!(
+            broad_phase::prove(&polygons, 512, &mut checks)
+                .unwrap_err()
+                .code,
+            "planar.too_complex"
+        );
+        assert!(checks > MAX_SEGMENT_CHECKS);
+    }
+
+    #[test]
+    fn deterministic_radial_corpus_matches_exhaustive_after_rigid_transforms_and_crossings() {
+        let mut seed = 0x43dd_80aa_77e2_9011u64;
+        for _variation in 0..4 {
+            let points: Vec<_> = (0..96)
+                .map(|i| {
+                    seed = seed
+                        .wrapping_mul(6364136223846793005)
+                        .wrapping_add(1442695040888963407);
+                    let radius = 1. + ((seed >> 32) & 1023) as f64 / 4096.;
+                    let angle = std::f64::consts::TAU * i as f64 / 96.;
+                    [radius * angle.cos(), radius * angle.sin()]
+                })
+                .collect();
+            for angle in [0_f64, 0.37, 1.2] {
+                let (sine, cosine) = angle.sin_cos();
+                for offset in [[0., 0.], [-13.25, 7.5], [1e8, -1e8]] {
+                    let transformed: Vec<_> = points
+                        .iter()
+                        .map(|p| {
+                            [
+                                cosine * p[0] - sine * p[1] + offset[0],
+                                sine * p[0] + cosine * p[1] + offset[1],
+                            ]
+                        })
+                        .collect();
+                    let polygons = vec![transformed.clone()];
+                    assert!(broad_phase::eligible(&polygons));
+                    assert!(validate_edge_pairs_exhaustive(&polygons, &mut 0).is_ok());
+                    let (_, first) = equivalent(&polygons);
+                    let (_, second) = equivalent(&polygons);
+                    assert_eq!(first, second, "index work must be deterministic");
+                    let mut crossed = transformed;
+                    crossed.swap(1, 49);
+                    let polygons = vec![crossed];
+                    assert_eq!(
+                        validate_edge_pairs_exhaustive(&polygons, &mut 0)
+                            .unwrap_err()
+                            .code,
+                        "planar.invalid_contour"
+                    );
+                    equivalent(&polygons);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn indexed_proof_still_runs_exhaustive_outer_and_nested_hole_classification() {
+        for (hole, expected) in [
+            (rectangle(6., 6., 8., 8.), None),
+            (
+                rectangle(20., 2., 22., 4.),
+                Some("Contour intérieur situé hors de la face."),
+            ),
+            (
+                rectangle(2.5, 2.5, 3.5, 3.5),
+                Some("Trous imbriqués non représentables par une seule face."),
+            ),
+        ] {
+            let polygons = [rectangle(0., 0., 12., 12.), rectangle(2., 2., 4., 4.), hole];
+            let mut mesh = Mesh {
+                vertices: Vec::new(),
+                triangles: Vec::new(),
+            };
+            let mut loops = Vec::new();
+            for (index, mut polygon) in polygons.into_iter().enumerate() {
+                if index > 0 {
+                    polygon.reverse();
+                }
+                let start = mesh.vertices.len();
+                mesh.vertices
+                    .extend(polygon.iter().map(|p| [p[0], p[1], 0.]));
+                loops.push((start..mesh.vertices.len()).collect());
+            }
+            assert!(mesh.vertices.len() > EXHAUSTIVE_EDGE_LIMIT);
+            let result = validate_loops(&mesh, loops, [0.; 3], [0., 0., 1.], &mut 0);
+            if let Some(message) = expected {
+                let error = result.unwrap_err();
+                assert_eq!(error.code, "planar.invalid_contour");
+                assert_eq!(error.message, message);
+            } else {
+                assert!(result.is_ok());
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "manual contour-only timing; production integration is tested separately"]
+    fn benchmark_dense_contour_exhaustive_against_bvh() {
+        use std::time::Instant;
+        for count in [512, 4096] {
+            let polygons = vec![circle(count, 10.)];
+            let mut old_checks = 0;
+            let start = Instant::now();
+            let old = validate_edge_pairs_exhaustive(&polygons, &mut old_checks);
+            let old_time = start.elapsed();
+            let mut new_checks = 0;
+            let start = Instant::now();
+            let new = validate_edge_pairs(&polygons, &mut new_checks);
+            let new_time = start.elapsed();
+            eprintln!("contour n={count}: exhaustive checks={old_checks} time={old_time:?} result={:?}; BVH work={new_checks} time={new_time:?} result={:?}",old.as_ref().err().map(|e|&e.code),new.as_ref().err().map(|e|&e.code));
+            assert!(new.is_ok());
+            assert!(new_checks < old_checks);
+            if count == 512 {
+                assert!(old.is_ok());
+            } else {
+                assert_eq!(old.unwrap_err().code, "planar.too_complex");
+            }
+        }
     }
 }

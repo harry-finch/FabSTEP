@@ -1285,3 +1285,34 @@ Ces mesures ont motivé le garde RSS de 4 Gio. Elles n’établissent pas qu’u
 **Limites graphiques :** le pilotage natif a ouvert l’application et le dialogue de fichier, mais « Open » est resté désactivé malgré sélection et chemin complet ; une tentative par coordonnées a aussi rencontré une erreur du pilote. Dialogue annulé, application laissée sans fichier. Comme lors des validations précédentes, cela ne suffit pas à conclure à un défaut d’import utilisateur. Le parcours visuel complet avertissement → essai → Annuler, les thèmes/langues montés et Fusion restent à confirmer via les actions R-067. Aucun succès graphique de ce parcours n’est revendiqué.
 
 **Traces locales :** `artifacts/g1/` contient les journaux workspace/bureau/helper/UI, le test de transfert réel, les quatre rapports JSON de processus, l’outil de mesure local, les empreintes du bundle et le cube synthétique. Ces traces reconstruisibles ne sont pas versionnées. La qualification du paquet autonome v1 reste distincte et inchangée.
+
+
+## V-1192 — G2 : filtrage spatial borné des contours denses (17 novembre 2026)
+
+R-068 remplace les comparaisons exhaustives au-delà de 64 segments par un arbre de boîtes 2D fermées, déterministe et local au core. Le tri, les copies, la construction et le parcours partagent les cinq millions d’unités de travail ; nouvelles réservations faillibles, stockage linéaire, pile logarithmique, aucune liste quadratique de paires. Les prédicats de croisement/contact et l’inclusion des trous restent inchangés. Le filtre n’est éligible que pour des coordonnées projetées nulles ou comprises en valeur absolue entre 2^-200 et 2^200 : les opérations du filtre d’orientation restent normales et finies dans ce domaine. Hors de cette fenêtre, le parcours exhaustif conserve ses comportements numériques historiques. Aucun sommet, seuil, audit CAO ou plafond G1 n’est modifié. Le compteur de l’index inclut son coût de préparation : pour des boîtes très chevauchantes proches du plafond, un refus de budget peut survenir plus tôt que dans l’exhaustif ; aucune équivalence générale des seuils de refus n’est revendiquée.
+
+Revue indépendante acceptée après correction des réservations initialement infallibles et comptabilisation des copies. L’orchestrateur a relu le diff et exécuté les tests. Corpus différentiel : contacts, colinéarités, zéro signé, écart d’une ULP, bornes dyadiques et extrêmes, puis 36 formes radiales transformées et leurs 36 mutations croisées ; résultats comparés à l’exhaustif et compteurs déterministes. Les trous séparés, extérieurs et imbriqués passent par le validateur complet après indexation. Un cas de boîtes chevauchantes épuise explicitement le budget. Le test d’intégration construit un prisme de 16 384 triangles et conserve ses deux contours de 4 096 sommets, les coordonnées et le volume polygonal attendu.
+
+### Mesures
+
+Build debug sur ce Mac ; exécutions avant/après sans autre compilation ni suite de tests concurrente. Un seul passage par cas : mesures indicatives, pas un benchmark statistique ni une garantie de latence. Le benchmark opt-in compare uniquement les couples d’arêtes, hors topologie et CAO : `cargo test -p fabstep-core --offline --locked --lib benchmark_dense_contour_exhaustive_against_bvh -- --ignored --nocapture`.
+
+| Contour synthétique | Exhaustif historique | Index G2 | Résultat |
+| --- | --- | --- | --- |
+| 512 segments | 130 304 comparaisons, 6,881 ms | 13 986 unités, 0,617 ms | Les deux acceptent |
+| 4 096 segments | Refus à 5 000 001 comparaisons, 217,720 ms | 124 822 unités, 4,869 ms | G2 accepte ; l’ancien parcours n’achève pas la preuve |
+
+Fichier privé FlanschTurboLuftfilter_REV02.STL, 540 170 triangles, mêmes options (mm, Auto, soudage/planéité 1e-6 mm, ajustement 1e-5 mm, écart maximal 0,05 mm), helper G1 de `2d513ba` conservé pour la référence :
+
+- Avant : **94,747 s**, RSS maximale échantillonnée **440,48 Mio**, refus `planar.too_complex`, phase analyse uniquement.
+- Après : **108,812 s**, RSS maximale échantillonnée **514,42 Mio**, entrée en reconnaissance à **95,112 s**, puis refus `recognition.too_complex`. **Aucun rapport de succès ni STEP produit.** Le blocage des contours est franchi ; le coût de reconnaissance relève de R-069, non traité en relevant son budget.
+
+Ces durées ne mesurent pas le même travail terminé ; aucun gain global de conversion n’est revendiqué. Un échantillonnage CPU avant modification situait du travail dans la séparation des composantes et la validation topologique. Les 95 premières secondes ne sont donc pas attribuées aux seuls contours. Le lanceur de qualification appelle le vrai helper, observe sa progression et impose ses propres gardes à 300 s et 4 Gio (180 s avant) ; ce n’est pas un essai graphique du superviseur Tauri. Les plafonds produit restent à 30 minutes et 4 Gio.
+
+Journaux locaux non versionnés : `artifacts/g2/{flansch-before.json,flansch-after.json,contour-benchmark.log,planar-tests.log,dense-prism.log,check.log}`. Le fichier privé n’entre pas dans le dépôt. Les contrôles globaux et le paquet sont détaillés ci-dessous.
+
+### Contrôles finaux
+
+`scripts/check.sh` termine avec code 0 : **476 tests workspace réussis**, 13 opt-in ignorés par défaut (le nouveau benchmark exécuté séparément réussit) ; **49 bureau**, 1 transfert réel opt-in exécuté après le passage ordinaire ; **8 helper** ; **46 ciblés avec `large-stl`** (dont les neuf tests de contours et le prisme) ; **229 UI**, **12 Python**, **4 SDK**. Formatage, Clippy strict workspace/bureau/helper, contrôle bureau hors workspace, Svelte (0 erreur/0 avertissement) et build UI réussis. Les plafonds source et résultat sont revérifiés dans les deux profils. Aucun échec dans la suite globale finale ; une compilation intermédiaire pendant écriture a signalé deux littéraux Rust incomplets, corrigés avant cette suite.
+
+`scripts/build-macos-dev.sh` réussit. `artifacts/FabSTEP.app` contient les exécutables identiques aux builds (SHA-256 bureau `6bfedb1969f6d45707ee44101930e514fe2a795b4096a9ddb032a58e664cf322`, helper `8462b4d5c43c6cc843842299c7353982fbd8d2080e041323d866b2e2e98fabf8`). Le paquet autonome 1.0.0 reste inchangé. Aucun nouvel essai graphique ni Fusion exécuté ; l’interface n’est pas modifiée. Le parcours manuel dense et l’annulation restent à qualifier dans l’action utilisateur R-068.

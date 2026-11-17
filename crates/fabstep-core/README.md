@@ -29,7 +29,10 @@ imbriqués. Leur orientation est relative à la normale sortante de la face.
 
 ## Limites explicites
 
-- 64 Mio, 100 000 triangles et 5 millions de comparaisons pour les contours.
+- 64 Mio et 100 000 triangles dans le parcours ordinaire ; la capacité source
+  `large-stl` du helper isolé autorise 600 000 triangles, sans relever les
+  plafonds du résultat. Les contours partagent un budget de 5 millions
+  d’unités de travail (construction de l’index, parcours et comparaisons).
 - Coordonnées et tolérances finies, strictement positives pour les tolérances.
   Une étendue incompatible avec la grille de soudage est refusée.
 - Aucun remplissage de trou, aucune suppression silencieuse de triangle.
