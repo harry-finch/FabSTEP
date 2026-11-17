@@ -303,3 +303,8 @@ R-060 ajoute une rupture source unique entre deux cônes adjacents, avec témoin
 Validation V-1186 : 459 tests workspace, 32 bureau, 208 UI, 12 Python et 4 SDK ; contrôle séquentiel complet, analyse statique et build macOS réussis. 48 fichiers des corpus inchangés après régénération. Essais utilisateur et Fusion restent distincts. L’accord structurel A-045 autorise les perçages sécants ; le laboratoire R-063 reste séparé de la conversion pendant la qualification continue des courbes réimportées.
 
 F0 : prototype et tests élémentaires livrés, revue indépendante PARTIAL et rejeu orchestrateur conformes (sortie 2). Certificat global non obtenu : budget et périodique restent ouverts ; aucune activation dans l’application. Preuves V-1187.
+
+
+### 17 novembre — lancement manuel du STEP
+
+À la demande de l’utilisateur, R-064 sépare aperçu initial et reconstruction, avec bouton primaire dans le panneau de droite. Consentement au calcul remis à zéro à chaque source, réglages préparatoires sans conversion, recalcul ultérieur conservé. Tests de concurrence et de refus adaptés ; 215 tests UI et build passent. Parcours natif principal vérifié, second dialogue de fichiers bloqué dans le pilote ; V-1188 précise les limites.

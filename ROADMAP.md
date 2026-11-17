@@ -6,7 +6,7 @@ L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée i
 
 L’ordre des lots restants reprend le document d’origine ; les priorités et dépendances exprimées dans leurs textes restent applicables. Aucun nouveau développement n’est autorisé par cette migration.
 
-**Avancement : 20 livrés sur 63** (32 %)
+**Avancement : 20 livrés sur 64** (31 %)
 
 ## Restant à faire
 
@@ -96,6 +96,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Ouvrir et obtenir le meilleur STEP prouvé, sélectionner une paroi en un geste et corriger localement sans perdre les surfaces reconnues.
 43. **[R-059 C1b2 — chaînes coniques sans portée intermédiaire](roadmap/items/R-059-c1b2-chaines-coniques-sans-portee-intermediaire.md)** · Idée · jalon post-v1
    Prouver les ruptures de pente entre cônes directement adjacents, sans découper artificiellement une méridienne courbe.
+44. **[R-064 UX6 — lancer le STEP depuis l’inspecteur](roadmap/items/R-064-ux6-lancer-le-step-depuis-l-inspecteur.md)** · À tester · jalon atelier
+   Ouvrir le fichier en aperçu source puis lancer sa reconstruction avec un bouton explicite dans le panneau de droite.
 
 ## Actions à faire
 
@@ -146,6 +148,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-049](roadmap/actions/A-049-verifier-les-deux-tores-dans-fusion.md) Vérifier les deux tores dans Fusion (tester, R-061)
 - [ ] [A-050](roadmap/actions/A-050-examiner-le-bac-ouvert-et-ses-arrondis.md) Examiner le bac ouvert et ses arrondis (tester, R-062)
 - [ ] [A-051](roadmap/actions/A-051-verifier-le-bac-ouvert-dans-fusion.md) Vérifier le bac ouvert dans Fusion (tester, R-062)
+- [ ] [A-052](roadmap/actions/A-052-essayer-le-lancement-manuel-du-step.md) Essayer le lancement manuel du STEP (tester, R-064)
 
 ## Livré
 

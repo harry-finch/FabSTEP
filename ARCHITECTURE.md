@@ -131,7 +131,7 @@ La préparation du résultat STEP calcule dans le worker UI une attribution dét
 
 ## Orchestration UI testable (UX4)
 
-`ui/src/lib/workflow.ts` exécute l’import, l’invalidation, la chaîne aperçu/conversion, les mutations de guidage et l’export. `App.svelte` lui fournit une façade d’accesseurs sur ses runes actives et les fonctions d’inspection ; aucune seconde copie d’état n’est maintenue. La recherche conserve le même verrou `busy` et la file `queued`. Les timers et le pont IPC sont injectés pour tester les véritables commandes avec des promesses différées, sans DOM ni dépendance supplémentaire.
+`ui/src/lib/workflow.ts` exécute l’import, l’invalidation, l’aperçu puis la conversion explicitement lancée, les mutations de guidage et l’export. `App.svelte` lui fournit une façade d’accesseurs sur ses runes actives et les fonctions d’inspection ; aucune seconde copie d’état n’est maintenue. La recherche conserve le même verrou `busy` et la file `queued`. Les timers et le pont IPC sont injectés pour tester les véritables commandes avec des promesses différées, sans DOM ni dépendance supplémentaire.
 
 L’invalidation retire immédiatement le résultat exportable ; le dernier travail demandé reprend lorsque l’ancien appel libère le verrou. Le guidage conserve son avancée atomique native via `baseRequestId`, sans pré-invalidation qui détruirait la session. La destruction du composant invalide les lectures et réponses en vol. Les workers, l’historique des réglages et la sélection restent dans App : l’extraction est limitée à la logique nécessitant ces tests. Les tests du contrôleur ne remplacent pas une qualification du composant monté et du parcours graphique natif.
 

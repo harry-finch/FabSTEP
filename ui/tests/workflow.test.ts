@@ -109,7 +109,7 @@ function fixture() {
   };
   const start = () => {
     workflow.setSource(new Uint8Array([1, 2, 3]));
-    flush();
+    void workflow.reconstruct();
     return state.current;
   };
   const uploaded = async () => {
@@ -137,6 +137,133 @@ function fixture() {
     }
   };
 }
+test('opening a file uploads and prepares its source preview without reconstructing STEP', async () => {
+  const f = fixture();
+  await f.workflow.load({ name: 'opened.stl', size: 3, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer });
+  f.flush();
+  await f.uploaded();
+  const id = f.state.current;
+  await f.previewed();
+  assert.equal(f.state.preview?.request_id, id);
+  assert.equal(f.state.processing, null);
+  assert.equal(f.state.busy, false);
+  assert.equal(f.count('convert_document'), 0);
+  assert.equal(f.state.result, null);
+  assert.equal(f.workflow.canExport(), false);
+  assert.equal(f.workflow.canReconstruct(), true);
+  assert.equal(f.hooks.some(hook => hook.startsWith('ready:')), false);
+});
+test('one explicit reconstruction click publishes once and rejects a duplicate while active', async () => {
+  const f = fixture();
+  f.workflow.setSource(new Uint8Array([1]));
+  f.flush();
+  await f.uploaded();
+  await f.previewed();
+  const doc = f.state.preview;
+  const operation = f.workflow.reconstruct();
+  const id = f.state.current;
+  assert.equal(f.state.preview, doc);
+  assert.equal(f.workflow.canReconstruct(), false);
+  await f.workflow.reconstruct();
+  assert.equal(f.state.current, id);
+  assert.equal(f.count('preview_document'), 2);
+  await f.previewed();
+  assert.equal(f.count('convert_document'), 1);
+  assert.equal(f.workflow.canExport(), false);
+  await f.converted();
+  await operation;
+  assert.equal(f.workflow.canExport(), true);
+  assert.deepEqual(f.hooks.filter(hook => hook.startsWith('ready:')), [`ready:${id}`]);
+});
+test('options before the first click replace stale preview work without starting conversion', async () => {
+  const f = fixture();
+  f.workflow.setSource(new Uint8Array([1]));
+  f.flush();
+  await f.uploaded();
+  const oldId = f.state.current, oldPreview = f.latest('preview_document');
+  f.state.options = { ...initial, input_unit: 'inch', max_deviation_mm: 0.1 };
+  f.workflow.invalidate(true);
+  f.flush();
+  assert.equal(f.state.queued, true);
+  oldPreview.pending.resolve(preview(oldId));
+  await tick();
+  assert.equal(f.state.preview, null);
+  const current = f.latest('preview_document');
+  assert.equal((current.args as { options: Options }).options.input_unit, 'inch');
+  await f.previewed();
+  assert.equal(f.count('convert_document'), 0);
+  assert.equal(f.state.preview?.request_id, f.state.current);
+  assert.equal(f.workflow.canReconstruct(), true);
+  assert.equal(f.state.busy, false);
+});
+test('opening a replacement after an accepted STEP resets the reconstruction request', async () => {
+  const f = fixture();
+  f.start();
+  await f.uploaded();
+  await f.previewed();
+  await f.converted();
+  assert.equal(f.workflow.canExport(), true);
+  await f.workflow.load({ name: 'replacement.3mf', size: 1, arrayBuffer: async () => new Uint8Array([9]).buffer });
+  assert.equal(f.state.result, null);
+  assert.equal(f.workflow.canExport(), false);
+  f.flush();
+  await f.uploaded();
+  await f.previewed();
+  assert.equal(f.count('convert_document'), 1);
+  f.state.options = { ...initial, reconstruction: 'auto' };
+  f.workflow.invalidate(true);
+  f.flush();
+  await f.previewed();
+  assert.equal(f.count('convert_document'), 1);
+  assert.equal(f.workflow.canReconstruct(), true);
+  assert.equal(f.state.result, null);
+});
+for (const failure of [false, true]) {
+  test(`replacement preview rejects a late conversion ${failure ? 'failure' : 'success'} and requires its own click`, async () => {
+    const f = fixture(), oldId = f.start();
+    await f.uploaded();
+    await f.previewed();
+    const oldConversion = f.latest('convert_document');
+    f.workflow.setSource(new Uint8Array([9]));
+    f.flush();
+    if (failure) oldConversion.pending.reject({ code: 'cad.invalid_solid' });
+    else oldConversion.pending.resolve(result(oldId));
+    await tick();
+    assert.equal(f.state.result, null);
+    assert.equal(f.state.errorState, null);
+    assert.equal(f.hooks.some(hook => hook.startsWith('ready:')), false);
+    await f.uploaded();
+    await f.previewed();
+    assert.equal(f.count('convert_document'), 1);
+    assert.equal(f.workflow.canExport(), false);
+    assert.equal(f.workflow.canReconstruct(), true);
+    const operation = f.workflow.reconstruct();
+    await f.previewed();
+    assert.equal(f.count('convert_document'), 2);
+    await f.converted();
+    await operation;
+    assert.equal(f.state.result?.request_id, f.state.current);
+  });
+}
+test('an explicit retry after conversion refusal clears the error and revalidates before export', async () => {
+  const f = fixture();
+  f.start();
+  await f.uploaded();
+  await f.previewed();
+  f.latest('convert_document').pending.reject({ code: 'recognition.unsupported' });
+  await tick();
+  assert.ok(f.state.errorState);
+  assert.equal(f.workflow.canExport(), false);
+  assert.equal(f.workflow.canReconstruct(), true);
+  const operation = f.workflow.reconstruct();
+  assert.equal(f.state.errorState, null);
+  assert.ok(f.state.preview);
+  await f.previewed();
+  await f.converted();
+  await operation;
+  assert.equal(f.count('convert_document'), 2);
+  assert.equal(f.workflow.canExport(), true);
+});
 test('preparing a faceted correction resets the old STEP and selection before recalculation', async () => {
   const f = fixture();
   f.ready();
@@ -201,9 +328,9 @@ test('file read errors are visible only for the current file', async () => {
   await first;
   assert.equal(f.state.errorState, null);
 });
-test('production pipeline uploads, previews and converts before enabling export', async () => {
+test('explicit reconstruction uploads, previews and converts before enabling export', async () => {
   const f = fixture(), id = f.start();
-  assert.deepEqual(f.hooks, ['clearSearch', 'source:true', 'step']);
+  assert.deepEqual(f.hooks, ['clearSearch', 'source:true', 'step', 'clearSearch', 'source:false', 'step']);
   assert.equal(f.state.processing?.phase, 'preview');
   assert.equal(f.workflow.canExport(), false);
   assert.deepEqual([...f.latest('upload_source').args as Uint8Array], [1, 2, 3]);
@@ -291,10 +418,14 @@ test('a replacement source never inherits upload completion or result from the p
   assert.deepEqual([...f.latest('upload_source').args as Uint8Array], [9]);
   await f.uploaded();
   await f.previewed();
+  assert.equal(f.count('convert_document'), 0);
+  assert.equal(f.state.result, null);
+  void f.workflow.reconstruct();
+  await f.previewed();
   await f.converted();
   assert.equal(f.state.result?.request_id, f.state.current);
 });
-test('invalid options cancel pending work and valid options schedule a new full conversion', async () => {
+test('invalid options cancel pending work and valid options prepare a preview before the first click', async () => {
   const f = fixture();
   f.workflow.setSource(new Uint8Array([1]));
   f.state.options = { ...initial, weld_tolerance_mm: NaN };
@@ -308,6 +439,10 @@ test('invalid options cancel pending work and valid options schedule a new full 
   f.workflow.invalidate(true);
   f.flush();
   await f.uploaded();
+  await f.previewed();
+  assert.equal(f.count('convert_document'), 0);
+  assert.equal(f.workflow.canExport(), false);
+  void f.workflow.reconstruct();
   await f.previewed();
   await f.converted();
   assert.equal(f.workflow.canExport(), true);

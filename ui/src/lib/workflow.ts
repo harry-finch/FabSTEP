@@ -57,6 +57,9 @@ export type WorkflowDependencies = {
 export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies) {
   let timer: unknown;
   let disposed = false;
+  // Opening a source prepares its preview. Conversion starts only after an
+  // explicit request for this source, then options retain their live recalculation.
+  let reconstructionRequested = false;
 
   function clearTimer() {
     if (timer !== undefined) {
@@ -69,6 +72,9 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     if (disposed) {
       return;
     }
+    // An accepted/restored STEP or guided session also establishes that this
+    // source has already entered the reconstruction workflow.
+    reconstructionRequested ||= !!state.result || !!state.guidedAttempt || !!state.guidanceHints.length;
     deps.clearParameterSearch();
     state.guidedAttempt = null;
     state.guidanceHints = [];
@@ -118,6 +124,7 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     state.busy = true;
     const id = state.current, source = state.bytes, key = state.sourceId;
     const opts = deps.serializableOptions(state.options), format = state.format;
+    const shouldConvert = reconstructionRequested;
     if (state.processing?.requestId === id) {
       state.processing.phase = 'preview';
     }
@@ -139,6 +146,9 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
       state.preview = doc;
       previewComplete = true;
       void deps.prepareSelection(id, key, opts, doc, state.sourceRevision);
+      if (!shouldConvert) {
+        return;
+      }
       if (state.processing?.requestId === id) {
         state.processing.phase = 'converting';
       }
@@ -178,6 +188,7 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
       return;
     }
     const token = ++state.fileToken;
+    resetReconstruction();
     state.bytes = null;
     state.sourceId = null;
     state.uploadedSourceId = null;
@@ -211,10 +222,36 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     if (disposed) {
       return;
     }
+    resetReconstruction();
     state.bytes = data;
     state.sourceId = state.current + 1;
     state.uploadedSourceId = null;
     invalidate();
+  }
+
+  function resetReconstruction() {
+    reconstructionRequested = false;
+    state.result = null;
+    state.guidedAttempt = null;
+    state.guidanceHints = [];
+  }
+
+  function canReconstruct() {
+    return !disposed && !!deps.native() && !!state.bytes && state.sourceId !== null
+      && !state.busy && (!state.processing || state.processing.phase === 'queued')
+      && validPreferences(state.options);
+  }
+
+  async function reconstruct() {
+    if (!canReconstruct()) {
+      return;
+    }
+    reconstructionRequested = true;
+    invalidate(true);
+    // The explicit click starts immediately, replacing a pending preview timer.
+    clearTimer();
+    state.queued = true;
+    await run();
   }
 
   async function mutateGuidance(command: 'guided_convert' | 'remove_guidance' | 'recompute_guidance', payload: {
@@ -226,6 +263,7 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     if (disposed || state.busy || state.processing || state.sourceId === null || !bridge || !state.preview) {
       return;
     }
+    reconstructionRequested = true;
     const baseRequestId = state.current, key = state.sourceId, opts = deps.serializableOptions(state.options);
     // The native command advances its accepted session atomically; do not pre-invalidate it.
     deps.clearParameterSearch();
@@ -310,5 +348,5 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     state.queued = false;
     state.processing = null;
   }
-  return { invalidate, run, load, setSource, mutateGuidance, canExport, exportStep, dispose };
+  return { invalidate, run, load, setSource, reconstruct, canReconstruct, mutateGuidance, canExport, exportStep, dispose };
 }

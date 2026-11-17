@@ -389,7 +389,8 @@
     schedule: (callback, delay) => setTimeout(callback, delay),
     clearSchedule: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
   });
-  const { invalidate, run, load, mutateGuidance, exportStep } = workflow;
+  const { invalidate, run, load, mutateGuidance, exportStep, reconstruct } = workflow;
+  const canReconstruct = $derived(workflow.canReconstruct());
   function commitOptions() {
     const previous = commitSnapshot(options, committed); if (!previous) return;
     history.push(previous); if (history.length > 50) history.shift();
@@ -658,10 +659,15 @@
       <div class="panel-title">{t('workspace.inspector')}</div>
       <div class="document-state" aria-live="polite">
         <strong class:success={!!result && !error} class:danger={!!error}>
-          {error ? t(errorTitle) : processing ? t(`processing.${processing.phase}Title`) : result ? t('workspace.ready') : bytes && !native() ? t('workspace.native') : t('workspace.waiting')}
+          {error ? t(errorTitle) : processing ? t(`processing.${processing.phase}Title`) : result ? t('workspace.ready') : bytes && !native() ? t('workspace.native') : preview ? t('workspace.sourceReady') : t('workspace.waiting')}
         </strong>
         {#if !result && !error && !processing}
-          <p class="muted">{bytes ? t('workspace.allRequired') : t('workspace.emptyNext')}</p>
+          <p class="muted">{bytes ? t(native() ? 'workspace.reconstructHint' : 'workspace.nativeNote') : t('workspace.emptyNext')}</p>
+        {/if}
+        {#if bytes && native() && preview && !result && !guidedAttempt}
+          <button class="btn primary" disabled={!canReconstruct} onclick={reconstruct} title={t('workspace.reconstructHint')}>
+            {t('workspace.reconstruct')}
+          </button>
         {/if}
         {#if error}
           <p class="message danger">
@@ -735,7 +741,7 @@
           onshrink={() => resizeSourceZone(-1)}
           onclear={clearSourceZone}
         />
-      {:else if bytes && !stepView}
+      {:else if bytes && !stepView && (result || selectionMode)}
         <div class="context-hint">
           <MousePointer2 size={14}/>
           <p class="muted">
@@ -1110,7 +1116,7 @@
   <footer>
     <span class:ok={!!result} class:warn={!!processing || (!!bytes && !native())} class:bad={!!error} class="dot"></span>
     <span>
-      {error ? t(errorTitle) : processing ? t('workspace.pending') : result ? t('workspace.ready') : bytes && !native() ? t('workspace.native') : t('workspace.waiting')}
+      {error ? t(errorTitle) : processing ? t('workspace.pending') : result ? t('workspace.ready') : bytes && !native() ? t('workspace.native') : preview ? t('workspace.sourceReady') : t('workspace.waiting')}
     </span>
     <span class="spacer"></span>
     <span>{noteKey ? t(noteKey) : (result ? result.cad.kernel : 'FabSTEP')}</span>

@@ -50,6 +50,10 @@ Le paquet autonome est disponible dans `artifacts/release/1.0.0/FabSTEP.app` pou
 
 Les quatre pièces du [corpus mécanique indépendant](fixtures/complex_v1/README.md) ont été converties puis réimportées dans FreeCAD : perçages sur trois axes, double chanfrein, carter mêlant cinq familles de surfaces et boîtier arrondi. Les formes libres, intersections de perçages et congés généraux à rayon variable restent à développer. L’aperçu et l’export du boîtier ont été confirmés par l’utilisateur sur la candidate ; la version finale conserve le même code. Les essais automatisés et manuels sont distingués dans la validation.
 
+## Ouvrir et reconstruire
+
+Dans le build de développement, ouvrir un STL ou 3MF affiche d’abord le maillage source. Vérifier l’unité du STL puis cliquer sur **Reconstruire le STEP** dans le panneau de droite. Le résultat validé s’affiche ensuite automatiquement. Chaque nouveau fichier attend son propre lancement ; après ce premier calcul, les modifications de réglages conservent leur recalcul habituel.
+
 ## Construire
 
 Prérequis : Rust 1.88+, compilateur C++17, Node compatible avec Vite 8 et SDK OpenCASCADE 7.9. La construction contrôle les macros de version du SDK sélectionné et refuse les familles autres que 7.9.x, sans imposer un correctif exact. Le poste de validation utilise Rust 1.88, Node 26 et OCCT 7.9.3 sur macOS Apple Silicon.
