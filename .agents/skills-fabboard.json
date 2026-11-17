@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "fab-design-system": {
+      "fingerprint": "sha256:0a10155ebd24e93f112296153cf54d7b372003f3e3fd9eeb03fcc6501af3b94d"
+    },
+    "fab-illustration-system": {
+      "fingerprint": "sha256:6e48a3e4385688ad64e3a88f3de008e005e6956d31b61d24a29b561123fae31c"
+    },
+    "fab-roadmap": {
+      "fingerprint": "sha256:5871c41453c7655348176c5dc65081950987664420c4bf01b06e86d907e69e26"
+    },
+    "github-upstream-workflow": {
+      "fingerprint": "sha256:71ec13ef920b1553c3b84d0d20ad228b9ae222f2c8aca2fe07bd359b9680eb67"
+    },
+    "professional-workshop-ui": {
+      "fingerprint": "sha256:16a5b53ac65a22806432de60d53ffe4cc2afdc225ce8a0f9f98a593d22348638"
+    },
+    "project-documentation": {
+      "fingerprint": "sha256:a94c5f45d801835f13723fece14c3394615640258076a42a99dc585710c8310b"
+    }
+  }
+}
