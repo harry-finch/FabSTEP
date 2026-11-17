@@ -12,6 +12,11 @@ const MIN_CIRCLE_VERTICES: usize = 12;
 #[derive(Default)]
 pub(crate) struct Work(usize);
 impl Work {
+    #[cfg(test)]
+    pub(crate) fn used_for_test(&self) -> usize {
+        self.0
+    }
+
     pub(crate) fn spend(&mut self, count: usize) -> Result<(), FabError> {
         self.0 = self.0.saturating_add(count);
         if self.0 > MAX_WORK {

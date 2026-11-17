@@ -1384,3 +1384,49 @@ Les mesures utilisent le helper réel, avec gardes de qualification à 300 s et 
 `sh scripts/check.sh` termine avec code 0 : **491 tests workspace, 49 bureau, 8 helper, 63 ciblés avec `large-stl`, 1 transfert réel opt-in, 229 UI, 12 Python et 4 SDK réussis**. Formatage, Clippy strict des trois builds, contrôle bureau hors workspace, Svelte (0 erreur/0 avertissement) et build UI passent. Les quinze tests workspace opt-in restent ignorés par la suite ordinaire ; aucun nouveau test opt-in dans G4. Les benchmarks G2/G3 ne sont pas rejoués dans ce lot. Une compilation intermédiaire du nouveau test de budget exigeait `Debug` sur `Errors`, corrigé avant les tests ciblés et la suite globale ; aucun échec dans la suite finale. L’avertissement Vite connu sur la taille du bundle reste présent.
 
 `sh scripts/build-macos-dev.sh` réussit. Les deux exécutables de `artifacts/FabSTEP.app` correspondent aux builds : SHA-256 bureau `3d0deef7440a2b2b538dfb7b04d28177e3306132381834301141af1111125f8a`, helper `d8332ff8372c31c9f6f705ee644f5b86a055ca7b98cd5dbe60de164808567154`. Journaux complémentaires : `artifacts/g4/{partial-tests.log,proof-tests.log,check.log,build-app.log,bundle-hashes.json}`. Aucun nouvel essai graphique ni Fusion ; paquet autonome v1 inchangé. R-070 reste à tester via A-060 ; la recherche générale résiduelle est suivie dans l’idée R-071.
+
+
+## V-1195 — R-071 : maximalité des arcs par intervalles cycliques (17 novembre 2026)
+
+Le profilage local de Flansch sous G4 attribue 6 658 unités aux gardes de contours, 1 398 664 aux fenêtres ajustées et 2 919 238 à leur maximalité, avant le refus `recognition.too_complex`. Ces compteurs instrumentent uniquement les appels correspondants du core ; ils n’incluent pas toute la reconnaissance précédente. Les petits arrêts radiaux anticipés ne permettraient pas de réduire honnêtement le débit des fenêtres, puisque chacune visite déjà tous ses points pour l’ajustement. Cette piste n’a pas été intégrée.
+
+`partial.rs` conserve les fenêtres, les sommes flottantes, les seuils angulaires et la preuve des unions. Pour les contours à sommets uniques, les ensembles d’arêtes sont remplacés uniquement au test de maximalité par des intervalles cycliques. Une chaîne de longueur L représente L−1 arêtes, moins qu’un tour complet ; le décalage du départ et les longueurs déterminent exactement l’inclusion. L’ordre des boucles et la priorité du candidat antérieur en cas d’égalité restent identiques. Une copie faillible, un tri par tas et le contrôle des doublons sont débités avant leurs opérations. Avec zéro ou un candidat, ou des indices répétés, la voie historique est conservée ; un épuisement du garde reste bloquant et ne déclenche pas de repli.
+
+La revue indépendante est favorable. Elle signale qu’un grand contour avec très peu de candidats peut payer un garde plus coûteux que l’ancienne maximalité ; aucun gain uniforme ni équivalence des seuils de refus de ressources n’est revendiqué. Le plafond partagé reste à dix millions, sans nouveau contrat ni nouvelle preuve numérique.
+
+### Équivalence et mesures locales
+
+Les quatre nouveaux tests couvrent tous les couples d’intervalles des contours de 3 à 12 sommets, les rebouclages, égalités, ordre inversé et valeurs d’indices proches de usize::MAX. Le résultat conservé est comparé aux ensembles historiques ; les champs de Fit restent bit à bit identiques. Des indices répétés imposent le repli. Des budgets exacts vérifient copie, tri, comparaisons, épuisement sans repli et absence de garde sur un candidat unique. Les candidats réels de 18 profils D (trois densités, deux sens, trois repères) conservent ordre, chaînes, centre, normale et rayon bit à bit. Les six régressions partial existantes passent également, dont les fenêtres non monotones et les cercles complets quantifiés.
+
+Benchmark opt-in reproductible, build debug, un passage historique puis optimisé sur ce Mac, sans autre calcul lourd concurrent. Commande : `cargo test -p fabstep-core --offline --locked --lib benchmark_cyclic_maximality_against_historical_sets -- --ignored --nocapture`. La comparaison couvre la recherche complète des candidats synthétiques, pas une conversion CAO ; mêmes candidats et mêmes bits vérifiés.
+
+| Profil D | Ensembles historiques | Intervalles cycliques |
+| --- | --- | --- |
+| 97 sommets | 293 429 unités ; 40,495 ms | 162 633 unités ; 19,420 ms |
+| 257 sommets | 5 310 879 unités ; 214,995 ms | 2 905 912 unités ; 199,512 ms |
+
+Ces durées isolées ne sont pas un benchmark statistique ni une garantie de latence. Les économies de compteur correspondent à la suppression effective des constructions et comparaisons d’ensembles, pas à une hausse de budget.
+
+### Flansch et prochain refus
+
+Même fichier privé de 540 170 triangles et mêmes tolérances que V-1194. Le profilage après modification termine la reconnaissance : **4 cylindres, 8 cônes, 501 900 plans**. Les compteurs agrégés de cette exécution complète sont gardes 41 064, fenêtres 7 271 132, maximalité 388 596 ; ils couvrent davantage de travail et les passages successifs du parcours automatique. Ils ne représentent pas un unique compteur Work et ne se comparent pas directement à l’exécution interrompue.
+
+Essais du helper réel sans débogueur ni compilation concurrente, un passage par version :
+
+| Version | Entrée en reconnaissance | Fin | RSS maximale échantillonnée | Résultat |
+| --- | --- | --- | --- | --- |
+| G4 avant R-071 | 48,286 s | 62,914 s | 579,20 Mio | `recognition.too_complex` |
+| R-071 | 49,747 s | 65,841 s | 593,56 Mio | `step.invalid_source_provenance` |
+
+**Aucun STEP produit.** Le second refus est localisé dans `rounded_source_faces` : le résultat possède 501 912 faces et dépasse le plafond de suivi de 100 000, avant la construction du STEP. Ce contrôle utilisait le même message générique que les incohérences d’attribution. Le correctif de diagnostic conserve le code stable, le refus et le plafond, mais affiche maintenant le compte et la limite. Un test distingue la capacité dépassée d’une attribution réellement incohérente et vérifie le parcours normal. La frontière CAO applique indépendamment le même plafond (`fabstep-cad/src/lib.rs`, `MAX_RESULT_FACES`, constructeur mixte arrondi) : omettre le suivi source ne suffirait pas à rendre ce résultat admissible. La suite produit est suivie dans l’idée R-072 ; ni décimation ni relèvement de plafond ne sont intégrés.
+
+Le lanceur de qualification conserve ses gardes à 300 s et 4 Gio, distinctes des 30 minutes du produit. Aucun gain global de durée n’est revendiqué, car le travail terminé diffère. Profilage temporaire retiré du code livré ; traces locales non versionnées `artifacts/r071/{stage-profile.log,stage-profile-after.log,flansch-before.json,flansch-after.json,partial-tests.log,benchmark.log,face-limit-test.log}`. Aucun contour ni STL privé n’est versionné.
+
+### Contrôles finaux
+
+`sh scripts/check.sh` termine avec code 0 : **496 tests workspace, 49 bureau, 8 helper, 68 ciblés avec `large-stl`, 1 transfert réel opt-in, 229 UI, 12 Python et 4 SDK réussis**. Formatage, Clippy strict des trois builds, contrôle bureau hors workspace, Svelte (0 erreur/0 avertissement) et build UI passent. Seize tests workspace opt-in restent ignorés par la suite ordinaire ; le nouveau benchmark de maximalité a été exécuté séparément avec succès, les anciens benchmarks ne sont pas rejoués dans ce lot. Aucun échec dans la suite finale. L’avertissement Vite connu sur la taille du bundle reste présent.
+
+`sh scripts/build-macos-dev.sh` réussit. Les exécutables du paquet `artifacts/FabSTEP.app` sont identiques aux builds : SHA-256 bureau `15e88a1eb8e123a5bce566b887e7989daa7e7360e3a9638715b4c9c14482ca0f`, helper `208e2e4ea8f8a1d45e7400d03c4d9fcd72c5af854ed0b875a659b373b3695eb7`. Traces complémentaires : `artifacts/r071/{check.log,build-app.log,bundle-hashes.json}`. Aucun nouvel essai graphique ni Fusion ; paquet autonome v1 inchangé.
+
+
+Rejeu final avec le helper réellement embarqué dans `artifacts/FabSTEP.app` après le correctif de message : **67,343 s**, reconnaissance à 51,025 s, RSS maximale échantillonnée 681,53 Mio ; refus `step.invalid_source_provenance` avec « Le modèle reconstruit contient 501912 faces ; le suivi des faces du résultat est limité à 100000. Aucun STEP n’est produit. ». Aucun rapport de succès ni STEP. Ce passage confirme le diagnostic final ; la variabilité entre passages et l’échantillonnage RSS ne permettent pas de conclure à un gain uniforme de temps ou de mémoire. Trace `artifacts/r071/flansch-final.json`. R-071 reste à tester via A-061.

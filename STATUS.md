@@ -94,4 +94,11 @@ R-069 réutilise la préparation mono-corps strictement identique et visite les 
 
 R-070 corrige le classement des cercles complets quantifiés avant la recherche d’arcs et réutilise les preuves Auto immuables à l’assemblage. Les budgets, tolérances et gardes des profils D restent inchangés. **491 tests workspace, 49 bureau, 8 helper, 63 ciblés `large-stl`, 1 transfert réel, 229 UI, 12 Python et 4 SDK réussis** ; revue indépendante, formatage, Clippy, Svelte et builds passent. Les deux exécutables de `artifacts/FabSTEP.app` sont vérifiés. R-070 attend la qualification utilisateur A-060 ; aucun nouvel essai graphique ni Fusion. Preuves détaillées dans [V-1194](docs/VALIDATION.md).
 
-**Flansch reste refusé sans STEP** : la recherche franchit le contour circulaire initial et atteint la face 7 278, puis épuise le budget sur un contour de 300 points. Aucun gain global de durée n’est revendiqué (73 s lors de cet essai contre 66 s après G3, avec une analyse également plus lente). La recherche générale de fenêtres reste suivie dans l’idée R-071 ; aucun raccourci numérique non prouvé n’est introduit.
+**Flansch reste refusé sans STEP** : la recherche franchit le contour circulaire initial et atteint la face 7 278, puis épuise le budget sur un contour de 300 points. Aucun gain global de durée n’est revendiqué (73 s lors de cet essai contre 66 s après G3, avec une analyse également plus lente). R-071 ci-dessous traite ce dépassement ; aucun raccourci numérique non prouvé n’est introduit.
+
+
+## Recherche d’arcs complexes — R-071
+
+Les comparaisons de maximalité utilisent des intervalles cycliques après contrôle d’unicité, avec repli historique et budget inchangé. **496 tests workspace, 49 bureau, 8 helper, 68 ciblés `large-stl`, 1 transfert réel, 229 UI, 12 Python et 4 SDK réussis** ; revue indépendante, benchmark, formatage, Clippy, Svelte et builds passent. Paquet reconstruit, exécutables vérifiés ; R-071 attend l’essai utilisateur A-061. Les preuves et mesures sont dans [V-1195](docs/VALIDATION.md).
+
+**Flansch franchit la reconnaissance** (4 cylindres, 8 cônes), mais conserve 501 900 plans : ses 501 912 faces dépassent le plafond de suivi du résultat de 100 000. Aucun STEP produit. Le refus conserve son code stable et affiche désormais compte et limite ; la réduction ou qualification de ces résultats très facettisés reste dans l’idée R-072. Aucun gain global de durée ni essai graphique/Fusion revendiqué.

@@ -66,6 +66,142 @@ struct Candidate {
     normal: V,
     radius: f64,
 }
+struct Found {
+    start: usize,
+    chain: Vec<usize>,
+    fit: Fit,
+}
+
+#[derive(Clone, Copy)]
+enum MaximalityMode {
+    Adaptive,
+    #[cfg(test)]
+    Historical,
+}
+
+enum MaximalEvidence {
+    Cyclic { vertices: usize },
+    Historical(Vec<BTreeSet<Edge>>),
+}
+
+fn maximal_work(work: &mut Work, count: usize) -> Result<(), FabError> {
+    work.spend(count)
+}
+
+/// Establish a bijection between source edge positions and undirected edges.
+/// A simple cycle with at least three distinct vertices has no repeated edge.
+/// Sort a fallibly allocated copy, charging copies, comparisons and exchanges;
+/// heap sort bounds both memory and work even for adversarial vertex indices.
+fn unique_source_vertices(vertices: &[usize], work: &mut Work) -> Result<bool, FabError> {
+    fn sift(values: &mut [usize], mut root: usize, work: &mut Work) -> Result<(), FabError> {
+        while let Some(left) = root.checked_mul(2).and_then(|v| v.checked_add(1)) {
+            if left >= values.len() {
+                break;
+            }
+            let mut child = left;
+            if left + 1 < values.len() {
+                maximal_work(work, 1)?;
+                if values[left] < values[left + 1] {
+                    child = left + 1;
+                }
+            }
+            maximal_work(work, 1)?;
+            if values[root] >= values[child] {
+                break;
+            }
+            maximal_work(work, 1)?;
+            values.swap(root, child);
+            root = child;
+        }
+        Ok(())
+    }
+    if vertices.len() < 3 {
+        return Ok(false);
+    }
+    maximal_work(work, vertices.len())?;
+    let mut sorted = Vec::new();
+    sorted.try_reserve_exact(vertices.len()).map_err(|_| {
+        FabError::new(
+            "recognition.too_complex",
+            "Capacité de maximalité des arcs dépassée.",
+        )
+    })?;
+    sorted.extend_from_slice(vertices);
+    for root in (0..sorted.len() / 2).rev() {
+        sift(&mut sorted, root, work)?;
+    }
+    for end in (1..sorted.len()).rev() {
+        maximal_work(work, 1)?;
+        sorted.swap(0, end);
+        sift(&mut sorted[..end], 0, work)?;
+    }
+    for pair in sorted.windows(2) {
+        maximal_work(work, 1)?;
+        if pair[0] == pair[1] {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+impl MaximalEvidence {
+    fn new(
+        vertices: &[usize],
+        found: &[Found],
+        mode: MaximalityMode,
+        work: &mut Work,
+    ) -> Result<Self, FabError> {
+        if matches!(mode, MaximalityMode::Adaptive)
+            && found.len() > 1
+            && unique_source_vertices(vertices, work)?
+        {
+            return Ok(Self::Cyclic {
+                vertices: vertices.len(),
+            });
+        }
+        Ok(Self::Historical(
+            found
+                .iter()
+                .map(|f| f.chain.windows(2).map(|p| edge(p[0], p[1])).collect())
+                .collect(),
+        ))
+    }
+
+    fn dominates(
+        &self,
+        found: &[Found],
+        i: usize,
+        j: usize,
+        work: &mut Work,
+    ) -> Result<bool, FabError> {
+        match self {
+            Self::Cyclic { vertices } => {
+                maximal_work(work, 1)?;
+                let a = &found[i];
+                let b = &found[j];
+                let a_count = a.chain.len() - 1;
+                let b_count = b.chain.len() - 1;
+                if i == j || a_count > b_count || (a_count == b_count && j > i) {
+                    return Ok(false);
+                }
+                // Every chain has <= n vertices, hence < n edges. Its edge
+                // set is exactly the half-open cyclic interval [start,start+m).
+                let offset = if a.start >= b.start {
+                    a.start - b.start
+                } else {
+                    vertices - (b.start - a.start)
+                };
+                Ok(offset <= b_count - a_count)
+            }
+            Self::Historical(sets) => {
+                maximal_work(work, sets[i].len())?;
+                Ok(i != j
+                    && sets[i].is_subset(&sets[j])
+                    && (sets[i].len() < sets[j].len() || j < i))
+            }
+        }
+    }
+}
 struct Proven {
     pair: [usize; 2],
     arcs: [CircularArc; 2],
@@ -193,6 +329,15 @@ fn candidates(
     o: &Options,
     work: &mut Work,
 ) -> Result<Vec<Candidate>, FabError> {
+    candidates_with_maximality(model, o, work, MaximalityMode::Adaptive)
+}
+
+fn candidates_with_maximality(
+    model: &MixedModel,
+    o: &Options,
+    work: &mut Work,
+    maximality: MaximalityMode,
+) -> Result<Vec<Candidate>, FabError> {
     let mut result = Vec::new();
     for (plane_index, plane) in model.planes.iter().enumerate() {
         let normal = scale(plane.normal, 1. / norm(plane.normal));
@@ -225,7 +370,7 @@ fn candidates(
                     }
                 }
             }
-            let mut found: Vec<(Vec<usize>, Fit)> = Vec::new();
+            let mut found = Vec::new();
             for start in 0..vertices.len() {
                 let mut best = None;
                 for length in MIN_POINTS..=vertices.len() {
@@ -247,23 +392,20 @@ fn candidates(
                     let ids = (0..length)
                         .map(|k| vertices[(start + k) % vertices.len()])
                         .collect();
-                    found.push((ids, f));
+                    found.push(Found {
+                        start,
+                        chain: ids,
+                        fit: f,
+                    });
                 }
             }
             // Keep maximal evidence only. A defective wall cannot be retried
             // with a shorter, convenient subset of an already detected arc.
-            let sets: Vec<BTreeSet<Edge>> = found
-                .iter()
-                .map(|(chain, _)| chain.windows(2).map(|p| edge(p[0], p[1])).collect())
-                .collect();
+            let evidence = MaximalEvidence::new(vertices, &found, maximality, work)?;
             for i in 0..found.len() {
                 let mut contained = false;
                 for j in 0..found.len() {
-                    work.spend(sets[i].len())?;
-                    if i != j
-                        && sets[i].is_subset(&sets[j])
-                        && (sets[i].len() < sets[j].len() || j < i)
-                    {
+                    if evidence.dominates(&found, i, j, work)? {
                         contained = true;
                         break;
                     }
@@ -271,7 +413,7 @@ fn candidates(
                 if contained {
                     continue;
                 }
-                let (chain, f) = &found[i];
+                let Found { chain, fit: f, .. } = &found[i];
                 result.push(Candidate {
                     plane: plane_index,
                     loop_index,
@@ -1626,6 +1768,299 @@ mod tests {
                     .code,
                 "recognition.too_complex"
             );
+        }
+    }
+
+    fn synthetic_found(vertices: &[usize], start: usize, length: usize) -> Found {
+        Found {
+            start,
+            chain: (0..length)
+                .map(|i| vertices[(start + i) % vertices.len()])
+                .collect(),
+            fit: Fit {
+                center: [start as f64 + 0.125, -(length as f64)],
+                radius: length as f64 + 0.25,
+                sweep: 0.75,
+                radial: 1e-9,
+                chord: 0.03125,
+            },
+        }
+    }
+
+    fn fit_bits(fit: &Fit) -> [u64; 6] {
+        [
+            fit.center[0],
+            fit.center[1],
+            fit.radius,
+            fit.sweep,
+            fit.radial,
+            fit.chord,
+        ]
+        .map(f64::to_bits)
+    }
+
+    fn kept_evidence(
+        found: &[Found],
+        evidence: &MaximalEvidence,
+        work: &mut Work,
+    ) -> Result<Vec<usize>, FabError> {
+        let mut kept = Vec::new();
+        for i in 0..found.len() {
+            let mut contained = false;
+            for j in 0..found.len() {
+                if evidence.dominates(found, i, j, work)? {
+                    contained = true;
+                    break;
+                }
+            }
+            if !contained {
+                kept.push(i);
+            }
+        }
+        Ok(kept)
+    }
+
+    #[test]
+    fn cyclic_maximality_matches_edge_sets_exhaustively_with_wraps_and_ties() {
+        for n in 3..=12 {
+            let vertices: Vec<_> = (0..n).map(|i| usize::MAX - 37 * i).collect();
+            let mut found: Vec<_> = (0..n)
+                .flat_map(|start| (2..=n).map(move |length| (start, length)))
+                .map(|(start, length)| synthetic_found(&vertices, start, length))
+                .collect();
+            // Duplicate intervals deliberately exercise the historical j<i tie.
+            found.push(synthetic_found(&vertices, n - 1, n));
+            found.rotate_left(n);
+            found.reverse();
+            let before: Vec<_> = found.iter().map(|f| fit_bits(&f.fit)).collect();
+            let fast = MaximalEvidence::new(
+                &vertices,
+                &found,
+                MaximalityMode::Adaptive,
+                &mut Work::default(),
+            )
+            .unwrap();
+            assert!(matches!(fast, MaximalEvidence::Cyclic { .. }));
+            let historical = MaximalEvidence::new(
+                &vertices,
+                &found,
+                MaximalityMode::Historical,
+                &mut Work::default(),
+            )
+            .unwrap();
+            for i in 0..found.len() {
+                for j in 0..found.len() {
+                    assert_eq!(
+                        fast.dominates(&found, i, j, &mut Work::default()).unwrap(),
+                        historical
+                            .dominates(&found, i, j, &mut Work::default())
+                            .unwrap(),
+                        "n={n}, i={i}, j={j}"
+                    );
+                }
+            }
+            assert_eq!(
+                kept_evidence(&found, &fast, &mut Work::default()).unwrap(),
+                kept_evidence(&found, &historical, &mut Work::default()).unwrap()
+            );
+            assert_eq!(
+                before,
+                found.iter().map(|f| fit_bits(&f.fit)).collect::<Vec<_>>()
+            );
+        }
+    }
+
+    #[test]
+    fn repeated_source_indices_use_historical_edge_evidence() {
+        for vertices in [
+            vec![0, 1, 2, 3, 4, 5, 6, 0],
+            vec![0, 1, 2, 1, 0, 3, 4, 5],
+            vec![0, 1, 2, 3, 3, 4, 5, 6],
+        ] {
+            let found: Vec<_> = (0..vertices.len())
+                .flat_map(|start| (2..=vertices.len()).map(move |length| (start, length)))
+                .map(|(start, length)| synthetic_found(&vertices, start, length))
+                .collect();
+            let fallback = MaximalEvidence::new(
+                &vertices,
+                &found,
+                MaximalityMode::Adaptive,
+                &mut Work::default(),
+            )
+            .unwrap();
+            assert!(matches!(fallback, MaximalEvidence::Historical(_)));
+            let historical = MaximalEvidence::new(
+                &vertices,
+                &found,
+                MaximalityMode::Historical,
+                &mut Work::default(),
+            )
+            .unwrap();
+            for i in 0..found.len() {
+                for j in 0..found.len() {
+                    assert_eq!(
+                        fallback
+                            .dominates(&found, i, j, &mut Work::default())
+                            .unwrap(),
+                        historical
+                            .dominates(&found, i, j, &mut Work::default())
+                            .unwrap()
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn maximality_charges_guard_and_constant_pair_tests_without_budget_fallback() {
+        // Sorted three-element heap: 3 copied indices, 3 comparisons and
+        // 4 exchanges, followed by 2 uniqueness comparisons = 12 units.
+        let mut work = Work::default();
+        work.spend(10_000_000 - 12).unwrap();
+        assert!(unique_source_vertices(&[0, 1, 2], &mut work).unwrap());
+        assert_eq!(work.spend(1).unwrap_err().code, "recognition.too_complex");
+        for remaining in [0, 2, 3, 6, 11] {
+            let mut work = Work::default();
+            work.spend(10_000_000 - remaining).unwrap();
+            assert_eq!(
+                unique_source_vertices(&[0, 1, 2], &mut work)
+                    .unwrap_err()
+                    .code,
+                "recognition.too_complex"
+            );
+        }
+        let vertices: Vec<_> = (0..8).collect();
+        let found = [
+            synthetic_found(&vertices, 0, 3),
+            synthetic_found(&vertices, 4, 3),
+        ];
+        let fast = MaximalEvidence::Cyclic { vertices: 8 };
+        let mut work = Work::default();
+        work.spend(10_000_000 - 4).unwrap();
+        assert_eq!(kept_evidence(&found, &fast, &mut work).unwrap(), [0, 1]);
+        assert_eq!(work.spend(1).unwrap_err().code, "recognition.too_complex");
+        let mut work = Work::default();
+        work.spend(10_000_000 - 3).unwrap();
+        assert_eq!(
+            kept_evidence(&found, &fast, &mut work).unwrap_err().code,
+            "recognition.too_complex"
+        );
+        // A failed uniqueness guard must return its budget error, never retry
+        // the set algorithm using the exhausted counter.
+        let mut work = Work::default();
+        work.spend(10_000_000).unwrap();
+        assert_eq!(
+            MaximalEvidence::new(&vertices, &found, MaximalityMode::Adaptive, &mut work)
+                .err()
+                .unwrap()
+                .code,
+            "recognition.too_complex"
+        );
+        // Zero/one candidate avoids the guard and keeps the historical path.
+        let mut work = Work::default();
+        work.spend(10_000_000).unwrap();
+        assert!(matches!(
+            MaximalEvidence::new(&vertices, &found[..1], MaximalityMode::Adaptive, &mut work)
+                .unwrap(),
+            MaximalEvidence::Historical(_)
+        ));
+    }
+
+    type CandidateBits = (usize, usize, Vec<usize>, [u64; 7]);
+    fn candidate_bits(candidates: &[Candidate]) -> Vec<CandidateBits> {
+        candidates
+            .iter()
+            .map(|c| {
+                (
+                    c.plane,
+                    c.loop_index,
+                    c.chain.clone(),
+                    [
+                        c.center[0],
+                        c.center[1],
+                        c.center[2],
+                        c.normal[0],
+                        c.normal[1],
+                        c.normal[2],
+                        c.radius,
+                    ]
+                    .map(f64::to_bits),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    #[ignore = "timing benchmark for equivalent dense arc candidates"]
+    fn benchmark_cyclic_maximality_against_historical_sets() {
+        for count in [97, 257] {
+            let vertices = (0..count)
+                .map(|i| {
+                    let angle = 0.338 + PI * i as f64 / (count - 1) as f64;
+                    [5. * angle.cos(), 5. * angle.sin(), 0.]
+                })
+                .collect();
+            let mut order: Vec<_> = (0..count).collect();
+            order.rotate_left(count / 3);
+            let model = polygon_model(vertices, order, 0);
+            let mut old_work = Work::default();
+            let started = std::time::Instant::now();
+            let old = candidates_with_maximality(
+                &model,
+                &Options::default(),
+                &mut old_work,
+                MaximalityMode::Historical,
+            )
+            .unwrap();
+            let old_time = started.elapsed();
+            let mut new_work = Work::default();
+            let started = std::time::Instant::now();
+            let new = candidates(&model, &Options::default(), &mut new_work).unwrap();
+            let new_time = started.elapsed();
+            assert!(!old.is_empty());
+            assert_eq!(candidate_bits(&old), candidate_bits(&new));
+            assert!(new_work.used_for_test() < old_work.used_for_test());
+            eprintln!(
+                "n={count}: historical={} units {old_time:?}; cyclic={} units {new_time:?}",
+                old_work.used_for_test(),
+                new_work.used_for_test()
+            );
+        }
+    }
+
+    #[test]
+    fn candidate_maximality_preserves_historical_order_chains_and_fit_bits() {
+        let o = Options::default();
+        for count in [17, 49, 97] {
+            let vertices: Vec<_> = (0..count)
+                .map(|i| {
+                    let angle = 0.338 + PI * i as f64 / (count - 1) as f64;
+                    [5. * angle.cos(), 5. * angle.sin(), 0.]
+                })
+                .collect();
+            for reverse in [false, true] {
+                for frame in 0..3 {
+                    let mut order: Vec<_> = (0..count).collect();
+                    order.rotate_left(count / 3);
+                    if reverse {
+                        order.reverse();
+                    }
+                    let model = polygon_model(vertices.clone(), order, frame);
+                    let historical = candidates_with_maximality(
+                        &model,
+                        &o,
+                        &mut Work::default(),
+                        MaximalityMode::Historical,
+                    )
+                    .unwrap();
+                    let adaptive = candidates(&model, &o, &mut Work::default()).unwrap();
+                    assert!(
+                        !historical.is_empty(),
+                        "nonvacuous D profile {count}/{reverse}/{frame}"
+                    );
+                    assert_eq!(candidate_bits(&adaptive), candidate_bits(&historical));
+                }
+            }
         }
     }
 }

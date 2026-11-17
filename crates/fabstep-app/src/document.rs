@@ -1253,10 +1253,13 @@ fn rounded_source_faces(
             "La partition source du modèle arrondi est incohérente.",
         )
     };
-    if count == 0
-        || count > 100_000
-        || recognized.triangle_faces.len() != source.analysis_to_source_triangles.len()
-    {
+    if count > 100_000 {
+        return Err(FabError::new(
+            "step.invalid_source_provenance",
+            format!("Le modèle reconstruit contient {count} faces ; le suivi des faces du résultat est limité à 100000. Aucun STEP n’est produit."),
+        ));
+    }
+    if count == 0 || recognized.triangle_faces.len() != source.analysis_to_source_triangles.len() {
         return Err(invalid());
     }
     let mut faces = (0..count)
@@ -1420,6 +1423,41 @@ fn product_name(name: &str, fallback: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rounded_face_limit_reports_the_count_separately_from_invalid_attribution() {
+        let options = Options {
+            reconstruction: ReconstructionMode::Auto,
+            ..Options::default()
+        };
+        let analysis = fabstep_core::analyze_stl(
+            include_bytes!("../../../fixtures/m4_chamfered_cylinder.stl"),
+            &options,
+        )
+        .unwrap();
+        let mut recognized = fabstep_core::recognize_automatic(&analysis, &options).unwrap();
+        let source = BodySourceTriangles {
+            preview_body_id: "source".into(),
+            analysis_to_source_triangles: (0..analysis.mesh.triangles.len()).collect(),
+            planar_triangle_faces: Vec::new(),
+        };
+        let count = rounded_source_faces("body", &source, &recognized)
+            .unwrap()
+            .len();
+        let mut invalid_source = source.clone();
+        invalid_source.analysis_to_source_triangles.pop();
+        let invalid = rounded_source_faces("body", &invalid_source, &recognized).unwrap_err();
+        assert_eq!(invalid.code, "step.invalid_source_provenance");
+        assert!(invalid.message.contains("incohérente"));
+        let planes = &mut recognized.model.revolved.mixed.planes;
+        let other_faces = count - planes.len();
+        planes.resize(100_001 - other_faces, planes[0].clone());
+        let limit = rounded_source_faces("body", &source, &recognized).unwrap_err();
+        assert_eq!(limit.code, "step.invalid_source_provenance");
+        assert!(limit.message.contains("100001 faces"));
+        assert!(limit.message.contains("limité à 100000"));
+        assert!(!limit.message.contains("incohérente"));
+    }
 
     #[test]
     fn guidance_reuses_only_its_immutable_results_resolved_correspondence() {

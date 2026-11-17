@@ -348,3 +348,14 @@ G4 mesure d’abord le budget partagé, puis corrige un contour circulaire compl
 La revue numérique et la revue indépendante de production sont favorables. Sept nouveaux tests couvrent les cercles quantifiés, les gardes, budgets, modèles/rapports/provenance et refus ; les résultats ciblés passent. Les mesures et la validation globale sont centralisées dans V-1194. Flansch franchit le premier contour mais reste refusé sans STEP à la face 7 278 ; aucun gain global de durée annoncé. R-071 conserve l’idée d’une réduction démontrée des fenêtres générales, sans hausse de budget ni développement implicite d’une nouvelle preuve numérique.
 
 Validation globale et build macOS réussis, exécutables du paquet vérifiés. R-070 passe à tester avec A-060 ; les résultats et limites restent dans V-1194.
+
+
+## 17 novembre 2026 — R-071, maximalité exacte des arcs complexes
+
+Le profilage montre que les comparaisons de couverture consomment plus de budget que les fenêtres ajustées avant le refus G4. R-071 remplace uniquement ces comparaisons par une inclusion d’intervalles cycliques après contrôle débité de l’unicité des sommets. Fenêtres, flottants, fusion, départage et preuves géométriques inchangés ; repli historique pour les indices répétés, jamais après épuisement. Revue indépendante favorable et oracle exhaustif passant. Le benchmark synthétique compare les mêmes candidats et leurs bits ; résultats détaillés dans V-1195.
+
+Flansch termine désormais la reconnaissance (4 cylindres, 8 cônes) mais conserve 501 900 plans. Son résultat dépasse le plafond de suivi de 100 000 faces, avant construction du STEP. Le message générique de provenance est précisé avec compte et limite, sans modifier son code ni les protections. Ce nouvel obstacle est suivi dans l’idée R-072, sans relèvement implicite du plafond. L’instrumentation privée de profilage est retirée du code livré.
+
+Validation complète et build macOS réussis, exécutables du paquet vérifiés. Bilan détaillé et limitations dans V-1195.
+
+Le helper embarqué confirme le diagnostic final sur Flansch ; R-071 passe à tester avec A-061. Aucun STEP produit pour ce fichier, suite R-072 conservée au stade idée.
