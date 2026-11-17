@@ -1499,3 +1499,54 @@ Le seuil est une observation périodique, pas une limite matérielle : le pic pe
 `sh scripts/check.sh` termine avec code 0 : **496 tests workspace, 50 bureau, 8 helper, 68 ciblés large-stl, 1 transfert réel opt-in, 229 UI, 12 Python et 4 SDK réussis**. Formatage, Clippy strict, contrôle bureau, Svelte (zéro erreur/avertissement) et build UI passent. Les 16 tests workspace opt-in restent ignorés par la suite ordinaire ; les benchmarks et fichiers privés ne sont pas rejoués pour ce correctif. L’avertissement Vite connu sur la taille du bundle demeure. Journaux : `artifacts/r073/{targeted.log,check.log,build.log}`.
 
 `sh scripts/build-macos-dev.sh` réussit ; les exécutables embarqués correspondent octet pour octet aux builds contrôlés. SHA-256 bureau `055918cb118617a159ae81e6465b585aa48a1abf45ac8c020a33647ca581f585`, helper `1bab9ac76c82f4e43f3a6576a8fd83d0fb7c295548b1d141876f25851d86205f`. Paquet de développement : `artifacts/FabSTEP.app`. Release v1 inchangée. R-073 attend l’essai manuel d’annulation A-063.
+
+## V-1198 — R-074 : profils des quatre grandes zones courbes de Flansch
+
+Qualification du 17 novembre 2026 sur le même STL privé de 540 170 triangles. Aucun changement de production ; un test natif synthétique est conservé dans le module de tests CAO. Instrumentation temporaire du classificateur arrondi et du résultat Auto, retirée ensuite du core ; aucun sommet ni contour privé versionné. Les données complètes restent dans `artifacts/r074/`. Le but est de choisir une extension prouvable, sans déduire un solide valide d’un ajustement de courbe.
+
+### Mesures
+
+Une sonde core `large-stl` analyse la source et termine Auto avec les tolérances par défaut : ajustement 1e-5 mm et écart maximal 0,05 mm. **Un test opt-in réussi**, 63,37 s selon le harness, 63,95 s avec supervision ; RSS maximal échantillonné **673 480 704 octets**, empreinte physique **549 127 056 octets**. Garde externe à 300 s et 4 Gio sur le maximum des deux métriques, lecture toutes les 200 ms. Aucun appel de validation native du maillage Flansch. Résultat inchangé : 501 900 plans, quatre cylindres, huit cônes, aucun STEP.
+
+Les quatre zones sont constituées de 90, 95, 103 et 103 anneaux. Tous leurs sommets appartiennent aux niveaux recensés et chaque triangle relie deux niveaux consécutifs. Les découpes ci-dessous sont choisies pour le diagnostic ; aucun algorithme de segmentation automatique nouveau n’est intégré. Les arcs sont ajustés sur tous leurs sommets dans le plan axial/radial, avec cercle contraint à passer par les deux anneaux moyens extrêmes de la portion ; les parties droites sont contrôlées sur tous leurs sommets. L’ajustement ne force pas les rayons à une valeur nominale.
+
+| Zone (triangles) | Profil candidat mesuré | Rayon de l’arc | Amplitude de l’arc | Résidu maximal de l’arc |
+| --- | --- | --- | --- | --- |
+| 64 080 | Tore, cône de pente −1/15, cylindre | 0,50000049 mm | 86,18597° | 5,8613e-6 mm |
+| 67 680 | Tore, cylindre, cône de pente +1, cylindre, cône de pente −0,75 | 2,00000058 mm | 90,00000° | 5,9438e-6 mm |
+| 73 442 | Cône à +10°, tore | 0,29999767 mm | 100,00052° | 6,2784e-6 mm |
+| 73 440 | Cône à −10°, tore | 0,29999791 mm | 100,00035° | 6,1835e-6 mm |
+
+Chaque portion affine n’a que **deux anneaux**, sans niveau axial intérieur. Son résidu radial maximal est inférieur à 5,638e-6 mm. Les arcs contiennent respectivement 62 640, 64 800, 72 720 et 72 720 triangles. Le cône de la zone 73 442 a 722 triangles et raccorde 362 à 360 sommets ; les autres bandes affines ont 720 triangles. Les écarts radiaux sur les anneaux complets sont également mesurés, mais ne doivent pas être confondus avec une borne vectorielle cumulée sur toutes les frontières.
+
+Un unique cercle ajusté sur chaque zone entière donne des résidus maximaux de 0,283219, 2,891604, 0,053548 et 0,053544 mm : cet ajustement global ne satisfait pas la tolérance. Les profils composés expliquent les refus ; cela n’établit pas une optimalité mathématique de la segmentation ni un minimum théorique de faces.
+
+### Gain possible et limite indépendante
+
+Les zones possèdent respectivement **62 177, 65 394, 71 313 et 71 432 plans** dans le résultat Auto, soit **270 316 plans distincts**, sans propriétaire partagé avec l’extérieur. L’orchestrateur a revérifié les identifiants : 278 642 triangles distincts, sommes des sections exactes, attribution et intersection des ensembles de plans cohérentes.
+
+Il reste **231 584 plans et 12 faces analytiques hors des quatre zones**. Même leur remplacement idéal par les douze surfaces candidates laisserait **231 608 faces**. Ce calcul conditionnel n’est pas une conversion ; il montre que cette extension seule ne peut pas franchir le plafond de 100 000 faces. Les coûts de validation native source restent aussi indépendants (V-1196).
+
+### Pourquoi le moteur refuse
+
+`rounded::classify` découpe principalement aux portées cylindriques et admet les tores dans les raccords quart de cercle cylindre–plan déjà prouvés. Les contrats de R-061/ADR-0033 n’autorisent pas ces enchaînements mixtes. Les témoins axiaux intérieurs exigés pour certaines chaînes ne sont pas présents dans les parties droites de ce fichier ; ils ne peuvent pas être inventés.
+
+Le DTO `MixedTorus` et `fabstep-cad::toroidal_face` savent représenter un arc méridien général borné avec ses deux anneaux. La preuve core reste plus étroite : `prove_section` associe les niveaux axiaux bas/haut aux angles croissants. Sur la branche de tore de rayon radial inférieur au rayon majeur, ces ordres sont opposés. Le miroir d’un arc de 100° traverse aussi la coupure numérique de `atan2` à ±π. Une correction par simple ajout de familles ou suppression du refus serait donc insuffisante.
+
+La prochaine tranche proposée, R-075, traite uniquement le profil tore–cône–cylindre de 64 080 triangles et sa symétrie : segmentation unique, tangence calculée conjointement, anneaux réellement partagés, orientation et couverture UV adaptées, preuve des bandes à deux anneaux, borne continue puis validations natives et audit. Aucun nouveau champ ou ABI n’est nécessaire d’après la revue, mais une nouvelle règle de preuve est nécessaire. Les deux cônes et les arcs de 100° restent des extensions distinctes. Le guidage Tore, qui refuse actuellement un voisin conique, reste hors de cette première tranche.
+
+### Prototype natif indépendant
+
+Le test synthétique construit directement un `RoundedModel` avec deux plans, un tore R=10 mm / r=0,5 mm sur 86,1859°, un cône tangent de pente −1/15 et un cylindre, sans reprendre les coordonnées de Flansch. Le tore utilise des anneaux en ordre méridien inverse de l’ordre axial. Le cas nominal et son reflet axial sont exportés puis réimportés par OCCT 7.9.3 : chacun donne **un solide, cinq faces (deux planes, une cylindrique, une conique et une torique), cinq jetons de provenance**, et des dimensions 20 × 20 × 5 mm.
+
+Volumes mesurés : **1393,237968865069 et 1393,237968865016 mm³**, contre **1393,237968865100 mm³** par intégration indépendante. Le test natif ciblé initial passe (0,10 s). Ce test qualifie la représentation et la construction, pas la détection STL, la validation de la source privée ou sa conversion complète. Journal initial `artifacts/r074/native-run.log`. Le test est ensuite conservé dans `fabstep-cad` pour protéger ce contrat lors de la prochaine extension.
+
+### Reproductibilité et limites
+
+Traces locales : `probe.log`, `usage.json`, `instrument.py`, `run.py`, `whole-fits.json`, `pieces.json`, `analyze.py`, `pieces.py`, fichiers `.nodes/.vertices/.triangles` et `owners`. Analyse dans l’environnement existant `/Users/mugen/anaconda3/bin/python3`, NumPy 2.3.5 et SciPy 1.16.3 ; aucune dépendance du projet ajoutée. Le graphe `profiles.png` représente les anneaux mesurés, avec des échelles différentes par panneau et des segments de lecture, sans prétendre montrer des surfaces reconstruites.
+
+Les résidus de sommets ne prouvent ni l’écart continu sur les triangles, ni la tangence exacte, ni la validité de l’orientation ou du BRep. La canonicalisation conjointe des raccords doit encore compter tous les déplacements. Aucun relâchement de tolérance, simplification, nouvelle surface libre, hausse de plafond ou nouveau build produit pour cette qualification. La suite globale V-1197 n’est pas relancée pour un code de production inchangé ; aucun test graphique ou Fusion.
+
+### Validation du test conservé
+
+`cargo test -p fabstep-cad --offline --locked` : **85 tests réussis, zéro échec**. Formatage workspace et Clippy de tous les targets de `fabstep-cad` passent. Le test `inner_meridian_torus_cone_cylinder_reimports_with_shared_rings` reste dans `crates/fabstep-cad/src/lib.rs`. L’orchestrateur a relu le diff et rejoué ce test avec succès (0,11 s). Traces `cad-tests.log` et `root-native-check.log`. Aucun code de production modifié ; seuls le test, la documentation et la roadmap sont intégrés.

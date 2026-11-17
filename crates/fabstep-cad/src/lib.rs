@@ -4793,6 +4793,131 @@ mod tests {
         );
     }
 
+    #[test]
+    fn inner_meridian_torus_cone_cylinder_reimports_with_shared_rings() {
+        let pi = std::f64::consts::PI;
+        let alpha = (1_f64 / 15.).atan();
+        let major = 10.;
+        let minor = 0.5;
+        let first_angle = -pi / 2.;
+        let tangent_angle = -pi + alpha;
+        let tangent_z = minor * (1. + tangent_angle.sin());
+        let tangent_radius = major + minor * tangent_angle.cos();
+        let cone_height = 2.;
+        let cone_z = tangent_z + cone_height;
+        let land_radius = tangent_radius - cone_height * alpha.tan();
+        let length = 5.;
+        let mut revolved = cone_frustum(major, land_radius);
+        revolved.mixed.rings[1].center[2] = length;
+        revolved
+            .mixed
+            .rings
+            .extend(
+                [(tangent_radius, tangent_z), (land_radius, cone_z)].map(|(radius_mm, z)| {
+                    CircularRing {
+                        center: [0., 0., z],
+                        axis: [0., 0., 1.],
+                        radius_mm,
+                    }
+                }),
+            );
+        revolved.cones[0].rings = [2, 3];
+        revolved.mixed.cylinders.push(MixedCylinder {
+            rings: [3, 1],
+            inner: false,
+        });
+        let mut model = RoundedModel {
+            revolved,
+            spheres: vec![],
+            partial_cones: vec![],
+            tori: vec![MixedTorus {
+                rings: Some([2, 0]),
+                axis: None,
+                center: [0., 0., minor],
+                major_radius_mm: major,
+                minor_radius_mm: minor,
+                meridian_rad: [tangent_angle, first_angle],
+                inner: true,
+            }],
+        };
+
+        // Independent volume by integration of horizontal circular sections.
+        // The angular change of variable removes the endpoint singularity in dρ/dz.
+        let n = 4096;
+        let angular_step = (pi / 2. - alpha) / f64::from(n);
+        let arc_volume = (0..=n)
+            .map(|i| {
+                let theta = angular_step * f64::from(i);
+                let coefficient = match i {
+                    i if i == 0 || i == n => 1.,
+                    i if i % 2 == 0 => 2.,
+                    _ => 4.,
+                };
+                coefficient * (major - minor * theta.sin()).powi(2) * minor * theta.sin()
+            })
+            .sum::<f64>()
+            * pi
+            * angular_step
+            / 3.;
+        let cone_volume = pi
+            * cone_height
+            * (tangent_radius.powi(2) + tangent_radius * land_radius + land_radius.powi(2))
+            / 3.;
+        let expected_volume =
+            arc_volume + cone_volume + pi * land_radius.powi(2) * (length - cone_z);
+
+        for mirrored in [false, true] {
+            if mirrored {
+                for ring in &mut model.revolved.mixed.rings {
+                    ring.center[2] = length - ring.center[2];
+                }
+                for plane in &mut model.revolved.mixed.planes {
+                    plane.normal[2] = -plane.normal[2];
+                }
+                model.revolved.cones[0].rings.reverse();
+                model.revolved.mixed.cylinders[0].rings.reverse();
+                model.tori[0].rings = Some([0, 2]);
+                model.tori[0].center[2] = length - minor;
+                model.tori[0].meridian_rad = [-first_angle, -tangent_angle];
+            }
+            let step =
+                build_rounded_step_with_provenance(&model, &[1, 2], &[3], &[4], &[], &[5]).unwrap();
+            let report = &step.report;
+            assert_eq!(report.solids, 1);
+            assert_eq!(report.faces, 5);
+            assert_eq!(report.planar_faces, 2);
+            assert_eq!(report.cylindrical_faces, 1);
+            assert_eq!(report.conical_faces, 1);
+            assert_eq!(report.toroidal_faces, 1);
+            assert!((report.volume_mm3 - expected_volume).abs() < 1e-7);
+            for (measured, expected) in report
+                .bounds_mm
+                .iter()
+                .flatten()
+                .zip([-major, -major, 0., major, major, length])
+            {
+                assert!((measured - expected).abs() < 2e-6);
+            }
+            let mut observed: Vec<_> = result_faces(&step.bytes)
+                .unwrap()
+                .faces
+                .into_iter()
+                .map(|face| (face.source_face_token.unwrap(), face.family))
+                .collect();
+            observed.sort_by_key(|entry| entry.0);
+            assert_eq!(
+                observed,
+                vec![
+                    (1, ResultFaceFamily::Plane),
+                    (2, ResultFaceFamily::Plane),
+                    (3, ResultFaceFamily::Cylinder),
+                    (4, ResultFaceFamily::Cone),
+                    (5, ResultFaceFamily::Torus),
+                ]
+            );
+        }
+    }
+
     fn toroidal_fillet_model() -> RoundedModel {
         let mut revolved = cone_frustum(8., 6.);
         revolved.cones.clear();

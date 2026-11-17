@@ -371,3 +371,10 @@ Deux explorations en lecture seule et des sondes locales écartent une réductio
 Après acceptation du bilan R-072, qualification de `proc_pid_rusage` contre le SDK macOS, puis remplacement de la lecture RSS seule par une lecture commune RSS/empreinte physique. Le maximum déclenche le plafond inchangé de 4 Gio. Aucun changement géométrique, aucun nouveau contrat ou dépendance. Tests natifs sur soi/enfant, seuils injectés, erreurs et nettoyage ; revue indépendante sans défaut. La sonde de 64 Mio confirme la mesure sans saturer la machine.
 
 Contrôles globaux réussis : 496 workspace, 50 bureau, 8 helper, 68 ciblés large-stl, 1 transfert réel, 229 UI, 12 Python, 4 SDK. Paquet local reconstruit et binaires vérifiés, sans release. V-1197 détaille les preuves et la limite de l’échantillonnage. R-073 à tester via A-063 ; Flansch reste refusé en amont sur le nombre de faces.
+
+
+## 2026-11-17 — R-074 : profils courbes mesurés et prototype natif
+
+Qualification demandée des quatre grandes zones de Flansch. Une sonde core bornée exporte localement les profils et attributions ; l’analyse des sommets identifie des chaînes de lignes et arcs, sans témoins axiaux intérieurs sur les parties droites. Les résidus sont sous la tolérance mais ne remplacent pas les preuves continues. Compteurs et limites détaillés dans V-1198 ; aucun fichier privé versionné.
+
+La revue des contrats confirme que MixedTorus suffit en représentation, mais que segmentation, orientation et raccords nécessitent une extension de preuve. Un modèle natif synthétique tore–cône–cylindre et son reflet réussissent le réimport, les familles, dimensions, volume indépendant et provenance. Le test est conservé ; 85 tests CAO, formatage et Clippy passent, rejeu ciblé de l’orchestrateur réussi. Aucun changement de production ni nouveau build. R-074 à valider via A-064 ; R-075 décrit la première tranche de reconnaissance. La conversion entière reste bloquée indépendamment par les 231 584 plans hors des quatre zones et le coût de validation source.

@@ -15,3 +15,8 @@ Source : [ancienne feuille de route](../../docs/ROADMAP-avant-fabboard.md). Les 
 ## Poursuite demandée le 17 novembre
 
 Première tranche exacte lancée dans R-061 : deux quarts de tore et une portée cylindrique. Les profils généraux restent ici.
+
+
+## Qualification des grandes zones de Flansch
+
+R-074 mesure quatre chaînes composées et confirme nativement la représentation tore–cône–cylindre. R-075 propose la première extension bornée de reconnaissance, sans nouveau format ; les profils à deux cônes et les arcs de 100° restent distincts. Voir V-1198 pour les preuves, les témoins absents et les limites de la conversion complète.

@@ -112,3 +112,8 @@ Qualification documentée dans V-1196 ; code de production et application R-071 
 ## Suivi mémoire macOS — R-073
 
 Le helper est arrêté dès que le RSS ou l’empreinte physique observée atteint 4 Gio. Lecture libproc vérifiée contre le SDK, sans nouvelle dépendance ; plafond et cadence inchangés. Les seuils, erreurs de lecture et récolte d’un vrai enfant sont testés. **496 tests workspace, 50 bureau, 8 helper, 68 ciblés large-stl, 1 transfert réel, 229 UI, 12 Python et 4 SDK réussis** ; formatage, Clippy, Svelte et builds passent. Revue indépendante acceptée. `artifacts/FabSTEP.app` reconstruit, empreintes des exécutables vérifiées. Détails V-1197 ; essai manuel d’annulation A-063 ouvert, aucun test graphique/Fusion ni nouvelle conversion Flansch revendiqués.
+
+
+## Grandes zones courbes — R-074
+
+Les quatre profils de Flansch sont mesurés : chaînes de tores, cônes et cylindres, avec arcs de rayons proches de 0,5 / 2 / 0,3 mm. Les résidus de sommets passent la tolérance, mais la segmentation et les preuves de bandes à deux anneaux restent à développer. Le prototype natif indépendant du premier raccord et son reflet se réimportent valides (cinq faces, volume/dimensions/provenance vérifiés). Test conservé ; **85 tests CAO**, formatage et Clippy réussis. Preuves et limites V-1198. Code de production et application R-073 inchangés ; pas de nouveau STEP Flansch. R-075 propose une première reconnaissance bornée, à valider via A-064. Même remplacer idéalement les quatre zones laisserait 231 608 faces.
