@@ -6,7 +6,7 @@ L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée i
 
 L’ordre des lots restants reprend le document d’origine ; les priorités et dépendances exprimées dans leurs textes restent applicables. Aucun nouveau développement n’est autorisé par cette migration.
 
-**Avancement : 22 livrés sur 79** (28 %)
+**Avancement : 23 livrés sur 82** (28 %)
 
 ## Restant à faire
 
@@ -122,8 +122,12 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Qualifier un bac à coins arrondis avec un trou traversant le fond, sans remplir la cavité ni perdre les parois.
 56. **[R-078 C1b2b — chaînes coniques adjacentes et mixtes](roadmap/items/R-078-c1b2b-chaines-coniques-adjacentes-et-mixtes.md)** · En cours · jalon post-v1
    Reconstruire deux à huit cônes adjacents ou mêlés à des portées, avec une décomposition unique prouvée par les anneaux source.
-57. **[R-079 D2–G0 — qualifier les raccords locaux et le rayon linéaire](roadmap/items/R-079-d2-g0-qualifier-les-raccords-locaux-et-le-rayon.md)** · En cours · jalon post-v1
-   Établir les preuves et le contrat minimum pour un coin à trois arrondis et une enveloppe à rayon linéaire avant intégration.
+57. **[R-080 Qualifier les 231 584 plans restants de Flansch](roadmap/items/R-080-qualifier-les-231-584-plans-restants-de-flansch.md)** · Idée · jalon post-v1
+   Après les quatre grandes zones reconstruites, Flansch conserve 231 584 faces planes et 24 surfaces analytiques. Identifier les zones encore facettisées et leurs familles possibles avant toute nouvelle extension ou proposition de plafond ; la validation native dense reste un obstacle séparé.
+58. **[R-081 D2 — reconstruire un coin local à trois arrondis](roadmap/items/R-081-d2-reconstruire-un-coin-local-a-trois-arrondis.md)** · Spécifiée · jalon post-v1
+   Intégrer l’octant sphérique et ses trois raccords cylindriques à partir des frontières STL, avec preuve continue et STEP validé.
+59. **[R-082 G1 — reconstruire un raccord à rayon linéaire](roadmap/items/R-082-g1-reconstruire-un-raccord-a-rayon-lineaire.md)** · Spécifiée · jalon post-v1
+   Reconnaître l’enveloppe conique inclinée à extrémités elliptiques d’un arrondi linéaire, sans la confondre avec des sections circulaires empilées.
 
 ## Actions à faire
 
@@ -236,6 +240,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 ### post-v1 : Géométries après v1
 
+- [R-079 D2–G0 — qualifier les raccords locaux et le rayon linéaire](roadmap/items/R-079-d2-g0-qualifier-les-raccords-locaux-et-le-rayon.md) · livrée le 2026-11-17
+  Établir les preuves et le contrat minimum pour un coin à trois arrondis et une enveloppe à rayon linéaire avant intégration.
 - [R-074 Qualifier les grandes zones courbes de Flansch](roadmap/items/R-074-qualifier-les-grandes-zones-courbes-de-flansch.md) · livrée le 2026-11-17
   Mesurer les quatre profils courbes encore refusés, identifier les familles géométriques et les preuves manquantes, puis définir une extension bornée sans relâcher les tolérances.
 - [R-072 Qualifier les résultats très facettisés des gros STL](roadmap/items/R-072-qualifier-les-resultats-tres-facettises-des-gros.md) · livrée le 2026-11-17

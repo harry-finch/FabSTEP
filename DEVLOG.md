@@ -391,3 +391,8 @@ Suite globale réussie : 510 workspace, 50 bureau, 8 helper, 74 ciblés large-st
 ## 2026-11-17 — R-063 : preuves natives des perçages sécants
 
 Poursuite de l’ensemble C1b2/C2/D/E/F/G autorisée. Le laboratoire F0 franchit ses blocages de bornes continues et de périodicité par Hermite d’ordre quatre, déroulement exact des données spline et couverture orientée par intervalles. Les budgets et seuils restent inchangés ; volume idéal encadré par série à reste majoré. Revue distincte puis rejeu de l’orchestrateur PASS, rapport identique. V-1200 conserve les chiffres et les limites : aucun STL reconnu ni contrat de production intégré, volume adaptatif OCCT seulement mesuré. R-063 à tester pour son bilan ; les travaux C2 et E2 continuent indépendamment.
+
+
+## 2026-11-17 — R-079 : domaines locaux D/G approuvés
+
+Laboratoire indépendant : un coin triédrique arrondi et deux congés à rayon linéaire se réimportent comme solides, avec types, volumes, dimensions, limites partagées et sondes matière/vide contrôlés. Revue mathématique distincte et rejeu natif identique réussis (V-1202). Les références sont fixes et ne reconnaissent aucun fichier STL. L’utilisateur approuve explicitement les domaines additifs dans ADR-0036 ; A-068 fait et R-079 livré pour cette décision, R-081/R-082 spécifiés pour la production. La suite globale C1/C2/E continue séparément, après correction du repli Auto des chaînes hors domaine de huit cônes.

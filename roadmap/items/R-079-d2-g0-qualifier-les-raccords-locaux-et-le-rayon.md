@@ -2,11 +2,11 @@
 id: R-079
 titre: "D2–G0 — qualifier les raccords locaux et le rayon linéaire"
 resume: "Établir les preuves et le contrat minimum pour un coin à trois arrondis et une enveloppe à rayon linéaire avant intégration."
-statut: en-cours
+statut: livree
 jalon: post-v1
 cree: 2026-11-17
 maj: 2026-11-17
-livree:
+livree: 2026-11-17
 ---
 ## But
 
@@ -37,3 +37,8 @@ R-034, R-037 et qualification D1/R-062. Poursuite globale approuvée ; changemen
 ## Vérifications de l'utilisateur
 
 - Examiner et arbitrer la proposition concrète de contrat pour les raccords locaux après qualification.
+
+
+## Décision reçue
+
+A-068 : l’utilisateur approuve les deux domaines de l’ADR-0036 (octant sphérique local et cône incliné à extrémités elliptiques). Laboratoire natif et rejeu indépendants PASS ; l’intégration source/core/CAO peut poursuivre ce périmètre sans nouvel arbitrage.

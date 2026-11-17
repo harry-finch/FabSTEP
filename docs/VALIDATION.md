@@ -1605,3 +1605,16 @@ Le volume idéal possède désormais un encadrement par série binomiale à 20 t
 Les contrôles indépendants passent en 11 256 opérations : arithmétique, splines exactes, corruption intérieure d’Hermite, périodique cubique non uniforme comparée à OCCT D0 aux nœuds et milieux, couverture et tour doublé. Les adversaires natifs passent également : pôle 3D déplacé, pcurve décalée, couture périodique modifiée, poids invalide et budget épuisé. `--inspect-only` ne revendique aucun certificat.
 
 Revue mathématique indépendante PASS après les corrections de comptage et les témoins périodiques. Rejeu natif de l’orchestrateur : sortie 0, rapport identique octet pour octet au passage de l’auteur (`artifacts/r076-f0/root/report.json`). Les traces de compilation, exécution, replay et inspection restent dans `artifacts/r076-f0/`. Pas de nouvelle suite Cargo pour ce laboratoire isolé, pas d’essai Fusion ni de modification de FabSTEP.app pour R-063 seul. L’intégration source/core/CAD R-036 reste à développer.
+
+
+## V-1202 — R-079 : références natives des raccords locaux D/G
+
+Laboratoire borné dans `scripts/qualify-local-blends.cpp` et `scripts/qualify-local-blends.sh`, sous OCCT 7.9.3. Il prépare la proposition ADR-0036 ; aucune reconnaissance STL ni route de conversion de production activée. La construction d’un solide de référence ne prouve pas sa récupération depuis un maillage.
+
+Le coin triédrique uniforme se réimporte en un solide avec six plans, trois quarts de cylindre et un octant sphérique. Volume natif **3161,8524963483842 mm³**, formule indépendante évaluée en binary64 **3161,8524963483783 mm³**. Trois arcs de grands cercles partagés avec la sphère, trois arcs distants sur les plans terminaux et six génératrices de tangence sont contrôlés avec centres, rayons, extrémités, axes et incidences opposées. Huit sondes matière/vide passent.
+
+Les deux variantes de rayon linéaire se réimportent chacune en un solide avec six plans et un cône incliné. Les extrémités sont deux arcs elliptiques, leurs centres/demi-axes/domaines et contacts sont contrôlés, ainsi que les deux génératrices tangentes. Les volumes natifs valent **3165,4015953133612** et **3165,4015953135358 mm³**, pour une référence analytique évaluée **3165,4015953235107 mm³**. Neuf sondes par solide passent, dont trois distinguent l’enveloppe réelle d’un empilement incorrect de sections circulaires. Les trois solides conservent les dimensions 20 × 16 × 10 mm ; sept exclusions de domaine passent.
+
+Pour G, l’élimination de la famille de sphères donne `(a+bz−x−y)²=2(1+b²)xy` sur la branche physique. La portion est un cône circulaire droit incliné, avec arrêts elliptiques pour `|b|<1` et rayons positifs. Les volumes D/G sont des **formules analytiques évaluées en double précision**, pas des intervalles certifiés. Les lois générales, sections paraboliques/hyperboliques et extrémités singulières restent hors de ce laboratoire.
+
+Revue mathématique indépendante PASS sur les trois références ; rejeu natif de l’orchestrateur sortie 0, rapport identique octet pour octet (`artifacts/local-blends-lab/root/report.json`). Aucun essai Fusion. L’utilisateur approuve explicitement les deux domaines additifs core/CAO via A-068 ; la preuve source et l’intégration restent à effectuer. Aucun besoin de redemander A-045 pour F.

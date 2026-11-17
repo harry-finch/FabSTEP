@@ -133,3 +133,8 @@ Sur Flansch, la zone de 64 080 triangles devient un tore, un cône et un cylindr
 L’ensemble est autorisé ; R-076 traite les trois autres raccords courbes mesurés sur Flansch, R-077 le bac percé, R-078 les chaînes coniques adjacentes/mélangées et R-079 prépare les contrats des raccords locaux. Ces travaux n’impliquent pas l’acceptation des essais utilisateur ouverts.
 
 Le laboratoire R-063 passe désormais les certificats des trois courbes natives et de leurs cycles, à 1e-5 et 1e-7 mm, dans les budgets inchangés. Volume idéal encadré, volume OCCT adaptatif mesuré ; revue indépendante et rejeu identique réussis (V-1200). La conversion depuis un STL et le contrat de production R-036 restent à intégrer.
+
+
+## Contrats locaux D/G approuvés
+
+Le laboratoire R-079 produit trois références natives valides : coin avec trois cylindres et un octant sphérique, puis deux variantes d’enveloppe conique à rayon linéaire et extrémités elliptiques. Revue mathématique et rejeu natif identique réussis ; V-1202 distingue formules analytiques évaluées, contrôles d’incidence et limites. L’utilisateur approuve les deux extensions additives (ADR-0036, A-068). R-081 et R-082 portent leur reconnaissance STL et l’intégration core/CAO, non encore réalisées. Aucun nouveau résultat de production n’est revendiqué pour D/G.
