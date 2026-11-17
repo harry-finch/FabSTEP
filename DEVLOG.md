@@ -313,3 +313,8 @@ F0 : prototype et tests élémentaires livrés, revue indépendante PARTIAL et r
 ### 17 novembre — suivi réel et publication des travaux locaux
 
 R-065 observe les checkpoints du moteur par instantané borné et interrogation séquentielle, sans modifier les algorithmes. L’interface expose trois étapes, leur sous-opération et le corps courant ; précontrôle guidé distingué de la validation finale. 219 tests UI, 38 tests bureau et build passent (V-1189). Pilotage graphique indisponible. L’utilisateur demande explicitement de commiter et pousser tous les travaux locaux sur la branche actuelle.
+
+
+### 17 novembre — diagnostic des STL trop denses
+
+Ajout du nombre exact dans le refus STL (R-066), à la demande de l’utilisateur. Son fichier comporte 540 170 triangles, confirmé par longueur binaire et CLI ; le plafond de 100 000 reste en place. Comptage ASCII complet à stockage borné, format d’erreur conservé et message FR/EN. Tests et limites dans V-1190.

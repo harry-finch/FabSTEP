@@ -19,7 +19,7 @@
   import { RegionSelectionQueue } from './lib/region-selection';
   import { canPrepareCorrection, guidedFaces, guidedFamilyLabel, isGuidedRefusal } from './lib/guided';
   import { ContextReveal } from './lib/context-reveal';
-  import { visibleDiagnostic } from './lib/diagnostics';
+  import { visibleDiagnostic, triangleLimitCounts } from './lib/diagnostics';
   import type { StepDisplay } from './lib/step-display';
   import type { StepSelection } from './lib/step-selection';
   import { SelectionReplies, attributions, type SelectionToken, type SourceZone, type ZoneInspection } from './lib/selection';
@@ -293,6 +293,11 @@
     });
     const err = { ...raw, message: context.detail };
     const withBody = (text: string) => context.prefix + text;
+    const triangleLimit = triangleLimitCounts(err.code, err.message);
+    if (triangleLimit) {
+      const format = new Intl.NumberFormat(i18n.locale);
+      return withBody(`${t('engine.input_triangle_count', {count:format.format(triangleLimit.count), limit:format.format(triangleLimit.limit)})} (${err.code})`);
+    }
     if (err.code === 'recognition.surface_unproven') return withBody(`${t('engine.recognition_surface_unproven')} (${err.code}) — ${t('engine.unknownDetail')}: ${err.message}`);
     if (err.code === 'recognition.conic_unproven') return withBody(`${t('engine.recognition_conic_unproven')} (${err.code}) — ${t('engine.unknownDetail')}: ${err.message}`);
     if (err.code === 'cad.invalid_model' && err.message === "Le contour d'une face dépasse la tolérance de planéité du noyau.") return withBody(`${t('engine.cad_contour_planarity')} (${err.code})`);

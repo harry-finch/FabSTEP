@@ -36,3 +36,14 @@ export function visibleDiagnostic(diagnostic: Diagnostic): boolean {
   return !technicalRemarks.has(diagnostic.code)
     && !(diagnostic.severity === 'info' && routineInfo.has(diagnostic.code));
 }
+
+
+/** Counts are only available for the native STL limit diagnostic with a full count. */
+export function triangleLimitCounts(code:unknown, message:unknown):{count:number;limit:number}|null {
+  if (code !== 'input.too_many_triangles' || typeof message !== 'string') return null;
+  const match = /^STL : ([0-9]+) triangles ; limite : ([0-9]+)\.$/.exec(message);
+  if (!match) return null;
+  const count = Number(match[1]), limit = Number(match[2]);
+  return Number.isSafeInteger(count) && Number.isSafeInteger(limit) && limit > 0 && count > limit
+    ? {count,limit} : null;
+}

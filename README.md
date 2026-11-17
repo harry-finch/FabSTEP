@@ -54,6 +54,8 @@ Les quatre pièces du [corpus mécanique indépendant](fixtures/complex_v1/READM
 
 Dans le build de développement, ouvrir un STL ou 3MF affiche d’abord le maillage source. Vérifier l’unité du STL puis cliquer sur **Reconstruire le STEP** dans le panneau de droite. Le résultat validé s’affiche ensuite automatiquement. Chaque nouveau fichier attend son propre lancement ; après ce premier calcul, les modifications de réglages conservent leur recalcul habituel. Le suivi affiche les étapes réelles du moteur, le corps en cours et la durée écoulée. Les opérations natives sans mesure interne gardent un indicateur d’activité ; aucun pourcentage de temps restant n’est estimé.
 
+Un STL refusé pour dépassement du plafond affiche son nombre exact de triangles et la limite de 100 000 (binaire de longueur cohérente ou ASCII syntaxiquement valide). Ce plafond est une protection de l’application pour borner stockage et travail avant reconnaissance, construction CAO et contrôles ; ce n’est pas une limite du format STEP ni une garantie de durée pour tout modèle inférieur au plafond. La limite reste inchangée.
+
 ## Construire
 
 Prérequis : Rust 1.88+, compilateur C++17, Node compatible avec Vite 8 et SDK OpenCASCADE 7.9. La construction contrôle les macros de version du SDK sélectionné et refuse les familles autres que 7.9.x, sans imposer un correctif exact. Le poste de validation utilise Rust 1.88, Node 26 et OCCT 7.9.3 sur macOS Apple Silicon.

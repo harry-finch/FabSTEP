@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { visibleDiagnostic } from '../src/lib/diagnostics.ts';
+import { visibleDiagnostic, triangleLimitCounts } from '../src/lib/diagnostics.ts';
 import type { Diagnostic } from '../src/lib/types.ts';
 
 const notice = (code:string, severity:Diagnostic['severity'] = 'warning'):Diagnostic => ({code,severity,message:'Native detail',count:1});
@@ -25,4 +25,11 @@ test('future blocking severity is never hidden by a known routine code', () => {
   for (const code of ['precision.custom_tolerances','recognition.rounded_intent_assumed','validation.native_required']) {
     assert.equal(visibleDiagnostic({...notice(code),severity:'error'} as unknown as Diagnostic),true);
   }
+});
+
+
+test('STL limit diagnostics expose exact counts without inventing values for legacy or malformed errors',()=>{
+  assert.deepEqual(triangleLimitCounts('input.too_many_triangles','STL : 540170 triangles ; limite : 100000.'),{count:540170,limit:100000});
+  for(const message of ['STL limité à 100 000 triangles.','Maillage limité à 100 000 triangles et 300 000 sommets.','STL : 1 triangles ; limite : 100000.','STL : 100001 triangles ; limite : 0.','STL : 9007199254740992 triangles ; limite : 100000.',null]) assert.equal(triangleLimitCounts('input.too_many_triangles',message),null);
+  assert.equal(triangleLimitCounts('stl.invalid_length','STL : 540170 triangles ; limite : 100000.'),null);
 });

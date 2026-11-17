@@ -6,7 +6,7 @@ L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée i
 
 L’ordre des lots restants reprend le document d’origine ; les priorités et dépendances exprimées dans leurs textes restent applicables. Aucun nouveau développement n’est autorisé par cette migration.
 
-**Avancement : 20 livrés sur 65** (31 %)
+**Avancement : 20 livrés sur 66** (30 %)
 
 ## Restant à faire
 
@@ -100,6 +100,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Ouvrir le fichier en aperçu source puis lancer sa reconstruction avec un bouton explicite dans le panneau de droite.
 45. **[R-065 UX7 — suivre les étapes réelles de reconstruction](roadmap/items/R-065-ux7-suivre-les-etapes-reelles-de-reconstruction.md)** · À tester · jalon atelier
    Afficher les étapes observées du moteur et le corps en cours, sans pourcentage ni temps restant inventés.
+46. **[R-066 UX8 — préciser le nombre de triangles refusés](roadmap/items/R-066-ux8-preciser-le-nombre-de-triangles-refuses.md)** · À tester · jalon atelier
+   Afficher le nombre exact de triangles d’un STL trop dense et le maximum autorisé.
 
 ## Actions à faire
 
@@ -152,6 +154,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-051](roadmap/actions/A-051-verifier-le-bac-ouvert-dans-fusion.md) Vérifier le bac ouvert dans Fusion (tester, R-062)
 - [ ] [A-052](roadmap/actions/A-052-essayer-le-lancement-manuel-du-step.md) Essayer le lancement manuel du STEP (tester, R-064)
 - [ ] [A-053](roadmap/actions/A-053-verifier-le-suivi-de-reconstruction.md) Vérifier le suivi de reconstruction (tester, R-065)
+- [ ] [A-054](roadmap/actions/A-054-verifier-le-compte-du-stl-trop-dense.md) Vérifier le compte du STL trop dense (tester, R-066)
 
 ## Livré
 

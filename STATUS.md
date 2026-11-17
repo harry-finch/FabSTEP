@@ -67,3 +67,8 @@ R-064 : chaque ouverture affiche seulement le maillage ; « Reconstruire le STEP
 ## Progression réelle — UX7
 
 R-065 affiche les étapes natives, la sous-opération et le corps courant, avec durée et activité indéterminée pendant les appels longs. 219 tests UI, 38 bureau, Svelte, Clippy et build macOS réussis. Vérification visuelle empêchée par le pilote natif ; V-1189 distingue les preuves et limites. Aucun compteur de zones ni pourcentage de temps estimé.
+
+
+## Refus des STL denses — UX8
+
+R-066 affiche le compte exact et le plafond dans l’erreur des STL valides trop denses. FlanschTurboLuftfilter_REV02.STL : 540 170 triangles, refus à 100 000 confirmé par le CLI. Cinq tests lecteur, quatorze tests analyse et 220 UI passent ; preuves V-1190. Aucun relèvement de limite ni simplification du modèle.

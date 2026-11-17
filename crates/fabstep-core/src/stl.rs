@@ -30,10 +30,7 @@ pub(crate) fn read(bytes: &[u8]) -> Result<Vec<[[f64; 3]; 3]>, FabError> {
 
 fn binary(bytes: &[u8], count: usize) -> Result<Vec<[[f64; 3]; 3]>, FabError> {
     if count > MAX_TRIANGLES {
-        return Err(FabError::new(
-            "input.too_many_triangles",
-            "STL limité à 100 000 triangles.",
-        ));
+        return Err(too_many_triangles(count));
     }
     let mut triangles = Vec::with_capacity(count);
     for record in bytes[84..].chunks_exact(50) {
@@ -62,16 +59,14 @@ fn ascii(source: &str) -> Result<Vec<[[f64; 3]; 3]>, FabError> {
         return Err(syntax());
     }
     let mut tokens = facets.split_whitespace();
-    let mut triangles = Vec::new();
+    // A complete facet needs at least 85 bytes, even with single-character
+    // numbers and separators. Reserve only this upper bound, capped before any
+    // allocation; oversized ASCII is still parsed completely to validate it.
+    let mut triangles = Vec::with_capacity(MAX_TRIANGLES.min(facets.len() / 85));
+    let mut count = 0;
     while let Some(token) = tokens.next() {
         if token != "facet" {
             return Err(syntax());
-        }
-        if triangles.len() >= MAX_TRIANGLES {
-            return Err(FabError::new(
-                "input.too_many_triangles",
-                "STL limité à 100 000 triangles.",
-            ));
         }
         expect(&mut tokens, "normal")?;
         // Stored normals are advisory; geometry determines the actual normals.
@@ -89,9 +84,22 @@ fn ascii(source: &str) -> Result<Vec<[[f64; 3]; 3]>, FabError> {
         }
         expect(&mut tokens, "endloop")?;
         expect(&mut tokens, "endfacet")?;
-        triangles.push(triangle);
+        count += 1;
+        if count <= MAX_TRIANGLES {
+            triangles.push(triangle);
+        }
+    }
+    if count > MAX_TRIANGLES {
+        return Err(too_many_triangles(count));
     }
     Ok(triangles)
+}
+
+fn too_many_triangles(count: usize) -> FabError {
+    FabError::new(
+        "input.too_many_triangles",
+        format!("STL : {count} triangles ; limite : {MAX_TRIANGLES}."),
+    )
 }
 
 fn syntax() -> FabError {
@@ -113,4 +121,73 @@ fn number(tokens: &mut std::str::SplitWhitespace<'_>) -> Result<f64, FabError> {
         .ok_or_else(syntax)?
         .parse()
         .map_err(|_| syntax())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const FACET: &str =
+        "facet normal 0 0 0 outer loop vertex 0 0 0 vertex 1 0 0 vertex 0 1 0 endloop endfacet\n";
+
+    fn ascii_source(count: usize, trailing: &str) -> String {
+        let mut source = String::from("solid generated\n");
+        for _ in 0..count {
+            source.push_str(FACET);
+        }
+        source.push_str(trailing);
+        source.push_str("endsolid generated\n");
+        source
+    }
+
+    #[test]
+    fn binary_oversize_reports_the_exact_length_validated_triangle_count() {
+        let count = 540_170u32;
+        let mut source = vec![0; 84 + 50 * count as usize];
+        source[..5].copy_from_slice(b"solid");
+        source[80..84].copy_from_slice(&count.to_le_bytes());
+        let error = read(&source).unwrap_err();
+        assert_eq!(error.code, "input.too_many_triangles");
+        assert_eq!(error.message, "STL : 540170 triangles ; limite : 100000.");
+    }
+
+    #[test]
+    fn an_invalid_binary_length_never_reports_an_unverified_header_count() {
+        let mut source = vec![0; 84];
+        source[80..84].copy_from_slice(&540_170u32.to_le_bytes());
+        let error = read(&source).unwrap_err();
+        assert_eq!(error.code, "stl.invalid_length");
+        assert!(!error.message.contains("540170"));
+    }
+
+    #[test]
+    fn ascii_oversize_counts_every_complete_facet_before_refusing() {
+        let count = MAX_TRIANGLES + 17;
+        let error = read(ascii_source(count, "").as_bytes()).unwrap_err();
+        assert_eq!(error.code, "input.too_many_triangles");
+        assert_eq!(error.message, "STL : 100017 triangles ; limite : 100000.");
+    }
+
+    #[test]
+    fn ascii_syntax_after_the_limit_is_not_hidden_by_a_partial_count() {
+        let source = ascii_source(
+            MAX_TRIANGLES + 1,
+            "facet normal 0 0 0 outer loop vertex 0 0 0 endloop endfacet\n",
+        );
+        let error = read(source.as_bytes()).unwrap_err();
+        assert_eq!(error.code, "stl.invalid_ascii");
+        assert!(!error.message.contains("triangles"));
+    }
+
+    #[test]
+    fn ascii_triangle_storage_capacity_does_not_grow_beyond_the_cap() {
+        // Long names/whitespace must not inflate the retained triangle buffer.
+        let source = ascii_source(MAX_TRIANGLES, &" ".repeat(1024));
+        let triangles = read(source.as_bytes()).unwrap();
+        assert_eq!(triangles.len(), MAX_TRIANGLES);
+        assert_eq!(triangles.capacity(), MAX_TRIANGLES);
+        let tiny = read(ascii_source(1, "").as_bytes()).unwrap();
+        assert_eq!(tiny.len(), 1);
+        assert_eq!(tiny.capacity(), 1);
+    }
 }
