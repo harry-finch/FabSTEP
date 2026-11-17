@@ -79,3 +79,7 @@ Après validation de R-058, l’utilisateur demande de poursuivre la reconnaissa
 ### Simplification contextuelle implémentée le 17 novembre
 
 Essayer devient l’action primaire ; les compteurs et consignes répétés sont retirés du panneau STEP. Les familles, identités et correspondances techniques sont repliées ; Agrandir/Réduire côté source restent accessibles sous Avancé, l’effacement reste en en-tête. Retour au STEP précède les statistiques. Les indications acceptées conservent leurs actions et montrent leurs métadonnées à la demande ; aucune section vide après un refus. Unité, alertes, récupération et DXF préservés. 208 tests UI, Svelte et build passent ; qualification visuelle restante (V-1184).
+
+### Contrôle natif complémentaire — V-1185
+
+Ouverture et bascule STEP, sélection plane, aperçu DXF, aller-retour source/STEP et barre Essayer/Try observés le 17 novembre en français sombre et anglais clair. Retrait du doublon de consigne dans l’inspecteur STEP ; Svelte et build macOS réussis. Essayer, sauvegardes, fenêtre étroite et Fusion non qualifiés ici ; A-044 et les autres actions du lot restent ouverts.

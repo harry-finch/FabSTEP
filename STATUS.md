@@ -1,6 +1,6 @@
 # État — 17 novembre 2026
 
-**V1 mécanique 1.0.0 acceptée ; extensions post-v1 dans le build de développement.** Rust/OCCT, Svelte 5/Tauri, GPL-3.0-or-later. Cible qualifiée : Apple Silicon, macOS 26 ou ultérieur. La v1 correspond au tag `v1.0.0` ; la mise d’équerre est préparée sur `fabboard/mise-d-equerre`, issue de `codex/v1-mechanical`. Les modifications fonctionnelles post-v1 déjà présentes restent non commitées.
+**V1 mécanique 1.0.0 acceptée ; extensions post-v1 dans le build de développement.** Rust/OCCT, Svelte 5/Tauri, GPL-3.0-or-later. Cible qualifiée : Apple Silicon, macOS 26 ou ultérieur. La v1 correspond au tag `v1.0.0` ; la mise d’équerre est préparée sur `fabboard/mise-d-equerre`, issue de `codex/v1-mechanical`. Les évolutions post-v1, la documentation et les skills ont été commitées et poussées le 17 novembre sur `origin/fabboard/mise-d-equerre` (9f7341c, 702a259, 597863c). La branche par défaut et le paquet release restent inchangés.
 
 ## Vérifié et accepté
 
@@ -14,7 +14,7 @@ Le build `artifacts/FabSTEP.app` contient les extensions géométriques A/B/C1a,
 
 La dernière validation globale **historique**, V-1177 du 12 novembre, rapporte 391 tests workspace, 32 bureau, 175 UI, 12 Python et 4 SDK, formatage, Clippy strict, Svelte et builds réussis. Ce bilan ne remplace pas les essais natifs et Fusion encore ouverts. La sélection/ouverture manuelle a été confirmée ; le blocage du pilotage automatisé n’établit pas un défaut produit de l’import.
 
-Les lots concernés restent `a-tester` dans [ROADMAP](ROADMAP.md) ; 28 actions détaillent séparément les parcours graphiques et réimports attendus. Leurs réponses doivent être examinées avant d’accepter chaque lot.
+Les lots concernés restent `a-tester` dans [ROADMAP](ROADMAP.md) ; les actions détaillent séparément les parcours graphiques et réimports attendus. Leurs réponses doivent être examinées avant d’accepter chaque lot.
 
 ## Reprise UX4 du 15 novembre
 
@@ -46,4 +46,8 @@ Ancienne feuille de route conservée dans [l’archive](docs/ROADMAP-avant-fabbo
 
 Contrôles **relancés le 13 novembre** : `scripts/check.sh` termine avec code 0 — 391 tests workspace, 32 bureau, 175 UI, 12 Python et 4 SDK ; formatage, Clippy strict, Svelte (0 erreur/avertissement), build UI et contrôle bureau réussis. Onze tests Rust opt-in restent ignorés par la suite ordinaire ; avertissement Vite connu sur la taille du bundle. [Journal local](artifacts/mise-d-equerre/check.log). Le format FabBoard, les liens et la conservation exacte des archives ont aussi été contrôlés. La figure Hairline passe son validateur et ses huit vues Chrome, regardées en clair/sombre et en mouvement. Aucun nouvel essai graphique natif ni Fusion n’est revendiqué. Les idées futures et sujets conditionnels restent dans la feuille de route sans nouvelle autorisation de développement.
 
-Validation documentaire reçue : A-030. Réserves de mise d’équerre : [A-029](roadmap/actions/A-029-valider-la-migration-de-la-feuille-de-route-de.md) pour le détail de migration, [A-031](roadmap/actions/A-031-examiner-la-figure-de-la-bride-percee-de-fabstep.md) pour le parcours de la figure et son rendu intégré non confirmé. La validation d’organisation A-032 a été reçue le 16 novembre ; elle ne vaut pas acceptation des extensions fonctionnelles. La branche dédiée n’a pas d’amont, volontairement : aucun push ni fusion.
+Validation documentaire reçue : A-030. Réserves de mise d’équerre : [A-029](roadmap/actions/A-029-valider-la-migration-de-la-feuille-de-route-de.md) pour le détail de migration, [A-031](roadmap/actions/A-031-examiner-la-figure-de-la-bride-percee-de-fabstep.md) pour le parcours de la figure et son rendu intégré non confirmé. La validation d’organisation A-032 a été reçue le 16 novembre ; elle ne vaut pas acceptation des extensions fonctionnelles. La branche dédiée suit désormais `origin/fabboard/mise-d-equerre` ; aucune fusion dans la branche par défaut.
+
+## Contrôle natif complémentaire
+
+Le 17 novembre, le pilotage natif a permis d’ouvrir `two_increasing.stl`, de constater le STEP validé, de sélectionner une face plane et de vérifier son profil DXF (32 × 32 mm, un trou), puis l’aller-retour STEP/source. Barre Essayer observée en anglais clair ; retour aux préférences françaises sombres effectué. Une consigne STEP répétée dans l’inspecteur est supprimée ; elle reste dans la vue 3D. Portée exacte et limites : V-1185. Les actions utilisateur restent ouvertes, sans acceptation déduite de ces contrôles.

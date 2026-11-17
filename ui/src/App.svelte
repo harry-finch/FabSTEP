@@ -735,11 +735,11 @@
           onshrink={() => resizeSourceZone(-1)}
           onclear={clearSourceZone}
         />
-      {:else if bytes}
+      {:else if bytes && !stepView}
         <div class="context-hint">
           <MousePointer2 size={14}/>
           <p class="muted">
-            {stepView ? t('stepInspection.pickHint') : selectionMode ? t('inspection.pickHint') : t('workspace.inspectHint')}
+            {selectionMode ? t('inspection.pickHint') : t('workspace.inspectHint')}
           </p>
         </div>
       {/if}
