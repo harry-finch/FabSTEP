@@ -19,6 +19,7 @@ use tauri::{
 };
 use tauri_plugin_dialog::DialogExt;
 
+mod progress;
 mod section;
 mod source_section;
 
@@ -29,20 +30,6 @@ struct EngineState {
     inner: Mutex<CacheState>,
     uploading: AtomicBool,
 }
-impl EngineState {
-    fn check_current(&self, request_id: u64, source_id: u64, epoch: u64) -> Result<(), FabError> {
-        if self
-            .inner
-            .lock()
-            .map_err(lock_error)?
-            .current(request_id, source_id, epoch)
-        {
-            Ok(())
-        } else {
-            Err(stale())
-        }
-    }
-}
 #[derive(Default)]
 struct CacheState {
     revision: u64,
@@ -51,6 +38,8 @@ struct CacheState {
     source: Option<CachedSource>,
     result: Option<CachedStep>,
     guidance_session: Option<Arc<DocumentStep>>,
+    progress_generation: u64,
+    progress: Option<progress::ActiveProgress>,
     face_profile_generation: u64,
     face_profile: Option<FaceProfileContext>,
     section_generation: u64,
@@ -93,6 +82,7 @@ impl CacheState {
             self.source_section = None;
             self.face_profile = None;
             self.guidance_session = None;
+            self.progress = None;
             if self.expected_source != source_id {
                 self.source = None;
             }
@@ -122,6 +112,7 @@ impl CacheState {
             self.source_section = None;
             self.face_profile = None;
             self.guidance_session = None;
+            self.progress = None;
             self.epoch = self.epoch.wrapping_add(1);
             return Err(FabError::new(
                 "engine.source_conflict",
@@ -146,6 +137,7 @@ impl CacheState {
         self.source_section = None;
         self.face_profile = None;
         self.guidance_session = None;
+        self.progress = None;
         let source = self
             .source
             .as_ref()
@@ -366,6 +358,19 @@ fn invalidate_result(
         .lock()
         .map_err(lock_error)?
         .invalidate(request_id, source_id)
+}
+
+#[tauri::command]
+fn get_conversion_progress(
+    request_id: u64,
+    source_id: u64,
+    state: State<'_, Arc<EngineState>>,
+) -> Result<Option<progress::ConversionProgress>, FabError> {
+    Ok(state
+        .inner
+        .lock()
+        .map_err(lock_error)?
+        .conversion_progress(request_id, source_id))
 }
 struct UploadGuard<'a>(&'a AtomicBool);
 impl Drop for UploadGuard<'_> {
@@ -708,13 +713,15 @@ async fn convert_document(
         .lock()
         .map_err(lock_error)?
         .begin(request_id, source_id)?;
-    let worker_state = Arc::clone(&state);
+    let progress =
+        progress::ConversionGuard::new(Arc::clone(&state), request_id, source_id, epoch)?;
+    let observer = progress.observer();
     let result = tauri::async_runtime::spawn_blocking(move || {
         fabstep_app::convert_shared_document_with_provenance_controlled(
             bytes,
             format,
             &options,
-            &mut |_| worker_state.check_current(request_id, source_id, epoch),
+            &mut |checkpoint| observer.checkpoint(checkpoint),
         )
     })
     .await
@@ -761,11 +768,13 @@ async fn guided_convert(
         source_id,
         base_request_id,
     )?;
-    let worker_state = Arc::clone(&state);
+    let progress =
+        progress::ConversionGuard::new(Arc::clone(&state), request_id, source_id, epoch)?;
+    let observer = progress.observer();
     let computed = tauri::async_runtime::spawn_blocking(move || {
         let family = parse_guidance_family(family.as_deref())?;
-        step.guided_surface_controlled(&face_ids, family, &mut |_| {
-            worker_state.check_current(request_id, source_id, epoch)
+        step.guided_surface_controlled(&face_ids, family, &mut |checkpoint| {
+            observer.checkpoint(checkpoint)
         })
     })
     .await;
@@ -829,9 +838,11 @@ async fn mutate_guidance_session(
         .lock()
         .map_err(lock_error)?
         .begin_guidance_session(request_id, source_id, base_request_id)?;
-    let worker_state = Arc::clone(&state);
+    let progress =
+        progress::ConversionGuard::new(Arc::clone(&state), request_id, source_id, epoch)?;
+    let observer = progress.observer();
     let computed = tauri::async_runtime::spawn_blocking(move || {
-        let mut check_current = |_| worker_state.check_current(request_id, source_id, epoch);
+        let mut check_current = |checkpoint| observer.checkpoint(checkpoint);
         match remove_hint_id {
             Some(id) => step.remove_guidance_controlled(id, &mut check_current),
             None => step.recompute_guidance_controlled(&mut check_current),
@@ -1102,6 +1113,7 @@ fn main() {
             remove_guidance,
             recompute_guidance,
             invalidate_result,
+            get_conversion_progress,
             export_step
         ])
         .setup(|app| {

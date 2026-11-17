@@ -199,3 +199,10 @@ R-060 ajoute une recherche bornée de rupture uniquement après échec de la loi
 R-061 admet la chaîne extérieure Tore–Cylindre–Tore aux deux extrémités planes, avec deux témoins intérieurs sur la portée. Le rayon cylindrique démontré avant le premier ajustement sert à canonicaliser ensemble les deux quarts de tore. Toutes les sections repassent ensuite par les preuves vectorielles/UV et la borne composée ; les déplacements des cercles terminaux restent comptés. Le parcours à un tore conserve son calcul historique, les nouvelles variantes concaves sont refusées. Modèle et ABI inchangés : [ADR-0033](docs/adr/0033-double-toroidal-fillet.md).
 
 R-062 qualifie le modèle mixte existant sur une ou deux arêtes arrondies disjointes et un bac ouvert à huit coins cylindriques verticaux. Les boucles source, le fond et le rebord forment une frontière fermée de matière ; aucune sémantique de corps imbriqués ni de cavité enfermée n’est ajoutée. Les tangences sont vérifiées sur le corpus, sans nouvelle classification générale des congés.
+
+
+## Observation de la reconstruction — UX7
+
+Le bureau conserve un seul instantané des checkpoints réellement reçus pendant la conversion ordinaire ou guidée. `get_conversion_progress` est en lecture seule, protégé par révision, source, époque et génération d’opération. La garde de commande efface l’observation à la sortie ; un ancien observateur ne peut ni publier ni effacer la nouvelle opération. L’indice du corps vient directement de l’analyse ; son total est inconnu dans cette version du contrat (`null`), sans déduction depuis les appels répétés. Le précontrôle d’une correction guidée est distingué de l’inspection finale.
+
+L’interface interroge cet instantané seulement pendant la conversion, au plus une requête en vol, avec 350 ms entre réponse et interrogation suivante. Les réponses périmées et erreurs d’observation n’affectent pas le calcul. Trois étapes documentaires et la sous-opération courante sont affichées ; aucune fréquence de checkpoint n’est convertie en pourcentage de travail ou de temps. Les appels natifs demeurent indivisibles et non interruptibles.

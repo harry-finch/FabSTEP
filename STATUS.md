@@ -62,3 +62,8 @@ L’utilisateur a approuvé l’extension additive des perçages sécants (A-045
 ## Lancement manuel du STEP — UX6
 
 R-064 : chaque ouverture affiche seulement le maillage ; « Reconstruire le STEP » dans l’inspecteur lance le premier calcul. 215 tests UI, Svelte et build macOS passent ; parcours natif ouverture → clic → STEP validé observé. Détails et limites du pilotage dans V-1188. Après le premier clic, les réglages gardent leur recalcul habituel.
+
+
+## Progression réelle — UX7
+
+R-065 affiche les étapes natives, la sous-opération et le corps courant, avec durée et activité indéterminée pendant les appels longs. 219 tests UI, 38 bureau, Svelte, Clippy et build macOS réussis. Vérification visuelle empêchée par le pilote natif ; V-1189 distingue les preuves et limites. Aucun compteur de zones ni pourcentage de temps estimé.

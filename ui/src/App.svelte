@@ -7,6 +7,7 @@
   import Disclosure from './components/Disclosure.svelte';
   import Viewport from './components/Viewport.svelte';
   import ProcessingIndicator from './components/ProcessingIndicator.svelte';
+  import { watchConversionProgress, type ConversionProgress } from './lib/conversion-progress';
   import Dialog from './components/Dialog.svelte';
   import SourceInspection from './components/SourceInspection.svelte';
   import StepInspection from './components/StepInspection.svelte';
@@ -214,6 +215,15 @@
     if (!target.disabled) { target.focus(); target.click(); }
   }
   type Internals = SourceBridge;
+  let conversionProgress = $state<ConversionProgress|null>(null);
+  $effect(() => {
+    const id = current, source = sourceId, active = processing;
+    conversionProgress = null;
+    const bridge = native();
+    if (bridge && source !== null && active?.requestId === id && active.phase === 'converting') {
+      return watchConversionProgress(bridge, id, source, value => { conversionProgress = value; });
+    }
+  });
   const native = () => (window as unknown as { __TAURI_INTERNALS__?: Internals }).__TAURI_INTERNALS__;
   const canPrepareGuidance = $derived(canPrepareCorrection(result,current,options.reconstruction,!!native(),busy || !!processing) && stepDocument?.source_correspondence.status !== 'exact');
   let faceProfile = $state<FaceProfileState>({ response:null, geometry:null, pending:false, exporting:false, error:null, note:null });
@@ -651,7 +661,7 @@
           </div>
         {/if}
         {#if processing}
-          <ProcessingIndicator phase={processing.phase} startedAt={processing.startedAt}/>
+          <ProcessingIndicator phase={processing.phase} startedAt={processing.startedAt} progress={conversionProgress}/>
         {/if}
       </div>
     </section>

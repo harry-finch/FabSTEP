@@ -52,7 +52,7 @@ Les quatre pièces du [corpus mécanique indépendant](fixtures/complex_v1/READM
 
 ## Ouvrir et reconstruire
 
-Dans le build de développement, ouvrir un STL ou 3MF affiche d’abord le maillage source. Vérifier l’unité du STL puis cliquer sur **Reconstruire le STEP** dans le panneau de droite. Le résultat validé s’affiche ensuite automatiquement. Chaque nouveau fichier attend son propre lancement ; après ce premier calcul, les modifications de réglages conservent leur recalcul habituel.
+Dans le build de développement, ouvrir un STL ou 3MF affiche d’abord le maillage source. Vérifier l’unité du STL puis cliquer sur **Reconstruire le STEP** dans le panneau de droite. Le résultat validé s’affiche ensuite automatiquement. Chaque nouveau fichier attend son propre lancement ; après ce premier calcul, les modifications de réglages conservent leur recalcul habituel. Le suivi affiche les étapes réelles du moteur, le corps en cours et la durée écoulée. Les opérations natives sans mesure interne gardent un indicateur d’activité ; aucun pourcentage de temps restant n’est estimé.
 
 ## Construire
 

@@ -308,3 +308,8 @@ F0 : prototype et tests élémentaires livrés, revue indépendante PARTIAL et r
 ### 17 novembre — lancement manuel du STEP
 
 À la demande de l’utilisateur, R-064 sépare aperçu initial et reconstruction, avec bouton primaire dans le panneau de droite. Consentement au calcul remis à zéro à chaque source, réglages préparatoires sans conversion, recalcul ultérieur conservé. Tests de concurrence et de refus adaptés ; 215 tests UI et build passent. Parcours natif principal vérifié, second dialogue de fichiers bloqué dans le pilote ; V-1188 précise les limites.
+
+
+### 17 novembre — suivi réel et publication des travaux locaux
+
+R-065 observe les checkpoints du moteur par instantané borné et interrogation séquentielle, sans modifier les algorithmes. L’interface expose trois étapes, leur sous-opération et le corps courant ; précontrôle guidé distingué de la validation finale. 219 tests UI, 38 tests bureau et build passent (V-1189). Pilotage graphique indisponible. L’utilisateur demande explicitement de commiter et pousser tous les travaux locaux sur la branche actuelle.

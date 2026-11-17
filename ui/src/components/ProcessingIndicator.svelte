@@ -1,9 +1,13 @@
 <script lang="ts">
-  // État flottant non modal : phase réelle et durée écoulée, sans progression chiffrée.
+  // Étapes natives observées et durée ; aucun pourcentage de temps extrapolé.
+  import { conversionStage, type ConversionProgress } from '../lib/conversion-progress';
   import { t } from '../lib/i18n.svelte';
 
-  let { phase, startedAt }: { phase: 'queued' | 'preview' | 'converting' | 'searching'; startedAt: number } = $props();
+  let { phase, startedAt, progress = null }: { progress?:ConversionProgress|null; phase: 'queued' | 'preview' | 'converting' | 'searching'; startedAt: number } = $props();
   let elapsed = $state(0);
+  const observed = $derived(phase === 'converting' ? progress : null);
+  const stage = $derived(observed ? conversionStage(observed.phase) : -1);
+  const stages = ['analysis', 'reconstruction', 'validation'] as const;
   const clock = $derived(`${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`);
 
   $effect(() => {
@@ -23,10 +27,22 @@
     </svg>
     <div class="copy" role="status" aria-live="polite" aria-atomic="true">
       <strong>{t(`processing.${phase}Title`)}</strong>
-      <span>{t(`processing.${phase}Detail`)}</span>
+      <span>{observed ? t(`conversionProgress.${observed.phase}`) : t(`processing.${phase}Detail`)}</span>
+      {#if observed?.body_index !== null && observed?.body_index !== undefined}
+        <span>{t(observed.body_count === null ? 'conversionProgress.bodyCurrent' : 'conversionProgress.bodyCount', {n:observed.body_index+1, total:observed.body_count ?? 0})}</span>
+      {/if}
     </div>
     <span class="elapsed" aria-hidden="true">{clock}</span>
   </div>
+  {#if phase === 'converting'}
+    <ol class="stages" aria-label={t('conversionProgress.stages')}>
+      {#each stages as name, index}
+        <li class:complete={index < stage} class:current={index === stage} aria-current={index === stage ? 'step' : undefined}>
+          <span aria-hidden="true">{index < stage ? '✓' : index + 1}</span> {t(`conversionProgress.stage_${name}`)}
+        </li>
+      {/each}
+    </ol>
+  {/if}
   <div class="track" aria-hidden="true"><div class="activity"></div></div>
 </div>
 
@@ -48,6 +64,10 @@
   .copy strong { color: var(--text-primary); font-size: var(--fs-md); font-weight: 600; }
   .copy span { color: var(--text-secondary); font-size: var(--fs-sm); line-height: 1.4; }
   .elapsed { color: var(--text-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+  .stages { display: flex; list-style: none; padding: 0; gap: var(--s2); margin: var(--s3) 0 0; font-size: var(--fs-xs); color: var(--text-muted); }
+  .stages li { flex: 1; border-top: 2px solid var(--border); padding-top: var(--s1); }
+  .stages li.current { border-color: var(--accent); color: var(--text-primary); }
+  .stages li.complete { border-color: var(--accent); color: var(--text-secondary); }
   .track { height: var(--s1); margin-top: var(--s3); overflow: hidden; background: var(--track); border-radius: var(--radius); }
   .activity { width: 35%; height: 100%; background: var(--accent); border-radius: inherit; animation: travel 1.6s ease-in-out infinite; }
   @keyframes travel { from { transform: translateX(-100%); } to { transform: translateX(285%); } }
