@@ -138,3 +138,10 @@ Le laboratoire R-063 passe désormais les certificats des trois courbes natives 
 ## Contrats locaux D/G approuvés
 
 Le laboratoire R-079 produit trois références natives valides : coin avec trois cylindres et un octant sphérique, puis deux variantes d’enveloppe conique à rayon linéaire et extrémités elliptiques. Revue mathématique et rejeu natif identique réussis ; V-1202 distingue formules analytiques évaluées, contrôles d’incidence et limites. L’utilisateur approuve les deux extensions additives (ADR-0036, A-068). R-081 et R-082 portent leur reconnaissance STL et l’intégration core/CAO, non encore réalisées. Aucun nouveau résultat de production n’est revendiqué pour D/G.
+
+
+## Chaînes composées et bac percé — R-076/R-077/R-078
+
+Les chaînes de deux à huit cônes adjacents/mélangés, deux nouveaux profils toriques et le bac percé passent leur qualification automatique ; les contrats et seuils existants sont conservés. Revue indépendante et régression du repli Auto à neuf cônes corrigée. **530 workspace, 50 bureau, huit worker, 88 ciblés large-stl, un transfert réel, 229 UI, douze Python et quatre SDK passent**, avec formatage, Clippy, Svelte et builds. `artifacts/FabSTEP.app` reconstruit, deux exécutables vérifiés. V-1201 détaille mesures et limites ; A-069 à A-074 portent les essais utilisateur ouverts.
+
+Les quatre grandes zones de Flansch deviennent douze surfaces, avec attribution exhaustive vérifiée. Le résultat complet contient encore **231 608 faces**, dont 231 584 plans : **aucun STEP produit**, plafond résultat inchangé et validation native source non atteinte. R-080 conserve la qualification restante. D2/R-081 commence en brouillon isolé après approbation A-068 ; il n’est pas encore intégré à ce paquet.

@@ -1,0 +1,39 @@
+{
+  "generator": "scripts/generate-pierced-tray-fixtures.py",
+  "unit": "mm",
+  "volume_mm3": 6884.389342116932,
+  "bounds_mm": [
+    [
+      -20,
+      -15,
+      0
+    ],
+    [
+      20,
+      15,
+      12
+    ]
+  ],
+  "planes": 11,
+  "cylinders": 9,
+  "bore_radius_mm": 2,
+  "floor_thickness_mm": 3,
+  "cases": {
+    "nominal": {
+      "triangles": 3456,
+      "sha256": "c18e33aeb4d37b5a45794b55a1d3b471c9de0bcbd10a81e9e4d223be36a053c5"
+    },
+    "rotated": {
+      "triangles": 3456,
+      "sha256": "245273c287b890f020db053b7b7080180221a7aafc43b2a22e837041e487147c"
+    },
+    "warped_bore": {
+      "triangles": 3456,
+      "sha256": "bf2862eb3194cd5aac05d35e5ac3bf5d8c6281f8a42368f9654fa7a437bf477c"
+    },
+    "missing_floor": {
+      "triangles": 3455,
+      "sha256": "19b66737bededece2758113726cae4503dd9f4abafff5e2fb8830641030c3f2a"
+    }
+  }
+}

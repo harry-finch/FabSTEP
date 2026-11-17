@@ -22,6 +22,45 @@ fn boundary(v: &[usize]) -> BTreeSet<Edge> {
         .map(|i| edge(v[i], v[(i + 1) % v.len()]))
         .collect()
 }
+// Group cycles by a necessary condition for equality, then compare their
+// full undirected edge sets. Duplicate source rims retain their own regions.
+type RimBucket = Vec<(usize, BTreeSet<Edge>)>;
+struct RimIndex(BTreeMap<(usize, Edge), RimBucket>);
+
+impl RimIndex {
+    fn new(rims: &[Rim], work: &mut Work) -> Result<Self, FabError> {
+        let mut buckets = BTreeMap::<_, RimBucket>::new();
+        for (index, rim) in rims.iter().enumerate() {
+            work.spend(rim.vertices.len() + 1)?;
+            let edges = boundary(&rim.vertices);
+            if let Some(&first) = edges.first() {
+                buckets
+                    .entry((edges.len(), first))
+                    .or_default()
+                    .push((index, edges));
+            }
+        }
+        Ok(Self(buckets))
+    }
+
+    fn matches(&self, nodes: &[Node], work: &mut Work) -> Result<BTreeSet<usize>, FabError> {
+        let mut matches = BTreeSet::new();
+        for node in nodes {
+            work.spend(node.vertices.len() + 1)?;
+            let edges = boundary(&node.vertices);
+            if let Some(bucket) = edges.first().and_then(|&e| self.0.get(&(edges.len(), e))) {
+                for (index, rim) in bucket {
+                    work.spend(edges.len() + 1)?;
+                    if *rim == edges {
+                        matches.insert(*index);
+                    }
+                }
+            }
+        }
+        Ok(matches)
+    }
+}
+
 fn unproven(s: impl std::fmt::Display) -> FabError {
     FabError::new(
         "recognition.surface_unproven",
@@ -376,6 +415,7 @@ fn recognize_policy_with_proofs(
     let mut rejected = usize::from(failure.is_some());
     let patches = if automatic {
         let mut proven = Vec::new();
+        let mut rim_index = None;
         for patch in patches {
             if scope.is_some_and(|scope| !patch.triangles.iter().any(|t| scope.contains(t))) {
                 continue;
@@ -383,29 +423,21 @@ fn recognize_policy_with_proofs(
             // Prove the entire candidate before inserting a single ring or face.
             // A local mismatch leaves its exact facets; resource failures propagate.
             let proof = (|| {
-                for rim in &rims {
-                    work.spend(
-                        patch
-                            .nodes
-                            .iter()
-                            .map(|n| n.vertices.len().saturating_add(rim.vertices.len()))
-                            .sum::<usize>(),
-                    )?;
-                    if patch
-                        .nodes
+                let rim_index = match &rim_index {
+                    Some(index) => index,
+                    None => rim_index.insert(RimIndex::new(&rims, &mut work)?),
+                };
+                for i in rim_index.matches(&patch.nodes, &mut work)? {
+                    let face = &segmentation.model.faces[rims[i].region];
+                    work.spend(face.loops.iter().map(Vec::len).sum())?;
+                    let origin = a.mesh.vertices[face.loops[0][0]];
+                    if face
+                        .loops
                         .iter()
-                        .any(|node| boundary(&node.vertices) == boundary(&rim.vertices))
+                        .flatten()
+                        .any(|&v| dot(sub(a.mesh.vertices[v], origin), face.normal).abs() > 1e-7)
                     {
-                        let face = &segmentation.model.faces[rim.region];
-                        work.spend(face.loops.iter().map(Vec::len).sum())?;
-                        let origin = a.mesh.vertices[face.loops[0][0]];
-                        if face.loops.iter().flatten().any(|&v| {
-                            dot(sub(a.mesh.vertices[v], origin), face.normal).abs() > 1e-7
-                        }) {
-                            return Err(unproven(
-                                "support plan non constructible sans déplacement",
-                            ));
-                        }
+                        return Err(unproven("support plan non constructible sans déplacement"));
                     }
                 }
                 let mut local = Errors::default();
@@ -1063,15 +1095,33 @@ fn classify(
     if nodes.windows(2).any(|w| w[1].z - w[0].z <= 4. * tol) {
         return Err(unproven("niveaux source ambigus ou trop rapprochés"));
     }
+    // The fallback uses the exact original circle measurements. Preserve
+    // one scalar per ring before the historical classifier canonicalizes
+    // radii instead of projecting every source vertex a second time.
+    let measured_radii = if rims.len() == 2 && nodes.len() >= 5 {
+        work.spend(nodes.len())?;
+        nodes.iter().map(|node| node.radius).collect()
+    } else {
+        Vec::new()
+    };
     let sections = match historical_sections(a, &triangles, &mut nodes, &projected, o, work) {
         Ok(sections) => sections,
         Err(previous) if previous.code == "recognition.surface_unproven" && rims.len() == 2 => {
-            let Some(sections) =
-                torus_cone::classify(a, &triangles, &mut nodes, rims, &projected, o, work)?
-            else {
+            work.spend(measured_radii.len())?;
+            for (node, radius) in nodes.iter_mut().zip(measured_radii) {
+                node.radius = radius;
+            }
+            if let Some(sections) =
+                torus_cone::classify(a, &triangles, &mut nodes, rims, projected.len(), o, work)?
+            {
+                sections
+            } else if let Some(sections) =
+                adjacent_sections(a, &triangles, &mut nodes, rims, o, work)?
+            {
+                sections
+            } else {
                 return Err(previous);
-            };
-            sections
+            }
         }
         Err(error) => return Err(error),
     };
@@ -1082,6 +1132,77 @@ fn classify(
         sphere: None,
         triangles,
     })
+}
+
+fn adjacent_sections(
+    a: &Analysis,
+    triangles: &[usize],
+    nodes: &mut [Node],
+    rims: &[Rim],
+    o: &Options,
+    work: &mut Work,
+) -> Result<Option<Vec<Section>>, FabError> {
+    if nodes.len() < 10
+        || ![&nodes[0], &nodes[nodes.len() - 1]]
+            .into_iter()
+            .all(|n| rims.iter().any(|r| n.vertices == r.vertices))
+    {
+        return Ok(None);
+    }
+    // The caller restored the measured radii, including the original rims.
+    work.spend(nodes.len())?;
+    let profile: Vec<_> = nodes.iter().map(|n| [n.z, n.radius]).collect();
+    let Some(plan) = crate::revolved::adjacent_chain::classify(&profile, o, work)? else {
+        return Ok(None);
+    };
+    let count = nodes.iter().map(|n| n.vertices.len()).sum::<usize>();
+    work.spend(count.saturating_add(triangles.len().saturating_mul(8)))?;
+    let mut levels = BTreeMap::new();
+    for (level, node) in nodes.iter().enumerate() {
+        for &v in &node.vertices {
+            if levels.insert(v, level).is_some() {
+                return Err(unproven("sommet commun à deux anneaux coniques"));
+            }
+        }
+    }
+    let mut sections: Vec<_> = plan
+        .into_iter()
+        .map(|piece| Section {
+            ends: piece.ends,
+            shape: if piece.conic {
+                Shape::Cone
+            } else {
+                Shape::Cylinder
+            },
+            triangles: Vec::new(),
+        })
+        .collect();
+    for &id in triangles {
+        let [Some(i), Some(j), Some(k)] = a.mesh.triangles[id].map(|v| levels.get(&v).copied())
+        else {
+            return Err(unproven("sommet hors des anneaux source coniques"));
+        };
+        let low = i.min(j).min(k);
+        let high = i.max(j).max(k);
+        if high != low + 1 {
+            return Err(unproven("triangle traversant une frontière conique"));
+        }
+        let index = sections.partition_point(|s| s.ends[1] <= low);
+        sections[index].triangles.push(id);
+    }
+    if sections.iter().any(|s| s.triangles.is_empty()) {
+        return Err(unproven("portion conique sans triangles source"));
+    }
+    for section in &sections {
+        if matches!(section.shape, Shape::Cylinder) {
+            let [low, high] = section.ends;
+            let radius = (profile[low][1] + profile[high][1]) * 0.5;
+            for n in &mut nodes[low..=high] {
+                n.radius = radius;
+            }
+        }
+    }
+    Ok(Some(sections))
 }
 
 fn historical_sections(
@@ -2754,5 +2875,73 @@ mod auto_proof_reuse_tests {
             2 * proof_cost,
             proof_cost + 1
         );
+    }
+}
+
+#[cfg(test)]
+mod rim_index_tests {
+    use super::*;
+
+    #[test]
+    fn rim_index_preserves_all_and_only_the_original_matches_in_source_order() {
+        let loops = [
+            vec![0, 1, 2, 3, 4],
+            vec![2, 3, 4, 0, 1],
+            vec![4, 3, 2, 1, 0],
+            vec![0, 1, 3, 2, 4], // identical size, first edge and vertices only
+            vec![5, 6, 7],
+        ];
+        let rims = loops
+            .iter()
+            .enumerate()
+            .map(|(region, v)| Rim {
+                vertices: v.clone(),
+                region,
+                center: [0.; 3],
+                axis: [0., 0., 1.],
+                radius: 1.,
+            })
+            .collect::<Vec<_>>();
+        let mut work = Work::default();
+        let index = RimIndex::new(&rims, &mut work).unwrap();
+        let build = work.used_for_test();
+        for ids in [
+            &[0, 1, 2, 3, 4][..],
+            &[4, 0, 1, 2, 3],
+            &[0, 1, 3, 2, 4],
+            &[8],
+            &[5, 7, 6],
+        ] {
+            let node = Node {
+                vertices: ids.to_vec(),
+                z: 1.,
+                radius: 1.,
+            };
+            let nodes = [node.clone(), node]; // duplicate node matches each original region once
+            let expected = rims
+                .iter()
+                .enumerate()
+                .filter(|(_, r)| {
+                    nodes
+                        .iter()
+                        .any(|n| boundary(&r.vertices) == boundary(&n.vertices))
+                })
+                .map(|(i, _)| i)
+                .collect::<BTreeSet<_>>();
+            let mut lookup = Work::default();
+            assert_eq!(index.matches(&nodes, &mut lookup).unwrap(), expected);
+            let mut limited = Work::default();
+            limited
+                .spend(10_000_000 - build - lookup.used_for_test() + 1)
+                .unwrap();
+            let limited_index = RimIndex::new(&rims, &mut limited).unwrap();
+            assert_eq!(
+                limited_index
+                    .matches(&nodes, &mut limited)
+                    .unwrap_err()
+                    .code,
+                "recognition.too_complex"
+            );
+        }
     }
 }

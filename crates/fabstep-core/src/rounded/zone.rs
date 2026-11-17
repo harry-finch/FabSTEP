@@ -7,7 +7,10 @@ pub(super) fn candidate(
     o: &Options,
     work: &mut Work,
 ) -> Result<Option<SphericalPatch>, FabError> {
-    work.spend(projected.len().saturating_mul(4))?;
+    // Charge setup even if the two rim measurements already exclude a sphere.
+    // A failed point ends the search, so only points actually inspected incur
+    // the four units of spherical verification. Every charge precedes its work.
+    work.spend(1)?;
     let mut ends = [0, 1];
     if nodes[0].z > nodes[1].z {
         ends.swap(0, 1);
@@ -24,6 +27,7 @@ pub(super) fn candidate(
     let mut lowest = f64::INFINITY;
     let mut highest = f64::NEG_INFINITY;
     for p in projected.values() {
+        work.spend(4)?;
         let depth = p[2] - a.z;
         let rho = p[0].hypot(p[1]);
         if depth < -tol
@@ -252,6 +256,65 @@ fn project_vertex(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn candidate_charges_setup_and_every_inspected_vertex_including_the_rejection() {
+        let o = Options::default();
+        let rim = |z: f64, radius| Node {
+            vertices: vec![],
+            z,
+            radius,
+        };
+        let nodes = [rim(-6., 8.), rim(6., 8.)];
+        let points: BTreeMap<_, _> = (0..20)
+            .map(|i| {
+                let z = if i < 10 { -3. } else { 3. };
+                (i, [91_f64.sqrt(), 0., z])
+            })
+            .collect();
+        let mut work = Work::default();
+        let full = candidate(&nodes, &points, &o, &mut work).unwrap().unwrap();
+        assert_eq!(work.used_for_test(), 1 + 4 * points.len());
+        assert_eq!(full.ends, [0, 1]);
+        assert_eq!(full.center_z, 0.);
+        assert_eq!(full.radius, 10.);
+
+        for at in [0, 4, points.len() - 1] {
+            let mut invalid = points.clone();
+            invalid.get_mut(&at).unwrap()[0] = 20.;
+            let mut work = Work::default();
+            assert!(candidate(&nodes, &invalid, &o, &mut work)
+                .unwrap()
+                .is_none());
+            let cost = 1 + 4 * (at + 1);
+            assert_eq!(work.used_for_test(), cost);
+
+            let mut limited = Work::default();
+            limited.spend(10_000_000 - cost + 1).unwrap();
+            // The point that proves rejection must be charged as well.
+            assert_eq!(
+                candidate(&nodes, &invalid, &o, &mut limited)
+                    .err()
+                    .unwrap()
+                    .code,
+                "recognition.too_complex"
+            );
+            assert_eq!(
+                candidate(&nodes, &points, &o, &mut limited)
+                    .err()
+                    .unwrap()
+                    .code,
+                "recognition.too_complex"
+            );
+        }
+        let mut work = Work::default();
+        assert!(
+            candidate(&[rim(0., 10.), rim(0., 11.)], &points, &o, &mut work)
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(work.used_for_test(), 1);
+    }
 
     #[test]
     fn both_latitude_clamps_count_the_full_vector_displacement() {

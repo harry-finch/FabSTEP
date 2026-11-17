@@ -1,0 +1,419 @@
+{
+  "unit": "mm",
+  "cases": {
+    "three": {
+      "sha256": "4449b07772fd9a522b09c3ccbdbd90f1517890a896ff6766e20d3aed9e58883d",
+      "triangles": 1280,
+      "volume_mm3": 5249.863123536344,
+      "bounds_mm": [
+        [
+          -14.5,
+          -14.5,
+          0.0
+        ],
+        [
+          14.5,
+          14.5,
+          10.0
+        ]
+      ],
+      "rings_mm": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          3.0,
+          13.0
+        ],
+        [
+          6.0,
+          14.5
+        ],
+        [
+          10.0,
+          12.0
+        ]
+      ],
+      "placement": "plain",
+      "cones": 3,
+      "cylinders": 0,
+      "patches": [
+        [
+          "plane",
+          64
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "plane",
+          64
+        ]
+      ]
+    },
+    "three_mirror": {
+      "sha256": "4d504d0e151ed00780e0e6988b3c328fdb70e228546f9268a6867755432ea5f0",
+      "triangles": 1280,
+      "volume_mm3": 5249.863123536344,
+      "bounds_mm": [
+        [
+          -14.5,
+          -14.5,
+          0.0
+        ],
+        [
+          14.5,
+          14.5,
+          10.0
+        ]
+      ],
+      "rings_mm": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          3.0,
+          13.0
+        ],
+        [
+          6.0,
+          14.5
+        ],
+        [
+          10.0,
+          12.0
+        ]
+      ],
+      "placement": "mirrored",
+      "cones": 3,
+      "cylinders": 0,
+      "patches": [
+        [
+          "plane",
+          64
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "plane",
+          64
+        ]
+      ]
+    },
+    "eight": {
+      "sha256": "7493bf7bcf6dcfd254315aad582580950e44a03b8d7878aa8ce2ca8154484ad4",
+      "triangles": 3200,
+      "volume_mm3": 14239.268702395737,
+      "bounds_mm": [
+        [
+          -16.0,
+          -16.0,
+          0.0
+        ],
+        [
+          16.0,
+          16.0,
+          24.0
+        ]
+      ],
+      "rings_mm": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          3.0,
+          13.0
+        ],
+        [
+          6.0,
+          14.5
+        ],
+        [
+          9.0,
+          13.0
+        ],
+        [
+          12.0,
+          15.0
+        ],
+        [
+          15.0,
+          16.0
+        ],
+        [
+          18.0,
+          13.0
+        ],
+        [
+          21.0,
+          14.0
+        ],
+        [
+          24.0,
+          12.0
+        ]
+      ],
+      "placement": "plain",
+      "cones": 8,
+      "cylinders": 0,
+      "patches": [
+        [
+          "plane",
+          64
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "plane",
+          64
+        ]
+      ]
+    },
+    "mixed": {
+      "sha256": "e952fea83a9f15524968b8ea26cf2c73285eb312aebfaf81d2a1239f09d24e48",
+      "triangles": 2432,
+      "volume_mm3": 9868.527923088937,
+      "bounds_mm": [
+        [
+          -14.5,
+          -14.5,
+          0.0
+        ],
+        [
+          14.5,
+          14.5,
+          19.0
+        ]
+      ],
+      "rings_mm": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          3.0,
+          10.0
+        ],
+        [
+          6.0,
+          13.0
+        ],
+        [
+          9.0,
+          14.5
+        ],
+        [
+          12.0,
+          14.5
+        ],
+        [
+          15.0,
+          13.0
+        ],
+        [
+          19.0,
+          13.0
+        ]
+      ],
+      "placement": "plain",
+      "cones": 3,
+      "cylinders": 3,
+      "patches": [
+        [
+          "plane",
+          64
+        ],
+        [
+          "cylinder",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cylinder",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cylinder",
+          384
+        ],
+        [
+          "plane",
+          64
+        ]
+      ]
+    },
+    "mixed_rotated": {
+      "sha256": "6af1480ff336378c99d5cc089bb0354341bc652ec33a342d8b72302b4645b6f7",
+      "triangles": 2432,
+      "volume_mm3": 9868.527923088937,
+      "bounds_mm": [
+        [
+          1.0,
+          -17.5,
+          -9.5
+        ],
+        [
+          20.0,
+          11.5,
+          19.5
+        ]
+      ],
+      "rings_mm": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          3.0,
+          10.0
+        ],
+        [
+          6.0,
+          13.0
+        ],
+        [
+          9.0,
+          14.5
+        ],
+        [
+          12.0,
+          14.5
+        ],
+        [
+          15.0,
+          13.0
+        ],
+        [
+          19.0,
+          13.0
+        ]
+      ],
+      "placement": "rotated",
+      "cones": 3,
+      "cylinders": 3,
+      "patches": [
+        [
+          "plane",
+          64
+        ],
+        [
+          "cylinder",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cylinder",
+          384
+        ],
+        [
+          "cone",
+          384
+        ],
+        [
+          "cylinder",
+          384
+        ],
+        [
+          "plane",
+          64
+        ]
+      ]
+    }
+  },
+  "negative_cases": {
+    "missing_witness": {
+      "triangles": 1664,
+      "sha256": "1a3bf8b87abcfa6a8ecb839e14904d4643792a09e839f687f5ba912701ac1bb7"
+    },
+    "crossed": {
+      "triangles": 1280,
+      "sha256": "c44d2c3f96f9437fe82cce107c959cb07ba9c1eb4e6b7ae345008184916c4999"
+    },
+    "unresolved_slope": {
+      "triangles": 1280,
+      "sha256": "971b89fd9e03aadb639cca414f5bce616cd8234500154428287f4d076efb2998"
+    },
+    "ambiguous": {
+      "triangles": 1408,
+      "sha256": "ec7a7066d74acffc9b8f27cfe6a134af9973007138eb73f542acaadf2cc39bcb"
+    },
+    "smooth": {
+      "triangles": 2432,
+      "sha256": "fcb29d8536f4d5dc31f3d7658492eda7425a43040eccc31bd34203b7c1bcb516"
+    },
+    "nine": {
+      "triangles": 3584,
+      "sha256": "c2fa721f2b272e37ec4e50d6141b492f8f2a284bbd0264e462b07565bdf17353"
+    }
+  }
+}

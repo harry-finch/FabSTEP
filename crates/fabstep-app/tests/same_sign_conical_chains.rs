@@ -176,6 +176,13 @@ fn same_sign_chains_do_not_fall_back_after_proof_or_deviation_failure() {
             );
         }
     }
+    let curved = convert_stl(
+        &fixture("curved_meridian.stl"),
+        &options(ReconstructionMode::Auto),
+    )
+    .unwrap();
+    assert_eq!(curved.report.cad.solids, 1);
+    assert_eq!(curved.report.cad.conical_faces, 0);
     // C1b2 intentionally promotes this unchanged source: its two affine runs
     // have interior rings at thirds and one uniquely proved shared boundary.
     let adjacent =

@@ -1,11 +1,9 @@
 //! Explicit, bounded recognition of full circular ruled bands. Axes originate
 //! in real planar circular boundaries; every wall triangle, intermediate ring
 //! and apex is proved. Consecutive conical bands first follow ONE affine radius
-//! law; a unique source break may prove exactly two witnessed adjacent frusta.
-//! Longer conical chains require resolved cylindrical lands and interior
-//! source-ring evidence. Tiny
-//! radius changes must not let a curved meridian bypass this rule through
-//! artificial cylindrical separators.
+//! law; a unique source break may prove two witnessed adjacent frusta.
+//! Longer chains require unique proved breaks and interior source rings. Tiny
+//! radius changes must not manufacture cylindrical separators.
 use crate::math::*;
 use crate::recognition::{fit_circle, signed_area, validate_analysis, Work};
 use crate::{
@@ -15,6 +13,8 @@ use crate::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::PI;
+
+pub(crate) mod adjacent_chain;
 
 type Edge = (usize, usize);
 fn edge(a: usize, b: usize) -> Edge {
@@ -242,6 +242,7 @@ struct Node {
     vertices: Vec<usize>,
     z: f64,
     radius: f64,
+    measured_radius: f64,
 }
 struct AxisData {
     frame: Frame,
@@ -644,6 +645,7 @@ fn axis_data(
             vertices,
             z,
             radius,
+            measured_radius: radius,
         });
     }
     let mut potential = false;
@@ -665,6 +667,7 @@ fn axis_data(
                     vertices: vec![v],
                     z: projected[v][2],
                     radius: 0.,
+                    measured_radius: 0.,
                 });
             }
         }
@@ -786,151 +789,20 @@ fn prove_axis(
                 ));
             }
         }
-        let mut start = 0;
-        let first_span = spans.len();
-        let mut adjacent_split = None;
-        while start < chain.len() {
-            let first = &bands[chain[start]];
-            let mut end = start + 1;
-            while end < chain.len() && bands[chain[end]].conic == first.conic {
-                end += 1;
+        let resolved = match historical_spans(&mut d.nodes, &bands, &chain, o, work) {
+            Ok(spans) => spans,
+            Err(previous) if previous.code == "recognition.conic_unproven" && chain.len() >= 9 => {
+                let Some(spans) = adjacent_spans(&mut d, &bands, &chain, o, work)? else {
+                    return Err(previous);
+                };
+                spans
             }
-            if let Some(split) = adjacent_split {
-                if start < split {
-                    end = end.min(split);
-                }
-            }
-            let nodes = [first.nodes[0], bands[chain[end - 1]].nodes[1]];
-            let low = &d.nodes[nodes[0]];
-            let high = &d.nodes[nodes[1]];
-            let (z0, z1, r0, r1) = (low.z, high.z, low.radius, high.radius);
-            let mut affine = true;
-            for &b in &chain[start..end] {
-                for &n in &bands[b].nodes {
-                    work.spend(1)?;
-                    let expected = if first.conic {
-                        r0 + (r1 - r0) * (d.nodes[n].z - z0) / (z1 - z0)
-                    } else {
-                        (r0 + r1) * 0.5
-                    };
-                    if (d.nodes[n].radius - expected).abs() > o.cylinder_fit_tolerance_mm {
-                        affine = false;
-                    }
-                }
-            }
-            if !affine {
-                // Preserve the successful historical path and its work budget.
-                // Only a failed single-cone law may search for one new break.
-                if first.conic && start == 0 && end == chain.len() && adjacent_split.is_none() {
-                    work.spend(chain.len() + 1)?;
-                    let mut profile: Vec<_> = chain
-                        .iter()
-                        .map(|&b| {
-                            let n = &d.nodes[bands[b].nodes[0]];
-                            [n.z, n.radius]
-                        })
-                        .collect();
-                    let last = &d.nodes[bands[*chain.last().unwrap()].nodes[1]];
-                    profile.push([last.z, last.radius]);
-                    adjacent_split = adjacent_cone_break(&profile, o, work)?;
-                    if adjacent_split.is_some() {
-                        continue;
-                    }
-                }
-                return Err(unproven(
-                    "rayon non affine : plusieurs cônes ne peuvent remplacer une courbe méridienne",
-                ));
-            }
-            if !first.conic {
-                let radius = (r0 + r1) * 0.5;
-                for &b in &chain[start..end] {
-                    for &n in &bands[b].nodes {
-                        d.nodes[n].radius = radius;
-                    }
-                }
-            }
-            let span_bands = chain[start..end].to_vec();
-            for &b in &span_bands {
-                assigned[b] = true;
-            }
-            spans.push(Span {
-                nodes,
-                bands: span_bands,
-                inner: first.inner,
-                conic: first.conic,
-            });
-            start = end;
+            Err(error) => return Err(error),
+        };
+        for &band in &chain {
+            assigned[band] = true;
         }
-        let chain_spans = &spans[first_span..];
-        work.spend(chain_spans.len())?;
-        if chain_spans.iter().filter(|s| s.conic).count() > 1 {
-            let epsilon = o
-                .cylinder_fit_tolerance_mm
-                .max(o.plane_tolerance_mm)
-                .max(o.weld_tolerance_mm);
-            let cone_count = chain_spans.iter().filter(|s| s.conic).count();
-            if cone_count > 8 {
-                return Err(FabError::new(
-                    "recognition.too_complex",
-                    "Plus de 8 portions coniques dans une chaîne.",
-                ));
-            }
-            let historical = if let [left, land, right] = chain_spans {
-                let profile = [left.nodes[0], land.nodes[0], land.nodes[1], right.nodes[1]]
-                    .map(|n| [d.nodes[n].z, d.nodes[n].radius]);
-                left.conic
-                    && !land.conic
-                    && right.conic
-                    && resolved_double_chamfer(
-                        profile,
-                        o.cylinder_fit_tolerance_mm
-                            .max(o.plane_tolerance_mm)
-                            .max(o.weld_tolerance_mm),
-                    )
-            } else {
-                false
-            };
-            let adjacent = adjacent_split.is_some()
-                && chain_spans.len() == 2
-                && chain_spans.iter().all(|s| s.conic);
-            let extended = if !historical && !adjacent && cone_count >= 2 {
-                let start = usize::from(!chain_spans[0].conic);
-                let end = chain_spans.len() - usize::from(!chain_spans.last().unwrap().conic);
-                let inner_spans = &chain_spans[start..end];
-                work.spend(chain_spans.iter().map(|s| 2 * s.bands.len()).sum())?;
-                let witnessed: Vec<_> = chain_spans
-                    .iter()
-                    .map(|s| {
-                        resolved_run_samples(
-                            d.nodes[s.nodes[0]].z,
-                            d.nodes[s.nodes[1]].z,
-                            s.bands
-                                .iter()
-                                .flat_map(|&b| bands[b].nodes)
-                                .map(|n| d.nodes[n].z),
-                            epsilon,
-                        )
-                    })
-                    .collect();
-                let mut profile: Vec<_> = inner_spans
-                    .iter()
-                    .map(|s| [d.nodes[s.nodes[0]].z, d.nodes[s.nodes[0]].radius])
-                    .collect();
-                let last = &d.nodes[inner_spans.last().unwrap().nodes[1]];
-                profile.push([last.z, last.radius]);
-                witnessed.iter().all(|&w| w)
-                    && inner_spans
-                        .iter()
-                        .enumerate()
-                        .all(|(i, s)| s.conic == (i % 2 == 0))
-                    && resolved_conical_chain(&profile, &witnessed[start..end], epsilon)
-            } else {
-                false
-            };
-            if !historical && !extended && !adjacent {
-                return Err(unproven("plusieurs plages coniques sans portées résolues et anneaux intérieurs démontrés (hors double chanfrein historique)"));
-            }
-        }
+        spans.extend(resolved);
     }
     let mut result = AxisResult {
         rings: Vec::new(),
@@ -1023,6 +895,203 @@ fn prove_axis(
             .max(2. * low.radius.max(high.radius) * (max_angle / 4.).sin().powi(2));
     }
     Ok(result)
+}
+
+fn historical_spans(
+    nodes: &mut [Node],
+    bands: &[Band],
+    chain: &[usize],
+    o: &Options,
+    work: &mut Work,
+) -> Result<Vec<Span>, FabError> {
+    let mut start = 0;
+    let mut spans = Vec::new();
+    let mut adjacent_split = None;
+    while start < chain.len() {
+        let first = &bands[chain[start]];
+        let mut end = start + 1;
+        while end < chain.len() && bands[chain[end]].conic == first.conic {
+            end += 1;
+        }
+        if let Some(split) = adjacent_split {
+            if start < split {
+                end = end.min(split);
+            }
+        }
+        let ends = [first.nodes[0], bands[chain[end - 1]].nodes[1]];
+        let low = &nodes[ends[0]];
+        let high = &nodes[ends[1]];
+        let (z0, z1, r0, r1) = (low.z, high.z, low.radius, high.radius);
+        let mut affine = true;
+        for &b in &chain[start..end] {
+            for &n in &bands[b].nodes {
+                work.spend(1)?;
+                let expected = if first.conic {
+                    r0 + (r1 - r0) * (nodes[n].z - z0) / (z1 - z0)
+                } else {
+                    (r0 + r1) * 0.5
+                };
+                if (nodes[n].radius - expected).abs() > o.cylinder_fit_tolerance_mm {
+                    affine = false;
+                }
+            }
+        }
+        if !affine {
+            // Preserve the successful historical path and its work budget.
+            // Only a failed single-cone law may search for one new break.
+            if first.conic && start == 0 && end == chain.len() && adjacent_split.is_none() {
+                work.spend(chain.len() + 1)?;
+                let mut profile: Vec<_> = chain
+                    .iter()
+                    .map(|&b| {
+                        let n = &nodes[bands[b].nodes[0]];
+                        [n.z, n.radius]
+                    })
+                    .collect();
+                let last = &nodes[bands[*chain.last().unwrap()].nodes[1]];
+                profile.push([last.z, last.radius]);
+                adjacent_split = adjacent_cone_break(&profile, o, work)?;
+                if adjacent_split.is_some() {
+                    continue;
+                }
+            }
+            return Err(unproven(
+                "rayon non affine : plusieurs cônes ne peuvent remplacer une courbe méridienne",
+            ));
+        }
+        if !first.conic {
+            let radius = (r0 + r1) * 0.5;
+            for &b in &chain[start..end] {
+                for &n in &bands[b].nodes {
+                    nodes[n].radius = radius;
+                }
+            }
+        }
+        let span_bands = chain[start..end].to_vec();
+        spans.push(Span {
+            nodes: ends,
+            bands: span_bands,
+            inner: first.inner,
+            conic: first.conic,
+        });
+        start = end;
+    }
+    let chain_spans = spans.as_slice();
+    work.spend(chain_spans.len())?;
+    if chain_spans.iter().filter(|s| s.conic).count() > 1 {
+        let epsilon = o
+            .cylinder_fit_tolerance_mm
+            .max(o.plane_tolerance_mm)
+            .max(o.weld_tolerance_mm);
+        let cone_count = chain_spans.iter().filter(|s| s.conic).count();
+        if cone_count > 8 {
+            return Err(FabError::new(
+                "recognition.too_complex",
+                "Plus de 8 portions coniques dans une chaîne.",
+            ));
+        }
+        let historical = if let [left, land, right] = chain_spans {
+            let profile = [left.nodes[0], land.nodes[0], land.nodes[1], right.nodes[1]]
+                .map(|n| [nodes[n].z, nodes[n].radius]);
+            left.conic
+                && !land.conic
+                && right.conic
+                && resolved_double_chamfer(
+                    profile,
+                    o.cylinder_fit_tolerance_mm
+                        .max(o.plane_tolerance_mm)
+                        .max(o.weld_tolerance_mm),
+                )
+        } else {
+            false
+        };
+        let adjacent = adjacent_split.is_some()
+            && chain_spans.len() == 2
+            && chain_spans.iter().all(|s| s.conic);
+        let extended = if !historical && !adjacent && cone_count >= 2 {
+            let start = usize::from(!chain_spans[0].conic);
+            let end = chain_spans.len() - usize::from(!chain_spans.last().unwrap().conic);
+            let inner_spans = &chain_spans[start..end];
+            work.spend(chain_spans.iter().map(|s| 2 * s.bands.len()).sum())?;
+            let witnessed: Vec<_> = chain_spans
+                .iter()
+                .map(|s| {
+                    resolved_run_samples(
+                        nodes[s.nodes[0]].z,
+                        nodes[s.nodes[1]].z,
+                        s.bands
+                            .iter()
+                            .flat_map(|&b| bands[b].nodes)
+                            .map(|n| nodes[n].z),
+                        epsilon,
+                    )
+                })
+                .collect();
+            let mut profile: Vec<_> = inner_spans
+                .iter()
+                .map(|s| [nodes[s.nodes[0]].z, nodes[s.nodes[0]].radius])
+                .collect();
+            let last = &nodes[inner_spans.last().unwrap().nodes[1]];
+            profile.push([last.z, last.radius]);
+            witnessed.iter().all(|&w| w)
+                && inner_spans
+                    .iter()
+                    .enumerate()
+                    .all(|(i, s)| s.conic == (i % 2 == 0))
+                && resolved_conical_chain(&profile, &witnessed[start..end], epsilon)
+        } else {
+            false
+        };
+        if !historical && !extended && !adjacent {
+            return Err(unproven("plusieurs plages coniques sans portées résolues et anneaux intérieurs démontrés (hors double chanfrein historique)"));
+        }
+    }
+    Ok(spans)
+}
+
+fn adjacent_spans(
+    data: &mut AxisData,
+    bands: &[Band],
+    chain: &[usize],
+    o: &Options,
+    work: &mut Work,
+) -> Result<Option<Vec<Span>>, FabError> {
+    work.spend((chain.len() + 1).saturating_mul(2))?;
+    let mut indices: Vec<_> = chain.iter().map(|&b| bands[b].nodes[0]).collect();
+    indices.push(bands[*chain.last().unwrap()].nodes[1]);
+    // Keep the original measurement and summation order even if the failed
+    // historical path changed a radius or the vertex cycle was reversed.
+    let profile: Vec<_> = indices
+        .iter()
+        .map(|&index| {
+            let node = &data.nodes[index];
+            [node.z, node.measured_radius]
+        })
+        .collect();
+    let Some(plan) = adjacent_chain::classify(&profile, o, work)? else {
+        return Ok(None);
+    };
+    work.spend(indices.len().saturating_add(chain.len()))?;
+    for (&index, &[_, radius]) in indices.iter().zip(&profile) {
+        data.nodes[index].radius = radius;
+    }
+    let mut spans = Vec::with_capacity(plan.len());
+    for piece in plan {
+        let [start, end] = piece.ends;
+        if !piece.conic {
+            let radius = (profile[start][1] + profile[end][1]) * 0.5;
+            for &index in &indices[start..=end] {
+                data.nodes[index].radius = radius;
+            }
+        }
+        spans.push(Span {
+            nodes: [indices[start], indices[end]],
+            bands: chain[start..end].to_vec(),
+            inner: bands[chain[start]].inner,
+            conic: piece.conic,
+        });
+    }
+    Ok(Some(spans))
 }
 
 fn correspondence(

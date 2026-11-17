@@ -2,6 +2,8 @@
 //! cylindrical land. Every proposed change of surface is a measured circle.
 use super::*;
 
+mod terminal;
+
 #[derive(Clone, Copy)]
 struct Candidate {
     // Indices in the ORIGINAL axial order. These four indices are in profile
@@ -129,45 +131,72 @@ fn search(nodes: &[Node], o: &Options, work: &mut Work) -> Result<Option<Candida
     Ok(unique)
 }
 
+// The original ring indices are kept until every triangle has exactly one owner.
+// Each canonicalized boundary is shared by both of its incident surfaces.
+struct Layout {
+    sections: Vec<([usize; 2], Shape)>,
+    boundaries: Vec<(usize, f64, f64)>,
+}
+
+impl Candidate {
+    fn layout(self, nodes: &[Node]) -> Layout {
+        let [p, j, k, e] = self.ends;
+        Layout {
+            sections: vec![
+                (
+                    [p, j],
+                    Shape::Torus {
+                        center_z: self.center_z,
+                        major: self.major,
+                        minor: self.minor,
+                        v: self.angles,
+                    },
+                ),
+                ([j, k], Shape::Cone),
+                ([k, e], Shape::Cylinder),
+            ],
+            boundaries: vec![
+                (j, self.tangent_z, self.tangent_radius),
+                (k, nodes[k].z, self.land_radius),
+                (e, nodes[e].z, self.land_radius),
+            ],
+        }
+    }
+}
+
 pub(super) fn classify(
     a: &Analysis,
     triangles: &[usize],
     nodes: &mut Vec<Node>,
     rims: &[Rim],
-    projected: &BTreeMap<usize, V>,
+    projected_count: usize,
     o: &Options,
     work: &mut Work,
 ) -> Result<Option<Vec<Section>>, FabError> {
-    if nodes.len() < 6 {
+    if nodes.len() < 5 {
         return Ok(None);
     }
-    // The historical classifier may have canonicalized cylindrical runs or
-    // terminal radii before rejecting the patch. Restore original measurements
-    // ONLY on this new path, including the original planar circle fits.
-    let count = nodes.iter().map(|n| n.vertices.len()).sum::<usize>();
-    work.spend(count + nodes.len())?;
-    for node in nodes.iter_mut() {
-        node.radius = node
-            .vertices
-            .iter()
-            .map(|v| projected[v][0].hypot(projected[v][1]))
-            .sum::<f64>()
-            / node.vertices.len() as f64;
-    }
+    // Both terminals must be the original planar rims, even if there are
+    // additional measured horizontal circles outside their axial interval.
     let last = nodes.len() - 1;
     for i in [0, last] {
-        let Some(rim) = rims.iter().find(|r| nodes[i].vertices == r.vertices) else {
+        work.spend(nodes[i].vertices.len().saturating_mul(rims.len()))?;
+        if !rims.iter().any(|r| nodes[i].vertices == r.vertices) {
             return Ok(None);
-        };
-        nodes[i].radius = rim.radius;
+        }
     }
-    let Some(candidate) = search(nodes, o, work)? else {
+    let layout = if let Some(candidate) = search(nodes, o, work)? {
+        candidate.layout(nodes)
+    } else if let Some(layout) = terminal::search(nodes, o, work)? {
+        layout
+    } else {
         return Ok(None);
     };
 
     // Every vertex belongs to a complete source circle and each triangle
     // connects consecutive circles. This proves both cuts are genuine and
     // partitions the input exactly once even for two-ring straight portions.
+    let count = nodes.iter().map(|n| n.vertices.len()).sum::<usize>();
     work.spend(count + triangles.len().saturating_mul(3))?;
     let mut levels = BTreeMap::new();
     for (i, n) in nodes.iter().enumerate() {
@@ -177,33 +206,23 @@ pub(super) fn classify(
             }
         }
     }
-    if levels.len() != projected.len() {
+    if levels.len() != projected_count {
         return Err(unproven(
             "sommet hors des anneaux source de la chaîne torique",
         ));
     }
-    let [plane, tangent, land, end] = candidate.ends;
-    let sections = [
-        (
-            [plane, tangent],
-            Shape::Torus {
-                center_z: candidate.center_z,
-                major: candidate.major,
-                minor: candidate.minor,
-                v: candidate.angles,
-            },
-        ),
-        ([tangent, land], Shape::Cone),
-        ([land, end], Shape::Cylinder),
-    ];
-    let mut sections = sections.map(|(mut ends, shape)| {
-        ends.sort_unstable();
-        Section {
-            ends,
-            shape,
-            triangles: Vec::new(),
-        }
-    });
+    let mut sections: Vec<_> = layout
+        .sections
+        .into_iter()
+        .map(|(mut ends, shape)| {
+            ends.sort_unstable();
+            Section {
+                ends,
+                shape,
+                triangles: Vec::new(),
+            }
+        })
+        .collect();
     sections.sort_by_key(|s| s.ends[0]);
     for &t in triangles {
         let mut rings = a.mesh.triangles[t].map(|v| levels[&v]);
@@ -219,15 +238,15 @@ pub(super) fn classify(
             .ok_or_else(|| unproven("triangle traversant une frontière de raccord"))?;
         s.triangles.push(t);
     }
-    nodes[tangent].z = candidate.tangent_z;
-    nodes[tangent].radius = candidate.tangent_radius;
-    nodes[land].radius = candidate.land_radius;
-    nodes[end].radius = candidate.land_radius;
+    for (i, z, radius) in layout.boundaries {
+        nodes[i].z = z;
+        nodes[i].radius = radius;
+    }
 
-    // Keep only the shared circles used by STEP. In particular Auto need not
-    // compare every private interior latitude against every external plane.
-    let mut used = candidate.ends;
-    used.sort_unstable();
+    // Removal of intermediate circles occurs only after checking their
+    // incidence. The sections remain in increasing axial order.
+    let mut used: Vec<_> = sections.iter().map(|s| s.ends[0]).collect();
+    used.push(sections.last().unwrap().ends[1]);
     let original = std::mem::take(nodes);
     nodes.extend(
         original
@@ -238,7 +257,7 @@ pub(super) fn classify(
     for (index, section) in sections.iter_mut().enumerate() {
         section.ends = [index, index + 1];
     }
-    Ok(Some(sections.into()))
+    Ok(Some(sections))
 }
 
 #[cfg(test)]

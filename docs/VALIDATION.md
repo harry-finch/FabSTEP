@@ -1607,6 +1607,60 @@ Les contrôles indépendants passent en 11 256 opérations : arithmétique, spli
 Revue mathématique indépendante PASS après les corrections de comptage et les témoins périodiques. Rejeu natif de l’orchestrateur : sortie 0, rapport identique octet pour octet au passage de l’auteur (`artifacts/r076-f0/root/report.json`). Les traces de compilation, exécution, replay et inspection restent dans `artifacts/r076-f0/`. Pas de nouvelle suite Cargo pour ce laboratoire isolé, pas d’essai Fusion ni de modification de FabSTEP.app pour R-063 seul. L’intégration source/core/CAD R-036 reste à développer.
 
 
+## V-1201 — R-076, R-077, R-078 : chaînes composées et bac percé
+
+Poursuite globale C1b2/C2/D/E/F/G autorisée après R-075. Les extensions de cette entrée conservent les DTO, l’ABI, les tolérances, les plafonds et les contrôles natifs existants. Les décisions de reconnaissance sont dans ADR-0037. Les laboratoires F et D/G restent distingués dans V-1200 et V-1202.
+
+### C2 : raccords composés et arcs dépassant 90°
+
+`rounded/torus_cone/terminal.rs` admet une chaîne plan–quart de tore–cylindre–cône–cylindre–cône–plan avec deux cônes opposés, et une chaîne plan–tore–cône–plan dont l’arc est obtus, inférieur à 180° et axialement monotone. Les paramètres de tangence sont calculés conjointement ; les frontières sont des anneaux source réellement présents. L’unicité du découpage, le témoin du retournement radial, l’orientation UV, les déplacements vectoriels et la borne continue restent exigés. Les historiques et R-075 gardent la priorité.
+
+Le corpus `fixtures/revolution_chains/`, produit indépendamment par `scripts/generate-revolution-chain-fixtures.py`, couvre les deux branches radiales, les reflets, une rotation oblique ASCII conservant la précision, et un raccord entre anneaux de 360 et 362 sommets avec couture proche de π. Huit cas positifs et cinq cas négatifs fermés/orientés : frontière absente, triangle traversant la jonction, déformation, défaut de tangence, bande terminale non résolue. Un budget de déviation insuffisant reste refusé. Trois tests core et trois tests applicatifs passent ; le réimport contrôle les types de surfaces, volume et dimensions analytiques, audit bidirectionnel, adjacences et partition exacte des indices source. Revue indépendante du calcul et du raccord PASS ; les régressions R-075 sont conservées.
+
+### C1b2 : chaînes adjacentes et mixtes
+
+`revolved/adjacent_chain.rs` cherche deux à huit cônes avec portions cylindriques éventuelles, après les succès historiques. Chaque portion nouvelle possède deux témoins intérieurs résolus et ses ruptures utilisent des anneaux complets. Toutes les décompositions concurrentes admissibles comptent dans l’unicité ; un dépassement du domaine de huit cônes rend toute cette nouvelle recherche non concluante, même après un premier candidat. Un épuisement du budget de travail reste une erreur bloquante. Primitives et Surfaces/Auto partagent cette règle, puis leurs preuves de paroi existantes.
+
+Le corpus indépendant `fixtures/adjacent_chains/` couvre trois et huit cônes, les signes variés, les portées terminales et internes, reflet et rotation, puis les refus de courbure, témoins manquants, frontière traversée, pente non résolue, dépassement du nombre de cônes et faible budget. Les trois tests natifs vérifient notamment le solide réimporté et la provenance exacte de la chaîne mixte. Le cas historique à trois cônes suffisamment échantillonnés est déplacé sans changement de source de la liste négative vers les positifs ; ses autres refus restent inchangés.
+
+La revue a démontré qu’un raccourci de préfiltrage par intervalles de pente en f64 pouvait écarter une décomposition à rayon 1e8 mm et tolérance 1e-12 mm, alors que les évaluations finales donnaient un résidu nul. Ce raccourci est supprimé, avec régression dédiée ; aucune monotonie non prouvée n’est utilisée. Les rayons mesurés sont conservés avant changement d’ordre des sommets et canonicalisation. Revue finale PASS. Après correction : trois tests internes, deux nouveaux tests core, six tests adjacents historiques core, huit tests de chaînes historiques core et trois nouveaux tests applicatifs passent (22 contrôles), plus les suites natives historiques adjacentes et chaînes précédemment réussies (2 + 3).
+
+La première suite globale a trouvé un changement involontaire sur `same_sign_chains/curved_meridian.stl` : malgré son nom, le générateur contient neuf cordes affines avec témoins intérieurs. Le nouveau plafond de huit cônes remontait une erreur bloquante, supprimant le repli Auto historique. La correction distingue le domaine géométrique non pris en charge du véritable épuisement de travail ; aucune chaîne de neuf cônes n’est acceptée. Rejeu ciblé réussi : test historique avec conservation effective du STEP Auto (un solide, zéro cône), trois tests du solveur, deux tests core et trois tests natifs du nouveau corpus, soit neuf contrôles. Les fichiers source historiques et leurs erreurs attendues restent inchangés ; les tests du nouveau cas à neuf cônes contrôlent le refus géométrique sans confusion avec un budget épuisé. Journaux `c1-cap-regression.log` et `c1-cap-new-corpus.log`.
+
+### E2 : perçage du fond d’un bac ouvert
+
+Le moteur existant suffit, sans modification de production propre à ce lot. `scripts/generate-pierced-tray-fixtures.py` construit un bac 40 × 30 × 12 mm, fond de 3 mm et trou de rayon 2 mm, avec quatre coins extérieurs et quatre intérieurs arrondis. Le nominal possède 3 456 triangles. Les sources nominale, tournée et au trou déformé sont fermées à deux incidences opposées par arête ; le négatif à frontière manquante possède trois arêtes ouvertes. Cinq fichiers sont identiques après régénération.
+
+Deux tests applicatifs vérifient onze plans et neuf cylindres, un solide réimporté, le volume analytique du bac diminué de 12π mm³, les dimensions, le rayon/les deux centres du perçage et l’attribution native exhaustive. Les sondes vérifient le vide traversant, le fond restant, la cavité ouverte et une paroi, sur la source et sur la tessellation STEP. La frontière absente est refusée `mesh.open`, le trou déformé ne reçoit pas de faux cylindre complet. Une première triangulation de laboratoire avait des connexions annulaires croisées ; elle a été corrigée dans le générateur avant qualification. Les contours finaux suivent des rayons cohérents et subdivisent les longs côtés pour résoudre la tessellation du trou. Aucun contrôle du moteur n’a été relâché.
+
+### Budget et fichier privé Flansch
+
+Les premières nouvelles reconnaissances sont valides sur le corpus mais épuisent le budget de dix millions dans la recherche historique d’arcs (`partial.rs`). Le parcours Auto reconstruit désormais une fois les ensembles d’arêtes des anneaux et compare leur égalité exacte via un index. Les doublons et l’ordre des supports sont conservés ; un test oracle couvre rotations, inversions, sommets identiques avec connexions différentes et épuisement. Les mesures des rayons sont retenues plutôt que recalculées. La dernière entrée de preuve torique passe de 6 721 591 à 6 241 358 unités dans la trace correspondante ; ce premier allègement reste insuffisant.
+
+Le préfiltre sphérique réservait 563 048 unités pour les quatre patchs, alors qu’il n’examinait respectivement que 361/32 400, 1/34 200, 363/37 082 et 721/37 080 sommets avant rejet. Il débite maintenant une unité de préparation et quatre par sommet réellement visité, avant son examen : 5 788 unités pour ces passages, soit 557 260 unités non réservées pour du travail non exécuté. Le plafond ne change pas ; un candidat complet coûte 4N+1. Trois tests ciblés couvrent paramètres, candidat positif, rejet premier/intermédiaire/dernier sommet, épuisement avant le point décisif et non-réutilisation d’un budget épuisé. Cette correction de décompte n’est pas annoncée comme un gain de vitesse.
+
+Le helper propre du fichier privé à 540 170 triangles atteint **231 608 faces**, puis refuse `step.invalid_source_provenance` au plafond de 100 000. **Aucun STEP, aucun rapport de succès et aucune validation native source Flansch**, le contrôle de capacité intervenant avant. Mesure isolée : **70,862 s**, RSS maximal échantillonné **503 447 552 octets**, empreinte physique **500 646 944 octets**, garde de qualification 300 s/4 Gio. Pas de gain global de latence revendiqué : les passages avant/après ne terminent pas le même travail. Trace `artifacts/r076/flansch-final.json`.
+
+La sonde indépendante d’attribution passe dans le budget ordinaire de reconnaissance et contrôle l’absence de propriétaires communs avec l’extérieur de chaque zone :
+
+| Triangles source | Surfaces et attribution |
+| --- | --- |
+| 64 080 | Tore 62 640, cône 720, cylindre 720 |
+| 67 680 | Tore 64 800, deux cônes de 720 et deux cylindres de 720 |
+| 73 440 | Tore 72 720, cône 720 |
+| 73 442 | Tore 72 720, cône 722 |
+
+Le résultat global contient **231 584 plans, sept cylindres, treize cônes et quatre tores**. Les quatre zones forment douze surfaces, sans frontière partagée avec un propriétaire extérieur. Borne composée core **0,001854212187174463 mm**, résidu radial maximal **0,000006802234830081498 mm**, borne de corde **0,0018373276977969562 mm**, budget 0,05 mm. Ces preuves ne remplacent pas l’audit ni la validation native du document entier, non atteints. Sonde : 70,91 s (71,289 s surveillés), RSS 530 874 368 octets, empreinte 468 124 512 octets. Traces `owner-probe.log`, `owner-usage.json` ; instrumentation retirée et aucun fichier privé versionné. La qualification des plans restants est suivie dans R-080.
+
+Rejeu après le correctif C1 et reconstruction du paquet : même refus à **231 608 faces**, aucune sortie STEP/rapport, **69,359 s**, RSS 532 987 904 octets, empreinte physique 457 475 080 octets. Aucune garde temps/mémoire déclenchée ; trace `artifacts/geometries-next/flansch-confirmed.json`.
+
+### Validation globale et paquet
+
+Après correction du repli Auto, `sh scripts/check.sh` termine avec le code 0 : **530 tests workspace, 50 bureau, huit worker, 88 ciblés large-stl, un transfert réel vers le worker, 229 UI, douze Python et quatre SDK**. Formatage, Clippy avec `-D warnings`, contrôle Svelte (zéro erreur/avertissement), build UI et contrôle bureau passent. Seize tests opt-in du workspace sont ignorés par la suite ordinaire ; le transfert réel bureau est exécuté explicitement en fin de script. Le sous-ensemble large-stl conserve quatre tests opt-in ignorés. Avertissement Vite connu sur la taille du bundle, sans erreur. Journaux `artifacts/geometries-next/check.log` (premier échec documenté) et `check-final.log` (rejeu complet réussi).
+
+`sh scripts/build-macos-dev.sh` réussit. Les deux exécutables de `artifacts/FabSTEP.app` sont identiques à leurs builds vérifiés : SHA-256 bureau `e581cccf7ba074c5a300d8585369bba520932709f8e88aa0ac574234389efed2`, worker `8782f288acf789376a04dfc4ad45df6b686b4e1697a148f5694d30e194a98485`. Empreintes dans `bundle-hashes.json`. Aucun nouvel essai graphique natif ni Fusion, aucune mise à jour de la release 1.0.0. R-076/R-077/R-078 restent à tester via A-069 à A-074. Les brouillons D restent séparés et ne font pas partie de cette qualification.
+
+
 ## V-1202 — R-079 : références natives des raccords locaux D/G
 
 Laboratoire borné dans `scripts/qualify-local-blends.cpp` et `scripts/qualify-local-blends.sh`, sous OCCT 7.9.3. Il prépare la proposition ADR-0036 ; aucune reconnaissance STL ni route de conversion de production activée. La construction d’un solide de référence ne prouve pas sa récupération depuis un maillage.

@@ -396,3 +396,10 @@ Poursuite de l’ensemble C1b2/C2/D/E/F/G autorisée. Le laboratoire F0 franchit
 ## 2026-11-17 — R-079 : domaines locaux D/G approuvés
 
 Laboratoire indépendant : un coin triédrique arrondi et deux congés à rayon linéaire se réimportent comme solides, avec types, volumes, dimensions, limites partagées et sondes matière/vide contrôlés. Revue mathématique distincte et rejeu natif identique réussis (V-1202). Les références sont fixes et ne reconnaissent aucun fichier STL. L’utilisateur approuve explicitement les domaines additifs dans ADR-0036 ; A-068 fait et R-079 livré pour cette décision, R-081/R-082 spécifiés pour la production. La suite globale C1/C2/E continue séparément, après correction du repli Auto des chaînes hors domaine de huit cônes.
+
+
+## 2026-11-17 — R-076/R-077/R-078 : chaînes composées et bac percé
+
+Reconnaissances C1/C2 intégrées sans nouveau modèle natif ; corpus indépendants, frontières source et preuves continues. Le bac percé qualifie les capacités mixtes existantes. La revue supprime un raccourci de pente flottant non sûr ; la suite globale découvre puis vérifie la correction du repli Auto des profils hors domaine de huit cônes. Index exact des anneaux et comptage du travail sphérique réellement visité, budgets inchangés. Les quatre grandes zones de Flansch sont attribuées à douze surfaces ; 231 608 faces globales empêchent toujours l’export. V-1201 conserve les mesures et les limites.
+
+530 tests workspace et tous les contrôles bureau/worker/UI/statique passent. Paquet local reconstruit, deux binaires vérifiés ; essais graphiques/Fusion ouverts dans A-069 à A-074. Les contrats D/G approuvés restent dans ADR-0036 ; la préparation de D2 est isolée pendant cette validation et ne modifie pas le build qualifié.

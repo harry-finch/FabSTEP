@@ -116,15 +116,15 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    La sonde R-072 rapporte une empreinte physique de 6.9G malgré un RSS maximal échantillonné de 2,35 Gio. Comparer les métriques macOS et qualifier une surveillance adaptée avant toute augmentation de capacité ; préserver arrêt et nettoyage du helper.
 53. **[R-075 Reconstruire un raccord tore–cône–cylindre prouvé](roadmap/items/R-075-reconstruire-un-raccord-tore-cone-cylindre.md)** · À tester · jalon post-v1
    Première extension issue de R-074 : reconstruire la zone de 64 080 triangles par trois surfaces, avec raccord tangent prouvé et bandes à deux anneaux. Contrat de données inchangé ; règle de preuve approuvée pour implémentation, sans promesse de convertir Flansch entier.
-54. **[R-076 C2b — chaînes toriques composées et arcs au-delà de 90°](roadmap/items/R-076-c2b-chaines-toriques-composees-et-arcs-au-dela.md)** · En cours · jalon post-v1
+54. **[R-076 C2b — chaînes toriques composées et arcs au-delà de 90°](roadmap/items/R-076-c2b-chaines-toriques-composees-et-arcs-au-dela.md)** · À tester · jalon post-v1
    Reconstruire les trois autres zones courbes mesurées sur Flansch : raccord à deux cônes et arcs de 100°, avec frontières source et preuves continues.
-55. **[R-077 E2 — bac ouvert avec perçage du fond](roadmap/items/R-077-e2-bac-ouvert-avec-percage-du-fond.md)** · En cours · jalon post-v1
+55. **[R-077 E2 — bac ouvert avec perçage du fond](roadmap/items/R-077-e2-bac-ouvert-avec-percage-du-fond.md)** · À tester · jalon post-v1
    Qualifier un bac à coins arrondis avec un trou traversant le fond, sans remplir la cavité ni perdre les parois.
-56. **[R-078 C1b2b — chaînes coniques adjacentes et mixtes](roadmap/items/R-078-c1b2b-chaines-coniques-adjacentes-et-mixtes.md)** · En cours · jalon post-v1
+56. **[R-078 C1b2b — chaînes coniques adjacentes et mixtes](roadmap/items/R-078-c1b2b-chaines-coniques-adjacentes-et-mixtes.md)** · À tester · jalon post-v1
    Reconstruire deux à huit cônes adjacents ou mêlés à des portées, avec une décomposition unique prouvée par les anneaux source.
 57. **[R-080 Qualifier les 231 584 plans restants de Flansch](roadmap/items/R-080-qualifier-les-231-584-plans-restants-de-flansch.md)** · Idée · jalon post-v1
    Après les quatre grandes zones reconstruites, Flansch conserve 231 584 faces planes et 24 surfaces analytiques. Identifier les zones encore facettisées et leurs familles possibles avant toute nouvelle extension ou proposition de plafond ; la validation native dense reste un obstacle séparé.
-58. **[R-081 D2 — reconstruire un coin local à trois arrondis](roadmap/items/R-081-d2-reconstruire-un-coin-local-a-trois-arrondis.md)** · Spécifiée · jalon post-v1
+58. **[R-081 D2 — reconstruire un coin local à trois arrondis](roadmap/items/R-081-d2-reconstruire-un-coin-local-a-trois-arrondis.md)** · En cours · jalon post-v1
    Intégrer l’octant sphérique et ses trois raccords cylindriques à partir des frontières STL, avec preuve continue et STEP validé.
 59. **[R-082 G1 — reconstruire un raccord à rayon linéaire](roadmap/items/R-082-g1-reconstruire-un-raccord-a-rayon-lineaire.md)** · Spécifiée · jalon post-v1
    Reconnaître l’enveloppe conique inclinée à extrémités elliptiques d’un arrondi linéaire, sans la confondre avec des sections circulaires empilées.
@@ -191,6 +191,12 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-065](roadmap/actions/A-065-examiner-le-raccord-tore-cone-cylindre-dans.md) Examiner le raccord tore–cône–cylindre dans FabSTEP (tester, R-075)
 - [ ] [A-066](roadmap/actions/A-066-verifier-le-raccord-tore-cone-cylindre-dans.md) Vérifier le raccord tore–cône–cylindre dans Fusion (tester, R-075)
 - [ ] [A-067](roadmap/actions/A-067-examiner-le-bilan-certifie-des-percages-secants.md) Examiner le bilan certifié des perçages sécants (valider, R-063)
+- [ ] [A-069](roadmap/actions/A-069-examiner-les-nouveaux-raccords-de-revolution.md) Examiner les nouveaux raccords de révolution (tester, R-076)
+- [ ] [A-070](roadmap/actions/A-070-verifier-les-nouveaux-raccords-dans-fusion.md) Vérifier les nouveaux raccords dans Fusion (tester, R-076)
+- [ ] [A-071](roadmap/actions/A-071-examiner-le-bac-perce-dans-fabstep.md) Examiner le bac percé dans FabSTEP (tester, R-077)
+- [ ] [A-072](roadmap/actions/A-072-verifier-le-bac-perce-dans-fusion.md) Vérifier le bac percé dans Fusion (tester, R-077)
+- [ ] [A-073](roadmap/actions/A-073-examiner-les-chaines-coniques-adjacentes-et.md) Examiner les chaînes coniques adjacentes et mixtes (tester, R-078)
+- [ ] [A-074](roadmap/actions/A-074-verifier-les-chaines-adjacentes-dans-fusion.md) Vérifier les chaînes adjacentes dans Fusion (tester, R-078)
 
 ## Livré
 

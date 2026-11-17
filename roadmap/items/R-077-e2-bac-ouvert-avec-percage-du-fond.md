@@ -2,7 +2,7 @@
 id: R-077
 titre: "E2 — bac ouvert avec perçage du fond"
 resume: "Qualifier un bac à coins arrondis avec un trou traversant le fond, sans remplir la cavité ni perdre les parois."
-statut: en-cours
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-17
 maj: 2026-11-17

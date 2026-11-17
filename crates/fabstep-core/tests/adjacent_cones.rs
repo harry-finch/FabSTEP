@@ -89,11 +89,12 @@ fn varied_profile(profile: &[(f64, f64)], counts: &[usize]) -> Mesh {
 }
 
 #[test]
-fn adjacent_cones_require_unique_source_break_and_preserve_the_whole_model() {
+fn adjacent_cones_require_unique_source_breaks_and_preserve_the_whole_model() {
     for nominal in [
         vec![(0., 10.), (3., 13.), (9., 16.)],
         vec![(0., 20.), (3., 17.), (9., 15.)],
         vec![(0., 10.), (3., 15.), (9., 12.)],
+        vec![(0., 10.), (3., 13.), (6., 14.), (9., 17.)],
     ] {
         for transformed in [false, true] {
             let mut mesh = annular_profile(&sampled(&nominal));
@@ -129,7 +130,7 @@ fn adjacent_cones_require_unique_source_break_and_preserve_the_whole_model() {
                         r.triangle_faces.len(),
                     )
                 };
-                assert_eq!(report.cones, 2);
+                assert_eq!(report.cones, nominal.len() - 1);
                 assert_eq!(report.cylinders, 1);
                 assert_eq!(vertices, a.mesh.vertices);
                 assert_eq!(provenance, a.mesh.triangles.len());
@@ -175,7 +176,7 @@ fn refused(profile: &[(f64, f64)]) {
 }
 
 #[test]
-fn adjacent_cones_refuse_sparse_curved_ambiguous_or_more_than_two_runs() {
+fn adjacent_cones_refuse_sparse_curved_or_ambiguous_profiles() {
     let nominal = [(0., 10.), (3., 13.), (9., 16.)];
     refused(&nominal);
     refused(&[(0., 10.), (1.5, 11.5), (3., 13.), (6., 14.5), (9., 16.)]);
@@ -185,7 +186,6 @@ fn adjacent_cones_refuse_sparse_curved_ambiguous_or_more_than_two_runs() {
     let mut warped = sampled(&nominal);
     warped[4].1 += 0.05;
     refused(&warped);
-    refused(&sampled(&[(0., 10.), (3., 13.), (6., 14.), (9., 17.)]));
     let curved: Vec<_> = (0..10)
         .map(|i| {
             let z = i as f64;
