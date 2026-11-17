@@ -242,9 +242,7 @@
         ]
       ],
       "sha256": "2f99b6ada3be04d37f7bc89d0cdd368f94cd8843bda8ca9c298204bd70dd09b5"
-    }
-  },
-  "negative_cases": {
+    },
     "no_land": {
       "profile": [
         [
@@ -260,11 +258,27 @@
           16.0
         ]
       ],
-      "primitives_error": "recognition.conic_unproven",
-      "surfaces_error": "recognition.surface_unproven",
-      "auto_cones": 0,
+      "cones": 2,
+      "cylinders": 1,
+      "planes": 2,
+      "faces": 5,
+      "volume_mm3": 4523.893421169302,
+      "bounds_mm": [
+        [
+          -16.0,
+          -16.0,
+          0.0
+        ],
+        [
+          16.0,
+          16.0,
+          9.0
+        ]
+      ],
       "sha256": "ec382c188c76a49e5aca2e44f04321ca42528e486f835be394e989720d430657"
-    },
+    }
+  },
+  "negative_cases": {
     "curved_meridian": {
       "profile": [
         [

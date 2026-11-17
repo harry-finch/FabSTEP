@@ -292,7 +292,7 @@ fn witnessed_same_sign_chains_preserve_source_volume_and_orientation() {
 }
 
 #[test]
-fn same_sign_chain_requires_witnesses_and_keeps_adjacent_cones_unproven() {
+fn same_sign_chain_requires_witnesses_and_keeps_curved_meridians_unproven() {
     let nominal = [(0., 10.), (3., 13.), (9., 13.), (12., 16.)];
     refused(&nominal);
     let mut midpoint_only = Vec::new();
@@ -308,9 +308,8 @@ fn same_sign_chain_requires_witnesses_and_keeps_adjacent_cones_unproven() {
     let mut non_affine = sampled(&nominal);
     non_affine[7].1 += 0.05;
     refused(&non_affine);
-    // No source land exists at the breakpoint: never split this meridian
-    // opportunistically into cones, even with interior affine samples.
-    refused(&sampled(&[(0., 10.), (3., 13.), (9., 16.)]));
+    // The witnessed two-cone no-land source is qualified separately by
+    // adjacent_cones.rs; absent witnesses and curved meridians stay refused.
     let mut smooth = sampled(&nominal);
     for p in &mut smooth {
         p.1 = 10. + 0.01 * p.0 * p.0;

@@ -10,3 +10,7 @@ livree:
 ---
 
 Partie conservée du périmètre initial de R-032. Les classificateurs actuels fusionnent les bandes coniques consécutives selon une même loi affine ; identifier plusieurs cônes sans portée exige de prouver des frontières source complètes, des témoins intérieurs et une séparation des intervalles de pente. Aucune levée directe du garde ni découpe d’une méridienne lisse au niveau de chaque anneau. Cette recherche reste distincte de la tranche avec portées de R-032.
+
+## Poursuite demandée le 17 novembre
+
+Première tranche bornée lancée dans R-060 : deux cônes sans portée. Les chaînes plus longues et mélangées restent ici.

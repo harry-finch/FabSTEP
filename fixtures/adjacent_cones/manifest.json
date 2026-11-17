@@ -1,0 +1,142 @@
+{
+  "unit": "mm",
+  "construction": "Two full adjacent frusta; source rings at thirds; R5 bore; independent analytical references",
+  "cases": {
+    "increasing": {
+      "profile": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          3.0,
+          13.0
+        ],
+        [
+          9.0,
+          16.0
+        ]
+      ],
+      "cones": 2,
+      "cylinders": 1,
+      "planes": 2,
+      "faces": 5,
+      "volume_mm3": 4523.893421169302,
+      "bounds_mm": [
+        [
+          -16.0,
+          -16.0,
+          0.0
+        ],
+        [
+          16.0,
+          16.0,
+          9.0
+        ]
+      ],
+      "sha256": "acf023a17bc2187268fbab8d1f2fbe96fbe402dd58f13ba8e18fe25f6ec9fa9b"
+    },
+    "decreasing": {
+      "profile": [
+        [
+          0.0,
+          20.0
+        ],
+        [
+          3.0,
+          17.0
+        ],
+        [
+          9.0,
+          15.0
+        ]
+      ],
+      "cones": 2,
+      "cylinders": 1,
+      "planes": 2,
+      "faces": 5,
+      "volume_mm3": 7357.609994707295,
+      "bounds_mm": [
+        [
+          -20.0,
+          -20.0,
+          0.0
+        ],
+        [
+          20.0,
+          20.0,
+          9.0
+        ]
+      ],
+      "sha256": "66a3ef719838b531b09192489bb582cd557827d7472d3049b30c0d2e9ac29b28"
+    },
+    "opposed": {
+      "profile": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          3.0,
+          15.0
+        ],
+        [
+          9.0,
+          12.0
+        ]
+      ],
+      "cones": 2,
+      "cylinders": 1,
+      "planes": 2,
+      "faces": 5,
+      "volume_mm3": 4234.866897039041,
+      "bounds_mm": [
+        [
+          -15.0,
+          -15.0,
+          0.0
+        ],
+        [
+          15.0,
+          15.0,
+          9.0
+        ]
+      ],
+      "sha256": "ce34241e811d41021ece2a567d67b1781c4d0d44582ee34243dd2503d8b22454"
+    },
+    "rotated": {
+      "profile": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          3.0,
+          13.0
+        ],
+        [
+          9.0,
+          16.0
+        ]
+      ],
+      "cones": 2,
+      "cylinders": 1,
+      "planes": 2,
+      "faces": 5,
+      "volume_mm3": 4523.893421169302,
+      "bounds_mm": [
+        [
+          1.252950554866377,
+          -23.631352408737627,
+          7.361009552341216
+        ],
+        [
+          31.15591491847375,
+          8.27808298477181,
+          25.20533027868597
+        ]
+      ],
+      "sha256": "d078b5cb4867e5fc5a22243a12d17897f99e903c64dfa5b903b2a063b4a0eff5"
+    }
+  }
+}

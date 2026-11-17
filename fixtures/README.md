@@ -114,3 +114,5 @@ Cinq STEP CLI positifs, représentant six solides, ont été réimportés dans F
 ## Chaînes coniques de même signe avec portées
 
 Le corpus indépendant [same_sign_chains](same_sign_chains/README.md) couvre C1b1 : chaînes montantes, descendantes et mixtes, transformations, quantification STL et instances 3MF, avec profils/mesures attendus dans son manifeste. Les cas sans portée, courbes et à séparation ambiguë restent négatifs.
+
+Les corpus [adjacent_cones](adjacent_cones/README.md), [double_torus](double_torus/README.md) et [partial_fillets](partial_fillets/README.md) qualifient les tranches R-060 à R-062 : deux cônes sans portée, deux raccords toriques sur une portée, arêtes arrondies locales et bac ouvert. Chaque générateur fixe ses références indépendamment de la reconnaissance ; les essais natifs et leurs limites sont dans V-1186.

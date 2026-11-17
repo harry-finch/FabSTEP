@@ -1,8 +1,9 @@
 //! Explicit, bounded recognition of full circular ruled bands. Axes originate
 //! in real planar circular boundaries; every wall triangle, intermediate ring
-//! and apex is proved. Consecutive conical bands must form ONE affine radius
-//! law. Multiple conical spans require resolved cylindrical lands; chains with
-//! unrestricted slope signs require interior source-ring evidence. Tiny
+//! and apex is proved. Consecutive conical bands first follow ONE affine radius
+//! law; a unique source break may prove exactly two witnessed adjacent frusta.
+//! Longer conical chains require resolved cylindrical lands and interior
+//! source-ring evidence. Tiny
 //! radius changes must not let a curved meridian bypass this rule through
 //! artificial cylindrical separators.
 use crate::math::*;
@@ -118,6 +119,84 @@ pub(crate) fn resolved_conical_chain(
             epsilon,
         )
     })
+}
+
+/// First adjacent-cone subset: exactly two positive-radius affine runs, with
+/// two genuine interior rings on each side of a unique complete source ring.
+/// A single affine law always wins. Multiple admissible source breakpoints,
+/// even within tolerance of one another, are deliberately ambiguous.
+pub(crate) fn adjacent_cone_break(
+    profile: &[[f64; 2]],
+    o: &Options,
+    work: &mut Work,
+) -> Result<Option<usize>, FabError> {
+    let epsilon = o
+        .cylinder_fit_tolerance_mm
+        .max(o.plane_tolerance_mm)
+        .max(o.weld_tolerance_mm);
+    work.spend(profile.len().saturating_mul(3))?;
+    if profile.len() < 7
+        || !epsilon.is_finite()
+        || epsilon <= 0.
+        || profile
+            .iter()
+            .any(|p| p.iter().any(|x| !x.is_finite()) || p[1] <= epsilon)
+        || profile.windows(2).any(|w| {
+            w[1][0] - w[0][0] <= 4. * epsilon
+                || (w[1][1] - w[0][1]).abs() <= 2. * o.cylinder_fit_tolerance_mm
+        })
+    {
+        return Ok(None);
+    }
+    let fits = |points: &[[f64; 2]]| {
+        let [z0, r0] = points[0];
+        let [z1, r1] = *points.last().unwrap();
+        points.iter().all(|&[z, r]| {
+            (r - (r0 + (r1 - r0) * (z - z0) / (z1 - z0))).abs() <= o.cylinder_fit_tolerance_mm
+        })
+    };
+    if fits(profile) {
+        return Ok(None);
+    }
+    let slope = |points: &[[f64; 2]]| {
+        let a = points[0];
+        let b = points.last().unwrap();
+        let h = b[0] - a[0];
+        let m = (b[1] - a[1]) / h;
+        // Each endpoint coordinate may move by epsilon. This bounds the
+        // signed slope perturbation for every positive h +/- 2 epsilon.
+        let uncertainty = (2. * epsilon + 2. * epsilon * m.abs()) / (h - 2. * epsilon);
+        (m, uncertainty)
+    };
+    let mut found = None;
+    for split in 3..profile.len() - 3 {
+        work.spend(profile.len().saturating_mul(3))?;
+        let sides = [&profile[..=split], &profile[split..]];
+        if !sides.iter().all(|side| {
+            (side.last().unwrap()[1] - side[0][1]).abs() > 2. * epsilon
+                && resolved_run_samples(
+                    side[0][0],
+                    side.last().unwrap()[0],
+                    side.iter().map(|p| p[0]),
+                    epsilon,
+                )
+                && fits(side)
+        }) {
+            continue;
+        }
+        let (left, le) = slope(sides[0]);
+        let (right, re) = slope(sides[1]);
+        if ![left, le, right, re].iter().all(|x| x.is_finite())
+            || (left - right).abs() <= 4. * (le + re)
+        {
+            continue;
+        }
+        if found.is_some() {
+            return Ok(None);
+        }
+        found = Some(split);
+    }
+    Ok(found)
 }
 #[derive(Clone)]
 struct Frame {
@@ -709,16 +788,23 @@ fn prove_axis(
         }
         let mut start = 0;
         let first_span = spans.len();
+        let mut adjacent_split = None;
         while start < chain.len() {
             let first = &bands[chain[start]];
             let mut end = start + 1;
             while end < chain.len() && bands[chain[end]].conic == first.conic {
                 end += 1;
             }
+            if let Some(split) = adjacent_split {
+                if start < split {
+                    end = end.min(split);
+                }
+            }
             let nodes = [first.nodes[0], bands[chain[end - 1]].nodes[1]];
             let low = &d.nodes[nodes[0]];
             let high = &d.nodes[nodes[1]];
             let (z0, z1, r0, r1) = (low.z, high.z, low.radius, high.radius);
+            let mut affine = true;
             for &b in &chain[start..end] {
                 for &n in &bands[b].nodes {
                     work.spend(1)?;
@@ -728,9 +814,32 @@ fn prove_axis(
                         (r0 + r1) * 0.5
                     };
                     if (d.nodes[n].radius - expected).abs() > o.cylinder_fit_tolerance_mm {
-                        return Err(unproven("rayon non affine : plusieurs cônes ne peuvent remplacer une courbe méridienne"));
+                        affine = false;
                     }
                 }
+            }
+            if !affine {
+                // Preserve the successful historical path and its work budget.
+                // Only a failed single-cone law may search for one new break.
+                if first.conic && start == 0 && end == chain.len() && adjacent_split.is_none() {
+                    work.spend(chain.len() + 1)?;
+                    let mut profile: Vec<_> = chain
+                        .iter()
+                        .map(|&b| {
+                            let n = &d.nodes[bands[b].nodes[0]];
+                            [n.z, n.radius]
+                        })
+                        .collect();
+                    let last = &d.nodes[bands[*chain.last().unwrap()].nodes[1]];
+                    profile.push([last.z, last.radius]);
+                    adjacent_split = adjacent_cone_break(&profile, o, work)?;
+                    if adjacent_split.is_some() {
+                        continue;
+                    }
+                }
+                return Err(unproven(
+                    "rayon non affine : plusieurs cônes ne peuvent remplacer une courbe méridienne",
+                ));
             }
             if !first.conic {
                 let radius = (r0 + r1) * 0.5;
@@ -781,7 +890,10 @@ fn prove_axis(
             } else {
                 false
             };
-            let extended = if !historical && cone_count >= 2 {
+            let adjacent = adjacent_split.is_some()
+                && chain_spans.len() == 2
+                && chain_spans.iter().all(|s| s.conic);
+            let extended = if !historical && !adjacent && cone_count >= 2 {
                 let start = usize::from(!chain_spans[0].conic);
                 let end = chain_spans.len() - usize::from(!chain_spans.last().unwrap().conic);
                 let inner_spans = &chain_spans[start..end];
@@ -815,7 +927,7 @@ fn prove_axis(
             } else {
                 false
             };
-            if !historical && !extended {
+            if !historical && !extended && !adjacent {
                 return Err(unproven("plusieurs plages coniques sans portées résolues et anneaux intérieurs démontrés (hors double chanfrein historique)"));
             }
         }
@@ -1247,6 +1359,66 @@ pub(crate) fn prove_guided_cone(
 #[cfg(test)]
 mod guided_budget_tests {
     use super::*;
+    #[test]
+    fn adjacent_break_charges_its_candidate_search_and_all_coordinate_uncertainty() {
+        let profile = [
+            [0., 10.],
+            [1., 11.],
+            [2., 12.],
+            [3., 13.],
+            [5., 14.],
+            [7., 15.],
+            [9., 16.],
+        ];
+        let mut work = Work::default();
+        // Finite/spacing/affine scans cost 3n; each candidate costs 3n.
+        work.spend(10_000_000 - 6 * profile.len() + 1).unwrap();
+        assert_eq!(
+            adjacent_cone_break(&profile, &Options::default(), &mut work)
+                .unwrap_err()
+                .code,
+            "recognition.too_complex"
+        );
+        let profile = [
+            [0., 10.],
+            [1., 10.05],
+            [2., 10.1],
+            [3., 10.15],
+            [4., 11.15],
+            [5., 12.15],
+            [6., 13.15],
+        ];
+        for o in [
+            Options {
+                plane_tolerance_mm: 0.1,
+                ..Options::default()
+            },
+            Options {
+                weld_tolerance_mm: 0.1,
+                ..Options::default()
+            },
+        ] {
+            assert_eq!(
+                adjacent_cone_break(&profile, &o, &mut Work::default()).unwrap(),
+                None
+            );
+        }
+        let affine = [
+            [0., 10.],
+            [1., 11.],
+            [2., 12.],
+            [3., 13.],
+            [4., 14.],
+            [5., 15.],
+            [6., 16.],
+        ];
+        let mut work = Work::default();
+        work.spend(10_000_000 - 3 * affine.len()).unwrap();
+        assert_eq!(
+            adjacent_cone_break(&affine, &Options::default(), &mut work).unwrap(),
+            None
+        );
+    }
     #[test]
     fn same_sign_guard_is_additive_to_the_historical_pair() {
         let profile = [[0., 10.], [3., 13.], [9., 13.], [12., 16.]];

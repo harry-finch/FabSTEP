@@ -959,11 +959,17 @@ fn classify(
             i += 1;
         }
     }
-    let split: Vec<_> = breaks.into_iter().collect();
+    let mut adjacent_break = None;
+    let mut split: Vec<_> = breaks.into_iter().collect();
     let mut sections = Vec::new();
-    for pair in split.windows(2) {
+    // Keep the measured cylindrical radius before the historical one-fillet
+    // canonicalization. Only a second, opposite end arc may reuse it below.
+    let mut first_torus_source = None;
+    let mut double_torus = false;
+    let mut pair_index = 0;
+    while pair_index + 1 < split.len() {
         work.spend(triangles.len() + runs.len())?;
-        let ends = [pair[0], pair[1]];
+        let ends = [split[pair_index], split[pair_index + 1]];
         let low = &nodes[ends[0]];
         let high = &nodes[ends[1]];
         let z0 = low.z;
@@ -994,6 +1000,17 @@ fn classify(
                     .abs()
             })
             .fold(0., f64::max);
+        if linear > o.cylinder_fit_tolerance_mm && runs.is_empty() && split.len() == 2 {
+            // Search only after the historical affine proof failed; existing
+            // successful cone/cylinder/torus paths retain their work budget.
+            work.spend(nodes.len())?;
+            let profile: Vec<_> = nodes.iter().map(|n| [n.z, n.radius]).collect();
+            adjacent_break = crate::revolved::adjacent_cone_break(&profile, o, work)?;
+            if let Some(boundary) = adjacent_break {
+                split.insert(1, boundary);
+                continue;
+            }
+        }
         let shape = if runs.contains(&ends) {
             Shape::Cylinder
         } else if linear <= o.cylinder_fit_tolerance_mm {
@@ -1001,7 +1018,7 @@ fn classify(
         } else {
             let lower_cylinder = runs.iter().any(|r| r[1] == ends[0]);
             let upper_cylinder = runs.iter().any(|r| r[0] == ends[1]);
-            let (major, center_z, v) =
+            let (mut major, center_z, v) =
                 if lower_cylinder && ends[1] == nodes.len() - 1 && low.radius > high.radius {
                     (high.radius, z0, [0., PI / 2.])
                 } else if upper_cylinder && ends[0] == 0 && low.radius < high.radius {
@@ -1012,14 +1029,7 @@ fn classify(
                     ));
                 };
             let minor = height;
-            if major <= minor
-                || ((low.radius - high.radius).abs() - minor).abs()
-                    > 2. * o.cylinder_fit_tolerance_mm
-            {
-                return Err(unproven(
-                    "rayons incompatibles avec un raccord torique tangent",
-                ));
-            }
+            let radial_change = (low.radius - high.radius).abs();
             // Tangency is constrained by actual shared boundary circles/planes, never
             // by a rounded nominal design parameter. All resulting movements are fit residuals.
             let cylinder_end = if lower_cylinder { ends[0] } else { ends[1] };
@@ -1028,6 +1038,32 @@ fn classify(
                 .find(|r| r[0] == cylinder_end || r[1] == cylinder_end)
                 .copied()
                 .unwrap();
+            if let Some(source) = first_torus_source {
+                // Do not let the second fillet overwrite the cylinder chosen
+                // by the first. A tightly scoped T-C-T chain instead shares
+                // one measured land and recomputes both source-constrained
+                // quarter circles together. Full vector projections below
+                // and in prove_section account for all resulting movements.
+                major = canonicalize_double_torus(
+                    &mut nodes,
+                    &mut sections,
+                    ends,
+                    run,
+                    source,
+                    o,
+                    work,
+                )?;
+                double_torus = true;
+            } else {
+                if major <= minor
+                    || (radial_change - minor).abs() > 2. * o.cylinder_fit_tolerance_mm
+                {
+                    return Err(unproven(
+                        "rayons incompatibles avec un raccord torique tangent",
+                    ));
+                }
+                first_torus_source = Some((run, nodes[run[0]].radius));
+            }
             for n in &mut nodes[run[0]..=run[1]] {
                 n.radius = major + minor;
             }
@@ -1066,6 +1102,7 @@ fn classify(
             shape,
             triangles: selected_triangles,
         });
+        pair_index += 1;
     }
     work.spend(sections.len())?;
     let cones = sections
@@ -1097,7 +1134,8 @@ fn classify(
             "Plus de 8 portions coniques dans une chaîne.",
         ));
     }
-    let extended_chain = if !double_chamfer && cones >= 2 && tori == 0 {
+    let adjacent_cones = adjacent_break.is_some() && sections.len() == 2 && cones == 2;
+    let extended_chain = if !double_chamfer && !adjacent_cones && cones >= 2 && tori == 0 {
         let start = usize::from(matches!(sections[0].shape, Shape::Cylinder));
         let end =
             sections.len() - usize::from(matches!(sections.last().unwrap().shape, Shape::Cylinder));
@@ -1136,7 +1174,9 @@ fn classify(
     } else {
         false
     };
-    if (cones > 1 && !double_chamfer && !extended_chain) || tori > 1 {
+    if (cones > 1 && !double_chamfer && !extended_chain && !adjacent_cones)
+        || (tori > 1 && !double_torus)
+    {
         return Err(unproven(
             "chaîne conique sans portées résolues et anneaux intérieurs démontrés (hors double chanfrein historique), ou plusieurs portions toriques",
         ));
@@ -1157,6 +1197,134 @@ fn classify(
         sphere: None,
         triangles,
     })
+}
+
+// Returns the upper arc's major radius. The two source planes fix the axial
+// extent, and the original cylindrical samples fix the shared radial extent;
+// there is no additional fitted degree of freedom or fabricated boundary.
+fn canonicalize_double_torus(
+    nodes: &mut [Node],
+    sections: &mut [Section],
+    upper_ends: [usize; 2],
+    run: [usize; 2],
+    (source_run, radius): ([usize; 2], f64),
+    o: &Options,
+    work: &mut Work,
+) -> Result<f64, FabError> {
+    let [lower, land] = sections else {
+        return Err(unproven(
+            "plusieurs raccords hors de la chaîne tore-cylindre-tore",
+        ));
+    };
+    if run != source_run
+        || lower.ends != [0, run[0]]
+        || land.ends != run
+        || upper_ends != [run[1], nodes.len() - 1]
+        || !matches!(lower.shape, Shape::Torus { v, .. } if v == [-PI / 2., 0.])
+        || !matches!(land.shape, Shape::Cylinder)
+    {
+        return Err(unproven(
+            "raccords toriques sans portée cylindrique commune",
+        ));
+    }
+    let epsilon = o
+        .cylinder_fit_tolerance_mm
+        .max(o.plane_tolerance_mm)
+        .max(o.weld_tolerance_mm);
+    work.spend((run[1] - run[0] + 1).saturating_mul(2))?;
+    let low = nodes[run[0]].z;
+    let high = nodes[run[1]].z;
+    if high - low <= 8. * epsilon
+        || !crate::revolved::resolved_run_samples(
+            low,
+            high,
+            nodes[run[0]..=run[1]].iter().map(|n| n.z),
+            epsilon,
+        )
+    {
+        return Err(unproven(
+            "portée entre deux congés sans deux anneaux intérieurs résolus",
+        ));
+    }
+    let bottom_minor = low - nodes[0].z;
+    let top_minor = nodes[nodes.len() - 1].z - high;
+    if !radius.is_finite()
+        || bottom_minor.min(top_minor) <= 4. * epsilon
+        || radius - 2. * bottom_minor.max(top_minor) <= 4. * epsilon
+    {
+        return Err(unproven("quarts de tore annulaire insuffisamment résolus"));
+    }
+    // Only this new two-fillet path moves its terminal radii. The actual
+    // plane heights remain source values and all shared circles are reused.
+    nodes[0].radius = radius - bottom_minor;
+    let last = nodes.len() - 1;
+    nodes[last].radius = radius - top_minor;
+    for node in &mut nodes[run[0]..=run[1]] {
+        node.radius = radius;
+    }
+    lower.shape = Shape::Torus {
+        center_z: low,
+        major: radius - bottom_minor,
+        minor: bottom_minor,
+        v: [-PI / 2., 0.],
+    };
+    Ok(radius - top_minor)
+}
+
+#[cfg(test)]
+mod double_torus_budget {
+    use super::*;
+
+    #[test]
+    fn a_second_fillet_cannot_bypass_the_shared_work_budget_or_mutate_on_failure() {
+        let mut nodes: Vec<_> = [
+            (0., 6.5),
+            (1.5, 8.),
+            (19. / 6., 8.),
+            (29. / 6., 8.),
+            (6.5, 8.),
+            (8.5, 6.),
+        ]
+        .into_iter()
+        .map(|(z, radius)| Node {
+            z,
+            radius,
+            vertices: vec![],
+        })
+        .collect();
+        let mut sections = [
+            Section {
+                ends: [0, 1],
+                shape: Shape::Torus {
+                    center_z: 1.5,
+                    major: 6.5,
+                    minor: 1.5,
+                    v: [-PI / 2., 0.],
+                },
+                triangles: vec![],
+            },
+            Section {
+                ends: [1, 4],
+                shape: Shape::Cylinder,
+                triangles: vec![],
+            },
+        ];
+        let before: Vec<_> = nodes.iter().map(|n| n.radius).collect();
+        let mut work = Work::default();
+        work.spend(10_000_000).unwrap();
+        let error = canonicalize_double_torus(
+            &mut nodes,
+            &mut sections,
+            [4, 5],
+            [1, 4],
+            ([1, 4], 8.),
+            &Options::default(),
+            &mut work,
+        )
+        .unwrap_err();
+        assert_eq!(error.code, "recognition.too_complex");
+        assert_eq!(nodes.iter().map(|n| n.radius).collect::<Vec<_>>(), before);
+    }
 }
 
 fn prove_sphere(
@@ -1492,6 +1660,29 @@ fn prove_section(
             "couverture UV {} différente de {expected}",
             area.get()
         )));
+    }
+    if inner == Some(true)
+        && matches!(
+            p.sections.as_slice(),
+            [
+                Section {
+                    shape: Shape::Torus { .. },
+                    ..
+                },
+                Section {
+                    shape: Shape::Cylinder,
+                    ..
+                },
+                Section {
+                    shape: Shape::Torus { .. },
+                    ..
+                }
+            ]
+        )
+    {
+        return Err(unproven(
+            "la chaîne à deux congés est réservée à une paroi extérieure",
+        ));
     }
     Ok((errors, inner.unwrap()))
 }

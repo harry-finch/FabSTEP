@@ -1,0 +1,397 @@
+{
+  "generator": "fixtures/generate_partial_fillets.py (Python standard library only)",
+  "contract": "D1 disjoint straight-edge cylinders; E1 open tray with real floor/rim, vertical rounded corners only",
+  "units": "mm",
+  "segments_per_quarter": 16,
+  "rotation": {
+    "x_rad": 0.37,
+    "y_rad": -0.51,
+    "translation_mm": [
+      4.0,
+      8.0,
+      12.0
+    ]
+  },
+  "cases": {
+    "one_edge": {
+      "profile_radii_mm": [
+        4.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "planes": 6,
+      "partial_cylinders": 1,
+      "inner_cylinders": 0,
+      "radii_mm": [
+        4.0
+      ],
+      "axial_lengths_mm": [
+        12.0
+      ],
+      "volume_mm3": 14358.79644737231,
+      "bounds_mm": [
+        [
+          -20.0,
+          -15.0,
+          0.0
+        ],
+        [
+          20.0,
+          15.0,
+          12.0
+        ]
+      ],
+      "rotated": false,
+      "source_triangles": 120,
+      "source_polyhedral_volume_mm3": 14358.554327546204,
+      "sha256": "b3f246a43edab7d10ccca288a5ea54eded9d4d93fae25a23f096ed587ac13ecc"
+    },
+    "two_edges": {
+      "profile_radii_mm": [
+        4.0,
+        0.0,
+        2.0,
+        0.0
+      ],
+      "planes": 6,
+      "partial_cylinders": 2,
+      "inner_cylinders": 0,
+      "radii_mm": [
+        2.0,
+        4.0
+      ],
+      "axial_lengths_mm": [
+        12.0,
+        12.0
+      ],
+      "volume_mm3": 14348.49555921539,
+      "bounds_mm": [
+        [
+          -20.0,
+          -15.0,
+          0.0
+        ],
+        [
+          20.0,
+          15.0,
+          12.0
+        ]
+      ],
+      "rotated": false,
+      "source_triangles": 216,
+      "source_polyhedral_volume_mm3": 14348.192909432755,
+      "sha256": "86df6e50551c7bbfb56e4660c479b3d5f86eae33df3d936067bd5e1a84d59de8"
+    },
+    "two_edges_staggered": {
+      "profile_radii_mm": [
+        4.0,
+        0.0,
+        2.0,
+        0.0
+      ],
+      "planes": 6,
+      "partial_cylinders": 2,
+      "inner_cylinders": 0,
+      "radii_mm": [
+        2.0,
+        4.0
+      ],
+      "axial_lengths_mm": [
+        12.0,
+        12.0
+      ],
+      "volume_mm3": 14348.49555921539,
+      "bounds_mm": [
+        [
+          -20.0,
+          -15.0,
+          0.0
+        ],
+        [
+          20.0,
+          15.0,
+          12.0
+        ]
+      ],
+      "rotated": false,
+      "source_triangles": 216,
+      "source_polyhedral_volume_mm3": 14348.1915478289,
+      "sha256": "d063c78e1dfa8d1de3e170da83e120c4c1f082cccca68a91c792712506fd08e4"
+    },
+    "two_edges_rotated": {
+      "profile_radii_mm": [
+        4.0,
+        0.0,
+        2.0,
+        0.0
+      ],
+      "planes": 6,
+      "partial_cylinders": 2,
+      "inner_cylinders": 0,
+      "radii_mm": [
+        2.0,
+        4.0
+      ],
+      "axial_lengths_mm": [
+        12.0,
+        12.0
+      ],
+      "volume_mm3": 14348.49555921539,
+      "bounds_mm": [
+        [
+          -21.246853397848064,
+          -10.32429536767006,
+          -2.4975131695686468
+        ],
+        [
+          23.4674463301572,
+          21.984910184090516,
+          36.261716012035954
+        ]
+      ],
+      "rotated": true,
+      "source_triangles": 216,
+      "source_polyhedral_volume_mm3": 14348.192909432755,
+      "sha256": "4a86f14d073eac1cd86c6bebb860485b45ac26645a3608d6c4610c76459195fb"
+    },
+    "open_tray": {
+      "profile_radii_mm": [
+        4.0,
+        4.0,
+        4.0,
+        4.0
+      ],
+      "planes": 11,
+      "partial_cylinders": 8,
+      "inner_cylinders": 4,
+      "radii_mm": [
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0
+      ],
+      "axial_lengths_mm": [
+        9.0,
+        9.0,
+        9.0,
+        9.0,
+        12.0,
+        12.0,
+        12.0,
+        12.0
+      ],
+      "floor_thickness_mm": 3.0,
+      "outer_dimensions_mm": [
+        40.0,
+        30.0,
+        12.0
+      ],
+      "inner_dimensions_mm": [
+        34.0,
+        24.0,
+        9.0
+      ],
+      "volume_mm3": 6922.08845396001,
+      "bounds_mm": [
+        [
+          -20.0,
+          -15.0,
+          0.0
+        ],
+        [
+          20.0,
+          15.0,
+          12.0
+        ]
+      ],
+      "probes": [
+        {
+          "point_mm": [
+            0.371,
+            0.463,
+            7.6
+          ],
+          "material": false,
+          "role": "accessible cavity"
+        },
+        {
+          "point_mm": [
+            0.371,
+            0.463,
+            1.6
+          ],
+          "material": true,
+          "role": "source floor"
+        },
+        {
+          "point_mm": [
+            18.6,
+            0.463,
+            7.6
+          ],
+          "material": true,
+          "role": "straight wall"
+        },
+        {
+          "point_mm": [
+            17.5,
+            12.5,
+            7.6
+          ],
+          "material": true,
+          "role": "rounded corner wall"
+        },
+        {
+          "point_mm": [
+            21.371,
+            0.463,
+            7.6
+          ],
+          "material": false,
+          "role": "outside"
+        }
+      ],
+      "rotated": false,
+      "source_triangles": 816,
+      "source_polyhedral_volume_mm3": 6921.301564525164,
+      "sha256": "07e06af519729b270bc07eba3041cbe7bf7a87196fb58536eb7bd0283b52bddc"
+    },
+    "open_tray_rotated": {
+      "profile_radii_mm": [
+        4.0,
+        4.0,
+        4.0,
+        4.0
+      ],
+      "planes": 11,
+      "partial_cylinders": 8,
+      "inner_cylinders": 4,
+      "radii_mm": [
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0
+      ],
+      "axial_lengths_mm": [
+        9.0,
+        9.0,
+        9.0,
+        9.0,
+        12.0,
+        12.0,
+        12.0,
+        12.0
+      ],
+      "floor_thickness_mm": 3.0,
+      "outer_dimensions_mm": [
+        40.0,
+        30.0,
+        12.0
+      ],
+      "inner_dimensions_mm": [
+        34.0,
+        24.0,
+        9.0
+      ],
+      "volume_mm3": 6922.08845396001,
+      "bounds_mm": [
+        [
+          -20.929138291416432,
+          -10.32429536767006,
+          -1.607644848651141
+        ],
+        [
+          23.4674463301572,
+          21.984910184090516,
+          35.37184769111845
+        ]
+      ],
+      "probes": [
+        {
+          "point_mm": [
+            0.371,
+            0.463,
+            7.6
+          ],
+          "material": false,
+          "role": "accessible cavity"
+        },
+        {
+          "point_mm": [
+            0.371,
+            0.463,
+            1.6
+          ],
+          "material": true,
+          "role": "source floor"
+        },
+        {
+          "point_mm": [
+            18.6,
+            0.463,
+            7.6
+          ],
+          "material": true,
+          "role": "straight wall"
+        },
+        {
+          "point_mm": [
+            17.5,
+            12.5,
+            7.6
+          ],
+          "material": true,
+          "role": "rounded corner wall"
+        },
+        {
+          "point_mm": [
+            21.371,
+            0.463,
+            7.6
+          ],
+          "material": false,
+          "role": "outside"
+        }
+      ],
+      "rotated": true,
+      "source_triangles": 816,
+      "source_polyhedral_volume_mm3": 6921.301564525164,
+      "sha256": "1c7a75fb09d37624913964fe66b386a0bb4c7ef4e6c847c86d364f46a818361d"
+    },
+    "one_edge_variable_radius": {
+      "expected_refusal": "recognition.partial_unproven",
+      "auto_partial_cylinders": 0,
+      "end_radius_mm": 4.0,
+      "middle_radius_mm": 4.25,
+      "source_closed": true,
+      "section_law": "piecewise linear R(z): (0,4), (5,4.25), (12,4), tangent planar supports retained",
+      "rotated": false,
+      "source_triangles": 120,
+      "source_polyhedral_volume_mm3": 14355.910007298502,
+      "sha256": "e974d9b8979fda326794531ad52c9d01bbd6560b57e57b481f766fa32d92bae6"
+    },
+    "one_edge_missing_end": {
+      "expected_refusal": "mesh.open",
+      "rotated": false,
+      "source_triangles": 119,
+      "source_polyhedral_volume_mm3": 14358.554327546204,
+      "sha256": "60eeb590681af8a7a091a31ae1459439bd786817b483581d9425c69e0da3eb8d"
+    },
+    "tray_missing_floor": {
+      "expected_refusal": "mesh.open",
+      "rotated": false,
+      "source_triangles": 815,
+      "source_polyhedral_volume_mm3": 6741.301564525164,
+      "sha256": "5980641a2656f323de65163560eb420b0a916d357c5668ef1a5c650c77e81152"
+    }
+  }
+}

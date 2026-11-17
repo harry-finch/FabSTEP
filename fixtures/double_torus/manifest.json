@@ -1,0 +1,514 @@
+{
+  "unit": "mm",
+  "construction": "Full-azimuth exact quarter circles; R8 cylinder with two interior rings; elementary disk integral fixed before recognition",
+  "cases": {
+    "nominal": {
+      "faces": 5,
+      "planes": 2,
+      "cylinders": 1,
+      "cones": 0,
+      "spheres": 0,
+      "tori": 2,
+      "toroidal_fillets": 2,
+      "radius_mm": 8.0,
+      "land_height_mm": 5.0,
+      "volume_mm3": 1645.0332339142128,
+      "bounds_mm": [
+        [
+          -8.0,
+          -8.0,
+          0.0
+        ],
+        [
+          8.0,
+          8.0,
+          8.5
+        ]
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tori_parameters": [
+        {
+          "major_radius_mm": 6.5,
+          "minor_radius_mm": 1.5,
+          "center_mm": [
+            0.0,
+            0.0,
+            1.5
+          ],
+          "meridian_rad": [
+            -1.5707963267948966,
+            0.0
+          ]
+        },
+        {
+          "major_radius_mm": 6.0,
+          "minor_radius_mm": 2.0,
+          "center_mm": [
+            0.0,
+            0.0,
+            6.5
+          ],
+          "meridian_rad": [
+            0.0,
+            1.5707963267948966
+          ]
+        }
+      ],
+      "triangles": 3584,
+      "sha256": "d96430a0bca01e148ecbf736d9f4aa8c3497f2d4a7268a73cae09577f1b6ae02"
+    },
+    "equal_radii": {
+      "faces": 5,
+      "planes": 2,
+      "cylinders": 1,
+      "cones": 0,
+      "spheres": 0,
+      "tori": 2,
+      "toroidal_fillets": 2,
+      "radius_mm": 8.0,
+      "land_height_mm": 5.0,
+      "volume_mm3": 1728.0798185300998,
+      "bounds_mm": [
+        [
+          -8.0,
+          -8.0,
+          0.0
+        ],
+        [
+          8.0,
+          8.0,
+          9.0
+        ]
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tori_parameters": [
+        {
+          "major_radius_mm": 6.0,
+          "minor_radius_mm": 2.0,
+          "center_mm": [
+            0.0,
+            0.0,
+            2.0
+          ],
+          "meridian_rad": [
+            -1.5707963267948966,
+            0.0
+          ]
+        },
+        {
+          "major_radius_mm": 6.0,
+          "minor_radius_mm": 2.0,
+          "center_mm": [
+            0.0,
+            0.0,
+            7.0
+          ],
+          "meridian_rad": [
+            0.0,
+            1.5707963267948966
+          ]
+        }
+      ],
+      "triangles": 3584,
+      "sha256": "fc86bc08af46816cdda29ca885fe55162e40710d580f458ec1b1b2cbd9791941"
+    },
+    "rotated": {
+      "faces": 5,
+      "planes": 2,
+      "cylinders": 1,
+      "cones": 0,
+      "spheres": 0,
+      "tori": 2,
+      "toroidal_fillets": 2,
+      "radius_mm": 8.0,
+      "land_height_mm": 5.0,
+      "volume_mm3": 1645.0332339142128,
+      "bounds_mm": [
+        [
+          5.960032486420596,
+          -15.47169976160401,
+          8.531813802760444
+        ],
+        [
+          22.921118350215874,
+          0.868831612309453,
+          21.23774384146277
+        ]
+      ],
+      "axis": [
+        0.35604808185222936,
+        -0.07518163466476757,
+        0.9314383958257686
+      ],
+      "tori_parameters": [
+        {
+          "major_radius_mm": 6.5,
+          "minor_radius_mm": 1.5,
+          "center_mm": [
+            13.534072122778344,
+            -7.112772451997151,
+            12.397157593738653
+          ],
+          "meridian_rad": [
+            -1.5707963267948966,
+            0.0
+          ]
+        },
+        {
+          "major_radius_mm": 6.0,
+          "minor_radius_mm": 2.0,
+          "center_mm": [
+            15.31431253203949,
+            -7.488680625320989,
+            17.054349572867494
+          ],
+          "meridian_rad": [
+            0.0,
+            1.5707963267948966
+          ]
+        }
+      ],
+      "triangles": 3584,
+      "sha256": "316a9b500ff10c7e6eb83aae20bb8c9abac90266641a14fa8731735e2d2b811a"
+    },
+    "irregular": {
+      "faces": 5,
+      "planes": 2,
+      "cylinders": 1,
+      "cones": 0,
+      "spheres": 0,
+      "tori": 2,
+      "toroidal_fillets": 2,
+      "radius_mm": 8.0,
+      "land_height_mm": 5.0,
+      "volume_mm3": 1645.0332339142128,
+      "bounds_mm": [
+        [
+          -8.0,
+          -8.0,
+          0.0
+        ],
+        [
+          8.0,
+          8.0,
+          8.5
+        ]
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tori_parameters": [
+        {
+          "major_radius_mm": 6.5,
+          "minor_radius_mm": 1.5,
+          "center_mm": [
+            0.0,
+            0.0,
+            1.5
+          ],
+          "meridian_rad": [
+            -1.5707963267948966,
+            0.0
+          ]
+        },
+        {
+          "major_radius_mm": 6.0,
+          "minor_radius_mm": 2.0,
+          "center_mm": [
+            0.0,
+            0.0,
+            6.5
+          ],
+          "meridian_rad": [
+            0.0,
+            1.5707963267948966
+          ]
+        }
+      ],
+      "triangles": 3728,
+      "sha256": "c00a45f026785f520ff668800d2029adf6be92eaaf5b27fcefe1d033296fec25"
+    },
+    "seam_noise": {
+      "faces": 5,
+      "planes": 2,
+      "cylinders": 1,
+      "cones": 0,
+      "spheres": 0,
+      "tori": 2,
+      "toroidal_fillets": 2,
+      "radius_mm": 8.0,
+      "land_height_mm": 5.0,
+      "volume_mm3": 1645.0332339142128,
+      "bounds_mm": [
+        [
+          -8.0,
+          -8.0,
+          0.0
+        ],
+        [
+          8.0,
+          8.0,
+          8.5
+        ]
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tori_parameters": [
+        {
+          "major_radius_mm": 6.5,
+          "minor_radius_mm": 1.5,
+          "center_mm": [
+            0.0,
+            0.0,
+            1.5
+          ],
+          "meridian_rad": [
+            -1.5707963267948966,
+            0.0
+          ]
+        },
+        {
+          "major_radius_mm": 6.0,
+          "minor_radius_mm": 2.0,
+          "center_mm": [
+            0.0,
+            0.0,
+            6.5
+          ],
+          "meridian_rad": [
+            0.0,
+            1.5707963267948966
+          ]
+        }
+      ],
+      "triangles": 3584,
+      "terminal_radial_noise_mm": [
+        3e-06,
+        -3e-06
+      ],
+      "sha256": "766d908e8177c69f0b211b2b5168ee9cf2ece0c09fcf1463aa261e34a61d8e53"
+    },
+    "dense": {
+      "faces": 5,
+      "planes": 2,
+      "cylinders": 1,
+      "cones": 0,
+      "spheres": 0,
+      "tori": 2,
+      "toroidal_fillets": 2,
+      "radius_mm": 8.0,
+      "land_height_mm": 5.0,
+      "volume_mm3": 1645.0332339142128,
+      "bounds_mm": [
+        [
+          -8.0,
+          -8.0,
+          0.0
+        ],
+        [
+          8.0,
+          8.0,
+          8.5
+        ]
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tori_parameters": [
+        {
+          "major_radius_mm": 6.5,
+          "minor_radius_mm": 1.5,
+          "center_mm": [
+            0.0,
+            0.0,
+            1.5
+          ],
+          "meridian_rad": [
+            -1.5707963267948966,
+            0.0
+          ]
+        },
+        {
+          "major_radius_mm": 6.0,
+          "minor_radius_mm": 2.0,
+          "center_mm": [
+            0.0,
+            0.0,
+            6.5
+          ],
+          "meridian_rad": [
+            0.0,
+            1.5707963267948966
+          ]
+        }
+      ],
+      "triangles": 7680,
+      "sha256": "58925817a8bfb11fafb1655e1350e0bdfa0aeec6fd3b90d9d6a6c74758fd995b"
+    },
+    "binary": {
+      "faces": 5,
+      "planes": 2,
+      "cylinders": 1,
+      "cones": 0,
+      "spheres": 0,
+      "tori": 2,
+      "toroidal_fillets": 2,
+      "radius_mm": 8.0,
+      "land_height_mm": 5.0,
+      "volume_mm3": 1645.0332339142128,
+      "bounds_mm": [
+        [
+          -8.0,
+          -8.0,
+          0.0
+        ],
+        [
+          8.0,
+          8.0,
+          8.5
+        ]
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tori_parameters": [
+        {
+          "major_radius_mm": 6.5,
+          "minor_radius_mm": 1.5,
+          "center_mm": [
+            0.0,
+            0.0,
+            1.5
+          ],
+          "meridian_rad": [
+            -1.5707963267948966,
+            0.0
+          ]
+        },
+        {
+          "major_radius_mm": 6.0,
+          "minor_radius_mm": 2.0,
+          "center_mm": [
+            0.0,
+            0.0,
+            6.5
+          ],
+          "meridian_rad": [
+            0.0,
+            1.5707963267948966
+          ]
+        }
+      ],
+      "binary_f32": true,
+      "triangles": 3584,
+      "sha256": "5936a32165af73d9f8855334846bbca2c8c80ac9e374cd803b8448fd6f8b9ea7"
+    },
+    "instances": {
+      "format": "3mf",
+      "bodies": 2,
+      "volume_mm3": 3290.0664678284256,
+      "body_bounds_mm": [
+        [
+          [
+            -8.0,
+            -8.0,
+            0.0
+          ],
+          [
+            8.0,
+            8.0,
+            8.5
+          ]
+        ],
+        [
+          [
+            16.0,
+            -8.0,
+            0.0
+          ],
+          [
+            32.0,
+            8.0,
+            8.5
+          ]
+        ]
+      ],
+      "sha256": "a3f563f042ca544ec1bf6bb9b35fd7c00922b40de8c00645aef4b63a5d24f90d"
+    }
+  },
+  "negative_cases": {
+    "no_witness": {
+      "reason": "No interior source ring on the central land",
+      "surfaces_error": "recognition.surface_unproven",
+      "app_surfaces_error": "recognition.surface_unproven",
+      "sha256": "48fecb2e1486f32b4740c690ba3830a6b3a63903de60e174d55e3ff8d5c149f4"
+    },
+    "one_witness": {
+      "reason": "Only one interior source ring on the central land",
+      "surfaces_error": "recognition.surface_unproven",
+      "app_surfaces_error": "recognition.surface_unproven",
+      "sha256": "41ab904df972aa5c040f5c26dfc8a0577a4606f1304b69547d16bd7c7b4e26d2"
+    },
+    "short_land": {
+      "reason": "Central land unresolved at the default source uncertainty",
+      "surfaces_error": "recognition.surface_unproven",
+      "app_surfaces_error": "recognition.surface_unproven",
+      "sha256": "4469927cef9a4358946ade57cb57fa342d2f736402806c995ab0c1e445dda88f"
+    },
+    "no_land": {
+      "reason": "The two circular arcs meet without a cylindrical separator",
+      "surfaces_error": "recognition.surface_unproven",
+      "app_surfaces_error": "recognition.surface_unproven",
+      "sha256": "3f0f8a0b26ae47613f985b9ecf7b7ba3b09d3472ef1094e8cb44fe58ab8cc266"
+    },
+    "warped_arc": {
+      "reason": "Noncircular meridian with unchanged terminal circles",
+      "surfaces_error": "recognition.surface_unproven",
+      "app_surfaces_error": "recognition.surface_unproven",
+      "sha256": "669c8002181d525bd5ba4823ea1c324cfa6029b38b91fc014b451fe01e4084c1"
+    },
+    "tapered_land": {
+      "reason": "Incompatible radii on the claimed common cylindrical land",
+      "surfaces_error": "recognition.surface_unproven",
+      "app_surfaces_error": "recognition.surface_unproven",
+      "sha256": "02abb2b9ea9e589a08e08dec22a822825cac7729ef160ae3ccb9e5e9f0d4841e"
+    },
+    "sparse_meridian": {
+      "reason": "Only three distinct heights per quarter circle",
+      "surfaces_error": "recognition.surface_unproven",
+      "app_surfaces_error": "recognition.surface_unproven",
+      "sha256": "71723fc30a170a0fd410460c3f3eff84c1aa054c9b7bea22b014b598a01a9095"
+    },
+    "sparse_azimuth": {
+      "reason": "Eight samples cannot establish the planar circular contours",
+      "surfaces_error": "recognition.unsupported",
+      "app_surfaces_error": "recognition.surface_unproven",
+      "sha256": "7118e5ec7a9bf8df1502f39b1e4a9e1749653014d4b9015a7d47993b544c868f"
+    },
+    "concave": {
+      "reason": "Two toroidal fillets bound a source through-cavity, outside the exterior C2a contract",
+      "surfaces_error": "recognition.surface_unproven",
+      "app_surfaces_error": "recognition.surface_unproven",
+      "sha256": "ddf39bc2bfbc67702175fa382496f482ddb88ab79a964064188749732a91727a"
+    }
+  },
+  "touching_error": "cad.bodies_separation_budget",
+  "touching_refusal_scope": "Source separation budget is exhausted before the geometric contact classification; the whole document is refused without partial export"
+}

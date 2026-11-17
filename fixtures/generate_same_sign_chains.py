@@ -28,6 +28,8 @@ def main():
         ('two_rotated', TWO, True),
         ('three_decreasing', DOWN, False),
         ('mixed_signs', MIXED, False),
+        # C1b2 intentionally promotes the existing, witnessed no-land source.
+        ('no_land', [(0., 10.), (3., 13.), (9., 16.)], False),
     ]:
         mesh = build(profile)
         mesh.write(name, rotate)
@@ -45,7 +47,6 @@ def main():
                                       volume_mm3=2 * cases[name]['volume_mm3'],
                                       body_bounds_mm=[cases[name]['bounds_mm'], [[24., -16., 0.], [56., 16., 12.]]])
     for name, profile in [
-        ('no_land', [(0., 10.), (3., 13.), (9., 16.)]),
         ('curved_meridian', [(z, 10. + .01*z*z) for z in (0., 1., 2., 3., 5., 7., 9., 10., 11., 12.)]),
         ('late_ambiguous_land', [(0., 10.), (3., 13.), (9., 13.), (12., 16.), (12.00015, 16.), (15., 16.5)]),
     ]:

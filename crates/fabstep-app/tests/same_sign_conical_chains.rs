@@ -176,22 +176,14 @@ fn same_sign_chains_do_not_fall_back_after_proof_or_deviation_failure() {
             );
         }
     }
-    // Local uncertainty in Auto keeps the source's facets and still passes
-    // native solid reimport; it does not fabricate cones at source rings.
-    let faceted = convert_stl(&fixture("no_land.stl"), &options(ReconstructionMode::Auto)).unwrap();
-    assert_eq!(faceted.report.cad.solids, 1);
-    assert_eq!(faceted.report.cad.conical_faces, 0);
-    assert_eq!(
-        faceted
-            .report
-            .rounded_recognition
-            .as_ref()
-            .unwrap()
-            .report
-            .cones,
-        0
-    );
-    assert!(faceted.report.fidelity.is_some());
+    // C1b2 intentionally promotes this unchanged source: its two affine runs
+    // have interior rings at thirds and one uniquely proved shared boundary.
+    let adjacent =
+        convert_stl(&fixture("no_land.stl"), &options(ReconstructionMode::Auto)).unwrap();
+    assert_eq!(adjacent.report.cad.solids, 1);
+    assert_eq!(adjacent.report.cad.conical_faces, 2);
+    assert_eq!(adjacent.report.cad.faces, 5);
+    assert!(adjacent.report.fidelity.is_some());
     let o = options(ReconstructionMode::Surfaces);
     for path in ["m4_alternating_taper.stl", "m4_piecewise_taper.stl"] {
         let bytes = fs::read(

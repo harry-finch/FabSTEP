@@ -51,3 +51,9 @@ Validation documentaire reçue : A-030. Réserves de mise d’équerre : [A-029]
 ## Contrôle natif complémentaire
 
 Le 17 novembre, le pilotage natif a permis d’ouvrir `two_increasing.stl`, de constater le STEP validé, de sélectionner une face plane et de vérifier son profil DXF (32 × 32 mm, un trou), puis l’aller-retour STEP/source. Barre Essayer observée en anglais clair ; retour aux préférences françaises sombres effectué. Une consigne STEP répétée dans l’inspecteur est supprimée ; elle reste dans la vue 3D. Portée exacte et limites : V-1185. Les actions utilisateur restent ouvertes, sans acceptation déduite de ces contrôles.
+
+## Chantier géométrique en cours
+
+Demande du 17 novembre : poursuivre chaînes coniques, révolutions courbes, arrondis généraux et pièces complexes. Trois tranches bornées sont lancées : R-060 (deux cônes adjacents sans portée, rupture unique), R-061 (deux quarts de tore sur une portée cylindrique commune), R-062 (qualification des arêtes droites arrondies et du bac ouvert à coins verticaux). Corpus/test indépendants préparés avant modifications ; écritures des classificateurs et exécutions Cargo sérialisées. Les profils libres, coins triédriques, perçages sécants et rayons variables restent des suites distinctes, avec contrats supplémentaires à établir. Les trois lots passent la validation automatisée V-1186 : 459 tests workspace, 32 bureau, 208 UI, 12 Python et 4 SDK ; analyse statique, formatage et builds réussis. `artifacts/FabSTEP.app` reconstruit, empreinte vérifiée. Essais graphiques/Fusion ouverts ; R-062 qualifie des capacités existantes sans nouveau code de production.
+
+L’utilisateur a approuvé l’extension additive des perçages sécants (A-045). R-063 prépare un laboratoire isolé avant R-036 : le solide de référence se réimporte, mais les courbes d’intersection ne sont pas encore toutes certifiées dans le budget. Aucune nouvelle reconstruction de perçages sécants n’est activée dans l’application.

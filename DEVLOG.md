@@ -294,3 +294,12 @@ R-042 allège l’inspecteur, replie familles/provenance et métadonnées, met E
 ### 17 novembre — qualification native de l’inspecteur
 
 Accès natif rétabli : ouverture/conversion de two_increasing.stl, sélection plane, aperçu DXF et aller-retour source/STEP observés, français sombre et anglais clair. Retrait d’une consigne STEP répétée dans l’inspecteur, avec maintien de l’aide dans le viewport. Svelte et build macOS passent ; portée et limites V-1185. Statut Git documentaire corrigé après les trois commits poussés. Aucun nouveau jalon accepté à la place de l’utilisateur.
+
+
+### 17 novembre — géométries composées et pièces creuses
+
+R-060 ajoute une rupture source unique entre deux cônes adjacents, avec témoins et marges de pente ; les lois affines historiques gardent la priorité. R-061 ajoute deux quarts de tore extérieurs autour d’une portée commune, dont le rayon est fixé une seule fois puis vérifié contre la source. Revues indépendantes acceptées, ADR-0032/0033. R-062 qualifie les arêtes locales arrondies et le bac ouvert avec fond, par corpus indépendant et sondes matière/vide ; aucun changement de production nécessaire pour ce lot.
+
+Validation V-1186 : 459 tests workspace, 32 bureau, 208 UI, 12 Python et 4 SDK ; contrôle séquentiel complet, analyse statique et build macOS réussis. 48 fichiers des corpus inchangés après régénération. Essais utilisateur et Fusion restent distincts. L’accord structurel A-045 autorise les perçages sécants ; le laboratoire R-063 reste séparé de la conversion pendant la qualification continue des courbes réimportées.
+
+F0 : prototype et tests élémentaires livrés, revue indépendante PARTIAL et rejeu orchestrateur conformes (sortie 2). Certificat global non obtenu : budget et périodique restent ouverts ; aucune activation dans l’application. Preuves V-1187.
