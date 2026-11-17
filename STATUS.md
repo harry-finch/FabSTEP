@@ -126,3 +126,10 @@ Auto et Surfaces reconnaissent la chaîne à raccord tangent et anneaux source p
 Sur Flansch, la zone de 64 080 triangles devient un tore, un cône et un cylindre. Le total passe de **501 912 à 439 738 faces**, encore au-dessus du plafond de 100 000 : **aucun STEP**, validation native source non atteinte. Aucun seuil relevé ; parcours des composantes allégé sans changer leurs membres. Preuves et mesures dans V-1199, décision ADR-0035.
 
 **510 tests workspace, 50 bureau, 8 helper, 74 ciblés large-stl, un transfert réel, 229 UI, 12 Python et quatre SDK réussis** ; formatage, Clippy, Svelte et builds passent. `artifacts/FabSTEP.app` reconstruit, empreintes des deux exécutables vérifiées. R-075 à tester via A-065 et A-066 ; aucun nouvel essai graphique ni Fusion revendiqué, release 1.0.0 inchangée.
+
+
+## Poursuite C1b2/C2/D/E/F/G
+
+L’ensemble est autorisé ; R-076 traite les trois autres raccords courbes mesurés sur Flansch, R-077 le bac percé, R-078 les chaînes coniques adjacentes/mélangées et R-079 prépare les contrats des raccords locaux. Ces travaux n’impliquent pas l’acceptation des essais utilisateur ouverts.
+
+Le laboratoire R-063 passe désormais les certificats des trois courbes natives et de leurs cycles, à 1e-5 et 1e-7 mm, dans les budgets inchangés. Volume idéal encadré, volume OCCT adaptatif mesuré ; revue indépendante et rejeu identique réussis (V-1200). La conversion depuis un STL et le contrat de production R-036 restent à intégrer.

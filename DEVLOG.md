@@ -386,3 +386,8 @@ Portée approuvée via A-064. Détecteur borné après les chemins historiques, 
 Le premier essai Flansch épuisait le budget partagé après reconnaissance du raccord. Retrait des auto-visites inutiles dans le parcours des composantes, avec équivalence des membres testée et budget inchangé. Le helper propre termine la reconnaissance en 66,561 s : 439 738 faces contre 501 912, puis refus au plafond de 100 000. La sonde d’attribution confirme exactement les 64 080 triangles vers trois surfaces, sans débordement ; aucun STEP complet ni validation native source de Flansch. Mesures, bornes et limites dans V-1199 ; ADR-0035 conserve la décision.
 
 Suite globale réussie : 510 workspace, 50 bureau, 8 helper, 74 ciblés large-stl, un transfert réel, 229 UI, 12 Python, quatre SDK ; formatage, Clippy strict, Svelte et builds passent. Paquet local reconstruit et deux binaires vérifiés. R-075 à tester via A-065/A-066, sans nouvel essai graphique/Fusion ni modification de la release. Les chaînes à deux cônes et arcs de 100° restent des suites distinctes.
+
+
+## 2026-11-17 — R-063 : preuves natives des perçages sécants
+
+Poursuite de l’ensemble C1b2/C2/D/E/F/G autorisée. Le laboratoire F0 franchit ses blocages de bornes continues et de périodicité par Hermite d’ordre quatre, déroulement exact des données spline et couverture orientée par intervalles. Les budgets et seuils restent inchangés ; volume idéal encadré par série à reste majoré. Revue distincte puis rejeu de l’orchestrateur PASS, rapport identique. V-1200 conserve les chiffres et les limites : aucun STL reconnu ni contrat de production intégré, volume adaptatif OCCT seulement mesuré. R-063 à tester pour son bilan ; les travaux C2 et E2 continuent indépendamment.

@@ -15,3 +15,8 @@ Source : [ancienne feuille de route](../../docs/ROADMAP-avant-fabboard.md). Les 
 ## Poursuite demandée le 17 novembre
 
 Première qualification locale lancée dans R-062 ; les coins à trois branches restent ici.
+
+
+## Poursuite globale autorisée
+
+L’utilisateur confirme que l’objectif est de réaliser l’ensemble C1b2, C2, D, E, F et G et autorise la poursuite du chantier. Les tranches déjà développées restent à tester ; cet accord ne remplace pas leur acceptation ni les preuves géométriques. Les travaux sont décomposés en extensions bornées, corpus indépendants et vérifications natives. Les changements structurants encore indéfinis seront présentés lorsqu’un contrat concret est établi ; l’accord sur les perçages sécants A-045 reste acquis.

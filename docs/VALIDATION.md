@@ -1590,3 +1590,18 @@ La revue indépendante du détecteur, de ses preuves, du budget et de l’orient
 `scripts/build-macos-dev.sh` termine avec code 0. Le paquet `artifacts/FabSTEP.app` contient les deux exécutables reconstruits, identiques octet pour octet aux sorties vérifiées : SHA-256 bureau `246284674a12c0b2ece55fdb1f4aa57c216ad56acb7081560479743c18e2f15f`, helper `cf837b535a105b067b6a1f2a42b7d79bad9c8cf793d457f645d656a1a7f05c3f`. Traces `build-app.log` et `bundle-hashes.json` dans `artifacts/r075/`. La release 1.0.0 reste inchangée.
 
 Aucun nouvel essai graphique ni Fusion exécuté : R-075 reste à tester, actions A-065 et A-066. Les autres chaînes et le coût de validation native de Flansch restent ouverts ; cette livraison ne produit pas de STEP complet pour ce fichier.
+
+
+## V-1200 — R-063 : certificat complet du laboratoire de perçages sécants
+
+Poursuite globale autorisée après R-075. Le laboratoire de V-1187 passe désormais sur la même référence fixe : cube de côté 20 mm, perçages centrés orthogonaux de rayons 3 et 6 mm. Aucun code de conversion ni contrat de production activé. Les seuls changements de calcul sont dans `scripts/cross_drill_certificate.hxx` et `scripts/qualify-cross-drill.cpp`.
+
+La borne entre courbe 3D et courbe paramétrique relevée utilise l’interpolation d’Hermite aux extrémités et un reste d’ordre quatre majoré par intervalles. Les splines périodiques sont déroulées depuis leurs nœuds et pôles originaux ; aucun réajustement flottant non borné. La couverture des cycles orientés inclut les arcs de jonction dans une somme d’intervalles isolant le degré ±1. Les 56 opérations supplémentaires de cette couverture sont comptées dans le budget partagé de dix millions, qui reste inchangé.
+
+Réimport : un solide, six plans, trois faces cylindriques et 36 sondes matière/vide conformes. À 1e-5 mm, les trois arêtes sont certifiées en **208 feuilles et 2 005 451 opérations** ; borne pcurves ≤ 9,65528e-6 mm, branches ≤ 7,45230e-8 mm. À 1e-7 mm, **605 feuilles et 5 489 909 opérations**, pcurves ≤ 9,97982e-8 mm et branches ≤ 7,06643e-8 mm. Ces certificats portent sur les courbes réellement réimportées et leurs paramètres, pas sur la reconstruction d’un STL.
+
+Le volume idéal possède désormais un encadrement par série binomiale à 20 termes, avec reste majoré et opérations par intervalles : **[5500,8952492145254 ; 5500,895249214539] mm³**. Le volume natif adaptatif mesuré vaut **5500,895249460223 mm³** ; sa comparaison reste un contrôle numérique à la tolérance du laboratoire, pas un certificat du calcul OCCT. Le volume non adaptatif **5500,898895086297 mm³** reste distinct et ne convient pas à la garde actuelle de production. R-036 devra donc résoudre explicitement ce contrat de volume.
+
+Les contrôles indépendants passent en 11 256 opérations : arithmétique, splines exactes, corruption intérieure d’Hermite, périodique cubique non uniforme comparée à OCCT D0 aux nœuds et milieux, couverture et tour doublé. Les adversaires natifs passent également : pôle 3D déplacé, pcurve décalée, couture périodique modifiée, poids invalide et budget épuisé. `--inspect-only` ne revendique aucun certificat.
+
+Revue mathématique indépendante PASS après les corrections de comptage et les témoins périodiques. Rejeu natif de l’orchestrateur : sortie 0, rapport identique octet pour octet au passage de l’auteur (`artifacts/r076-f0/root/report.json`). Les traces de compilation, exécution, replay et inspection restent dans `artifacts/r076-f0/`. Pas de nouvelle suite Cargo pour ce laboratoire isolé, pas d’essai Fusion ni de modification de FabSTEP.app pour R-063 seul. L’intégration source/core/CAD R-036 reste à développer.

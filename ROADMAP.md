@@ -6,7 +6,7 @@ L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée i
 
 L’ordre des lots restants reprend le document d’origine ; les priorités et dépendances exprimées dans leurs textes restent applicables. Aucun nouveau développement n’est autorisé par cette migration.
 
-**Avancement : 22 livrés sur 75** (29 %)
+**Avancement : 22 livrés sur 79** (28 %)
 
 ## Restant à faire
 
@@ -16,7 +16,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Reconstruire un profil exact arc–ligne–arc, avec deux congés toriques et une portée cylindrique commune.
 3. **[R-062 D1–E1 — arêtes arrondies et bac ouvert](roadmap/items/R-062-d1-e1-aretes-arrondies-et-bac-ouvert.md)** · À tester · jalon post-v1
    Qualifier les arrondis cylindriques locaux et les bacs ouverts à coins verticaux arrondis, avec fond et vide source conservés.
-4. **[R-063 F0 — qualifier les courbes des perçages sécants](roadmap/items/R-063-f0-qualifier-les-courbes-des-percages-secants.md)** · En cours · jalon post-v1
+4. **[R-063 F0 — qualifier les courbes des perçages sécants](roadmap/items/R-063-f0-qualifier-les-courbes-des-percages-secants.md)** · À tester · jalon post-v1
    Vérifier dans un laboratoire natif borné les courbes et paramètres de deux cylindres orthogonaux après réimport STEP, avant intégration du contrat R-036.
 5. **[R-032 C1b1 — chaînes coniques de même signe avec portées](roadmap/items/R-032-c1b-chaines-sans-portee-ou-de-meme-signe.md)** · À tester · jalon post-v1
    Reconnaître deux à huit cônes de signes libres séparés par des portées cylindriques prouvées ; conserver les garde-fous contre les fausses ruptures.
@@ -116,6 +116,14 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    La sonde R-072 rapporte une empreinte physique de 6.9G malgré un RSS maximal échantillonné de 2,35 Gio. Comparer les métriques macOS et qualifier une surveillance adaptée avant toute augmentation de capacité ; préserver arrêt et nettoyage du helper.
 53. **[R-075 Reconstruire un raccord tore–cône–cylindre prouvé](roadmap/items/R-075-reconstruire-un-raccord-tore-cone-cylindre.md)** · À tester · jalon post-v1
    Première extension issue de R-074 : reconstruire la zone de 64 080 triangles par trois surfaces, avec raccord tangent prouvé et bandes à deux anneaux. Contrat de données inchangé ; règle de preuve approuvée pour implémentation, sans promesse de convertir Flansch entier.
+54. **[R-076 C2b — chaînes toriques composées et arcs au-delà de 90°](roadmap/items/R-076-c2b-chaines-toriques-composees-et-arcs-au-dela.md)** · En cours · jalon post-v1
+   Reconstruire les trois autres zones courbes mesurées sur Flansch : raccord à deux cônes et arcs de 100°, avec frontières source et preuves continues.
+55. **[R-077 E2 — bac ouvert avec perçage du fond](roadmap/items/R-077-e2-bac-ouvert-avec-percage-du-fond.md)** · En cours · jalon post-v1
+   Qualifier un bac à coins arrondis avec un trou traversant le fond, sans remplir la cavité ni perdre les parois.
+56. **[R-078 C1b2b — chaînes coniques adjacentes et mixtes](roadmap/items/R-078-c1b2b-chaines-coniques-adjacentes-et-mixtes.md)** · En cours · jalon post-v1
+   Reconstruire deux à huit cônes adjacents ou mêlés à des portées, avec une décomposition unique prouvée par les anneaux source.
+57. **[R-079 D2–G0 — qualifier les raccords locaux et le rayon linéaire](roadmap/items/R-079-d2-g0-qualifier-les-raccords-locaux-et-le-rayon.md)** · En cours · jalon post-v1
+   Établir les preuves et le contrat minimum pour un coin à trois arrondis et une enveloppe à rayon linéaire avant intégration.
 
 ## Actions à faire
 
@@ -178,6 +186,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-063](roadmap/actions/A-063-verifier-l-annulation-apres-la-correction-du.md) Vérifier l’annulation après la correction du suivi mémoire (tester, R-073)
 - [ ] [A-065](roadmap/actions/A-065-examiner-le-raccord-tore-cone-cylindre-dans.md) Examiner le raccord tore–cône–cylindre dans FabSTEP (tester, R-075)
 - [ ] [A-066](roadmap/actions/A-066-verifier-le-raccord-tore-cone-cylindre-dans.md) Vérifier le raccord tore–cône–cylindre dans Fusion (tester, R-075)
+- [ ] [A-067](roadmap/actions/A-067-examiner-le-bilan-certifie-des-percages-secants.md) Examiner le bilan certifié des perçages sécants (valider, R-063)
 
 ## Livré
 

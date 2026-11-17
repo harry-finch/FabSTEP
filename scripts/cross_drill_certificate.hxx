@@ -26,6 +26,7 @@
 #include <exception>
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace cross_drill_lab {
@@ -253,21 +254,45 @@ inline V endpoint(const Net& n,bool last) {
   const std::size_t i=last?n[0].size()-1:0;
   return {n[0][i]/n[3][i],n[1][i]/n[3][i],n[2][i]/n[3][i]};
 }
-struct Derivatives { V value,first,second; };
-inline Derivatives rational(const Net& n) {
-  const I w=hull(n[3]);
-  if(w.lo<=0.) throw Failure{"nonpositive_weight_hull"};
-  const I dw=hull(derivative(n[3])),ddw=hull(derivative(derivative(n[3])));
-  Derivatives d;
-  for(int j=0;j<3;++j) {
-    d.value[j]=hull(n[j])/w;
-    d.first[j]=(hull(derivative(n[j]))-d.value[j]*dw)/w;
-    d.second[j]=(hull(derivative(derivative(n[j])))-I(2.)*d.first[j]*dw-d.value[j]*ddw)/w;
+// Derivatives on the normalized Bernstein interval [0,1]. Differentiating
+// N = W*C gives each rational derivative in terms of lower orders.
+struct Jet {
+  std::array<V,5> range;
+  std::array<V,2> point, tangent;
+};
+inline Jet jet(const Net& n) {
+  std::array<Net,5> derivatives;
+  derivatives[0]=n;
+  Jet out;
+  std::array<I,5> weights;
+  for(int order=0;order<=4;++order) {
+    if(order)for(int c=0;c<4;++c)derivatives[order][c]=derivative(derivatives[order-1][c]);
+    weights[order]=hull(derivatives[order][3]);
+    if(weights[0].lo<=0.)throw Failure{"nonpositive_weight_hull"};
+    for(int c=0;c<3;++c) {
+      I value=hull(derivatives[order][c]);
+      for(int k=1;k<=order;++k)
+        value=value-I(binomial(order,k))*weights[k]*out.range[order-k][c];
+      out.range[order][c]=value/weights[0];
+    }
   }
-  return d;
+  for(int end=0;end<2;++end) {
+    const auto i=end?n[0].size()-1:0, j=end?derivatives[1][0].size()-1:0;
+    out.point[end]=endpoint(n,end);
+    for(int c=0;c<3;++c)out.tangent[end][c]=(derivatives[1][c][j]
+      -derivatives[1][3][j]*out.point[end][c])/n[3][i];
+  }
+  return out;
 }
 
-struct RawSpline { int degree=0; std::vector<double> knots; std::vector<std::array<I,4>> poles; };
+struct RawSpline {
+  int degree=0;
+  std::vector<double> knots;
+  std::vector<std::array<I,4>> poles;
+  // Only exterior periodic knots need interval-valued translation by a period.
+  std::vector<I> knot_bounds;
+  I knot(int i) const {return knot_bounds.empty()?I(knots[i]):knot_bounds[i];}
+};
 inline void validate(RawSpline& s) {
   if(s.degree<1 || s.degree>8 || s.poles.size()<2 || s.poles.size()>2048 || s.knots.size()!=s.poles.size()+s.degree+1 || s.knots.size()>4096)
     throw Failure{"unsupported_spline_size_or_degree"};
@@ -295,6 +320,44 @@ inline std::array<I,4> homogeneous(gp_Pnt p,double weight,const gp_Trsf& tr) {
   }
   out[3]=w; return out;
 }
+// OCCT's periodic flat sequence extends the principal domain by
+// degree+1-multiplicity(1) knots at either end. The extra poles repeat the
+// first poles cyclically. Enclose the exact translations and the stored
+// binary64 flat knots. Never convert or refit a periodic curve.
+template<class Spline>
+inline void spline_knots(RawSpline& out,const Spline& spline) {
+  out.degree=spline->Degree();
+  const auto& flat=spline->KnotSequence();
+  if(flat.Length()>4096)throw Failure{"knot_budget"};
+  for(int i=flat.Lower();i<=flat.Upper();++i)out.knots.push_back(flat(i));
+  if(!spline->IsPeriodic())return;
+  const int count=spline->NbPoles(),extra=out.degree+1-spline->Multiplicity(1);
+  if(extra<=0 || extra>count || count+extra>2048 ||
+     flat.Length()!=count+extra+out.degree+1)throw Failure{"unsupported_periodic_layout"};
+  for(double k:out.knots)out.knot_bounds.emplace_back(k);
+  const I period=I(spline->Knot(spline->NbKnots()))-I(spline->Knot(1));
+  if(period.lo<=0.)throw Failure{"unresolved_period"};
+  auto enclose=[&](int i,I exact){
+    out.knot_bounds[i]=I(std::min(out.knots[i],exact.lo),std::max(out.knots[i],exact.hi));
+  };
+  for(int j=0;j<extra;++j) {
+    enclose(j,I(out.knots[count+j])-period);
+    const int last=static_cast<int>(flat.Length())-extra+j;
+    enclose(last,I(out.knots[last-count])+period);
+    const auto repeated=out.poles[j];
+    out.poles.push_back(repeated);
+  }
+  // Distinct translated knots must still be strictly ordered. A repeated
+  // exterior value is allowed only for the same underlying principal knot.
+  for(int i=1;i<flat.Length();++i) {
+    if(out.knot_bounds[i-1].hi<out.knot_bounds[i].lo)continue;
+    const int tail=flat.Length()-extra;
+    if(out.knots[i-1]!=out.knots[i] || i==extra || i==tail ||
+       (i<extra && out.knots[count+i-1]!=out.knots[count+i]) ||
+       (i>tail && out.knots[i-count-1]!=out.knots[i-count]))
+      throw Failure{"unresolved_periodic_knot_spacing"};
+  }
+}
 inline RawSpline curve3(const TopoDS_Edge& edge,double& first,double& last) {
   TopLoc_Location loc;
   Handle(Geom_Curve) curve=BRep_Tool::Curve(edge,loc,first,last);
@@ -303,12 +366,9 @@ inline RawSpline curve3(const TopoDS_Edge& edge,double& first,double& last) {
   const auto spline=Handle(Geom_BSplineCurve)::DownCast(curve);
   const auto bezier=Handle(Geom_BezierCurve)::DownCast(curve);
   if(!spline.IsNull()) {
-    if(spline->IsPeriodic() || spline->Degree()>8 || spline->NbPoles()>2048 || spline->NbKnots()>2048) throw Failure{"unsupported_native_3d_spline"};
-    out.degree=spline->Degree();
-    for(int i=1;i<=spline->NbKnots();++i) for(int j=0;j<spline->Multiplicity(i);++j) {
-      if(out.knots.size()>=4096)throw Failure{"knot_budget"};out.knots.push_back(spline->Knot(i));
-    }
+    if(spline->Degree()>8 || spline->NbPoles()>2048 || spline->NbKnots()>2048) throw Failure{"unsupported_native_3d_spline"};
     for(int i=1;i<=spline->NbPoles();++i)out.poles.push_back(homogeneous(spline->Pole(i),spline->Weight(i),loc.Transformation()));
+    spline_knots(out,spline);
   } else if(!bezier.IsNull()) {
     if(bezier->Degree()>8)throw Failure{"unsupported_bezier_degree"};out.degree=bezier->Degree();
     out.knots.insert(out.knots.end(),out.degree+1,0.);out.knots.insert(out.knots.end(),out.degree+1,1.);
@@ -327,10 +387,9 @@ inline RawSpline curve2(const TopoDS_Edge& edge,const TopoDS_Face& face,double f
   const auto line=Handle(Geom2d_Line)::DownCast(curve);
   auto pole=[](gp_Pnt2d p,double weight) {const I w(weight);return std::array<I,4>{I(p.X())*w,I(p.Y())*w,I(0.),w};};
   if(!spline.IsNull()) {
-    if(spline->IsPeriodic() || spline->Degree()>8 || spline->NbPoles()>2048 || spline->NbKnots()>2048)throw Failure{"unsupported_native_pcurve_spline"};
-    out.degree=spline->Degree();
-    for(int i=1;i<=spline->NbKnots();++i) for(int j=0;j<spline->Multiplicity(i);++j) {if(out.knots.size()>=4096)throw Failure{"knot_budget"};out.knots.push_back(spline->Knot(i));}
+    if(spline->Degree()>8 || spline->NbPoles()>2048 || spline->NbKnots()>2048)throw Failure{"unsupported_native_pcurve_spline"};
     for(int i=1;i<=spline->NbPoles();++i)out.poles.push_back(pole(spline->Pole(i),spline->Weight(i)));
+    spline_knots(out,spline);
   } else if(!bezier.IsNull()) {
     if(bezier->Degree()>8)throw Failure{"unsupported_pcurve_bezier_degree"};out.degree=bezier->Degree();
     out.knots.insert(out.knots.end(),out.degree+1,0.);out.knots.insert(out.knots.end(),out.degree+1,1.);
@@ -363,12 +422,12 @@ inline Net bernstein(const RawSpline& s,double a,double b) {
     for(int i=k-j;i<=k;++i) {
       const int index=i-(k-s.degree);Poly p(j+1,I(0.));
       if(!basis[index].empty() && s.knots[i+j]!=s.knots[i]) {
-        const I d=I(s.knots[i+j])-I(s.knots[i]);
-        p=add(p,times_linear(basis[index],(I(a)-I(s.knots[i]))/d,(I(b)-I(s.knots[i]))/d));
+        const I d=s.knot(i+j)-s.knot(i);
+        p=add(p,times_linear(basis[index],(I(a)-s.knot(i))/d,(I(b)-s.knot(i))/d));
       }
       if(index+1<=s.degree && !basis[index+1].empty() && s.knots[i+j+1]!=s.knots[i+1]) {
-        const I d=I(s.knots[i+j+1])-I(s.knots[i+1]);
-        p=add(p,times_linear(basis[index+1],(I(s.knots[i+j+1])-I(a))/d,(I(s.knots[i+j+1])-I(b))/d));
+        const I d=s.knot(i+j+1)-s.knot(i+1);
+        p=add(p,times_linear(basis[index+1],(s.knot(i+j+1)-I(a))/d,(s.knot(i+j+1)-I(b))/d));
       }
       next[index]=std::move(p);
     }
@@ -394,17 +453,31 @@ inline Cylinder cylinder(const TopoDS_Face& face) {
   const auto h=homogeneous(frame.Location(),1.,tr);
   return {{h[0],h[1],h[2]},vector(frame.XDirection()),vector(frame.YDirection()),vector(frame.Direction()),I(cyl->Radius())};
 }
-inline V lift(const Cylinder& c,V uv) {
-  const auto sc=trig(uv[0]);
-  return plus(c.origin,plus(scale(c.x,c.radius*sc[1]),plus(scale(c.y,c.radius*sc[0]),scale(c.z,uv[1]))));
-}
-inline double pcurve_bound(const Net& space,const Net& uv,const Cylinder& c) {
-  double endpoints=0.;
-  for(bool last:{false,true})endpoints=std::max(endpoints,norm(sub(endpoint(space,last),lift(c,endpoint(uv,last)))).hi);
-  const auto d=rational(space),p=rational(uv);
-  const I angular=square(p.first[0])+I(magnitude(p.second[0]));
-  const I m=norm(d.second)+c.radius*(norm(c.x)+norm(c.y))*angular+norm(c.z)*I(magnitude(p.second[1]));
-  return (I(endpoints)+m/I(8.)).hi;
+// For E(t) = C(t) - cylinder(u(t),v(t)), Hermite interpolation H of
+// values and first derivatives gives |E-H| <= sup |E^(4)| / 384.
+// The scalar remainder applies to every unit-vector projection, hence also
+// in Euclidean norm. The four Bernstein controls enclose H by convexity.
+inline double pcurve_bound(const Jet& space,const Jet& uv,const Cylinder& c) {
+  double controls=0.;
+  for(int end=0;end<2;++end) {
+    const auto sc=trig(uv.point[end][0]);
+    const V radial=plus(scale(c.x,sc[1]),scale(c.y,sc[0]));
+    const V angular=sub(scale(c.y,sc[1]),scale(c.x,sc[0]));
+    const V value=sub(space.point[end],plus(c.origin,
+      plus(scale(radial,c.radius),scale(c.z,uv.point[end][1]))));
+    const V slope=sub(space.tangent[end],plus(scale(angular,c.radius*uv.tangent[end][0]),
+      scale(c.z,uv.tangent[end][1])));
+    controls=std::max({controls,norm(value).hi,norm(plus(value,scale(slope,I(end?-1.:1.)/I(3.)))).hi});
+  }
+  const I u1(magnitude(uv.range[1][0])),u2(magnitude(uv.range[2][0])),
+          u3(magnitude(uv.range[3][0])),u4(magnitude(uv.range[4][0]));
+  // Fourth derivative of exp(i*u), after factoring exp(i*u), has real part
+  // u'^4-3*u''²-4*u'*u''' and imaginary part u''''-6*u'^2*u''.
+  const I angular=square(square(u1))+I(3.)*square(u2)+I(4.)*u1*u3
+                  +u4+I(6.)*square(u1)*u2;
+  const I m=norm(space.range[4])+c.radius*(norm(c.x)+norm(c.y))*angular
+            +norm(c.z)*I(magnitude(uv.range[4][1]));
+  return (I(controls)+m/I(384.)).hi;
 }
 struct State {
   Budget budget;
@@ -440,8 +513,9 @@ inline bool leaf(State& s,const std::array<Net,3>& nets) {
   if(phase_denominator.lo<=0.)return false;
   const I phase_speed=h/phase_denominator;
   if(magnitude(phase_speed)>=1.)return false; // <1 radian, unique phase lift.
-  const double p0=pcurve_bound(n,nets[1],s.surfaces[0]);
-  const double p1=pcurve_bound(n,nets[2],s.surfaces[1]);
+  const Jet space=jet(n);
+  const double p0=pcurve_bound(space,jet(nets[1]),s.surfaces[0]);
+  const double p1=pcurve_bound(space,jet(nets[2]),s.surfaces[1]);
   s.result.last_boundPcurves=std::max(p0,p1);
   if(bound>s.budget.tolerance_mm || std::max(p0,p1)>s.budget.tolerance_mm)return false;
   I a=angle(endpoint(n,false)),b=angle(endpoint(n,true));
@@ -510,6 +584,25 @@ inline Certificate certifyEdge(const TopoDS_Edge& edge,const TopoDS_Face& face1,
   return result;
 }
 
+// For this centered pair of through holes the common volume is
+// 8 r² R times the integral of cos²(u) sqrt(1-q sin²(u)), u in [0,pi/2].
+// Integrate the binomial series with q=(r/R)². The moments of
+// cos²(u)sin^(2k)(u) have ratio (2k+1)/(2k+4), and moment zero is pi/4.
+// All terms after the constant are negative and their ratios are at most q.
+inline certificate_detail::I idealVolume(double side,double small,double large) {
+  using namespace certificate_detail;
+  if(!(side>2.*large && large>=2.*small && small>0.))throw Failure{"unsupported_volume_domain"};
+  const I q=square(I(small)/I(large));
+  I term=pi()/I(4.),sum(0.);
+  for(int k=0;k<20;++k) {
+    sum=sum+term;
+    term=term*q*(I(k)-I(.5))/I(k+1)*ratio(2*k+1,2*k+4);
+  }
+  sum=sum+I(-(I(magnitude(term))/(I(1.)-q)).hi,0.);
+  return I(side)*square(I(side))-I(side)*pi()*(square(I(small))+square(I(large)))
+         +I(8.)*square(I(small))*I(large)*sum;
+}
+
 struct SelfTestResult { bool ok=false; std::string reason; std::size_t work=0; };
 // Independent exact low-degree examples exercise arithmetic, original-knot
 // extraction, and a genuinely accepted continuous 3D+pcurve+phase bound. They
@@ -542,6 +635,57 @@ inline SelfTestResult selfTest() {
     const V mid1=endpoint(split(first)[0],true),mid2=endpoint(split(second)[0],true);
     require(contains(mid1[0],.875)&&contains(mid1[1],.5),"selftest_first_span_midpoint");
     require(contains(mid2[0],2.125)&&contains(mid2[1],-.5),"selftest_second_span_midpoint");
+    // Independent quadratic uniform periodic example. The basis on the
+    // first span [0,1] has controls (P1+P2)/2, P2, (P2+P3)/2.
+    TColgp_Array1OfPnt cyclicPoles(1,4);
+    TColStd_Array1OfReal cyclicKnots(1,5);
+    TColStd_Array1OfInteger cyclicMult(1,5);
+    for(int i=1;i<=4;++i) cyclicPoles.SetValue(i,gp_Pnt(i*i,0.,0.));
+    for(int i=1;i<=5;++i){cyclicKnots.SetValue(i,i-1);cyclicMult.SetValue(i,1);}
+    Handle(Geom_BSplineCurve) periodic=new Geom_BSplineCurve(cyclicPoles,cyclicKnots,cyclicMult,2,true);
+    RawSpline cycle;
+    for(int i=1;i<=4;++i)cycle.poles.push_back({I(i*i),I(0.),I(0.),I(1.)});
+    spline_knots(cycle,periodic);
+    validate(cycle);
+    const Net start=bernstein(cycle,0.,1.),finish=bernstein(cycle,3.,4.);
+    require(periodic->Value(0.).X()==2.5 && periodic->Value(4.).X()==2.5 &&
+            periodic->Value(.5).X()==4.25 && periodic->Value(3.5).X()==3.25,
+            "selftest_periodic_occt_control_order");
+    for(const auto& test:std::array<std::pair<const Net*,std::array<double,3>>,2>{{
+      {&start,{2.5,4.,6.5}},{&finish,{8.5,1.,2.5}}}}) {
+      for(std::size_t i=0;i<3;++i)
+        require(contains((*test.first)[0][i]/(*test.first)[3][i],test.second[i]),"selftest_periodic_bernstein_controls");
+    }
+    // Nonuniform cyclic spline with different seam/interior multiplicities.
+    // Compare OCCT evaluation, including the seam and every span midpoint,
+    // with the outward-rounded nets obtained from the native flat sequence.
+    TColgp_Array1OfPnt variablePoles(1,6);
+    TColStd_Array1OfReal variableKnots(1,5);
+    TColStd_Array1OfInteger variableMult(1,5);
+    const std::array<double,5> parameters{0.,.125,.375,.75,1.};
+    const std::array<int,5> multiplicities{2,1,2,1,2};
+    RawSpline variable;
+    for(int i=1;i<=6;++i) {
+      const gp_Pnt p(i*i,i*(7-i),i%3);
+      variablePoles.SetValue(i,p);
+      variable.poles.push_back({I(p.X()),I(p.Y()),I(p.Z()),I(1.)});
+    }
+    for(int i=1;i<=5;++i){
+      variableKnots.SetValue(i,parameters[i-1]);variableMult.SetValue(i,multiplicities[i-1]);
+    }
+    Handle(Geom_BSplineCurve) nonuniform=new Geom_BSplineCurve(variablePoles,variableKnots,variableMult,3,true);
+    spline_knots(variable,nonuniform);validate(variable);
+    for(std::size_t i=0;i+1<parameters.size();++i) {
+      const double a=parameters[i],b=parameters[i+1];
+      const Net net=bernstein(variable,a,b);
+      const auto halves=split(net);
+      const std::array<V,3> values{endpoint(net,false),endpoint(halves[0],true),endpoint(net,true)};
+      for(int j=0;j<3;++j) {
+        const gp_Pnt native=nonuniform->Value(a+j*(b-a)*.5);
+        for(int c=0;c<3;++c)
+          require(contains(values[j][c],native.Coord(c+1)),"selftest_nonuniform_native_periodic_phase");
+      }
+    }
     // C(t)=(3,e*t,6), e=2^-14, is within O(e²) of both exact
     // cylinders. Its pcurves are the independent linear angle approximations.
     const double e=std::ldexp(1.,-14);
@@ -555,6 +699,14 @@ inline SelfTestResult selfTest() {
     State positive{budget,counter,{},false,I(0.),3.,6.,surfaces};
     require(leaf(positive,nets),"selftest_positive_local_certificate");
     require(positive.result.sign==1&&positive.result.phase_direction==1&&positive.result.bound3d<1e-7&&positive.result.boundPcurves<1e-7,"selftest_positive_quantities");
+    // Perturb only the middle quartic pole. Its endpoint values and
+    // first derivatives remain unchanged. The interior error at t=1/2
+    // is 6/16 times 0.01 in the axial direction.
+    Net interior;
+    for(int c=0;c<4;++c)for(int i=0;i<=4;++i)
+      interior[c].push_back(nets[1][c][0]+I(i)/I(4.)*(nets[1][c][1]-nets[1][c][0]));
+    interior[1][2]=interior[1][2]+I(.01);
+    require(pcurve_bound(jet(nets[0]),jet(interior),surfaces[0])>=.00375,"selftest_hermite_interior_corruption");
     auto wrong=nets;
     for(I& v:wrong[1][1])v=v+I(.01);
     State adversary{budget,counter,{},false,I(0.),3.,6.,surfaces};
@@ -563,7 +715,7 @@ inline SelfTestResult selfTest() {
     for(I& v:wrong[0][0])v=v+I(.01);
     State displaced{budget,counter,{},false,I(0.),3.,6.,surfaces};
     require(!leaf(displaced,wrong),"selftest_curve_corruption_not_rejected");
-    out.ok=true;out.reason="interval_cox_bernstein_and_positive_continuous_local_certificate_passed";
+    out.ok=true;out.reason="interval_periodic_bernstein_hermite_and_positive_continuous_local_certificate_passed";
   } catch(const Failure& error) {out.reason=error.reason;}
     catch(const std::exception&) {out.reason="selftest_exception";}
   out.work=counter.work;return out;

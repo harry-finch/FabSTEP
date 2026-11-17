@@ -2,7 +2,7 @@
 id: R-063
 titre: "F0 — qualifier les courbes des perçages sécants"
 resume: "Vérifier dans un laboratoire natif borné les courbes et paramètres de deux cylindres orthogonaux après réimport STEP, avant intégration du contrat R-036."
-statut: en-cours
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-17
 maj: 2026-11-17
@@ -42,3 +42,8 @@ Accord A-045 obtenu. SDK OCCT existant ; aucune nouvelle dépendance. R-060 à R
 ## Avancement — 17 novembre 2026
 
 Laboratoire implémenté, **PARTIAL** (V-1187). Réimport : un solide, six plans et trois faces cylindriques ; sondes et tests élémentaires positifs passent. Le certificat de la première arête épuise le budget global avant de couvrir la branche ; les splines périodiques demandent également un traitement borné. Aucune activation dans l’application, aucun contrat de production ajouté. Reste à réduire le coût des bornes continues, traiter le périodique et qualifier le calcul du volume avant R-036. Il n’y a pas de nouvel arbitrage utilisateur bloquant : A-045 est obtenu.
+
+
+## Résultat de la reprise
+
+V-1200 remplace le constat courant PARTIAL de V-1187 : les trois courbes réimportées, y compris la périodique, et leurs cycles passent les certificats à 1e-5 et 1e-7 mm dans le budget inchangé. Référence analytique de volume encadrée ; volume OCCT adaptatif mesuré séparément. Revue indépendante et rejeu natif identique par l’orchestrateur PASS. Aucun chemin de conversion activé ; R-036 doit encore prouver le maillage source et intégrer le contrat et le contrôle de volume.

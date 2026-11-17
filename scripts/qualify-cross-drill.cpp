@@ -114,42 +114,89 @@ struct Coverage {
   double bound=std::numeric_limits<double>::infinity();
   std::string reason;
 };
-Coverage coverBranch(const std::vector<cross_drill_lab::Certificate>& certs,int branch,double tolerance) {
+struct CycleArc {int from,to,branch; bool forward;};
+Coverage coverBranch(const std::vector<cross_drill_lab::Certificate>& certs,
+                     const std::vector<CycleArc>& arcs,int branch,double tolerance) {
+  using cross_drill_lab::certificate_detail::I;
+  using cross_drill_lab::certificate_detail::magnitude;
+  using cross_drill_lab::certificate_detail::middle;
+  using cross_drill_lab::certificate_detail::root;
+  using cross_drill_lab::certificate_detail::square;
   Coverage result;
-  std::vector<std::array<double,2>> intervals;
-  double worst=0.,totalLo=0.,totalHi=0.;
-  const double roundGuard=256.*std::numeric_limits<double>::epsilon()*pi;
-  for(const auto& c:certs) {
-    if(!c.ok) {result.reason="one edge lacks a continuous certificate";return result;}
-    if(c.sign!=branch) continue;
-    if(!c.phase_monotone) {result.reason="one edge lacks a continuous certificate";return result;}
-    const bool forward=c.phase_last>c.phase_first;
-    const double lo=forward?c.phase_first_hi:c.phase_last_hi;
-    const double hi=forward?c.phase_last_lo:c.phase_first_lo;
-    const double outerLo=forward?c.phase_first_lo:c.phase_last_lo;
-    const double outerHi=forward?c.phase_last_hi:c.phase_first_hi;
-    if(!(hi>lo)||hi-lo>2.*pi+roundGuard) {result.reason="unresolved edge phase extent";return result;}
-    totalLo+=std::max(0.,hi-lo-roundGuard);totalHi+=outerHi-outerLo+roundGuard;
+  std::map<int,I> incoming,outgoing;
+  std::map<int,int> next;
+  I winding(0.);
+  int direction=0;
+  double worst=0.;
+  if(arcs.size()!=certs.size()){result.reason="missing edge incidence";return result;}
+  for(std::size_t i=0;i<arcs.size();++i) {
+    const auto& arc=arcs[i];
+    if(arc.branch!=branch)continue;
+    const auto& c=certs[i];
+    if(!c.ok || !c.phase_monotone || c.sign!=branch || std::abs(c.phase_direction)!=1) {
+      result.reason="missing or inconsistent edge certificate";return result;
+    }
+    const int sign=arc.forward?c.phase_direction:-c.phase_direction;
+    if(direction && direction!=sign){result.reason="inconsistent oriented phase";return result;}
+    direction=sign;
+    I first(c.phase_first_lo,c.phase_first_hi),last(c.phase_last_lo,c.phase_last_hi);
+    if(!arc.forward)std::swap(first,last);
+    if(!incoming.emplace(arc.to,last).second || !outgoing.emplace(arc.from,first).second){
+      result.reason="multiple incoming or outgoing edges at vertex";return result;
+    }
+    next.emplace(arc.from,arc.to);
+    winding=winding+(last-first);
     worst=std::max(worst,c.bound3d);
-    double start=lo-std::floor(lo/(2.*pi))*(2.*pi),end=start+hi-lo;
-    if(end>2.*pi) {intervals.push_back({start,2.*pi});intervals.push_back({0.,end-2.*pi});}
-    else intervals.push_back({start,end});
   }
-  if(intervals.empty()) {result.reason="branch absent";return result;}
-  std::sort(intervals.begin(),intervals.end());
-  double gap=0.,end=intervals[0][1];
-  for(size_t i=1;i<intervals.size();++i) {gap=std::max(gap,intervals[i][0]-end);end=std::max(end,intervals[i][1]);}
-  gap=std::max(gap,intervals[0][0]+2.*pi-end)+roundGuard;
-  const double a=std::sqrt(R*R-r*r),speed=std::hypot(r,r*r/(2.*a));
+  if(next.empty()){result.reason="branch absent";return result;}
+  const I halfTurn=cross_drill_lab::certificate_detail::pi(),turn=I(2.)*halfTurn;
+  const int start=next.begin()->first;
+  int vertex=start;
+  double gap=0.;
+  for(std::size_t i=0;i<next.size();++i) {
+    if(!next.count(vertex) || !incoming.count(vertex) || (i && vertex==start)){
+      result.reason="branch disconnected";return result;
+    }
+    // Close each topological vertex along the unique short angular arc
+    // between the actual certified endpoints. The candidate integer lift
+    // is accepted only if its entire difference lies strictly inside ±pi.
+    const I difference=outgoing.at(vertex)-incoming.at(vertex);
+    const double k=std::nearbyint(middle(difference)/middle(turn));
+    const I bridge=difference-I(k)*turn;
+    if(magnitude(bridge)>=halfTurn.lo){result.reason="ambiguous vertex phase";return result;}
+    gap=std::max(gap,magnitude(bridge));
+    winding=winding+bridge;
+    vertex=next.at(vertex);
+  }
+  if(vertex!=start){result.reason="branch not closed";return result;}
+  // The lifted paths plus bridges form a closed angular path, so their sum
+  // is an integer turn. Isolate exactly +1 or -1, excluding duplicated turns.
+  const I oriented=I(direction)*winding;
+  if(oriented.lo<=halfTurn.hi || oriented.hi>=(I(3.)*halfTurn).lo){
+    result.reason="winding differs from one";return result;
+  }
+  // An ideal point in a bridge is at most half its angular length from a
+  // proved endpoint. Bound the speed on the exact cylinder intersection.
+  const I zmin=root(square(I(R))-square(I(r)));
+  const I speed=root(square(I(r))+square(square(I(r))/(I(2.)*zmin)));
   result.gap=gap;
-  result.bound=worst+speed*gap/2.+roundGuard;
-  // Topological closure is checked separately. The intervals must describe
-  // exactly one turn; a gap is charged as a genuine geometric error.
-  const double phaseBudget=2.*tolerance/speed;
-  result.ok=totalLo<=2.*pi+phaseBudget&&totalHi>=2.*pi-phaseBudget&&result.bound<=tolerance;
-  result.reason=result.ok?"one closed degree-one branch, gaps included in bound":"phase coverage, winding or total bound unresolved";
+  result.bound=(I(worst)+speed*I(gap)/I(2.)).hi;
+  result.ok=result.bound<=tolerance;
+  result.reason=result.ok?"one closed degree-one branch, gaps included in bound":"vertex gap exceeds tolerance";
   return result;
 }
+Coverage budgetedBranch(const std::vector<cross_drill_lab::Certificate>& certs,
+                        const std::vector<CycleArc>& arcs,int branch,double tolerance,
+                        std::size_t& remaining) {
+  using namespace cross_drill_lab::certificate_detail;
+  Counter counter{0,remaining}; Scope scope(counter);
+  Coverage result;
+  try {result=coverBranch(certs,arcs,branch,tolerance);}
+  catch(const Failure& error){result.reason=error.reason;}
+  remaining-=counter.work;
+  return result;
+}
+
 #endif
 #ifdef CROSS_DRILL_WITH_CERTIFICATE
 std::string certificateJson(const cross_drill_lab::Certificate& c) {
@@ -211,6 +258,16 @@ int main(int argc,char** argv) {
     require(std::abs(intersection-quadrature(4096))<1e-8,"Numerical volume reference unconverged");
     std::cout << std::setprecision(17) << "volume before=" << beforeVolume << " after=" << afterVolume << " reference=" << expectedVolume << "\n";
     require(std::abs(afterVolume-beforeVolume)<1e-5 && std::abs(afterVolume-expectedVolume)<1e-4,"Native volume mismatch");
+    std::string volumeInterval="null";
+    bool volumeCertified=false;
+#ifdef CROSS_DRILL_WITH_CERTIFICATE
+    const auto ideal=cross_drill_lab::idealVolume(20.,r,R);
+    require(ideal.hi-ideal.lo<1e-8 && expectedVolume>=ideal.lo-1e-8 && expectedVolume<=ideal.hi+1e-8,
+      "Analytic volume and numerical cross-check disagree");
+    require(std::max(std::abs(afterVolume-ideal.lo),std::abs(afterVolume-ideal.hi))<1e-4,
+      "Adaptive reimported volume outside laboratory tolerance");
+    volumeCertified=true; volumeInterval="["+number(ideal.lo)+","+number(ideal.hi)+"]";
+#endif
     int probeCount=0;
     auto probe=[&](const gp_Pnt& p,TopAbs_State expected) {
       BRepClass3d_SolidClassifier classifier(shape,p,1e-7);++probeCount;
@@ -277,7 +334,7 @@ int main(int argc,char** argv) {
       strictRemainingWork-=std::min(strictRemainingWork,strict.work);
       certificates.push_back(cert);strictCertificates.push_back(strict);
       edgeJson << ",\"certificate\":" << certificateJson(cert) << ",\"strict_certificate\":" << certificateJson(strict);
-      if(bs->IsPeriodic()) {
+      if(bs->IsPeriodic() && !cert.ok) {
         // Independent bounded capability probe: do not confuse the global
         // document stop with support for this native representation.
         budget.tolerance_mm=1e-5;budget.max_work=10000;
@@ -305,9 +362,19 @@ int main(int argc,char** argv) {
     bool certified=false,strictCertified=false;
     std::string certificationJson="null",adversarialJson="null";
 #ifdef CROSS_DRILL_WITH_CERTIFICATE
-    const auto plus=coverBranch(certificates,1,1e-5),minus=coverBranch(certificates,-1,1e-5);
-    const auto strictPlus=coverBranch(strictCertificates,1,1e-7),strictMinus=coverBranch(strictCertificates,-1,1e-7);
-    size_t totalWork=0;for(const auto& c:certificates) totalWork+=c.work;
+    TopTools_IndexedMapOfShape junctionVertices;
+    std::vector<CycleArc> arcs;
+    for(const auto& j:junctions) {
+      TopoDS_Vertex from,to;
+      TopExp::Vertices(j.edge,from,to,true);
+      arcs.push_back({junctionVertices.Add(from),junctionVertices.Add(to),j.sign,j.edge.Orientation()==TopAbs_FORWARD});
+    }
+    const std::size_t edgeWork=10000000-remainingWork,strictEdgeWork=10000000-strictRemainingWork;
+    const auto plus=budgetedBranch(certificates,arcs,1,1e-5,remainingWork);
+    const auto minus=budgetedBranch(certificates,arcs,-1,1e-5,remainingWork);
+    const auto strictPlus=budgetedBranch(strictCertificates,arcs,1,1e-7,strictRemainingWork);
+    const auto strictMinus=budgetedBranch(strictCertificates,arcs,-1,1e-7,strictRemainingWork);
+    const std::size_t totalWork=10000000-remainingWork;
     auto coherentOrientation=[&](const std::vector<cross_drill_lab::Certificate>& values) {
       bool coherent=true;std::map<int,int> directions;
       for(size_t i=0;i<values.size();++i) {
@@ -324,7 +391,9 @@ int main(int argc,char** argv) {
     strictCertified=strictPlus.ok&&strictMinus.ok&&strictOrientedPhase&&elementaryPassed;
     std::ostringstream coverage;
     coverage << "{\"nominal_tolerance_mm\":1e-5,\"strict_tolerance_mm\":1e-7,\"total_work\":" << totalWork
-      << ",\"oriented_phase_consistent\":" << yes(orientedPhase) << ",\"plus_gap_rad\":" << number(plus.gap) << ",\"minus_gap_rad\":" << number(minus.gap)
+      << ",\"edge_work\":" << edgeWork << ",\"strict_edge_work\":" << strictEdgeWork
+      << ",\"strict_total_work\":" << (10000000-strictRemainingWork) << ",\"strict_plus_bound_mm\":" << number(strictPlus.bound)
+      << ",\"strict_minus_bound_mm\":" << number(strictMinus.bound) << ",\"oriented_phase_consistent\":" << yes(orientedPhase) << ",\"plus_gap_rad\":" << number(plus.gap) << ",\"minus_gap_rad\":" << number(minus.gap)
       << ",\"plus_bound_mm\":" << number(plus.bound) << ",\"minus_bound_mm\":" << number(minus.bound)
       << ",\"plus_reason\":" << quote(plus.reason) << ",\"minus_reason\":" << quote(minus.reason) << '}';
     certificationJson=coverage.str();
@@ -341,6 +410,20 @@ int main(int argc,char** argv) {
     auto pc=BRep_Tool::CurveOnSurface(j.edge,j.small,p0,p1);auto shifted=Handle(Geom2d_Curve)::DownCast(pc->Copy());
     shifted->Translate(gp_Vec2d(0.,0.01));builder.UpdateEdge(badPcurve,shifted,j.small,1e-7);
     const auto shiftedCert=cross_drill_lab::certifyEdge(badPcurve,j.small,j.large,r,R,budget);
+    bool periodicMutationRejected=false;
+    for(std::size_t i=0;i<junctions.size();++i) {
+      const auto& arc=junctions[i];
+      const auto basis=Handle(Geom_BSplineCurve)::DownCast(BRep_Tool::Curve(arc.edge,loc,begin,finish));
+      if(!basis->IsPeriodic())continue;
+      auto mutated=Handle(Geom_BSplineCurve)::DownCast(basis->Copy());
+      auto seamPole=mutated->Pole(1);
+      seamPole.SetZ(seamPole.Z()+0.01);
+      mutated->SetPole(1,seamPole);
+      auto badSeam=TopoDS::Edge(arc.edge.EmptyCopied());
+      builder.UpdateEdge(badSeam,mutated,1e-7);
+      const auto seam=cross_drill_lab::certifyEdge(badSeam,arc.small,arc.large,r,R,budget);
+      periodicMutationRejected=certificates[i].ok && !seam.ok && seam.reason=="continuous_bound_not_reached";
+    }
     bool zeroWeightRejected=false;
     try {auto zero=Handle(Geom_BSplineCurve)::DownCast(original->Copy());zero->SetWeight(1,0.);} catch(const Standard_Failure&) {zeroWeightRejected=true;}
     // Isolated phase-aggregation control: two proved half turns cover once;
@@ -348,14 +431,16 @@ int main(int argc,char** argv) {
     // native positive case to reject its corrupted copies.
     std::vector<cross_drill_lab::Certificate> known(2);
     for(size_t i=0;i<known.size();++i) {
-      auto& c=known[i];c.ok=true;c.sign=1;c.phase_monotone=true;c.bound3d=0.;c.boundPcurves=0.;
+      auto& c=known[i];c.ok=true;c.sign=1;c.phase_direction=1;c.phase_monotone=true;c.bound3d=0.;c.boundPcurves=0.;
       c.phase_first=c.phase_first_lo=c.phase_first_hi=i*pi;
       c.phase_last=c.phase_last_lo=c.phase_last_hi=(i+1)*pi;
     }
-    const bool phasePositive=coverBranch(known,1,1e-5).ok;
+    const std::vector<CycleArc> once{{0,1,1,true},{1,0,1,true}};
+    const bool phasePositive=coverBranch(known,once,1,1e-5).ok;
     auto duplicate=known;duplicate.insert(duplicate.end(),known.begin(),known.end());
-    const bool multipleTurnRejected=phasePositive&&!coverBranch(duplicate,1,1e-5).ok;
-    const bool rejected=!exhausted.ok&&!moved.ok&&!shiftedCert.ok&&zeroWeightRejected&&multipleTurnRejected;
+    const std::vector<CycleArc> twice{{0,1,1,true},{1,2,1,true},{2,3,1,true},{3,0,1,true}};
+    const bool multipleTurnRejected=phasePositive&&!coverBranch(duplicate,twice,1,1e-5).ok;
+    const bool rejected=!exhausted.ok&&!moved.ok&&!shiftedCert.ok&&periodicMutationRejected&&zeroWeightRejected&&multipleTurnRejected;
     const bool positiveControl=certificates.front().ok;
     const bool adversaries=rejected&&positiveControl;
     certified=certified&&adversaries;strictCertified=strictCertified&&adversaries;
@@ -364,7 +449,7 @@ int main(int argc,char** argv) {
       << ",\"rejections_observed\":" << yes(rejected) << ",\"phase_positive_control\":" << yes(phasePositive)
       << ",\"exhausted_budget\":" << certificateJson(exhausted) << ",\"moved_3d_pole\":" << certificateJson(moved)
       << ",\"shifted_pcurve\":" << certificateJson(shiftedCert) << ",\"zero_weight_rejected_by_occt\":" << yes(zeroWeightRejected)
-      << ",\"duplicate_winding_rejected\":" << yes(multipleTurnRejected) << '}';adversarialJson=adversarial.str();
+      << ",\"periodic_seam_mutation_rejected\":" << yes(periodicMutationRejected) << ",\"duplicate_winding_rejected\":" << yes(multipleTurnRejected) << '}';adversarialJson=adversarial.str();
 #endif
     report << "{\"status\":\"";
 #ifdef CROSS_DRILL_WITH_CERTIFICATE
@@ -376,7 +461,7 @@ int main(int argc,char** argv) {
       << ",\"method\":\"laboratory CSG; not a source reconstruction proof\",\"solids\":" << solids.Extent()
       << ",\"planes\":" << planes << ",\"cylindrical_faces\":" << cylinders << ",\"faces\":" << faces.Extent()
       << ",\"volume_before_mm3\":" << number(beforeVolume) << ",\"volume_after_mm3\":" << number(afterVolume)
-      << ",\"nonadaptive_volume_mm3\":" << number(nonAdaptive.Mass()) << ",\"numerical_reference_volume_mm3\":" << number(expectedVolume) << ",\"reference_volume_certified\":false"
+      << ",\"nonadaptive_volume_mm3\":" << number(nonAdaptive.Mass()) << ",\"numerical_reference_volume_mm3\":" << number(expectedVolume) << ",\"reference_volume_certified\":" << yes(volumeCertified) << ",\"ideal_volume_interval_mm3\":" << volumeInterval
       << ",\"bounds_mm\":[[" << number(x0) << ',' << number(y0) << ',' << number(z0) << "],[" << number(x1) << ',' << number(y1) << ',' << number(z1) << "]]"
       << ",\"precondition_adversaries_passed\":" << yes(guards) << ",\"probe_count\":" << probeCount
       << ",\"elementary_controls\":" << elementaryJson << ",\"intersection_edges\":[" << edgeJson.str() << "],\"branch_coverage\":" << certificationJson << ",\"adversaries\":" << adversarialJson

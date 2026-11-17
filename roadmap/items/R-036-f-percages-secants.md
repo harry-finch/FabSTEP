@@ -23,4 +23,9 @@ Alternative : poursuivre uniquement les combinaisons de primitives aux frontièr
 Accord utilisateur reçu le 17 novembre (A-045) : « Oui, étendre le modèle pour les perçages sécants (recommandé) ». Conception détaillée du contrat lancée pendant la validation de R-060 à R-062. Cet accord architectural ne constitue pas une preuve géométrique ni une validation de code encore absent.
 
 
-Qualification préalable : [R-063](R-063-f0-qualifier-les-courbes-des-percages-secants.md), laboratoire isolé PARTIAL (V-1187). Le solide de référence se réimporte mais les courbes communes ne sont pas intégralement certifiées dans le budget. L’extension est autorisée, pas encore intégrée à la conversion.
+Qualification préalable : [R-063](R-063-f0-qualifier-les-courbes-des-percages-secants.md), laboratoire initial PARTIAL (V-1187), désormais certifié dans le budget après reprise (V-1200). Les courbes communes et leur couverture passent ; la reconnaissance source et l’intégration du contrôle de volume restent à développer. L’extension est autorisée, pas encore intégrée à la conversion.
+
+
+## Poursuite globale autorisée
+
+L’utilisateur confirme que l’objectif est de réaliser l’ensemble C1b2, C2, D, E, F et G et autorise la poursuite du chantier. Les tranches déjà développées restent à tester ; cet accord ne remplace pas leur acceptation ni les preuves géométriques. Les travaux sont décomposés en extensions bornées, corpus indépendants et vérifications natives. Les changements structurants encore indéfinis seront présentés lorsqu’un contrat concret est établi ; l’accord sur les perçages sécants A-045 reste acquis.
