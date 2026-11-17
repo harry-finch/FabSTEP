@@ -101,4 +101,9 @@ R-070 corrige le classement des cercles complets quantifiés avant la recherche 
 
 Les comparaisons de maximalité utilisent des intervalles cycliques après contrôle d’unicité, avec repli historique et budget inchangé. **496 tests workspace, 49 bureau, 8 helper, 68 ciblés `large-stl`, 1 transfert réel, 229 UI, 12 Python et 4 SDK réussis** ; revue indépendante, benchmark, formatage, Clippy, Svelte et builds passent. Paquet reconstruit, exécutables vérifiés ; R-071 attend l’essai utilisateur A-061. Les preuves et mesures sont dans [V-1195](docs/VALIDATION.md).
 
-**Flansch franchit la reconnaissance** (4 cylindres, 8 cônes), mais conserve 501 900 plans : ses 501 912 faces dépassent le plafond de suivi du résultat de 100 000. Aucun STEP produit. Le refus conserve son code stable et affiche désormais compte et limite ; la réduction ou qualification de ces résultats très facettisés reste dans l’idée R-072. Aucun gain global de durée ni essai graphique/Fusion revendiqué.
+**Flansch franchit la reconnaissance** (4 cylindres, 8 cônes), mais conserve 501 900 plans : ses 501 912 faces dépassent le plafond de suivi du résultat de 100 000. Aucun STEP produit. Le refus conserve son code stable et affiche désormais compte et limite ; la réduction ou qualification de ces résultats très facettisés est qualifiée dans R-072. Aucun gain global de durée ni essai graphique/Fusion revendiqué.
+
+
+## Qualification des gros résultats — R-072
+
+Qualification documentée dans V-1196 ; code de production et application R-071 inchangés. Le regroupement des plans ne suffit pas : 480 024 faces planes précèdent déjà leur sécurisation. Quatre zones courbes refusées couvrent 278 642 triangles, sans famille exacte encore prouvée. La sonde native source a été arrêtée à 241,622 s : RSS maximal observé 2,35 Gio, mais empreinte physique `sample` de 6.9G. Validation native non terminée, aucun STEP. Le suivi mémoire mérite une qualification dédiée ; ni hausse de plafond ni simplification intégrée. R-072 attend validation des conclusions via A-062 ; suite globale V-1195 non rejouée, aucun nouveau test graphique/Fusion.

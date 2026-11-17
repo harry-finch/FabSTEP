@@ -359,3 +359,8 @@ Flansch termine désormais la reconnaissance (4 cylindres, 8 cônes) mais conser
 Validation complète et build macOS réussis, exécutables du paquet vérifiés. Bilan détaillé et limitations dans V-1195.
 
 Le helper embarqué confirme le diagnostic final sur Flansch ; R-071 passe à tester avec A-061. Aucun STEP produit pour ce fichier, suite R-072 conservée au stade idée.
+
+
+## 2026-11-17 — R-072 : qualifier avant de relever les limites
+
+Deux explorations en lecture seule et des sondes locales écartent une réduction suffisante par simple regroupement plan. Quatre zones courbes refusées sont identifiées ; leur famille exacte reste à qualifier. L’essai natif source isolé atteint le contrôle OCCT, puis est arrêté manuellement après observation d’une empreinte physique supérieure au RSS surveillé. Mesures, conditions et incertitudes dans V-1196. Aucun changement de production retenu ; instrumentation retirée, aucun nouveau paquet construit. R-072 passe à tester avec l’action de validation A-062. Suite proposée : qualifier la surveillance mémoire, puis les profils courbes et le coût de validation avant tout changement structurel.

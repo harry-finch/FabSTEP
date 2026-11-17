@@ -1430,3 +1430,46 @@ Le lanceur de qualification conserve ses gardes à 300 s et 4 Gio, distinctes de
 
 
 Rejeu final avec le helper réellement embarqué dans `artifacts/FabSTEP.app` après le correctif de message : **67,343 s**, reconnaissance à 51,025 s, RSS maximale échantillonnée 681,53 Mio ; refus `step.invalid_source_provenance` avec « Le modèle reconstruit contient 501912 faces ; le suivi des faces du résultat est limité à 100000. Aucun STEP n’est produit. ». Aucun rapport de succès ni STEP. Ce passage confirme le diagnostic final ; la variabilité entre passages et l’échantillonnage RSS ne permettent pas de conclure à un gain uniforme de temps ou de mémoire. Trace `artifacts/r071/flansch-final.json`. R-071 reste à tester via A-061.
+
+## V-1196 — R-072 : qualification des résultats très facettisés (17 novembre 2026)
+
+Qualification sur le fichier privé Flansch de 540 170 triangles, après R-071 (e29f1ad), sans modification de production. Deux explorations indépendantes en lecture seule ont examiné les réductions planes et les limites de la chaîne CAO ; l’orchestrateur a vérifié le code et effectué les mesures. Les instrumentations de tests ont été retirées et les trois fichiers Rust restaurés à l’identique. Aucun STL ni contour privé versionné.
+
+### Origine des faces
+
+Le profilage du parcours Auto mesure **480 024 plans avant `automatic::safe_planes`**. Ce garde remplace 21 854 régions par leurs 43 730 triangles, soit seulement **21 876 faces supplémentaires** ; les régions concernées ont de deux à quatre triangles. Le résultat final conserve 501 900 plans, quatre cylindres et huit cônes, soit 501 912 faces. L’hypothèse d’une grande région plane inutilement éclatée par ce garde est écartée : même supprimer tout son surcoût ne ramènerait pas le résultat sous 100 000 faces.
+
+Deux segmentations diagnostiques du maillage entier, aux tolérances 2,5e-8 et 5e-8 mm, donnent respectivement **514 306 et 509 011 faces**, avec zéro contour dépassant le garde conservatrice `safe_planes` de 5e-8 mm, reproduite dans la sonde Rust (contrôle OCCT distinct via `Precision::Confusion()`). Durées isolées : environ 2,19 et 2,18 s. Elles incluent aussi les triangles reconstruits analytiquement par Auto : elles ne sont pas des alternatives équivalentes au résultat mixte. Ces essais gloutons ne prouvent pas un minimum théorique du nombre de faces. Ils ne justifient pas une nouvelle stratégie de regroupement en production.
+
+Le classificateur de révolutions refuse quatre grandes zones de **64 080, 67 680, 73 442 et 73 440 triangles**, soit **278 642 triangles**, avec le motif « méridienne non affine sans raccord cylindre-plan démontré ». Chaque zone a deux contours circulaires ; les nombres d’arêtes de frontière correspondent aux contours attendus (720 ou 722). Cela ne prouve ni que leur méridienne est circulaire ni qu’un tore exact convient. Quatre autres zones de 2 160 triangles passent ce classement. La famille exacte des quatre zones refusées et le traitement des triangles restants demandent une qualification géométrique distincte.
+
+### Limites indépendantes
+
+| Étape | Contrôle actuel | Conséquence |
+| --- | --- | --- |
+| Suivi source/résultat (`fabstep-app`, `rounded_source_faces`) | 100 000 faces | Premier refus observé ; précède la validation native source. |
+| Construction CAO (`fabstep-cad`, `MAX_RESULT_FACES`) | 100 000 faces | Retirer le suivi ne permet pas la construction mixte. |
+| Audit du résultat et comparaison | 100 000 triangles, 300 000 points ; travail borné | Un résultat de 501 912 faces, chacune à trianguler, ne peut pas passer le plafond actuel. |
+| Inspection du résultat | 100 000 faces/triangles, 300 000 points, 600 000 incidences | Capacité distincte ; un refus d’inspection laisse le STEP validé courant exportable. |
+| Protocole helper | Rapport et STEP limités chacun à 128 Mio | Leur taille réelle n’est pas mesurée : aucun STEP n’a été construit. |
+| Supervision produit | RSS 4 Gio, 30 minutes | Ces plafonds restent inchangés. |
+
+La validation de la source (`fabstep-app::triangle_model`, `fabstep-cad::validate_source`) construit indépendamment un BRep par corps avec une face pour **chaque triangle du maillage analysé et soudé**, avec couture globale, contrôle du solide et des auto-interférences, volume et dimensions. Réduire les faces du résultat ne réduit pas automatiquement cette charge. La source du profil étendu reste plafonnée à 600 000 triangles et 1 800 000 sommets. Le budget d’audit de 50 000 000 unités est partagé entre les deux sens. Les limites de séparation multi-corps et de comparaison restent elles aussi en vigueur.
+
+### Sonde native et mémoire
+
+Compilation du test isolé réussie. Entrée en validation native à **49,748 s**, sur 540 170 faces ; arrêt manuel à **241,622 s** (code -9), sans résultat de validation ni STEP. Le superviseur expérimental échantillonnait le RSS par `ps` environ toutes les 100 ms et imposait 300 s depuis le lancement, analyse incluse, ou 4 Gio RSS. Pic RSS observé : **2 523 103 232 octets (2,35 Gio)**. Ses deux seuils n’ont pas déclenché : `stop_reason: null` dans le JSON doit être lu avec `manual-stop.txt`, qui consigne l’arrêt par l’orchestrateur.
+
+Un échantillonnage `sample` de trois secondes, vers 205 s, rapporte une **physical footprint de 6.9G** (notation de l’outil), bien supérieure au RSS. Ce sont des métriques différentes : le RSS ne suffit pas à borner cette empreinte sur ce Mac. Le produit surveille également `resident_size` via `PROC_PIDTASKINFO` (`fabstep-desktop/src/supervisor.rs`), mais la sonde n’exécutait pas le superviseur produit. Il faut qualifier la mesure d’empreinte physique et son coût avant d’en déduire une correction produit. Aucun dépassement du plafond RSS produit ni défaut d’annulation graphique n’est établi.
+
+La pile échantillonnée se trouve dans `measure_solid` → `BRepCheck_Analyzer` → contrôle des arêtes (`BRepLib_ValidateEdge`). Cela localise le travail pendant ces trois secondes, pas toute la durée de validation. La validité finale de la source, sa durée complète et son pic mémoire final restent inconnus. Cette exécution instrumentée et interrompue ne permet aucune comparaison de performance avant/après. Traces complémentaires : `source-sample.txt`, `manual-stop.txt`.
+
+### Décision proportionnée
+
+Aucun regroupement local utile n’est démontré pour franchir le plafond ; aucune hausse de limite, décimation ou nouvelle primitive intégrée. La prochaine investigation recommandée est de qualifier la surveillance de l’empreinte mémoire, mesurer les méridiennes des quatre zones refusées et profiler les étapes de validation native source. Il faudra ensuite proposer séparément toute extension de familles ou changement de validation, avec ses preuves, budgets et arbitrage utilisateur. Augmenter seulement le plafond de suivi déplacerait le refus vers d’autres contrôles.
+
+### Reproductibilité et portée
+
+Traces locales : `artifacts/r072/planes-profile.log`, `patch-profile.log`, `source-build.jsonl`, `source-native.log`, `source-capacity.json`. Les copies `automatic-instrumented.rs`, `rounded-instrumented.rs`, `cad-instrumented.rs` conservent l’instrumentation ; `guard_source.py` lance le test isolé avec une limite externe de 300 s et 4 Gio. Les profils core sont des tests ignorés activés explicitement, avec `FABSTEP_PROFILE_STL` ; ils terminent en environ 72 et 71 s. Le test natif utilise le profil `large-stl` et le même modèle triangulé que l’application, sans produire de STEP. Ce n’est pas un benchmark statistique ni une mesure de la conversion complète.
+
+Le code de production est identique à e29f1ad ; la suite globale V-1195 n’est pas relancée pour cette qualification documentaire. Aucun nouveau build d’application, contrôle graphique ou réimport Fusion. `artifacts/FabSTEP.app` reste le build R-071 ; Flansch reste refusé sans STEP. La qualification ne revendique pas une conversion réussie.
