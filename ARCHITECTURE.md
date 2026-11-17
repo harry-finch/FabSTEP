@@ -222,3 +222,10 @@ L’interface interroge cet instantané seulement pendant la conversion, au plus
 ### Surveillance mémoire du helper macOS — R-073
 
 Le superviseur lit `proc_pid_rusage(RUSAGE_INFO_V0)` chaque seconde : mémoire résidente et empreinte physique. L’une ou l’autre atteignant 4 Gio déclenche `worker.memory_limit`. La lecture invalide reste un refus `worker.monitor_failed`, avec vérification de la sortie concurrente du processus. Le nettoyage existant tue et récolte l’enfant avant de supprimer son dossier privé ; aucun résultat n’est publié sur ces erreurs. Le SDK local fixe la disposition du tampon et des assertions Rust contrôlent taille, alignement et offsets. Le seuil est observé, sans garantie de plafond entre échantillons. Les autres plateformes restent non qualifiées ; aucune limite de géométrie ou de durée n’est changée.
+
+
+### Chaîne tore–cône–cylindre — R-075
+
+`rounded/torus_cone.rs` intervient après un refus géométrique du classement historique et restaure les mesures des anneaux avant sa recherche. Il exige une décomposition unique en arc torique terminal, cône tangent et portée cylindrique, sans réinitialiser le budget de travail. Les paramètres du raccord sont déterminés conjointement depuis les anneaux source et le plan. La preuve existante de couverture UV et d’écart continu s’applique à chaque triangle ; l’ordre des anneaux du tore suit les angles croissants, même quand l’ordre axial est opposé. DTO, ABI et plafonds restent inchangés ; voir ADR-0035.
+
+Le parcours des composantes ne réinsère plus le triangle courant depuis ses propres arêtes : après validation de la topologie fermée, seule l’autre incidence est un voisin. Les composantes restent identiques à l’ancien parcours ; les visites réellement supprimées libèrent du budget sans modifier les prédicats géométriques ni la recherche d’arcs.

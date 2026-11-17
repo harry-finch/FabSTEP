@@ -26,8 +26,9 @@ cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features 
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib pipeline::reuse_tests
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib horizontal_patch_edge_tests
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib auto_proof_reuse_tests
+cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib rounded::torus_cone::tests
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib partial::tests
-cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --test source_size_profiles --test analysis --test selection --test dense_planar_contours
+cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --test source_size_profiles --test analysis --test selection --test dense_planar_contours --test torus_cone_cylinder
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-app --features large-stl --offline --locked --test source_size_profiles
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-app --features large-stl --offline --locked --lib rounded_face_limit_reports_the_count_separately_from_invalid_attribution
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-cad --features large-stl --offline --locked --lib size_profile_tests

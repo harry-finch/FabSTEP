@@ -1,0 +1,465 @@
+{
+  "unit": "mm",
+  "major_mm": 10.0,
+  "minor_mm": 0.5,
+  "sweep_rad": 1.5042281630190728,
+  "cases": {
+    "nominal": {
+      "volume_mm3": 1393.2379688651004,
+      "bounds_mm": [
+        [
+          -10.0,
+          -10.0,
+          0.0
+        ],
+        [
+          10.0,
+          10.0,
+          5.0
+        ]
+      ],
+      "origin_mm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "branch": -1,
+      "planes": 2,
+      "tori": 1,
+      "cones": 1,
+      "cylinders": 1,
+      "triangles_per_face": {
+        "plane": 64,
+        "torus": 1536,
+        "cone": 128,
+        "cylinder": 128
+      },
+      "rings_mm": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          0.466740494738113,
+          9.501107421071696
+        ],
+        [
+          2.466740494738113,
+          9.367774087738363
+        ],
+        [
+          5.0,
+          9.367774087738363
+        ]
+      ],
+      "triangles": 1920,
+      "sha256": "9afd2637cfb09056cfc76b12f1093569c9f1c109cc8d194a103a5366e1fa0a1a"
+    },
+    "mirrored": {
+      "volume_mm3": 1393.2379688651004,
+      "bounds_mm": [
+        [
+          -10.0,
+          -10.0,
+          0.0
+        ],
+        [
+          10.0,
+          10.0,
+          5.0
+        ]
+      ],
+      "origin_mm": [
+        0.0,
+        0.0,
+        5.0
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "branch": -1,
+      "planes": 2,
+      "tori": 1,
+      "cones": 1,
+      "cylinders": 1,
+      "triangles_per_face": {
+        "plane": 64,
+        "torus": 1536,
+        "cone": 128,
+        "cylinder": 128
+      },
+      "rings_mm": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          0.466740494738113,
+          9.501107421071696
+        ],
+        [
+          2.466740494738113,
+          9.367774087738363
+        ],
+        [
+          5.0,
+          9.367774087738363
+        ]
+      ],
+      "triangles": 1920,
+      "sha256": "626e163dd028ee8f077ea5235b69e6e605468e082a9aeba825e522ae285668a8"
+    },
+    "rotated": {
+      "volume_mm3": 1393.2379688651004,
+      "bounds_mm": [
+        [
+          -10.0,
+          8.0,
+          -10.0
+        ],
+        [
+          10.0,
+          13.0,
+          10.0
+        ]
+      ],
+      "origin_mm": [
+        0.0,
+        8.0,
+        0.0
+      ],
+      "axis": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "branch": -1,
+      "planes": 2,
+      "tori": 1,
+      "cones": 1,
+      "cylinders": 1,
+      "triangles_per_face": {
+        "plane": 64,
+        "torus": 1536,
+        "cone": 128,
+        "cylinder": 128
+      },
+      "rings_mm": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          0.466740494738113,
+          9.501107421071696
+        ],
+        [
+          2.466740494738113,
+          9.367774087738363
+        ],
+        [
+          5.0,
+          9.367774087738363
+        ]
+      ],
+      "triangles": 1920,
+      "sha256": "3e7c12f65b27f2dd3d9943446aa76b78b0b499f1312dd6af6be539e9b7dffc0e"
+    },
+    "opposite_branch": {
+      "volume_mm3": 1759.2263317170618,
+      "bounds_mm": [
+        [
+          -10.632225912261637,
+          -10.632225912261637,
+          0.0
+        ],
+        [
+          10.632225912261637,
+          10.632225912261637,
+          5.0
+        ]
+      ],
+      "origin_mm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "branch": 1,
+      "planes": 2,
+      "tori": 1,
+      "cones": 1,
+      "cylinders": 1,
+      "triangles_per_face": {
+        "plane": 64,
+        "torus": 1536,
+        "cone": 128,
+        "cylinder": 128
+      },
+      "rings_mm": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          0.466740494738113,
+          10.498892578928304
+        ],
+        [
+          2.466740494738113,
+          10.632225912261637
+        ],
+        [
+          5.0,
+          10.632225912261637
+        ]
+      ],
+      "triangles": 1920,
+      "sha256": "82415b39832be999c1ce67de4fa540178e2120a4022468783cc3ef16ebef1329"
+    },
+    "seam_noise": {
+      "volume_mm3": 1393.2379688651004,
+      "bounds_mm": [
+        [
+          -10.0,
+          -10.0,
+          0.0
+        ],
+        [
+          10.0,
+          10.0,
+          5.0
+        ]
+      ],
+      "origin_mm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "branch": -1,
+      "planes": 2,
+      "tori": 1,
+      "cones": 1,
+      "cylinders": 1,
+      "triangles_per_face": {
+        "plane": 64,
+        "torus": 1536,
+        "cone": 128,
+        "cylinder": 128
+      },
+      "rings_mm": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          0.466740494738113,
+          9.501107421071696
+        ],
+        [
+          2.466740494738113,
+          9.367774087738363
+        ],
+        [
+          5.0,
+          9.367774087738363
+        ]
+      ],
+      "triangles": 1920,
+      "sha256": "bba65619d57a81536f5980fc763ad26105a060170f72ee2137d1c357a73992d2"
+    },
+    "bore": {
+      "volume_mm3": 868.7087417195507,
+      "bounds_mm": [
+        [
+          -12.0,
+          -12.0,
+          0.0
+        ],
+        [
+          12.0,
+          12.0,
+          5.0
+        ]
+      ],
+      "origin_mm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "branch": -1,
+      "planes": 2,
+      "tori": 1,
+      "cones": 1,
+      "cylinders": 2,
+      "triangles_per_face": {
+        "plane": 128,
+        "torus": 1536,
+        "cone": 128,
+        "cylinder": 128
+      },
+      "rings_mm": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          0.466740494738113,
+          9.501107421071696
+        ],
+        [
+          2.466740494738113,
+          9.367774087738363
+        ],
+        [
+          5.0,
+          9.367774087738363
+        ]
+      ],
+      "triangles": 2176,
+      "sha256": "bd279ef3458be634f1085bf3cafef95d1b400489ce6092c50a482231512935ea"
+    },
+    "rotated_oblique": {
+      "volume_mm3": 1393.2379688651004,
+      "bounds_mm": [
+        [
+          3.655323636372696,
+          -16.9716985604717,
+          7.361009552341216
+        ],
+        [
+          23.53412211901005,
+          2.9716985604716992,
+          19.06611602123938
+        ]
+      ],
+      "origin_mm": [
+        13.0,
+        -7.0,
+        11.0
+      ],
+      "axis": [
+        0.35604808185222936,
+        -0.07518163466476757,
+        0.9314383958257686
+      ],
+      "branch": -1,
+      "planes": 2,
+      "tori": 1,
+      "cones": 1,
+      "cylinders": 1,
+      "triangles_per_face": {
+        "plane": 64,
+        "torus": 1536,
+        "cone": 128,
+        "cylinder": 128
+      },
+      "rings_mm": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          0.466740494738113,
+          9.501107421071696
+        ],
+        [
+          2.466740494738113,
+          9.367774087738363
+        ],
+        [
+          5.0,
+          9.367774087738363
+        ]
+      ],
+      "format": "3mf",
+      "triangles": 1920,
+      "sha256": "c68b15d270324881be79265fc057fbfc2e7231f6cf751891f53b1b39e6a30a94"
+    },
+    "instances": {
+      "format": "3mf",
+      "bodies": 2,
+      "triangles": 3840,
+      "volume_mm3": 2786.4759377302007,
+      "body_bounds_mm": [
+        [
+          [
+            -10.0,
+            -10.0,
+            0.0
+          ],
+          [
+            10.0,
+            10.0,
+            5.0
+          ]
+        ],
+        [
+          [
+            18.0,
+            -7.0,
+            7.0
+          ],
+          [
+            38.0,
+            13.0,
+            12.0
+          ]
+        ]
+      ],
+      "sha256": "856d883cd0cf1b994567e945b65f129674caa5b670f13480566d83b563f5a4f3"
+    }
+  },
+  "negative_cases": {
+    "non_tangent": {
+      "reason": "Cone slope changed without moving the source torus",
+      "triangles": 1920,
+      "sha256": "c711c9385b9f29d68bdd20e83f909991ea94a0de530f63cc8c06fd8426abf52f"
+    },
+    "missing_ring": {
+      "reason": "The true tangent level is omitted from the source",
+      "triangles": 1792,
+      "sha256": "f08fff0698202b592bb0b3591c54c202e65e81be60b59f3fb74434309403fc9c"
+    },
+    "crossing_triangle": {
+      "reason": "A flipped edge spans the tangent boundary",
+      "triangles": 1920,
+      "sha256": "2c8ddc546edffb9bf42541c4f4a5c2eaf0a5e8870ed08077c3c13c792177f6a2"
+    },
+    "warped": {
+      "reason": "One arc level has a 0.002 mm radial offset",
+      "triangles": 1920,
+      "sha256": "3abdb6bd178fec4eb305ee60294e68625980959cc4db4cc84556e6caef2f3239"
+    }
+  },
+  "limitations": {
+    "rotated_f32_nonplanar": {
+      "triangles": 1920,
+      "reason": "Oblique rotation rounded to binary STL f32 exceeds native circular boundary coplanarity tolerance",
+      "surfaces_error": "cad.invalid_model",
+      "sha256": "e116334a94842aff1751efb06bd72dab8bc4f4d744c1ea5f483b61a95b0d6103"
+    }
+  },
+  "insufficient_deviation_mm": 0.001
+}

@@ -6,7 +6,7 @@ L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée i
 
 L’ordre des lots restants reprend le document d’origine ; les priorités et dépendances exprimées dans leurs textes restent applicables. Aucun nouveau développement n’est autorisé par cette migration.
 
-**Avancement : 21 livrés sur 75** (28 %)
+**Avancement : 22 livrés sur 75** (29 %)
 
 ## Restant à faire
 
@@ -114,10 +114,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Après G4, Flansch franchit le cercle dense mais épuise encore le budget sur la face 7 278, contour de 300 points réellement non circulaire. Étudier une réduction prouvée du coût des fenêtres, sans supposer la monotonie des ajustements ni augmenter le budget ; une nouvelle preuve numérique exige une qualification distincte.
 52. **[R-073 Qualifier la surveillance mémoire des gros STL sur macOS](roadmap/items/R-073-qualifier-la-surveillance-memoire-des-gros-stl.md)** · À tester · jalon post-v1
    La sonde R-072 rapporte une empreinte physique de 6.9G malgré un RSS maximal échantillonné de 2,35 Gio. Comparer les métriques macOS et qualifier une surveillance adaptée avant toute augmentation de capacité ; préserver arrêt et nettoyage du helper.
-53. **[R-074 Qualifier les grandes zones courbes de Flansch](roadmap/items/R-074-qualifier-les-grandes-zones-courbes-de-flansch.md)** · À tester · jalon post-v1
-   Mesurer les quatre profils courbes encore refusés, identifier les familles géométriques et les preuves manquantes, puis définir une extension bornée sans relâcher les tolérances.
-54. **[R-075 Reconstruire un raccord tore–cône–cylindre prouvé](roadmap/items/R-075-reconstruire-un-raccord-tore-cone-cylindre.md)** · Idée · jalon post-v1
-   Première extension issue de R-074 : reconstruire la zone de 64 080 triangles par trois surfaces, avec raccord tangent prouvé et bandes à deux anneaux. Contrat de données inchangé ; nouvelle règle de preuve à valider, sans promesse de convertir Flansch entier.
+53. **[R-075 Reconstruire un raccord tore–cône–cylindre prouvé](roadmap/items/R-075-reconstruire-un-raccord-tore-cone-cylindre.md)** · À tester · jalon post-v1
+   Première extension issue de R-074 : reconstruire la zone de 64 080 triangles par trois surfaces, avec raccord tangent prouvé et bandes à deux anneaux. Contrat de données inchangé ; règle de preuve approuvée pour implémentation, sans promesse de convertir Flansch entier.
 
 ## Actions à faire
 
@@ -178,7 +176,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-060](roadmap/actions/A-060-verifier-le-gros-stl-apres-g4.md) Vérifier le gros STL après G4 (tester, R-070)
 - [ ] [A-061](roadmap/actions/A-061-verifier-flansch-apres-l-optimisation-des-arcs.md) Vérifier Flansch après l’optimisation des arcs complexes (tester, R-071)
 - [ ] [A-063](roadmap/actions/A-063-verifier-l-annulation-apres-la-correction-du.md) Vérifier l’annulation après la correction du suivi mémoire (tester, R-073)
-- [ ] [A-064](roadmap/actions/A-064-valider-la-premiere-extension-issue-des-profils.md) Valider la première extension issue des profils de Flansch (valider, R-074)
+- [ ] [A-065](roadmap/actions/A-065-examiner-le-raccord-tore-cone-cylindre-dans.md) Examiner le raccord tore–cône–cylindre dans FabSTEP (tester, R-075)
+- [ ] [A-066](roadmap/actions/A-066-verifier-le-raccord-tore-cone-cylindre-dans.md) Vérifier le raccord tore–cône–cylindre dans Fusion (tester, R-075)
 
 ## Livré
 
@@ -228,6 +227,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 ### post-v1 : Géométries après v1
 
+- [R-074 Qualifier les grandes zones courbes de Flansch](roadmap/items/R-074-qualifier-les-grandes-zones-courbes-de-flansch.md) · livrée le 2026-11-17
+  Mesurer les quatre profils courbes encore refusés, identifier les familles géométriques et les preuves manquantes, puis définir une extension bornée sans relâcher les tolérances.
 - [R-072 Qualifier les résultats très facettisés des gros STL](roadmap/items/R-072-qualifier-les-resultats-tres-facettises-des-gros.md) · livrée le 2026-11-17
   Flansch franchit désormais la reconnaissance avec 4 cylindres et 8 cônes, mais conserve 501 900 plans, soit 501 912 faces au total. Le suivi du résultat est limité à 100 000 faces. Identifier les zones qui restent facettisées et les réductions géométriquement prouvées possibles ; examiner les coûts CAO, mémoire et inspection avant toute proposition de changement de limite ou de simplification.
 - [R-058 Raccords ouverts cylindre–chanfrein](roadmap/items/R-058-raccords-ouverts-cylindre-chanfrein.md) · livrée le 2026-11-17

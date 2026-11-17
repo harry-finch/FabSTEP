@@ -2,11 +2,11 @@
 id: R-074
 titre: "Qualifier les grandes zones courbes de Flansch"
 resume: "Mesurer les quatre profils courbes encore refusés, identifier les familles géométriques et les preuves manquantes, puis définir une extension bornée sans relâcher les tolérances."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-17
 maj: 2026-11-17
-livree:
+livree: 2026-11-17
 ---
 
 ## But

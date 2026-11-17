@@ -10,6 +10,7 @@ use crate::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::{PI, TAU};
+mod torus_cone;
 mod zone;
 
 type Edge = (usize, usize);
@@ -333,23 +334,8 @@ fn recognize_policy_with_proofs(
         if components.values().any(|c| c.binary_search(&start).is_ok()) {
             continue;
         }
-        let mut selected = BTreeSet::new();
-        let mut pending = vec![start];
-        while let Some(t) = pending.pop() {
-            work.spend(1)?;
-            if !selected.insert(t) {
-                continue;
-            }
-            let [x, y, z] = a.mesh.triangles[t];
-            for (u, v) in [(x, y), (y, z), (z, x)] {
-                let k = edge(u, v);
-                if !cuts.contains(&k) {
-                    pending.extend(edges[&k].iter().copied());
-                }
-            }
-        }
-        let key = *selected.first().unwrap();
-        components.insert(key, selected.into_iter().collect());
+        let selected = connected_patch(&a.mesh, start, &cuts, &edges, &mut work)?;
+        components.insert(selected[0], selected);
     }
     let mut patches = Vec::new();
     let mut rounded = false;
@@ -574,6 +560,12 @@ fn recognize_policy_with_proofs(
                         v,
                     } => {
                         let index = model.tori.len();
+                        // OCCT pairs each meridian endpoint with its own ring.
+                        // On the inner radial branch z decreases as v increases.
+                        let mut rings = rings;
+                        if v[0].sin() > v[1].sin() {
+                            rings.reverse();
+                        }
                         model.tori.push(MixedTorus {
                             rings: Some(rings),
                             axis: None,
@@ -755,6 +747,34 @@ fn recognize_policy_with_proofs(
     }
     Ok(result)
 }
+fn connected_patch(
+    mesh: &crate::Mesh,
+    start: usize,
+    cuts: &BTreeSet<Edge>,
+    edges: &BTreeMap<Edge, Vec<usize>>,
+    work: &mut Work,
+) -> Result<Vec<usize>, FabError> {
+    let mut selected = BTreeSet::new();
+    let mut pending = vec![start];
+    while let Some(t) = pending.pop() {
+        work.spend(1)?;
+        if !selected.insert(t) {
+            continue;
+        }
+        let [x, y, z] = mesh.triangles[t];
+        for (u, v) in [(x, y), (y, z), (z, x)] {
+            let k = edge(u, v);
+            if !cuts.contains(&k) {
+                // Closed manifold topology was validated before this search:
+                // one use is t itself. Only the other triangle is a neighbor.
+                let uses = &edges[&k];
+                pending.push(if uses[0] == t { uses[1] } else { uses[0] });
+            }
+        }
+    }
+    Ok(selected.into_iter().collect())
+}
+
 fn patch_boundary(
     a: &Analysis,
     triangles: &[usize],
@@ -1043,6 +1063,36 @@ fn classify(
     if nodes.windows(2).any(|w| w[1].z - w[0].z <= 4. * tol) {
         return Err(unproven("niveaux source ambigus ou trop rapprochés"));
     }
+    let sections = match historical_sections(a, &triangles, &mut nodes, &projected, o, work) {
+        Ok(sections) => sections,
+        Err(previous) if previous.code == "recognition.surface_unproven" && rims.len() == 2 => {
+            let Some(sections) =
+                torus_cone::classify(a, &triangles, &mut nodes, rims, &projected, o, work)?
+            else {
+                return Err(previous);
+            };
+            sections
+        }
+        Err(error) => return Err(error),
+    };
+    Ok(Patch {
+        frame,
+        nodes,
+        sections,
+        sphere: None,
+        triangles,
+    })
+}
+
+fn historical_sections(
+    a: &Analysis,
+    triangles: &[usize],
+    nodes: &mut [Node],
+    projected: &BTreeMap<usize, V>,
+    o: &Options,
+    work: &mut Work,
+) -> Result<Vec<Section>, FabError> {
+    let tol = o.plane_tolerance_mm.max(o.cylinder_fit_tolerance_mm);
     let mut breaks = BTreeSet::from([0, nodes.len() - 1]);
     let mut runs = Vec::new();
     let mut i = 0;
@@ -1162,15 +1212,8 @@ fn classify(
                 // one measured land and recomputes both source-constrained
                 // quarter circles together. Full vector projections below
                 // and in prove_section account for all resulting movements.
-                major = canonicalize_double_torus(
-                    &mut nodes,
-                    &mut sections,
-                    ends,
-                    run,
-                    source,
-                    o,
-                    work,
-                )?;
+                major =
+                    canonicalize_double_torus(nodes, &mut sections, ends, run, source, o, work)?;
                 double_torus = true;
             } else {
                 if major <= minor
@@ -1308,13 +1351,7 @@ fn classify(
     {
         return Err(unproven("triangles traversant une frontière de raccord"));
     }
-    Ok(Patch {
-        frame,
-        nodes,
-        sections,
-        sphere: None,
-        triangles,
-    })
+    Ok(sections)
 }
 
 fn local_patch_edges(
@@ -1732,6 +1769,10 @@ fn prove_section(
         Shape::Torus { v, .. } => (v[0], v[1]),
         _ => (low.z, high.z),
     };
+    let [low_v, high_v] = match s.shape {
+        Shape::Torus { v, .. } if v[0].sin() > v[1].sin() => [v1, v0],
+        _ => [v0, v1],
+    };
     let mut uv = BTreeMap::new();
     let mut errors = Errors::default();
     for id in s
@@ -1750,13 +1791,22 @@ fn prove_section(
         let mut v = match s.shape {
             Shape::Torus {
                 center_z, major, ..
-            } => (q[2] - center_z).atan2(rho - major),
+            } => {
+                let angle = (q[2] - center_z).atan2(rho - major);
+                // Choose the representative nearest the bounded interval on
+                // the inner radial branch, including perturbations across ±π.
+                if v0 < -PI / 2. || v1 > PI / 2. {
+                    angle + TAU * ((0.5 * (v0 + v1) - angle) / TAU).round()
+                } else {
+                    angle
+                }
+            }
             _ => q[2],
         };
         if low_ids.contains(&id) {
-            v = v0;
+            v = low_v;
         } else if high_ids.contains(&id) {
-            v = v1;
+            v = high_v;
         } else {
             v = v.clamp(v0, v1);
         }
@@ -2276,6 +2326,35 @@ mod horizontal_patch_edge_tests {
             }
         }
         incident
+    }
+
+    #[test]
+    fn cut_components_preserve_sorted_members_and_only_visit_opposite_uses() {
+        let mesh = mesh();
+        let edges = global_edges(&mesh);
+        let one_face = boundary(&mesh.triangles[0]);
+        for cuts in [BTreeSet::new(), one_face, edges.keys().copied().collect()] {
+            for start in 0..mesh.triangles.len() {
+                // Original traversal, including a self-visit for each open edge.
+                let mut pending = vec![start];
+                let mut expected = BTreeSet::new();
+                let mut old_visits = 0;
+                while let Some(t) = pending.pop() {
+                    old_visits += 1;
+                    if expected.insert(t) {
+                        for k in boundary(&mesh.triangles[t]) {
+                            if !cuts.contains(&k) {
+                                pending.extend(&edges[&k]);
+                            }
+                        }
+                    }
+                }
+                let mut work = Work::default();
+                let result = connected_patch(&mesh, start, &cuts, &edges, &mut work).unwrap();
+                assert_eq!(result, expected.into_iter().collect::<Vec<_>>());
+                assert_eq!(2 * work.used_for_test() - 1, old_visits);
+            }
+        }
     }
 
     #[test]

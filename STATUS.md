@@ -116,4 +116,13 @@ Le helper est arrêté dès que le RSS ou l’empreinte physique observée attei
 
 ## Grandes zones courbes — R-074
 
-Les quatre profils de Flansch sont mesurés : chaînes de tores, cônes et cylindres, avec arcs de rayons proches de 0,5 / 2 / 0,3 mm. Les résidus de sommets passent la tolérance, mais la segmentation et les preuves de bandes à deux anneaux restent à développer. Le prototype natif indépendant du premier raccord et son reflet se réimportent valides (cinq faces, volume/dimensions/provenance vérifiés). Test conservé ; **85 tests CAO**, formatage et Clippy réussis. Preuves et limites V-1198. Code de production et application R-073 inchangés ; pas de nouveau STEP Flansch. R-075 propose une première reconnaissance bornée, à valider via A-064. Même remplacer idéalement les quatre zones laisserait 231 608 faces.
+Les quatre profils de Flansch sont mesurés : chaînes de tores, cônes et cylindres, avec arcs de rayons proches de 0,5 / 2 / 0,3 mm. Les résidus de sommets passent la tolérance, mais la segmentation et les preuves de bandes à deux anneaux restent à développer. Le prototype natif indépendant du premier raccord et son reflet se réimportent valides (cinq faces, volume/dimensions/provenance vérifiés). Test conservé ; **85 tests CAO**, formatage et Clippy réussis. Preuves et limites V-1198. Code de production et application R-073 inchangés ; pas de nouveau STEP Flansch. R-074 accepté et portée R-075 approuvée via A-064 ; la reconnaissance est intégrée ci-dessous. Même remplacer idéalement les quatre zones laisserait 231 608 faces.
+
+
+## Raccord tore–cône–cylindre — R-075
+
+Auto et Surfaces reconnaissent la chaîne à raccord tangent et anneaux source partagés, avec preuve continue et décomposition unique. Corpus synthétique indépendant : branches opposées, reflet, placements, cavité traversante, refus des cas non prouvés ; réimport STEP, familles, volume, dimensions et provenance vérifiés. Revue indépendante acceptée. Le guidage Tore avec voisin conique et les chaînes plus longues restent hors périmètre ; un STL tourné puis quantifié en f32 peut encore être refusé pour non-coplanarité.
+
+Sur Flansch, la zone de 64 080 triangles devient un tore, un cône et un cylindre. Le total passe de **501 912 à 439 738 faces**, encore au-dessus du plafond de 100 000 : **aucun STEP**, validation native source non atteinte. Aucun seuil relevé ; parcours des composantes allégé sans changer leurs membres. Preuves et mesures dans V-1199, décision ADR-0035.
+
+**510 tests workspace, 50 bureau, 8 helper, 74 ciblés large-stl, un transfert réel, 229 UI, 12 Python et quatre SDK réussis** ; formatage, Clippy, Svelte et builds passent. `artifacts/FabSTEP.app` reconstruit, empreintes des deux exécutables vérifiées. R-075 à tester via A-065 et A-066 ; aucun nouvel essai graphique ni Fusion revendiqué, release 1.0.0 inchangée.

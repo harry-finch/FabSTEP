@@ -1,8 +1,8 @@
 ---
 id: R-075
 titre: "Reconstruire un raccord tore–cône–cylindre prouvé"
-resume: "Première extension issue de R-074 : reconstruire la zone de 64 080 triangles par trois surfaces, avec raccord tangent prouvé et bandes à deux anneaux. Contrat de données inchangé ; nouvelle règle de preuve à valider, sans promesse de convertir Flansch entier."
-statut: idee
+resume: "Première extension issue de R-074 : reconstruire la zone de 64 080 triangles par trois surfaces, avec raccord tangent prouvé et bandes à deux anneaux. Contrat de données inchangé ; règle de preuve approuvée pour implémentation, sans promesse de convertir Flansch entier."
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-17
 maj: 2026-11-17
@@ -39,9 +39,17 @@ R-074 et décision utilisateur sur la preuve des bandes à deux anneaux. MixedTo
 
 ## Vérifications de l'utilisateur
 
-- Valider cette portée et la preuve des bandes à deux anneaux avant implémentation.
+- Portée et preuve des bandes à deux anneaux approuvées par « c’est parti pour R-075 » (A-064).
 - Après développement, examiner un résultat de référence dans l’application et dans Fusion.
 
 ## Arbitrage
 
 Recommandation : commencer par cette seule chaîne (trois surfaces attendues) et réutiliser ses preuves ensuite. Avantage : première extension bornée sans nouvelle représentation de surface. Risque : toute erreur d’orientation ou de raccord peut invalider le solide ; les tests négatifs et le réimport sont obligatoires. Alternative : traiter les quatre zones ensemble, plus large et plus risqué car elle ajoute deux cônes et des arcs de 100° avec dépliage angulaire. La validation native du maillage dense et les 231 584 plans hors des quatre zones restent des obstacles indépendants.
+
+## Résultat intégré
+
+Détecteur borné dans `rounded/torus_cone.rs`, partage du budget existant, unique découpage sur des anneaux source, tangence calculée conjointement et contrôle continu par triangle. L’ordre des anneaux du tore est adapté à la branche et au reflet. La restauration des mesures évite de réutiliser les ajustements d’un essai historique refusé.
+
+Le corpus synthétique couvre aussi une cavité traversante et une rotation oblique par placement 3MF. Le STL arbitrairement tourné puis arrondi en f32 reste un refus de coplanarité explicite ; aucun garde n’est relâché. La revue indépendante ne relève pas de défaut bloquant.
+
+Sur Flansch, les 64 080 triangles sont répartis en un tore (62 640), un cône (720) et un cylindre (720), sans débordement. Le helper propre obtient 439 738 faces contre 501 912 auparavant, puis refuse toujours le plafond de 100 000 avant validation native source : aucun STEP. Le parcours des composantes retire des auto-visites inutiles pour conserver la reconnaissance dans le budget, avec équivalence testée. Preuves et limites complètes : V-1199 dans `docs/VALIDATION.md`.
