@@ -25,6 +25,8 @@ cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features 
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib planar::tests
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib pipeline::reuse_tests
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib horizontal_patch_edge_tests
+cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib auto_proof_reuse_tests
+cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib partial::tests
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --test source_size_profiles --test analysis --test selection --test dense_planar_contours
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-app --features large-stl --offline --locked --test source_size_profiles
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-cad --features large-stl --offline --locked --lib size_profile_tests

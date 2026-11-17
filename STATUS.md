@@ -85,6 +85,13 @@ Le fichier Flansch de 540 170 triangles franchit les contours, puis refuse sur `
 
 ## Préparation et reconnaissance denses — G3
 
-R-069 réutilise la préparation mono-corps strictement identique et visite les arêtes locales des patchs lorsque cela évite un scan global. Prédicats, provenance et budgets conservés. Sur Flansch (540 170 triangles), le benchmark d’analyse passe de **99 à 51 s avec égalité bit à bit**. L’essai complet passe de 111 à 66 s, mais **aucun STEP n’est produit** : le budget partagé est désormais épuisé dans la recherche d’arcs ouverts (`partial::candidates`). Suite R-070/G4 au stade idée.
+R-069 réutilise la préparation mono-corps strictement identique et visite les arêtes locales des patchs lorsque cela évite un scan global. Prédicats, provenance et budgets conservés. Sur Flansch (540 170 triangles), le benchmark d’analyse passe de **99 à 51 s avec égalité bit à bit**. L’essai complet passe de 111 à 66 s, mais **aucun STEP n’est produit** : le budget partagé est désormais épuisé dans la recherche d’arcs ouverts (`partial::candidates`). R-070/G4 traite ce contour ci-dessous.
 
 **V-1193 : 484 tests workspace, 49 bureau, 8 helper, 54 ciblés `large-stl`, 1 transfert réel, 229 UI, 12 Python et 4 SDK réussis**, avec deux benchmarks opt-in, formatage, Clippy, Svelte et builds réussis. `artifacts/FabSTEP.app` contient les deux exécutables vérifiés ; R-069 attend sa qualification utilisateur. Mesures et limites dans [V-1193](docs/VALIDATION.md). Aucun nouvel essai graphique ni Fusion.
+
+
+## Cercles denses et preuves réutilisées — G4
+
+R-070 corrige le classement des cercles complets quantifiés avant la recherche d’arcs et réutilise les preuves Auto immuables à l’assemblage. Les budgets, tolérances et gardes des profils D restent inchangés. **491 tests workspace, 49 bureau, 8 helper, 63 ciblés `large-stl`, 1 transfert réel, 229 UI, 12 Python et 4 SDK réussis** ; revue indépendante, formatage, Clippy, Svelte et builds passent. Les deux exécutables de `artifacts/FabSTEP.app` sont vérifiés. R-070 attend la qualification utilisateur A-060 ; aucun nouvel essai graphique ni Fusion. Preuves détaillées dans [V-1194](docs/VALIDATION.md).
+
+**Flansch reste refusé sans STEP** : la recherche franchit le contour circulaire initial et atteint la face 7 278, puis épuise le budget sur un contour de 300 points. Aucun gain global de durée n’est revendiqué (73 s lors de cet essai contre 66 s après G3, avec une analyse également plus lente). La recherche générale de fenêtres reste suivie dans l’idée R-071 ; aucun raccourci numérique non prouvé n’est introduit.

@@ -1348,3 +1348,39 @@ Traces locales : `artifacts/g3/{flansch-before.json,flansch-after.json,budget-st
 `scripts/check.sh` termine avec code 0 : **484 tests workspace**, **49 bureau**, **8 helper**, **54 ciblés `large-stl`**, **1 transfert réel opt-in**, **229 UI**, **12 Python** et **4 SDK** réussis. Formatage, Clippy strict des trois builds, contrôle bureau hors workspace, Svelte (0 erreur/0 avertissement) et build UI passent. Quinze tests workspace opt-in sont ignorés par défaut ; les deux nouveaux benchmarks G3 ont été exécutés séparément avec succès, les autres opt-in ne sont pas rejoués dans ce lot. Aucun échec dans la suite globale finale.
 
 Le build de développement macOS réussit et ses deux exécutables correspondent à ceux de `artifacts/FabSTEP.app` : SHA-256 bureau `0264065da6c131980b4367db03f3173ae0053b1514b23e869fd745037f662103`, helper `fdc26fcf28c7b93d52f64e8f2cf37a21ca1f35c53d9d487885df4164e3a2be91`. Journaux complémentaires : `artifacts/g3/{preparation-benchmark.log,check.log,build-app.log,bundle-hashes.json}`. Aucun essai graphique ni Fusion exécuté ; le paquet autonome 1.0.0 est inchangé. Le parcours manuel et son annulation restent à qualifier dans l’action liée à R-069 ; la recherche d’arcs relève de R-070 (G4), encore au stade idée.
+
+
+## V-1194 — G4 : cercles denses et réutilisation des preuves Auto (17 novembre 2026)
+
+R-070 corrige une classification numérique dans `partial::candidates` et supprime des preuves Auto répétées dans `rounded.rs`. Aucun contrat public, plafond, tolérance ou dépendance ne change.
+
+Le profilage G3 montre 5 701 356 unités déjà consommées à l’entrée de la recherche d’arcs. Le budget est ensuite dépassé à 10 000 162, sur la face d’indice 1, contour 2, départ 42, longueur 216. Le contour complet compte 362 sommets. Son ajustement contraint par les deux extrémités adjacentes échoue, tandis que la preuve circulaire existante `recognition::fit_circle` réussit à la même tolérance (1e-5 mm), avec un rayon de 41,93550933193075 mm et un écart radial maximal de 5,637604694186393e-6 mm.
+
+Le secours s’exécute seulement quand l’ajustement contraint échoue. Les décisions angulaires historiques restent intactes, notamment les profils D et les cercles clairsemés. La preuve de secours examine tous les points, leur ordre, les pas angulaires et le tour complet ; elle est débitée avant calcul. Les fenêtres d’arcs ouverts, leur recherche non monotone et la maximalité sont inchangées. Le secours ajoute un parcours linéaire aux contours dont le premier ajustement échoue : sur un cas proche du plafond qui ne bénéficie pas de l’exclusion, un refus peut survenir plus tôt. L’équivalence des seuils de budget n’est pas revendiquée. Il s’agit d’une correction de classification : les anciens candidats erronés du cercle complet ne sont pas conservés et aucune équivalence stricte de tous les candidats historiques n’est revendiquée.
+
+Les preuves Auto réussies possèdent désormais leur patch sphérique ou leurs sections exactes. Le résultat (écarts et orientation) est réutilisé à l’assemblage, avec une unité de consultation ; support plan, preuve initiale, couverture et attribution finale restent exécutés. Le parcours explicite conserve sa preuve différée du cône unique. La revue indépendante vérifie notamment que la contrainte de chaîne torique concave est encore évaluée avant le transfert des sections. Aucun cache global n’est ajouté.
+
+### Régressions ciblées
+
+Les six tests `partial::tests` passent, dont quatre nouveaux : 48 combinaisons de cercles synthétiques quantifiés (128/360 points, quatre origines cycliques, deux sens, trois repères), débit exact 2n pour le secours, épuisements avant calcul, profils D, cercles clairsemés, bruit hors tolérance, croisement et retour angulaire. Le test historique de fenêtres non monotones reste passant. Les données synthétiques sont indépendantes du STL privé.
+
+Les trois tests `auto_proof_reuse_tests` passent : modèle/rapport/provenance comparés à un oracle de recalcul, cas rejetés et guidage restreint, parcours explicite et déviation trop stricte. Pour la section cylindrique synthétique, deux preuves consommaient 768 unités ; la preuve unique plus consultation en consomme 385 avec les mêmes bits d’écarts et la même orientation. Une preuve invalidée n’est pas réutilisée et les budgets épuisés restent bloquants. Cette réduction de travail isolée ne mesure pas le temps de conversion complet.
+
+### Mesures et limite restante
+
+Build debug sur le même Mac, un passage chronométré par version sans débogueur ni compilation concurrente ; mesures indicatives, sans garantie de latence.
+
+| Version | Entrée en reconnaissance | Fin de l’essai | RSS maximale échantillonnée | Résultat |
+| --- | --- | --- | --- | --- |
+| G3 (V-1193) | 50,910 s | 66,177 s | 541,33 Mio | Budget épuisé, face 1 / contour 2 |
+| G4 | 57,753 s | 72,797 s | 551,75 Mio | Budget épuisé plus loin, face 7 278 / contour 0 |
+
+**FlanschTurboLuftfilter_REV02.STL ne produit toujours aucun STEP ni rapport de succès.** La durée d’analyse varie également alors que G4 ne la modifie pas ; aucun gain global de durée n’est revendiqué. Un lancement de diagnostic séparé localise le nouveau dépassement à 10 000 008 unités, sur une fenêtre de 11 points au départ 73 d’un contour de 300 points, dans `partial::candidates`. Ce contour n’est pas le cercle complet initial. Les plafonds restent conservateurs et le refus explicite reste export-inéligible. L’optimisation des fenêtres générales demeure ouverte ; aucun saut fondé sur une monotonie non prouvée n’est intégré.
+
+Les mesures utilisent le helper réel, avec gardes de qualification à 300 s et 4 Gio ; le produit conserve 30 minutes et 4 Gio. Les lancements LLDB autonomes sont volontairement tués au point d’arrêt et ne constituent pas des conversions qualifiées. Les tentatives de lancement sous LLDB bloquées avant `main` sont exclues des mesures. Traces locales : `artifacts/g4/{arc-budget-attach.log,circle-diagnosis.log,flansch-after.json,profile-after.log}`. Les contours extraits et le STL privé ne sont pas versionnés.
+
+### Contrôles finaux
+
+`sh scripts/check.sh` termine avec code 0 : **491 tests workspace, 49 bureau, 8 helper, 63 ciblés avec `large-stl`, 1 transfert réel opt-in, 229 UI, 12 Python et 4 SDK réussis**. Formatage, Clippy strict des trois builds, contrôle bureau hors workspace, Svelte (0 erreur/0 avertissement) et build UI passent. Les quinze tests workspace opt-in restent ignorés par la suite ordinaire ; aucun nouveau test opt-in dans G4. Les benchmarks G2/G3 ne sont pas rejoués dans ce lot. Une compilation intermédiaire du nouveau test de budget exigeait `Debug` sur `Errors`, corrigé avant les tests ciblés et la suite globale ; aucun échec dans la suite finale. L’avertissement Vite connu sur la taille du bundle reste présent.
+
+`sh scripts/build-macos-dev.sh` réussit. Les deux exécutables de `artifacts/FabSTEP.app` correspondent aux builds : SHA-256 bureau `3d0deef7440a2b2b538dfb7b04d28177e3306132381834301141af1111125f8a`, helper `d8332ff8372c31c9f6f705ee644f5b86a055ca7b98cd5dbe60de164808567154`. Journaux complémentaires : `artifacts/g4/{partial-tests.log,proof-tests.log,check.log,build-app.log,bundle-hashes.json}`. Aucun nouvel essai graphique ni Fusion ; paquet autonome v1 inchangé. R-070 reste à tester via A-060 ; la recherche générale résiduelle est suivie dans l’idée R-071.

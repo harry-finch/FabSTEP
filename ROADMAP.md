@@ -6,7 +6,7 @@ L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée i
 
 L’ordre des lots restants reprend le document d’origine ; les priorités et dépendances exprimées dans leurs textes restent applicables. Aucun nouveau développement n’est autorisé par cette migration.
 
-**Avancement : 20 livrés sur 70** (29 %)
+**Avancement : 20 livrés sur 71** (28 %)
 
 ## Restant à faire
 
@@ -108,8 +108,10 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Filtrage spatial borné des contours intégré et testé, avec prédicats inchangés. Le fichier de 540 170 triangles franchit ce contrôle puis atteint le budget de reconnaissance (R-069) ; aucun STEP produit. Build de développement mis à jour, qualification utilisateur ouverte.
 49. **[R-069 G3 — réduire le coût de reconnaissance des maillages denses](roadmap/items/R-069-g3-reduire-le-cout-de-reconnaissance-des.md)** · À tester · jalon post-v1
    Préparation mono-corps réutilisée et recherche d’arêtes limitée aux patchs, sans relâcher les preuves. Sur le STL de 540 170 triangles, analyse 99→51 s avec égalité bit à bit ; essai 111→66 s, encore refusé dans la recherche d’arcs ouverts (R-070), sans STEP. Build et tests réussis.
-50. **[R-070 G4 — borner la recherche des arcs ouverts denses](roadmap/items/R-070-g4-borner-la-recherche-des-arcs-ouverts-denses.md)** · Idée · jalon post-v1
+50. **[R-070 G4 — borner la recherche des arcs ouverts denses](roadmap/items/R-070-g4-borner-la-recherche-des-arcs-ouverts-denses.md)** · À tester · jalon post-v1
    Après G3, le fichier Flansch de 540 170 triangles s’arrête dans partial::candidates sur le budget partagé de reconnaissance. Mesurer la consommation avant cette recherche et ses fenêtres, puis étudier une réduction prouvée du travail ; les ajustements contraints par les extrémités ne sont pas monotones. Ne pas sauter des candidats ni relever le budget sans preuve.
+51. **[R-071 Accélérer les fenêtres d’arcs des contours complexes](roadmap/items/R-071-accelerer-les-fenetres-d-arcs-des-contours.md)** · Idée · jalon post-v1
+   Après G4, Flansch franchit le cercle dense mais épuise encore le budget sur la face 7 278, contour de 300 points réellement non circulaire. Étudier une réduction prouvée du coût des fenêtres, sans supposer la monotonie des ajustements ni augmenter le budget ; une nouvelle preuve numérique exige une qualification distincte.
 
 ## Actions à faire
 
@@ -167,6 +169,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-057](roadmap/actions/A-057-verifier-un-step-issu-du-mode-gros-stl.md) Vérifier un STEP issu du mode gros STL (tester, R-067)
 - [ ] [A-058](roadmap/actions/A-058-verifier-le-passage-des-contours-du-gros-stl.md) Vérifier le passage des contours du gros STL avec G2 (tester, R-068)
 - [ ] [A-059](roadmap/actions/A-059-verifier-le-gros-stl-apres-l-optimisation-g3.md) Vérifier le gros STL après l’optimisation G3 (tester, R-069)
+- [ ] [A-060](roadmap/actions/A-060-verifier-le-gros-stl-apres-g4.md) Vérifier le gros STL après G4 (tester, R-070)
 
 ## Livré
 

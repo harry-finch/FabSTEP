@@ -161,12 +161,10 @@ fn fit(points: &[P2], tolerance: f64) -> Option<Fit> {
         chord: 2. * f.radius * (maximum / 4.).sin().powi(2),
     })
 }
-fn closed_circle(points: &[P2], tol: f64) -> bool {
+fn closed_circle(points: &[P2], tol: f64) -> Option<bool> {
     // Detect cocircularity before applying sampling rules: otherwise a sparse
     // complete circle can masquerade as a well-sampled partial cylinder.
-    let Some(f) = constrained_circle(points, tol) else {
-        return false;
-    };
+    let f = constrained_circle(points, tol)?;
     let mut winding = Sum::default();
     let mut large = 0;
     let mut intermediate = false;
@@ -187,7 +185,7 @@ fn closed_circle(points: &[P2], tol: f64) -> bool {
     // spanning >=90 degrees, all remaining steps <=45 degrees. A loop with
     // two sampling gaps is still a complete circle, never a convenient arc.
     let isolated_chord = large == 1 && !intermediate;
-    winding.get().abs() > TAU - 1e-8 && !isolated_chord
+    Some(winding.get().abs() > TAU - 1e-8 && !isolated_chord)
 }
 
 fn candidates(
@@ -211,8 +209,21 @@ fn candidates(
                 .map(|&v| frame.project(model.vertices[v]).0)
                 .collect();
             work.spend(points.len())?;
-            if closed_circle(&points, o.cylinder_fit_tolerance_mm) {
-                continue;
+            match closed_circle(&points, o.cylinder_fit_tolerance_mm) {
+                Some(true) => continue,
+                Some(false) => (),
+                None => {
+                    // Adjacent endpoints amplify quantization on dense circles.
+                    // Only when the constrained fit fails, reuse the existing
+                    // all-vertex circle proof, with sampling and full winding.
+                    // Keep every historical angular/D-profile decision intact.
+                    work.spend(points.len())?;
+                    if crate::recognition::fit_circle(&points, o.cylinder_fit_tolerance_mm)
+                        .is_some()
+                    {
+                        continue;
+                    }
+                }
             }
             let mut found: Vec<(Vec<usize>, Fit)> = Vec::new();
             for start in 0..vertices.len() {
@@ -1443,6 +1454,178 @@ mod tests {
             let found = candidates(&model, &Options::default(), &mut Work::default()).unwrap();
             assert_eq!(found.len(), 1);
             assert_eq!(found[0].chain.len(), 17);
+        }
+    }
+
+    fn synthetic_f32_circle(count: usize) -> Vec<V> {
+        // Independent analytic dimensions, not copied from a user contour.
+        (0..count)
+            .map(|i| {
+                let angle = 0.338 + TAU * i as f64 / count as f64;
+                [
+                    (60.308 + 1.45 * angle.cos()) as f32 as f64,
+                    (-130. + 1.45 * angle.sin()) as f32 as f64,
+                    0.,
+                ]
+            })
+            .collect()
+    }
+    fn polygon_model(vertices: Vec<V>, mut order: Vec<usize>, frame: usize) -> MixedModel {
+        let normal = match frame {
+            0 => [0., 0., 1.],
+            1 => [0., 0., -1.],
+            _ => [-0.8, 0., 0.6],
+        };
+        let vertices = vertices
+            .into_iter()
+            .map(|[x, y, z]| match frame {
+                0 => [x, y, z],
+                1 => [x + 13., y - 7., z + 11.],
+                _ => [0.6 * x - 0.8 * z + 17., y - 9., 0.8 * x + 0.6 * z + 3.],
+            })
+            .collect();
+        order.shrink_to_fit();
+        MixedModel {
+            vertices,
+            planes: vec![crate::MixedPlane {
+                normal,
+                loops: vec![MixedLoop::Polygon { vertices: order }],
+            }],
+            rings: vec![],
+            cylinders: vec![],
+            arcs: vec![],
+            partial_cylinders: vec![],
+        }
+    }
+    fn loop_points(model: &MixedModel) -> Vec<P2> {
+        let plane = &model.planes[0];
+        let MixedLoop::Polygon { vertices } = &plane.loops[0] else {
+            panic!("synthetic polygon")
+        };
+        let normal = scale(plane.normal, 1. / norm(plane.normal));
+        let frame = Frame::new(model.vertices[vertices[0]], normal);
+        vertices
+            .iter()
+            .map(|&v| frame.project(model.vertices[v]).0)
+            .collect()
+    }
+
+    #[test]
+    fn quantized_dense_complete_circles_bypass_windows_with_exact_linear_work() {
+        let o = Options::default();
+        for count in [128, 360] {
+            for shift in [0, 1, 9, 37] {
+                for reverse in [false, true] {
+                    for frame in 0..3 {
+                        let mut order: Vec<_> = (0..count).collect();
+                        order.rotate_left(shift);
+                        if reverse {
+                            order.reverse();
+                        }
+                        let model = polygon_model(synthetic_f32_circle(count), order, frame);
+                        let points = loop_points(&model);
+                        assert!(constrained_circle(&points,o.cylinder_fit_tolerance_mm).is_none(),"{count}/{shift}/{reverse}/{frame}: endpoint conditioning must reproduce the defect");
+                        assert_eq!(closed_circle(&points, o.cylinder_fit_tolerance_mm), None);
+                        let stable =
+                            crate::recognition::fit_circle(&points, o.cylinder_fit_tolerance_mm)
+                                .expect(
+                                    "all-vertex fit and winding must prove this independent circle",
+                                );
+                        assert!((stable.radius - 1.45).abs() < 1e-5);
+                        assert!(stable.radial <= o.cylinder_fit_tolerance_mm);
+                        let mut work = Work::default();
+                        work.spend(10_000_000 - 2 * count).unwrap();
+                        assert!(candidates(&model, &o, &mut work).unwrap().is_empty());
+                        assert_eq!(work.spend(1).unwrap_err().code, "recognition.too_complex");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn complete_circle_fast_guard_cannot_bypass_an_exhausted_budget() {
+        let count = 360;
+        let model = polygon_model(synthetic_f32_circle(count), (0..count).collect(), 0);
+        for remaining in [0, count - 1, 2 * count - 1] {
+            let mut work = Work::default();
+            work.spend(10_000_000 - remaining).unwrap();
+            assert_eq!(
+                candidates(&model, &Options::default(), &mut work)
+                    .err()
+                    .unwrap()
+                    .code,
+                "recognition.too_complex"
+            );
+        }
+    }
+
+    #[test]
+    fn old_d_profile_and_sparse_full_circle_decisions_are_preserved() {
+        let d: Vec<_> = (0..=16)
+            .map(|i| {
+                let a = PI * i as f64 / 16.;
+                [5. * a.cos(), 5. * a.sin(), 0.]
+            })
+            .collect();
+        let model = polygon_model(d, (0..17).collect(), 0);
+        let points = loop_points(&model);
+        assert_eq!(closed_circle(&points, 1e-5), Some(false));
+        assert!(crate::recognition::fit_circle(&points, 1e-5).is_none());
+        let found = candidates(&model, &Options::default(), &mut Work::default()).unwrap();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].chain.len(), 17);
+        for degrees in [
+            vec![0., 45., 90., 135., 180., 225., 270., 315.],
+            vec![0., 8., 16., 24., 32., 40., 180., 270.],
+        ] {
+            let vertices = degrees
+                .into_iter()
+                .map(|degrees: f64| {
+                    let a = degrees.to_radians();
+                    [5. * a.cos(), 5. * a.sin(), 0.]
+                })
+                .collect();
+            let model = polygon_model(vertices, (0..8).collect(), 0);
+            let points = loop_points(&model);
+            assert_eq!(closed_circle(&points, 1e-5), Some(true));
+            assert!(crate::recognition::fit_circle(&points, 1e-5).is_none());
+            let mut work = Work::default();
+            work.spend(10_000_000 - 8).unwrap();
+            assert!(candidates(&model, &Options::default(), &mut work)
+                .unwrap()
+                .is_empty());
+            assert_eq!(work.spend(1).unwrap_err().code, "recognition.too_complex");
+        }
+    }
+
+    #[test]
+    fn noisy_crossed_and_nonmonotone_loops_do_not_pass_the_stable_circle_guard() {
+        let count = 128;
+        for defect in 0..3 {
+            let mut vertices = synthetic_f32_circle(count);
+            let mut order: Vec<_> = (0..count).collect();
+            match defect {
+                0 => vertices[0][0] = (vertices[0][0] + 0.02) as f32 as f64,
+                1 => order.swap(1, 65),
+                _ => order[12..30].reverse(),
+            }
+            let model = polygon_model(vertices, order, 0);
+            let points = loop_points(&model);
+            assert_eq!(closed_circle(&points, 1e-5), None);
+            assert!(crate::recognition::fit_circle(&points, 1e-5).is_none());
+            // Give the two full-loop guards their exact budget, but no window.
+            // A false skip would return an empty candidate list instead of the
+            // expected blocking error at the first historical window check.
+            let mut work = Work::default();
+            work.spend(10_000_000 - 2 * count).unwrap();
+            assert_eq!(
+                candidates(&model, &Options::default(), &mut work)
+                    .err()
+                    .unwrap()
+                    .code,
+                "recognition.too_complex"
+            );
         }
     }
 }

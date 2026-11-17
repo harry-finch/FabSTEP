@@ -110,7 +110,7 @@ struct SphericalPatch {
     center_z: f64,
     radius: f64,
 }
-#[derive(Default)]
+#[derive(Clone, Copy, Debug, Default)]
 struct Errors {
     radial: f64,
     chord: f64,
@@ -131,6 +131,101 @@ struct Patch {
     triangles: Vec<usize>,
 }
 
+#[derive(Clone, Copy)]
+struct SurfaceProof {
+    errors: Errors,
+    inner: bool,
+}
+impl From<(Errors, bool)> for SurfaceProof {
+    fn from((errors, inner): (Errors, bool)) -> Self {
+        Self { errors, inner }
+    }
+}
+struct ProvenSection {
+    section: Section,
+    proof: SurfaceProof,
+}
+// An accepted Auto proof owns exactly the geometry it proved. Sections move
+// into their proof records; there is no parallel cache indexed by mutable IDs.
+enum AssemblyPatch {
+    Explicit(Patch),
+    Sphere {
+        patch: Patch,
+        proof: SurfaceProof,
+    },
+    Sections {
+        patch: Patch,
+        sections: Vec<ProvenSection>,
+    },
+}
+impl AssemblyPatch {
+    fn patch(&self) -> &Patch {
+        match self {
+            Self::Explicit(patch) | Self::Sphere { patch, .. } | Self::Sections { patch, .. } => {
+                patch
+            }
+        }
+    }
+    fn sphere_proof(&self) -> Option<SurfaceProof> {
+        match self {
+            Self::Sphere { proof, .. } => Some(*proof),
+            _ => None,
+        }
+    }
+    fn sections(&self) -> impl Iterator<Item = (&Section, Option<SurfaceProof>)> {
+        let (explicit, proven): (&[Section], &[ProvenSection]) = match self {
+            Self::Explicit(patch) => (&patch.sections, &[]),
+            Self::Sections { sections, .. } => (&[], sections),
+            Self::Sphere { .. } => (&[], &[]),
+        };
+        explicit
+            .iter()
+            .map(|section| (section, None))
+            .chain(proven.iter().map(|p| (&p.section, Some(p.proof))))
+    }
+}
+enum CandidateProof {
+    Sphere(SurfaceProof),
+    Sections(Vec<SurfaceProof>),
+}
+impl CandidateProof {
+    fn retain(self, mut patch: Patch) -> AssemblyPatch {
+        match self {
+            Self::Sphere(proof) => AssemblyPatch::Sphere { patch, proof },
+            Self::Sections(proofs) => {
+                // Both sequences are produced by the same complete, immutable
+                // section iteration immediately before this ownership transfer.
+                assert_eq!(patch.sections.len(), proofs.len());
+                let sections = std::mem::take(&mut patch.sections)
+                    .into_iter()
+                    .zip(proofs)
+                    .map(|(section, proof)| ProvenSection { section, proof })
+                    .collect();
+                AssemblyPatch::Sections { patch, sections }
+            }
+        }
+    }
+}
+#[derive(Clone, Copy)]
+enum AutoProofMode {
+    Retain,
+    #[cfg(test)]
+    Recompute,
+}
+impl AutoProofMode {
+    fn retain(self) -> bool {
+        match self {
+            Self::Retain => true,
+            #[cfg(test)]
+            Self::Recompute => false,
+        }
+    }
+}
+fn retained_proof(proof: SurfaceProof, work: &mut Work) -> Result<SurfaceProof, FabError> {
+    work.spend(1)?;
+    Ok(proof)
+}
+
 pub fn recognize_rounded(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
     recognize_policy(a, o, false, None)
 }
@@ -146,6 +241,16 @@ fn recognize_policy(
     o: &Options,
     automatic: bool,
     scope: Option<&BTreeSet<usize>>,
+) -> Result<RoundedRecognition, FabError> {
+    recognize_policy_with_proofs(a, o, automatic, scope, AutoProofMode::Retain)
+}
+
+fn recognize_policy_with_proofs(
+    a: &Analysis,
+    o: &Options,
+    automatic: bool,
+    scope: Option<&BTreeSet<usize>>,
+    proof_mode: AutoProofMode,
 ) -> Result<RoundedRecognition, FabError> {
     if o.reconstruction != ReconstructionMode::Surfaces {
         return Err(FabError::new(
@@ -283,7 +388,7 @@ fn recognize_policy(
         }
     }
     let mut rejected = usize::from(failure.is_some());
-    if automatic {
+    let patches = if automatic {
         let mut proven = Vec::new();
         for patch in patches {
             if scope.is_some_and(|scope| !patch.triangles.iter().any(|t| scope.contains(t))) {
@@ -318,33 +423,47 @@ fn recognize_policy(
                     }
                 }
                 let mut local = Errors::default();
-                if let Some(sphere) = patch.sphere {
-                    local.merge(&prove_sphere(a, &patch, sphere, &edges, o, &mut work)?.0);
+                let results = if let Some(sphere) = patch.sphere {
+                    let result: SurfaceProof =
+                        prove_sphere(a, &patch, sphere, &edges, o, &mut work)?.into();
+                    local.merge(&result.errors);
+                    CandidateProof::Sphere(result)
                 } else {
+                    let mut results = Vec::with_capacity(patch.sections.len());
                     for section in &patch.sections {
-                        local.merge(&prove_section(a, &patch, section, &edges, o, &mut work)?.0);
+                        let result: SurfaceProof =
+                            prove_section(a, &patch, section, &edges, o, &mut work)?.into();
+                        local.merge(&result.errors);
+                        results.push(result);
                     }
-                }
+                    CandidateProof::Sections(results)
+                };
                 if o.weld_tolerance_mm + local.radial + local.chord + local.wall
                     > o.max_deviation_mm
                 {
                     return Err(unproven("candidat hors du budget géométrique"));
                 }
-                Ok(())
+                Ok(results)
             })();
             match proof {
-                Ok(()) => proven.push(patch),
+                Ok(proof) => proven.push(if proof_mode.retain() {
+                    proof.retain(patch)
+                } else {
+                    AssemblyPatch::Explicit(patch)
+                }),
                 Err(e) if e.code == "recognition.surface_unproven" => rejected += 1,
                 Err(e) => return Err(e),
             }
         }
-        patches = proven;
-    }
+        proven
+    } else {
+        patches.into_iter().map(AssemblyPatch::Explicit).collect()
+    };
     let single_cone_candidate = !automatic
         && !rounded
         && patches
             .iter()
-            .flat_map(|p| &p.sections)
+            .flat_map(|p| &p.patch().sections)
             .filter(|s| matches!(s.shape, Shape::Cone))
             .count()
             == 1;
@@ -378,7 +497,8 @@ fn recognize_policy(
     let mut owners = vec![None; a.mesh.triangles.len()];
     let mut ring_map = BTreeMap::new();
     let mut errors = Errors::default();
-    for patch in &patches {
+    for assembly in &patches {
+        let patch = assembly.patch();
         let offset = model.revolved.mixed.rings.len();
         for (n, node) in patch.nodes.iter().enumerate() {
             model.revolved.mixed.rings.push(CircularRing {
@@ -391,8 +511,12 @@ fn recognize_policy(
             }
         }
         if let Some(sphere) = patch.sphere {
-            let (e, inner) = prove_sphere(a, patch, sphere, &edges, o, &mut work)?;
-            errors.merge(&e);
+            let proof = match assembly.sphere_proof() {
+                Some(proof) => retained_proof(proof, &mut work)?,
+                None => prove_sphere(a, patch, sphere, &edges, o, &mut work)?.into(),
+            };
+            errors.merge(&proof.errors);
+            let inner = proof.inner;
             let index = model.spheres.len();
             let mut ends = sphere.ends;
             if patch.nodes[ends[0]].z > patch.nodes[ends[1]].z {
@@ -413,16 +537,19 @@ fn recognize_policy(
                 }
             }
         } else {
-            for section in &patch.sections {
+            for (section, retained) in assembly.sections() {
                 // Preserve the historical single-cone fallback: no new UV
                 // proof (or its budget/failure) runs until an open wall is
                 // actually proved. The temporary orientation is never exported.
                 let inner = if single_cone_candidate {
                     false
                 } else {
-                    let (e, inner) = prove_section(a, patch, section, &edges, o, &mut work)?;
-                    errors.merge(&e);
-                    inner
+                    let proof = match retained {
+                        Some(proof) => retained_proof(proof, &mut work)?,
+                        None => prove_section(a, patch, section, &edges, o, &mut work)?.into(),
+                    };
+                    errors.merge(&proof.errors);
+                    proof.inner
                 };
                 let rings = section.ends.map(|n| offset + n);
                 let owner = match section.shape {
@@ -552,7 +679,8 @@ fn recognize_policy(
         if model.revolved.mixed.partial_cylinders.is_empty() {
             return Err(unsupported());
         }
-        for patch in &patches {
+        for assembly in &patches {
+            let patch = assembly.patch();
             for section in &patch.sections {
                 let (e, inner) = prove_section(a, patch, section, &edges, o, &mut work)?;
                 errors.merge(&e);
@@ -2313,5 +2441,239 @@ mod horizontal_patch_edge_tests {
         let new_time = start.elapsed();
         assert_eq!(old, new);
         eprintln!("horizontal source edges: global={} units time={old_time:?}; local=11 units time={new_time:?}",edges.len());
+    }
+}
+
+#[cfg(test)]
+mod auto_proof_reuse_tests {
+    use super::*;
+
+    fn options() -> Options {
+        Options {
+            reconstruction: ReconstructionMode::Surfaces,
+            ..Options::default()
+        }
+    }
+    fn equivalent(
+        a: &Analysis,
+        o: &Options,
+        automatic: bool,
+        scope: Option<&BTreeSet<usize>>,
+    ) -> Option<RoundedRecognition> {
+        let retained = recognize_policy_with_proofs(a, o, automatic, scope, AutoProofMode::Retain);
+        let recomputed =
+            recognize_policy_with_proofs(a, o, automatic, scope, AutoProofMode::Recompute);
+        match (retained, recomputed) {
+            (Ok(retained), Ok(recomputed)) => {
+                assert!(
+                    format!("{retained:?}") == format!("{recomputed:?}"),
+                    "model, report or exact source attribution differs from recomputation"
+                );
+                assert_eq!(retained.model.revolved.mixed.vertices, a.mesh.vertices);
+                assert_eq!(retained.triangle_faces.len(), a.mesh.triangles.len());
+                Some(retained)
+            }
+            (Err(retained), Err(recomputed)) => {
+                assert_eq!(retained.code, recomputed.code);
+                assert_eq!(retained.message, recomputed.message);
+                None
+            }
+            _ => panic!("retained and recomputed proof eligibility differ"),
+        }
+    }
+
+    #[test]
+    fn retained_auto_proofs_preserve_models_reports_and_triangle_provenance() {
+        for bytes in [
+            include_bytes!("../../../fixtures/m5_hemisphere.stl").as_slice(),
+            include_bytes!("../../../fixtures/m5_toroidal_fillet.stl").as_slice(),
+            include_bytes!("../../../fixtures/m4_chamfered_cylinder.stl").as_slice(),
+            include_bytes!("../../../fixtures/double_torus/nominal.stl").as_slice(),
+            include_bytes!("../../../fixtures/post_v1_zones/above_equator.stl").as_slice(),
+        ] {
+            let o = options();
+            let a = crate::analyze_stl(bytes, &o).unwrap();
+            let result = equivalent(&a, &o, true, None).unwrap();
+            assert!(
+                result.report.cylinders
+                    + result.report.cones
+                    + result.report.spheres
+                    + result.report.tori
+                    > 0
+            );
+        }
+    }
+
+    #[test]
+    fn rejected_auto_candidates_scoped_guidance_and_explicit_fallback_are_unchanged() {
+        for bytes in [
+            include_bytes!("../../../fixtures/m5_warped_torus.stl").as_slice(),
+            include_bytes!("../../../fixtures/m5_warped_sphere.stl").as_slice(),
+            include_bytes!("../../../fixtures/double_torus/concave.stl").as_slice(),
+        ] {
+            let o = options();
+            let a = crate::analyze_stl(bytes, &o).unwrap();
+            equivalent(&a, &o, true, None);
+            equivalent(&a, &o, false, None);
+        }
+        let o = options();
+        let a = crate::analyze_stl(
+            include_bytes!("../../../fixtures/m5_toroidal_fillet.stl"),
+            &o,
+        )
+        .unwrap();
+        let scope = a
+            .mesh
+            .triangles
+            .iter()
+            .enumerate()
+            .filter(|(_, triangle)| {
+                let z = triangle.map(|v| a.mesh.vertices[v][2]);
+                z[0] != z[1] || z[0] != z[2]
+            })
+            .take(4)
+            .map(|(id, _)| id)
+            .collect();
+        assert!(equivalent(&a, &o, true, Some(&scope)).unwrap().report.tori > 0);
+        let a = crate::analyze_stl(
+            include_bytes!("../../../fixtures/post_v1_combinations/countersink_only.stl"),
+            &o,
+        )
+        .unwrap();
+        assert!(equivalent(&a, &o, false, None).is_none());
+        let strict = Options {
+            max_deviation_mm: 0.001,
+            ..o
+        };
+        let a = crate::analyze_stl(
+            include_bytes!("../../../fixtures/m5_toroidal_fillet.stl"),
+            &strict,
+        )
+        .unwrap();
+        equivalent(&a, &strict, true, None);
+        assert!(equivalent(&a, &strict, false, None).is_none());
+    }
+
+    fn cylinder_patch() -> (Analysis, Patch, BTreeMap<Edge, Vec<usize>>) {
+        let a = crate::analyze_stl(
+            include_bytes!("../../../fixtures/m2_cylinder.stl"),
+            &options(),
+        )
+        .unwrap();
+        let mut edges = BTreeMap::<Edge, Vec<usize>>::new();
+        for (t, &[x, y, z]) in a.mesh.triangles.iter().enumerate() {
+            for (u, v) in [(x, y), (y, z), (z, x)] {
+                edges.entry(edge(u, v)).or_default().push(t);
+            }
+        }
+        let triangles: Vec<_> = a
+            .mesh
+            .triangles
+            .iter()
+            .enumerate()
+            .filter(|(_, triangle)| {
+                let z = triangle.map(|v| a.mesh.vertices[v][2]);
+                z[0] != z[1] || z[0] != z[2]
+            })
+            .map(|(id, _)| id)
+            .collect();
+        let nodes = [0., 20.].map(|z| {
+            let mut vertices: Vec<_> = a
+                .mesh
+                .vertices
+                .iter()
+                .enumerate()
+                .filter(|(_, p)| p[2] == z && p[0].hypot(p[1]) > 9.)
+                .map(|(id, _)| id)
+                .collect();
+            vertices.sort_by(|&x, &y| {
+                a.mesh.vertices[x][1]
+                    .atan2(a.mesh.vertices[x][0])
+                    .total_cmp(&a.mesh.vertices[y][1].atan2(a.mesh.vertices[y][0]))
+            });
+            Node {
+                vertices,
+                z,
+                radius: 10.,
+            }
+        });
+        let patch = Patch {
+            frame: Frame {
+                origin: [0.; 3],
+                axis: [0., 0., 1.],
+                x: [1., 0., 0.],
+                y: [0., 1., 0.],
+            },
+            nodes: nodes.into_iter().collect(),
+            sections: vec![Section {
+                ends: [0, 1],
+                shape: Shape::Cylinder,
+                triangles: triangles.clone(),
+            }],
+            sphere: None,
+            triangles,
+        };
+        (a, patch, edges)
+    }
+    fn proof_bits(proof: SurfaceProof) -> ([u64; 3], bool) {
+        (
+            [
+                proof.errors.radial.to_bits(),
+                proof.errors.chord.to_bits(),
+                proof.errors.wall.to_bits(),
+            ],
+            proof.inner,
+        )
+    }
+
+    #[test]
+    fn proof_reuse_eliminates_real_work_and_never_bypasses_exhaustion_or_rejection() {
+        let (a, patch, edges) = cylinder_patch();
+        let section = &patch.sections[0];
+        let o = options();
+        let vertices: BTreeSet<_> = section
+            .triangles
+            .iter()
+            .flat_map(|&t| a.mesh.triangles[t])
+            .collect();
+        let proof_cost = 2 * section.triangles.len() + vertices.len();
+        let mut old = Work::default();
+        old.spend(10_000_000 - 2 * proof_cost).unwrap();
+        let first: SurfaceProof = prove_section(&a, &patch, section, &edges, &o, &mut old)
+            .unwrap()
+            .into();
+        let second: SurfaceProof = prove_section(&a, &patch, section, &edges, &o, &mut old)
+            .unwrap()
+            .into();
+        assert_eq!(proof_bits(first), proof_bits(second));
+        assert_eq!(old.spend(1).unwrap_err().code, "recognition.too_complex");
+        let mut reused = Work::default();
+        reused.spend(10_000_000 - proof_cost - 1).unwrap();
+        let first: SurfaceProof = prove_section(&a, &patch, section, &edges, &o, &mut reused)
+            .unwrap()
+            .into();
+        let second = retained_proof(first, &mut reused).unwrap();
+        assert_eq!(proof_bits(first), proof_bits(second));
+        assert_eq!(reused.spend(1).unwrap_err().code, "recognition.too_complex");
+        assert!(proof_cost > 1);
+        let mut exhausted = Work::default();
+        exhausted.spend(10_000_000).unwrap();
+        assert_eq!(
+            retained_proof(first, &mut exhausted).err().unwrap().code,
+            "recognition.too_complex"
+        );
+        let mut changed = a.clone();
+        changed.mesh.vertices[patch.nodes[0].vertices[0]][0] += 0.1;
+        assert_eq!(
+            prove_section(&changed, &patch, section, &edges, &o, &mut Work::default())
+                .unwrap_err()
+                .code,
+            "recognition.surface_unproven"
+        );
+        eprintln!(
+            "Auto section proof: recomputation={} units, retained={} units",
+            2 * proof_cost,
+            proof_cost + 1
+        );
     }
 }

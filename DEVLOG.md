@@ -339,3 +339,12 @@ Le fichier privé de 540 170 triangles franchit désormais les contours, puis at
 G3 réutilise le soudage et la topologie du mono-corps identité, et limite le scan des arêtes horizontales à celles du patch lorsque son coût borné est inférieur au scan global. Le multi-corps, les prédicats, les incidences complètes et les budgets restent inchangés. Revue indépendante favorable ; huit tests de régression ajoutés et deux benchmarks opt-in exécutés.
 
 Sur Flansch (540 170 triangles), l’analyse historique et réutilisée est identique bit à bit, pour 99 s contre 51 s dans le benchmark dédié. L’essai complet passe de 111 à 66 s, mais reste refusé : le budget partagé est désormais épuisé dans la recherche des arcs ouverts, sans STEP produit. Cette suite devient l’idée R-070/G4 ; sa recherche non monotone ne doit pas être raccourcie sans preuve. Mesures, tests et limites : V-1193 dans VALIDATION.
+
+
+## 17 novembre 2026 — R-070, cercles denses et preuves Auto
+
+G4 mesure d’abord le budget partagé, puis corrige un contour circulaire complet pris pour des arcs ouverts après échec de l’ajustement contraint par des extrémités adjacentes. Le secours réutilise la preuve circulaire existante sur tous les points, à tolérance identique et uniquement sur cet échec ; les décisions historiques D/sparse et les fenêtres non monotones restent inchangées. Les preuves Auto réussies sont conservées avec leur géométrie immuable pour éviter leur deuxième calcul à l’assemblage.
+
+La revue numérique et la revue indépendante de production sont favorables. Sept nouveaux tests couvrent les cercles quantifiés, les gardes, budgets, modèles/rapports/provenance et refus ; les résultats ciblés passent. Les mesures et la validation globale sont centralisées dans V-1194. Flansch franchit le premier contour mais reste refusé sans STEP à la face 7 278 ; aucun gain global de durée annoncé. R-071 conserve l’idée d’une réduction démontrée des fenêtres générales, sans hausse de budget ni développement implicite d’une nouvelle preuve numérique.
+
+Validation globale et build macOS réussis, exécutables du paquet vérifiés. R-070 passe à tester avec A-060 ; les résultats et limites restent dans V-1194.
