@@ -1,6 +1,9 @@
 #include <BRepAdaptor_Curve.hxx>
 #include <BRepAdaptor_Surface.hxx>
 #include <BRepAlgoAPI_Check.hxx>
+#include <BRepAlgoAPI_Section.hxx>
+#include <BRepClass_FaceClassifier.hxx>
+#include <BRepLProp_SLProps.hxx>
 #include <BRepBndLib.hxx>
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <BRepBuilderAPI_MakeFace.hxx>
@@ -9,6 +12,9 @@
 #include <BRepBuilderAPI_MakeWire.hxx>
 #include <BRepBuilderAPI_Sewing.hxx>
 #include <BRepCheck_Analyzer.hxx>
+#include <BRepTools_ReShape.hxx>
+#include <BRepTools.hxx>
+#include <BRepTools_WireExplorer.hxx>
 #include <BRepExtrema_DistShapeShape.hxx>
 #include <BRepFilletAPI_MakeFillet.hxx>
 #include <BRepGProp.hxx>
@@ -24,6 +30,7 @@
 #include <DESTEP_Parameters.hxx>
 #include <GProp_GProps.hxx>
 #include <Geom2d_Curve.hxx>
+#include <Geom2d_Line.hxx>
 #include <IMeshData_Status.hxx>
 #include <Message.hxx>
 #include <Message_Messenger.hxx>
@@ -31,6 +38,12 @@
 #include <Precision.hxx>
 #include <STEPControl_Reader.hxx>
 #include <STEPControl_Writer.hxx>
+#include <STEPConstruct.hxx>
+#include <StepShape_AdvancedFace.hxx>
+#include <XSControl_WorkSession.hxx>
+#include <XSControl_TransferReader.hxx>
+#include <XSControl_TransferWriter.hxx>
+#include <Interface_InterfaceModel.hxx>
 #include <Standard_Failure.hxx>
 #include <Standard_Version.hxx>
 #include <StepBasic_Product.hxx>
@@ -45,6 +58,7 @@
 #include <TopoDS_Solid.hxx>
 #include <TopoDS_Vertex.hxx>
 #include <gp_Circ.hxx>
+#include <gp_Elips.hxx>
 #include <gp_Cone.hxx>
 #include <gp_Cylinder.hxx>
 #include <gp_Pln.hxx>
@@ -63,6 +77,7 @@
 #include <mutex>
 #include <numeric>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -117,6 +132,69 @@ struct MeshOutput {
   size_t triangle_count;
 };
 
+struct ResultFaceData {
+  size_t solid_id;
+  size_t family;
+  size_t triangle_start;
+  size_t triangle_count;
+  size_t neighbor_start;
+  size_t neighbor_count;
+  size_t source_face_token; // Untrusted STEP label; zero means unavailable.
+};
+
+struct ResultFacesOutput {
+  MeshOutput mesh;
+  ResultFaceData* faces;
+  size_t face_count;
+  size_t* neighbors;
+  size_t neighbor_count;
+};
+
+struct PlanarProfileSegmentData {
+  size_t kind;
+  double start[2];
+  double end[2];
+  double center[2];
+  double radius;
+  double start_angle;
+  double sweep_angle;
+  double major_axis[2];
+  double ratio;
+};
+
+struct PlanarProfileLoopData {
+  size_t start;
+  size_t count;
+  size_t is_outer;
+};
+
+struct PlanarProfileOutput {
+  size_t solid_id;
+  double origin[3];
+  double x_axis[3];
+  double y_axis[3];
+  double normal[3];
+  PlanarProfileLoopData* loops;
+  size_t loop_count;
+  PlanarProfileSegmentData* segments;
+  size_t segment_count;
+};
+
+struct SectionLoopData {
+  size_t solid_id;
+  size_t component_id;
+  size_t start;
+  size_t count;
+  size_t is_outer;
+};
+
+struct SectionOutput {
+  SectionLoopData* loops;
+  size_t loop_count;
+  PlanarProfileSegmentData* segments;
+  size_t segment_count;
+};
+
 struct MixedRingData {
   double center[3];
   double axis[3];
@@ -166,7 +244,10 @@ struct MixedSegmentData {
 namespace {
 enum Status {
   success, invalid_model, invalid_solid, write_failed, read_failed, mismatch, failure,
-  mesh_failed, mesh_too_complex, bodies_not_separated, document_too_large, separation_budget
+  mesh_failed, mesh_too_complex, bodies_not_separated, document_too_large, separation_budget,
+  profile_face_not_found, profile_not_planar,
+  profile_unsupported_curve, profile_invalid, profile_too_complex,
+  section_coplanar, section_tangent, section_open, section_invalid_plane
 };
 
 struct CadFailure {
@@ -182,6 +263,7 @@ struct SurfaceCounts {
   size_t spherical = 0;
   size_t toroidal = 0;
   size_t spherical_octants = 0;
+  size_t partial_conical = 0;
 };
 
 constexpr SurfaceCounts rounded_box_surfaces{6, 12, 12, 0, 8, 0, 8};
@@ -216,11 +298,37 @@ public:
     bind_vertex(to, end);
   }
 
-  void bind_line(size_t from, size_t to, const TopoDS_Edge& edge) {
-    bind_vertices(from, to, edge);
-    if (!edges.emplace(std::minmax(from, to), from < to ? edge : TopoDS::Edge(edge.Reversed())).second) {
-      throw CadFailure{invalid_model, "Une génératrice appartient à plusieurs cylindres."};
+  TopoDS_Vertex canonical_vertex(size_t index, const TopoDS_Vertex& vertex) {
+    if (vertex.IsNull() ||
+        BRep_Tool::Pnt(vertex).Distance(point_at(points, index)) > Precision::Confusion()) {
+      throw CadFailure{invalid_model, "Un sommet cylindrique dépasse son sommet source."};
     }
+    if (vertices[index].IsNull()) {
+      vertices[index] = vertex;
+    } else if (BRep_Tool::Pnt(vertices[index]).Distance(BRep_Tool::Pnt(vertex)) > Precision::Confusion()) {
+      throw CadFailure{invalid_model, "Deux sommets cylindriques partagés dépassent la tolérance native."};
+    }
+    return vertices[index];
+  }
+
+  // The edge argument runs from source `from` to `to`. Face traversal includes
+  // the inner-face reversal, so two cylinders must traverse their rail oppositely.
+  TopoDS_Edge bind_line(size_t from, size_t to, const TopoDS_Edge& edge, bool traversal) {
+    bind_vertices(from, to, edge);
+    const auto key = std::minmax(from, to);
+    const bool canonical_traversal = traversal == (from < to);
+    auto found = edges.find(key);
+    if (found == edges.end()) {
+      edges.emplace(key, from < to ? edge : TopoDS::Edge(edge.Reversed()));
+      rail_traversals.emplace(key, canonical_traversal);
+      return edge;
+    }
+    auto previous = rail_traversals.find(key);
+    if (previous == rail_traversals.end() || previous->second == canonical_traversal) {
+      throw CadFailure{invalid_model, "Les cylindres ne parcourent pas leur génératrice en sens opposés."};
+    }
+    rail_traversals.erase(previous); // No third cylindrical incidence.
+    return from < to ? found->second : TopoDS::Edge(found->second.Reversed());
   }
 
   TopoDS_Edge line(const gp_Pln& plane, size_t from, size_t to) {
@@ -272,6 +380,7 @@ private:
   BRep_Builder builder;
   std::vector<TopoDS_Vertex> vertices;
   std::map<std::pair<size_t, size_t>, TopoDS_Edge> edges;
+  std::map<std::pair<size_t, size_t>, bool> rail_traversals;
 };
 
 TopoDS_Solid solid_from_sewing(BRepBuilderAPI_Sewing& sewing) {
@@ -293,9 +402,38 @@ TopoDS_Solid solid_from_sewing(BRepBuilderAPI_Sewing& sewing) {
   return solid;
 }
 
+using FaceLabels = std::vector<std::pair<TopoDS_Shape, size_t>>;
+
+// Preserve construction identity through the sewing history, never through
+// traversal order or surface proximity. A split/merge drops the whole map.
+void track_sewn_faces(const TopoDS_Solid& solid, BRepBuilderAPI_Sewing& sewing,
+                      FaceLabels& labels) {
+  TopTools_IndexedMapOfShape final_faces;
+  TopExp::MapShapes(solid, TopAbs_FACE, final_faces);
+  TopTools_IndexedMapOfShape mapped;
+  if (labels.size() != static_cast<size_t>(final_faces.Extent())) {
+    labels.clear();
+    return;
+  }
+  for (auto& entry : labels) {
+    if (sewing.IsModified(entry.first)) {
+      entry.first = sewing.Modified(entry.first);
+    } else if (sewing.IsModifiedSubShape(entry.first)) {
+      entry.first = sewing.ModifiedSubShape(entry.first);
+    }
+    if (entry.first.IsNull() || entry.first.ShapeType() != TopAbs_FACE ||
+        !final_faces.Contains(entry.first) || mapped.Contains(entry.first)) {
+      labels.clear();
+      return;
+    }
+    mapped.Add(entry.first);
+  }
+}
+
 TopoDS_Solid build_solid(
     const double* points, size_t point_count, const double* normals, size_t face_count,
-    const size_t* face_loops, const size_t* loop_vertices, const size_t* vertex_ids) {
+    const size_t* face_loops, const size_t* loop_vertices, const size_t* vertex_ids,
+    const size_t* tokens = nullptr, FaceLabels* labels = nullptr) {
   IndexedWires wires(points, point_count);
   BRepBuilderAPI_Sewing sewing(Precision::Confusion());
   sewing.SetMaxTolerance(Precision::Confusion());
@@ -321,9 +459,20 @@ TopoDS_Solid build_solid(
       }
     }
     sewing.Add(make_face.Face());
+    if (tokens && labels) {
+      labels->push_back({make_face.Face(), tokens[face]});
+    }
   }
 
-  return solid_from_sewing(sewing);
+  const auto solid = solid_from_sewing(sewing);
+  if (labels) {
+    try {
+      track_sewn_faces(solid, sewing, *labels);
+    } catch (const Standard_Failure&) {
+      labels->clear(); // Metadata failure cannot invalidate valid geometry.
+    }
+  }
+  return solid;
 }
 
 gp_Dir direction(const double* normal) {
@@ -525,9 +674,9 @@ TopoDS_Edge oriented_between(const TopoDS_Edge& edge, const gp_Pnt& from, const 
   return same ? forward : TopoDS::Edge(forward.Reversed());
 }
 
-TopoDS_Face partial_cylindrical_face(
+TopoDS_Face partial_revolved_face(
     const MixedCylinderData& cylinder, const MixedArcData* arcs, const double* points,
-    std::vector<TopoDS_Edge>& shared_arcs, IndexedWires& wires) {
+    std::vector<TopoDS_Edge>& shared_arcs, IndexedWires& wires, bool conical = false) {
   const auto& lower = arcs[cylinder.rings[0]];
   const auto& upper = arcs[cylinder.rings[1]];
   const auto origin = point_at(lower.center, 0);
@@ -540,20 +689,52 @@ TopoDS_Face partial_cylindrical_face(
   const double full_turn = 2.0 * std::acos(-1.0);
   if (!std::isfinite(height) || height <= tol || !std::isfinite(lateral) || lateral > tol ||
       !axis.IsEqual(upper_axis, 1.0e-8) || lower.radius <= tol ||
-      gp_Vec(axis).Crossed(gp_Vec(upper_axis)).Magnitude() * lower.radius > tol ||
-      std::abs(lower.radius - upper.radius) > tol ||
-      std::abs(lower.sweep - upper.sweep) * lower.radius > tol ||
+      gp_Vec(axis).Crossed(gp_Vec(upper_axis)).Magnitude() * std::max(lower.radius, upper.radius) > tol ||
+      (!conical && std::abs(lower.radius - upper.radius) > tol) ||
+      (conical && (upper.radius <= tol || std::abs(lower.radius - upper.radius) <= tol)) ||
+      std::abs(lower.sweep - upper.sweep) * std::max(lower.radius, upper.radius) > tol ||
       std::min(lower.sweep, full_turn - lower.sweep) * lower.radius <= 2.0 * tol) {
-    throw CadFailure{invalid_model, "Les arcs ne définissent pas une paroi cylindrique partielle commune."};
+    throw CadFailure{invalid_model, "Les arcs ne définissent pas une paroi de révolution partielle commune."};
   }
 
   const gp_Dir start(gp_Vec(origin, point_at(points, lower.vertices[0])));
-  const gp_Cylinder surface(gp_Ax3(origin, axis, start), lower.radius);
-  const BRepBuilderAPI_MakeFace make_face(surface, 0.0, lower.sweep, 0.0, height);
+  const double angle = conical ? std::atan2(upper.radius - lower.radius, height) : 0.0;
+  const double cosine = std::cos(angle);
+  const gp_Ax3 frame(origin, axis, start);
+  BRepBuilderAPI_MakeFace make_face;
+  if (conical) make_face = BRepBuilderAPI_MakeFace(gp_Cone(frame, angle, lower.radius),
+                                                 0.0, lower.sweep, 0.0, height / cosine);
+  else make_face = BRepBuilderAPI_MakeFace(gp_Cylinder(frame, lower.radius),
+                                          0.0, lower.sweep, 0.0, height);
   if (!make_face.IsDone()) {
-    throw CadFailure{invalid_model, "Impossible de borner la paroi cylindrique partielle."};
+    throw CadFailure{invalid_model, "Impossible de borner la paroi de révolution partielle."};
   }
-  const auto& face = make_face.Face();
+  // Canonicalize source vertices before recording either arcs or rails. Adjacent
+  // cylinders may meet at a rail, and their planar cap arcs must share its ends.
+  auto face = make_face.Face();
+  BRepTools_ReShape vertex_replacements;
+  for (TopExp_Explorer it(face, TopAbs_VERTEX); it.More(); it.Next()) {
+    const auto vertex = TopoDS::Vertex(it.Current());
+    bool matched = false;
+    for (const auto index : cylinder.rings) {
+      for (const auto id : arcs[index].vertices) {
+        if (BRep_Tool::Pnt(vertex).Distance(point_at(points, id)) <= tol) {
+          const auto canonical = wires.canonical_vertex(id, vertex);
+          if (!vertex.IsSame(canonical)) {
+            vertex_replacements.Replace(vertex.Oriented(TopAbs_FORWARD), canonical.Oriented(TopAbs_FORWARD));
+          }
+          matched = true;
+          break;
+        }
+      }
+      if (matched) break;
+    }
+    if (!matched) {
+      throw CadFailure{invalid_model, "Un sommet de la paroi n'a pas d'extrémité source."};
+    }
+  }
+  face = TopoDS::Face(vertex_replacements.Apply(face));
+  BRepTools_ReShape rail_replacements;
   bool rails[2]{};
   for (TopExp_Explorer it(face, TopAbs_EDGE); it.More(); it.Next()) {
     const auto edge = TopoDS::Edge(it.Current());
@@ -563,9 +744,37 @@ TopoDS_Face partial_cylindrical_face(
         const auto& arc = arcs[index];
         const auto oriented = oriented_between(edge, point_at(points, arc.vertices[0]),
                                                point_at(points, arc.vertices[1]));
-        if (!oriented.IsNull() && shared_arcs[index].IsNull()) {
-          shared_arcs[index] = oriented;
-          wires.bind_vertices(arc.vertices[0], arc.vertices[1], oriented);
+        if (!oriented.IsNull()) {
+          if (shared_arcs[index].IsNull()) {
+            shared_arcs[index] = oriented;
+            wires.bind_vertices(arc.vertices[0], arc.vertices[1], oriented);
+          } else {
+            const auto shared = shared_arcs[index];
+            const BRepAdaptor_Curve curve(shared);
+            const double first = curve.FirstParameter(), last = curve.LastParameter();
+            const auto circle = curve.Circle();
+            const double sense = circle.Axis().Direction().Dot(axis) > 0.0 ? 1.0 : -1.0;
+            const gp_Vec radial(point_at(arc.center, 0), curve.Value(first));
+            double u0 = std::atan2(radial.Dot(gp_Vec(frame.YDirection())), radial.Dot(gp_Vec(start)));
+            if (std::abs(u0) * arc.radius <= tol) u0 = 0.0;
+            if (u0 < 0.0) u0 += full_turn;
+            const double u1 = u0 + sense * (last - first);
+            if (std::min(u0, u1) < -tol / arc.radius ||
+                std::max(u0, u1) > lower.sweep + tol / arc.radius ||
+                circle.Location().Distance(point_at(arc.center, 0)) > tol ||
+                std::abs(circle.Radius() - arc.radius) > tol) {
+              throw CadFailure{invalid_model, "Un arc partagé ne correspond pas au domaine de révolution."};
+            }
+            const double v = gp_Vec(origin, point_at(arc.center, 0)).Dot(gp_Vec(axis)) / cosine;
+            Handle(Geom2d_Curve) pcurve = new Geom2d_Line(
+                gp_Pnt2d(u0 - sense * first, v), gp_Dir2d(sense, 0.0));
+            BRep_Builder builder;
+            builder.UpdateEdge(shared, pcurve, face, tol);
+            builder.Range(shared, face, first, last);
+            const auto replacement = oriented.Orientation() == TopAbs_FORWARD
+                ? shared : TopoDS::Edge(shared.Reversed());
+            rail_replacements.Replace(edge.Oriented(TopAbs_FORWARD), replacement);
+          }
           break;
         }
       }
@@ -575,7 +784,34 @@ TopoDS_Face partial_cylindrical_face(
         const auto to = upper.vertices[i];
         const auto oriented = oriented_between(edge, point_at(points, from), point_at(points, to));
         if (!oriented.IsNull() && !rails[i]) {
-          wires.bind_line(from, to, oriented);
+          const bool traversal = (edge.Orientation() == oriented.Orientation()) != bool(cylinder.inner);
+          const auto shared = wires.bind_line(from, to, oriented, traversal);
+          if (!shared.IsSame(oriented)) {
+            // Parameterize the common 3D line on this cylinder. Its canonical
+            // parameter direction need not agree with this cylinder's axis.
+            const BRepAdaptor_Curve curve(shared);
+            const double first = curve.FirstParameter();
+            const double last = curve.LastParameter();
+            const auto begin = curve.Value(first);
+            const auto finish = curve.Value(last);
+            const double z0 = gp_Vec(origin, begin).Dot(gp_Vec(axis)) / cosine;
+            const double z1 = gp_Vec(origin, finish).Dot(gp_Vec(axis)) / cosine;
+            const double slope = (z1 - z0) / (last - first);
+            if (!std::isfinite(slope) || std::abs(std::abs(slope) - 1.0) > 1.0e-10) {
+              throw CadFailure{invalid_model, "La génératrice commune ne suit pas la surface de révolution."};
+            }
+            const double u = i == 0 ? 0.0 : lower.sweep;
+            Handle(Geom2d_Curve) pcurve = new Geom2d_Line(
+                gp_Pnt2d(u, z0 - slope * first), gp_Dir2d(0.0, slope));
+            BRep_Builder builder;
+            builder.UpdateEdge(shared, pcurve, face, tol);
+            builder.Range(shared, face, first, last);
+            // Replace forward geometry; ReShape restores each wire occurrence's
+            // original orientation independently of the source endpoint order.
+            const auto replacement = oriented.Orientation() == TopAbs_FORWARD
+                ? shared : TopoDS::Edge(shared.Reversed());
+            rail_replacements.Replace(edge.Oriented(TopAbs_FORWARD), replacement);
+          }
           rails[i] = true;
           break;
         }
@@ -585,6 +821,10 @@ TopoDS_Face partial_cylindrical_face(
   if (!rails[0] || !rails[1] || shared_arcs[cylinder.rings[0]].IsNull() ||
       shared_arcs[cylinder.rings[1]].IsNull()) {
     throw CadFailure{invalid_model, "Les arcs et génératrices ne rejoignent pas leurs sommets source."};
+  }
+  face = TopoDS::Face(rail_replacements.Apply(face));
+  if (!BRepCheck_Analyzer(face, true).IsValid()) {
+    throw CadFailure{invalid_model, "La paroi de révolution partagée n'est pas valide."};
   }
   return cylinder.inner ? TopoDS::Face(face.Reversed()) : face;
 }
@@ -618,27 +858,53 @@ TopoDS_Solid build_mixed_solid(
     const MixedArcData* arcs, size_t arc_count, const MixedCylinderData* partial, size_t partial_count,
     const MixedCylinderData* cones, size_t cone_count,
     const SphericalPatchData* spheres, size_t sphere_count,
-    const ToroidalPatchData* tori, size_t torus_count) {
+    const ToroidalPatchData* tori, size_t torus_count,
+    const size_t* plane_tokens = nullptr, const size_t* cylinder_tokens = nullptr,
+    FaceLabels* labels = nullptr, const size_t* cone_tokens = nullptr,
+    const size_t* sphere_tokens = nullptr, const size_t* torus_tokens = nullptr,
+    const size_t* partial_tokens = nullptr,
+    const MixedCylinderData* partial_cones = nullptr, size_t partial_cone_count = 0,
+    const size_t* partial_cone_tokens = nullptr) {
   IndexedWires wires(points, point_count);
   BRepBuilderAPI_Sewing sewing(Precision::Confusion());
   sewing.SetMaxTolerance(Precision::Confusion());
   sewing.SetLocalTolerancesMode(false);
   std::vector<TopoDS_Edge> rims(ring_count);
   for (size_t i = 0; i < cylinder_count; ++i) {
-    sewing.Add(revolved_face(cylinders[i], rings, rims, false));
+    const auto face = revolved_face(cylinders[i], rings, rims, false);
+    sewing.Add(face);
+    if (cylinder_tokens && labels) {
+      labels->push_back({face, cylinder_tokens[i]});
+    }
   }
   for (size_t i = 0; i < cone_count; ++i) {
-    sewing.Add(revolved_face(cones[i], rings, rims, true));
+    const auto face = revolved_face(cones[i], rings, rims, true);
+    sewing.Add(face);
+    if (cone_tokens && labels) {
+      labels->push_back({face, cone_tokens[i]});
+    }
   }
   for (size_t i = 0; i < sphere_count; ++i) {
-    sewing.Add(spherical_face(spheres[i], rings, rims));
+    const auto face = spherical_face(spheres[i], rings, rims);
+    sewing.Add(face);
+    if (sphere_tokens && labels) labels->push_back({face, sphere_tokens[i]});
   }
   for (size_t i = 0; i < torus_count; ++i) {
-    sewing.Add(toroidal_face(tori[i], rings, rims));
+    const auto face = toroidal_face(tori[i], rings, rims);
+    sewing.Add(face);
+    if (torus_tokens && labels) labels->push_back({face, torus_tokens[i]});
   }
   std::vector<TopoDS_Edge> shared_arcs(arc_count);
   for (size_t i = 0; i < partial_count; ++i) {
-    sewing.Add(partial_cylindrical_face(partial[i], arcs, points, shared_arcs, wires));
+    const auto face = partial_revolved_face(partial[i], arcs, points, shared_arcs, wires);
+    sewing.Add(face);
+    if (partial_tokens && labels) labels->push_back({face, partial_tokens[i]});
+  }
+
+  for (size_t i = 0; i < partial_cone_count; ++i) {
+    const auto face = partial_revolved_face(partial_cones[i], arcs, points, shared_arcs, wires, true);
+    sewing.Add(face);
+    if (partial_cone_tokens && labels) labels->push_back({face, partial_cone_tokens[i]});
   }
 
   for (size_t i = 0; i < plane_count; ++i) {
@@ -668,8 +934,19 @@ TopoDS_Solid build_mixed_solid(
       throw CadFailure{invalid_model, "Les contours mixtes ne délimitent pas une face plane valide."};
     }
     sewing.Add(make_face.Face());
+    if (plane_tokens && labels) {
+      labels->push_back({make_face.Face(), plane_tokens[i]});
+    }
   }
-  return solid_from_sewing(sewing);
+  const auto solid = solid_from_sewing(sewing);
+  if (labels) {
+    try {
+      track_sewn_faces(solid, sewing, *labels);
+    } catch (const Standard_Failure&) {
+      labels->clear(); // Metadata failure cannot invalidate valid geometry.
+    }
+  }
+  return solid;
 }
 
 TopoDS_Shape single_solid(TopoDS_Shape shape, Status status) {
@@ -1098,7 +1375,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
       case GeomAbs_Cone:
         ++found.conical;
         if (surface.LastUParameter() - surface.FirstUParameter() < 2.0 * std::acos(-1.0) - 1.0e-9) {
-          throw CadFailure{status, "Une face conique partielle est hors du périmètre validé."};
+          ++found.partial_conical;
         }
         break;
       case GeomAbs_Sphere:
@@ -1133,7 +1410,8 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   if (expected && (found.planar != expected->planar || found.cylindrical != expected->cylindrical ||
                    found.partial != expected->partial || found.conical != expected->conical ||
                    found.spherical != expected->spherical || found.toroidal != expected->toroidal ||
-                   found.spherical_octants != expected->spherical_octants)) {
+                   found.spherical_octants != expected->spherical_octants ||
+                   found.partial_conical != expected->partial_conical)) {
     throw CadFailure{status, "Les types de surfaces diffèrent de la reconstruction."};
   }
   check_edge_incidence(shape, faces, status);
@@ -1229,6 +1507,86 @@ TopoDS_Shape read_step(std::istream& stream) {
     throw CadFailure{read_failed, "Le STEP relu ne contient pas une racine transférable unique."};
   }
   return single_solid(reader.OneShape(), read_failed);
+}
+
+constexpr const char* face_token_prefix = "FABSTEP_SOURCE_FACE_V1_";
+constexpr size_t face_token_limit = 100'000;
+
+size_t parse_face_token(const Handle(TCollection_HAsciiString)& name) {
+  if (name.IsNull()) return 0;
+  const size_t prefix_size = std::strlen(face_token_prefix);
+  if (name->Length() <= static_cast<int>(prefix_size) ||
+      name->Length() > static_cast<int>(prefix_size + 6)) return 0;
+  const std::string value = name->ToCString();
+  if (value.size() <= prefix_size || value.size() > prefix_size + 6 ||
+      value.compare(0, prefix_size, face_token_prefix) != 0 || value[prefix_size] == '0') return 0;
+  size_t token = 0;
+  for (size_t i = prefix_size; i < value.size(); ++i) {
+    if (value[i] < '0' || value[i] > '9') return 0;
+    token = token * 10 + static_cast<size_t>(value[i] - '0');
+  }
+  return token <= face_token_limit ? token : 0;
+}
+
+// The labels remain untrusted until joined to the caller's same-result sidecar.
+// Missing, duplicate, orphaned or ambiguous entities invalidate the entire map.
+FaceLabels read_face_labels(STEPControl_Reader& reader, const TopoDS_Shape& shape) {
+  try {
+    TopTools_IndexedMapOfShape faces;
+    TopExp::MapShapes(shape, TopAbs_FACE, faces);
+    if (faces.IsEmpty() || static_cast<size_t>(faces.Extent()) > face_token_limit) return {};
+    const auto& model = reader.Model();
+    // The provenance walk itself has a bounded amount of transfer-table work.
+    if (model.IsNull() || model->NbEntities() > 5'000'000) return {};
+    const auto& process = reader.WS()->TransferReader()->TransientProcess();
+    TopTools_IndexedMapOfShape mapped;
+    std::set<size_t> tokens;
+    FaceLabels result;
+    result.reserve(faces.Extent());
+    for (int i = 1; i <= model->NbEntities(); ++i) {
+      const auto entity = Handle(StepShape_AdvancedFace)::DownCast(model->Value(i));
+      if (entity.IsNull()) continue;
+      const size_t token = parse_face_token(entity->Name());
+      const auto face = STEPConstruct::FindShape(process, entity);
+      if (token == 0 || face.IsNull() || face.ShapeType() != TopAbs_FACE ||
+          !faces.Contains(face) || mapped.Contains(face) || !tokens.insert(token).second) return {};
+      mapped.Add(face);
+      result.push_back({face, token});
+    }
+    if (result.size() != static_cast<size_t>(faces.Extent())) return {};
+    return result;
+  } catch (const Standard_Failure&) {
+    return {};
+  }
+}
+
+// Resolve every exact shape first; never leave a partially labelled document.
+bool write_face_labels(STEPControl_Writer& writer, const FaceLabels& labels) {
+  if (labels.empty() || labels.size() > face_token_limit) return false;
+  try {
+    const auto& process = writer.WS()->TransferWriter()->FinderProcess();
+    std::vector<Handle(StepShape_AdvancedFace)> entities;
+    std::vector<Handle(TCollection_HAsciiString)> names;
+    std::set<const Standard_Transient*> unique_entities;
+    std::set<size_t> tokens;
+    for (const auto& entry : labels) {
+      const auto entity = Handle(StepShape_AdvancedFace)::DownCast(
+          STEPConstruct::FindEntity(process, entry.first));
+      if (entity.IsNull() || !unique_entities.insert(entity.get()).second ||
+          entry.second == 0 || entry.second > face_token_limit ||
+          !tokens.insert(entry.second).second) return false;
+      entities.push_back(entity);
+      names.push_back(new TCollection_HAsciiString(
+          (std::string(face_token_prefix) + std::to_string(entry.second)).c_str()));
+    }
+    for (size_t i = 0; i < entities.size(); ++i) {
+      entities[i]->SetName(names[i]);
+    }
+    return true;
+  } catch (const Standard_Failure&) {
+    // A STEP label is optional metadata. Geometry remains independently checked.
+    return false;
+  }
 }
 
 constexpr size_t step_document_limit = 128 * 1024 * 1024;
@@ -1379,14 +1737,30 @@ void require_product_name(STEPControl_Reader& reader, int root_index, const char
 }
 
 void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports, StepOutput* output,
-             Status& stage) {
+             Status& stage, bool preserve_labels = false) {
   std::vector<Body> before;
+  FaceLabels labels;
+  bool complete_labels = preserve_labels;
   before.reserve(count);
   for (size_t i = 0; i < count; ++i) {
     stage = read_failed;
     StepInputBuffer buffer(parts[i].bytes, parts[i].size);
     std::istream stream(&buffer);
-    auto shape = read_step(stream);
+    STEPControl_Reader input_reader;
+    load_step(input_reader, stream);
+    if (input_reader.NbRootsForTransfer() != 1 || input_reader.TransferRoots() != 1) {
+      throw CadFailure{read_failed, "Le STEP relu ne contient pas une racine transférable unique."};
+    }
+    auto shape = single_solid(input_reader.OneShape(), read_failed);
+    if (complete_labels) {
+      auto part_labels = read_face_labels(input_reader, shape);
+      if (part_labels.empty() || labels.size() + part_labels.size() > face_token_limit) {
+        complete_labels = false;
+        labels.clear();
+      } else {
+        labels.insert(labels.end(), part_labels.begin(), part_labels.end());
+      }
+    }
     stage = invalid_solid;
     auto report = measure_solid(shape, stage);
     before.push_back({std::move(shape), report});
@@ -1405,6 +1779,7 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
       throw CadFailure{stage, "Impossible d'écrire un corps dans le document STEP."};
     }
   }
+  if (complete_labels) write_face_labels(writer, labels);
   StepOutputBuffer output_buffer;
   std::ostream output_stream(&output_buffer);
   const auto write_status = writer.WriteStream(output_stream);
@@ -1587,7 +1962,8 @@ std::vector<int> complete_torus_seam_nodes(const TopoDS_Face& face,
   return parents;
 }
 
-void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output) {
+void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output,
+                std::vector<ResultFaceData>* faces = nullptr) {
   check_meshing_resolution(shape, deflection);
   const BRepMesh_IncrementalMesh mesh(shape, deflection, false, mesh_angle, false);
   constexpr int failure_flags = IMeshData_OpenWire | IMeshData_SelfIntersectingWire |
@@ -1605,7 +1981,9 @@ void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output
     size_t index = std::numeric_limits<size_t>::max();
     bool covered = false;
   };
-  for (TopExp_Explorer it(shape, TopAbs_FACE); it.More(); it.Next()) {
+  size_t face_index = 0;
+  for (TopExp_Explorer it(shape, TopAbs_FACE); it.More(); it.Next(), ++face_index) {
+    const size_t triangle_start = triangles.size() / 3;
     const TopoDS_Face face = TopoDS::Face(it.Current());
     std::array<Pole, 2> poles;
     size_t pole_count = 0;
@@ -1717,6 +2095,14 @@ void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output
         throw CadFailure{mesh_failed, "La tessellation ne couvre pas un pôle de surface."};
       }
     }
+    if (faces) {
+      auto& metadata = faces->at(face_index);
+      metadata.triangle_start = triangle_start;
+      metadata.triangle_count = triangles.size() / 3 - triangle_start;
+      if (metadata.triangle_count == 0) {
+        throw CadFailure{mesh_failed, "Une face STEP ne contient aucun triangle non dégénéré."};
+      }
+    }
   }
   if (triangles.empty()) {
     throw CadFailure{mesh_failed, "La tessellation du STEP est vide."};
@@ -1729,10 +2115,771 @@ void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output
              triangle_data.release(), triangles.size() / 3};
 }
 
+// Shared traversal is the identity contract for display and exact profiles.
+void read_result_topology(STEPControl_Reader& reader, TopoDS_Compound& document,
+                          TopTools_IndexedMapOfShape& face_map,
+                          std::vector<ResultFaceData>& faces,
+                          std::vector<TopoDS_Face>& native_faces) {
+  const int root_count = reader.NbRootsForTransfer();
+  if (root_count < 1 || root_count > 32) {
+    throw CadFailure{read_failed, "L'inspection STEP attend de 1 à 32 racines solides."};
+  }
+  BRep_Builder builder;
+  builder.MakeCompound(document);
+  for (int root = 1; root <= root_count; ++root) {
+    if (!reader.TransferOneRoot(root) || reader.NbShapes() != root) {
+      throw CadFailure{read_failed, "Une racine STEP ne produit pas un solide unique."};
+    }
+    const auto solid = single_solid(reader.Shape(root), read_failed);
+    builder.Add(document, solid);
+    for (TopExp_Explorer it(solid, TopAbs_FACE); it.More(); it.Next()) {
+      if (faces.size() >= mesh_triangle_limit) {
+        throw CadFailure{mesh_too_complex, "L'inspection dépasse 100 000 faces STEP."};
+      }
+      const auto face = TopoDS::Face(it.Current());
+      if (face_map.Contains(face)) {
+        throw CadFailure{mesh_failed, "Une face STEP est partagée par plusieurs solides."};
+      }
+      face_map.Add(face);
+      native_faces.push_back(face);
+      size_t family = 5;
+      switch (BRepAdaptor_Surface(face).GetType()) {
+        case GeomAbs_Plane: family = 0; break;
+        case GeomAbs_Cylinder: family = 1; break;
+        case GeomAbs_Cone: family = 2; break;
+        case GeomAbs_Sphere: family = 3; break;
+        case GeomAbs_Torus: family = 4; break;
+        default: break;
+      }
+      faces.push_back({static_cast<size_t>(root - 1), family, 0, 0, 0, 0, 0});
+    }
+  }
+}
+
+// IDs identify only this STEP read. Optional labels are recovered through the
+// exact transfer table and need the caller's trusted source sidecar.
+void inspect_result_faces(const unsigned char* bytes, size_t size, double deflection,
+                          ResultFacesOutput* output) {
+  StepInputBuffer buffer(bytes, size);
+  std::istream stream(&buffer);
+  STEPControl_Reader reader;
+  load_step(reader, stream);
+  TopoDS_Compound document;
+  TopTools_IndexedMapOfShape face_map;
+  std::vector<ResultFaceData> faces;
+  std::vector<TopoDS_Face> native_faces;
+  read_result_topology(reader, document, face_map, faces, native_faces);
+  for (const auto& entry : read_face_labels(reader, document)) {
+    const auto index = face_map.FindIndex(entry.first);
+    if (index > 0) faces[static_cast<size_t>(index - 1)].source_face_token = entry.second;
+  }
+  constexpr size_t incidence_limit = 600'000;
+  const auto absent = std::numeric_limits<size_t>::max();
+  TopTools_IndexedMapOfShape edge_map;
+  std::vector<std::array<size_t, 2>> edge_faces;
+  size_t incidences = 0;
+  for (size_t id = 0; id < faces.size(); ++id) {
+    for (TopExp_Explorer it(native_faces[id], TopAbs_EDGE); it.More(); it.Next()) {
+      if (++incidences > incidence_limit) {
+        throw CadFailure{mesh_too_complex, "L'inspection dépasse le budget d'incidences STEP."};
+      }
+      const auto edge = TopoDS::Edge(it.Current());
+      if (BRep_Tool::Degenerated(edge)) {
+        continue; // A pole is not an edge between two faces.
+      }
+      const auto edge_id = static_cast<size_t>(edge_map.Add(edge) - 1);
+      if (edge_id == edge_faces.size()) {
+        edge_faces.push_back({id, absent});
+      } else {
+        auto& pair = edge_faces[edge_id];
+        if (pair[0] == id || pair[1] == id) {
+          continue; // Periodic seam: never self-adjacency.
+        }
+        if (pair[1] != absent || faces[pair[0]].solid_id != faces[id].solid_id) {
+          throw CadFailure{mesh_failed, "Une arête STEP a des incidences incompatibles."};
+        }
+        pair[1] = id;
+      }
+    }
+  }
+  std::vector<std::vector<size_t>> adjacent(faces.size());
+  for (const auto& pair : edge_faces) {
+    if (pair[1] != absent) {
+      adjacent[pair[0]].push_back(pair[1]);
+      adjacent[pair[1]].push_back(pair[0]);
+    }
+  }
+  std::vector<size_t> neighbors;
+  for (size_t id = 0; id < faces.size(); ++id) {
+    auto& row = adjacent[id];
+    std::sort(row.begin(), row.end());
+    row.erase(std::unique(row.begin(), row.end()), row.end());
+    faces[id].neighbor_start = neighbors.size();
+    faces[id].neighbor_count = row.size();
+    neighbors.insert(neighbors.end(), row.begin(), row.end());
+  }
+  auto face_data = std::make_unique<ResultFaceData[]>(faces.size());
+  auto neighbor_data = std::make_unique<size_t[]>(neighbors.size());
+  std::copy(neighbors.begin(), neighbors.end(), neighbor_data.get());
+  // All metadata allocations precede the only ownership transfer to output.
+  tessellate(document, deflection, &output->mesh, &faces);
+  std::copy(faces.begin(), faces.end(), face_data.get());
+  output->faces = face_data.release();
+  output->face_count = faces.size();
+  output->neighbors = neighbor_data.release();
+  output->neighbor_count = neighbors.size();
+}
+
+// Shared strict boundary conversion for native faces and section wires.
+void append_profile_wire(const TopoDS_Wire& wire, const gp_Pln& plane,
+                         const gp_Dir& x_axis, const gp_Dir& y_axis, const gp_Dir& normal,
+                         std::vector<PlanarProfileSegmentData>& segments, size_t& total_edges,
+                         const TopoDS_Face* face_context = nullptr) {
+  constexpr size_t edge_limit = 100'000;
+  constexpr double tolerance = 1e-7;
+  constexpr double tau = 6.283185307179586476925286766559;
+  const gp_Pnt origin = plane.Location();
+  auto project = [&](const gp_Pnt& p, double* result) {
+    if (!std::isfinite(p.X()) || !std::isfinite(p.Y()) || !std::isfinite(p.Z()) ||
+        plane.Distance(p) > tolerance) {
+      throw CadFailure{profile_invalid, "Une arête native sort du plan de la face."};
+    }
+    const gp_Vec delta(origin, p);
+    result[0] = delta.Dot(gp_Vec(x_axis));
+    result[1] = delta.Dot(gp_Vec(y_axis));
+  };
+  TopTools_IndexedMapOfShape expected;
+  size_t edge_count = 0;
+  for (TopoDS_Iterator edges(wire); edges.More(); edges.Next()) {
+    if (++total_edges > edge_limit) {
+      throw CadFailure{profile_too_complex, "Le profil dépasse 100 000 arêtes."};
+    }
+    if (edges.Value().ShapeType() != TopAbs_EDGE || expected.Contains(edges.Value())) {
+      throw CadFailure{profile_invalid, "Un contour contient une arête répétée ou invalide."};
+    }
+    expected.Add(edges.Value());
+    ++edge_count;
+  }
+  if (edge_count == 0 || !BRep_Tool::IsClosed(wire)) {
+    throw CadFailure{profile_invalid, "Un contour natif est vide ou ouvert."};
+  }
+  TopTools_IndexedMapOfShape visited;
+  TopoDS_Vertex first_vertex, previous_vertex;
+  gp_Pnt first_point, previous_point;
+  BRepTools_WireExplorer ordered;
+  if (face_context) ordered.Init(wire, *face_context); else ordered.Init(wire);
+  for (auto& edges = ordered; edges.More(); edges.Next()) {
+    const auto edge = edges.Current();
+    if (visited.Extent() >= static_cast<int>(edge_count) || !expected.Contains(edge) ||
+        visited.Contains(edge) || BRep_Tool::Degenerated(edge) ||
+        (edge.Orientation() != TopAbs_FORWARD && edge.Orientation() != TopAbs_REVERSED)) {
+      throw CadFailure{profile_invalid, "Le parcours d'un contour natif est incohérent."};
+    }
+    visited.Add(edge);
+    TopoDS_Vertex start_vertex, end_vertex;
+    TopExp::Vertices(edge, start_vertex, end_vertex, true);
+    if (start_vertex.IsNull() || end_vertex.IsNull() ||
+        (!previous_vertex.IsNull() && !previous_vertex.IsSame(start_vertex))) {
+      throw CadFailure{profile_invalid, "Les arêtes du contour ne partagent pas leurs sommets."};
+    }
+    const BRepAdaptor_Curve curve(edge);
+    double first = curve.FirstParameter(), last = curve.LastParameter();
+    if (!std::isfinite(first) || !std::isfinite(last) || last <= first) {
+      throw CadFailure{profile_invalid, "Le domaine d'une arête native est invalide."};
+    }
+    if (edge.Orientation() == TopAbs_REVERSED) std::swap(first, last);
+    const gp_Pnt start = curve.Value(first), end = curve.Value(last);
+    if (start.Distance(BRep_Tool::Pnt(start_vertex)) > tolerance ||
+        end.Distance(BRep_Tool::Pnt(end_vertex)) > tolerance ||
+        (!previous_vertex.IsNull() && previous_point.Distance(start) > tolerance)) {
+      throw CadFailure{profile_invalid, "Un raccord du contour dépasse la tolérance native."};
+    }
+    PlanarProfileSegmentData segment{};
+    project(start, segment.start);
+    project(end, segment.end);
+    if (curve.GetType() == GeomAbs_Line) {
+      if (start.Distance(end) <= tolerance) {
+        throw CadFailure{profile_invalid, "Une ligne native est dégénérée."};
+      }
+      segment.kind = 0;
+    } else if (curve.GetType() == GeomAbs_Circle) {
+      const gp_Circ circle = curve.Circle();
+      project(circle.Location(), segment.center);
+      const double alignment = circle.Axis().Direction().Dot(normal);
+      if (std::abs(std::abs(alignment) - 1.) > 1e-12 ||
+          !std::isfinite(circle.Radius()) || circle.Radius() <= tolerance) {
+        throw CadFailure{profile_invalid, "Un cercle natif n'est pas dans le plan de la face."};
+      }
+      segment.radius = circle.Radius();
+      segment.start_angle = std::atan2(segment.start[1] - segment.center[1],
+                                      segment.start[0] - segment.center[0]);
+      segment.sweep_angle = (last - first) * (alignment > 0. ? 1. : -1.);
+      const double sweep = std::abs(segment.sweep_angle);
+      if (start_vertex.IsSame(end_vertex) && std::abs(sweep - tau) <= 1e-12) {
+        if (edge_count != 1 || start.Distance(end) > tolerance) {
+          throw CadFailure{profile_invalid, "Un cercle fermé n'est pas une boucle indépendante."};
+        }
+        segment.kind = 2;
+      } else {
+        if (sweep <= 1e-12 || sweep >= tau) {
+          throw CadFailure{profile_invalid, "Le balayage d'un arc natif est invalide."};
+        }
+        segment.kind = 1;
+      }
+    } else if (curve.GetType() == GeomAbs_Ellipse) {
+      const gp_Elips ellipse = curve.Ellipse();
+      project(ellipse.Location(), segment.center);
+      const double alignment = ellipse.Axis().Direction().Dot(normal);
+      const double major = ellipse.MajorRadius(), minor = ellipse.MinorRadius();
+      if (std::abs(std::abs(alignment) - 1.) > 1e-12 || !std::isfinite(major) ||
+          !std::isfinite(minor) || minor <= tolerance || major < minor) {
+        throw CadFailure{profile_invalid, "Une ellipse native est dégénérée ou sort du plan du profil."};
+      }
+      const gp_Vec major_vector = gp_Vec(ellipse.Position().XDirection()) * major;
+      segment.major_axis[0] = major_vector.Dot(gp_Vec(x_axis));
+      segment.major_axis[1] = major_vector.Dot(gp_Vec(y_axis));
+      segment.ratio = minor / major;
+      const double sense = alignment > 0. ? 1. : -1.;
+      segment.start_angle = first * sense;
+      segment.sweep_angle = (last - first) * sense;
+      const double sweep = std::abs(segment.sweep_angle);
+      if (start_vertex.IsSame(end_vertex) && std::abs(sweep - tau) <= 1e-12) {
+        if (edge_count != 1 || start.Distance(end) > tolerance) {
+          throw CadFailure{profile_invalid, "Une ellipse fermée n'est pas une boucle indépendante."};
+        }
+        segment.sweep_angle = std::copysign(tau, segment.sweep_angle);
+      } else if (sweep <= 1e-12 || sweep >= tau) {
+        throw CadFailure{profile_invalid, "Le domaine d'un arc elliptique natif est invalide."};
+      }
+      segment.kind = 3;
+    } else {
+      throw CadFailure{profile_unsupported_curve, "Le contour contient une courbe autre qu'une ligne, un cercle ou une ellipse."};
+    }
+    if (first_vertex.IsNull()) { first_vertex = start_vertex; first_point = start; }
+    previous_vertex = end_vertex;
+    previous_point = end;
+    segments.push_back(segment);
+  }
+  if (static_cast<size_t>(visited.Extent()) != edge_count || first_vertex.IsNull() ||
+      !previous_vertex.IsSame(first_vertex) || previous_point.Distance(first_point) > tolerance) {
+    throw CadFailure{profile_invalid, "Le parcours du contour est incomplet ou ouvert."};
+  }
+}
+
+// Extract exact native line/circle geometry; tessellation never participates.
+void extract_planar_profile(const unsigned char* bytes, size_t size, size_t face_id,
+                            PlanarProfileOutput* output) {
+  constexpr size_t loop_limit = 4096;
+  if (size == 0 || size > 128 * 1024 * 1024) {
+    throw CadFailure{read_failed, "Le STEP doit être non vide et ne pas dépasser 128 Mio."};
+  }
+  StepInputBuffer buffer(bytes, size);
+  std::istream stream(&buffer);
+  STEPControl_Reader reader;
+  load_step(reader, stream);
+  TopoDS_Compound document;
+  TopTools_IndexedMapOfShape face_map;
+  std::vector<ResultFaceData> faces;
+  std::vector<TopoDS_Face> native_faces;
+  read_result_topology(reader, document, face_map, faces, native_faces);
+  if (face_id >= faces.size()) {
+    throw CadFailure{profile_face_not_found, "La face STEP sélectionnée n'existe pas."};
+  }
+  const auto selected = native_faces[face_id];
+  const BRepAdaptor_Surface surface(selected);
+  if (surface.GetType() != GeomAbs_Plane) {
+    throw CadFailure{profile_not_planar, "Le profil DXF exige une face STEP plane."};
+  }
+  const gp_Pln plane = surface.Plane();
+  const gp_Pnt origin = plane.Location();
+  const gp_Dir x_axis = plane.Position().XDirection();
+  gp_Dir normal = plane.Axis().Direction();
+  if (selected.Orientation() == TopAbs_REVERSED) normal.Reverse();
+  else if (selected.Orientation() != TopAbs_FORWARD) {
+    throw CadFailure{profile_invalid, "La face possède une orientation non prise en charge."};
+  }
+  const gp_Dir y_axis = normal.Crossed(x_axis);
+  const auto face = TopoDS::Face(selected.Oriented(TopAbs_FORWARD));
+  const auto outer = BRepTools::OuterWire(face);
+  if (outer.IsNull()) throw CadFailure{profile_invalid, "La face ne possède pas de contour extérieur."};
+  std::vector<PlanarProfileLoopData> loops;
+  std::vector<PlanarProfileSegmentData> segments;
+  size_t outer_count = 0;
+  size_t total_edges = 0;
+  for (TopoDS_Iterator wires(face); wires.More(); wires.Next()) {
+    if (wires.Value().ShapeType() != TopAbs_WIRE || loops.size() >= loop_limit) {
+      throw CadFailure{loops.size() >= loop_limit ? profile_too_complex : profile_invalid,
+                       "Les contours de la face sont invalides ou dépassent 4 096 boucles."};
+    }
+    const auto wire = TopoDS::Wire(wires.Value());
+    const size_t first_segment = segments.size();
+    append_profile_wire(wire, plane, x_axis, y_axis, normal, segments, total_edges, &face);
+    const bool is_outer = wire.IsSame(outer);
+    outer_count += is_outer;
+    loops.push_back({first_segment, segments.size() - first_segment, static_cast<size_t>(is_outer)});
+  }
+  if (outer_count != 1 || loops.empty()) {
+    throw CadFailure{profile_invalid, "Le profil doit posséder un unique contour extérieur."};
+  }
+  auto loop_data = std::make_unique<PlanarProfileLoopData[]>(loops.size());
+  auto segment_data = std::make_unique<PlanarProfileSegmentData[]>(segments.size());
+  std::copy(loops.begin(), loops.end(), loop_data.get());
+  std::copy(segments.begin(), segments.end(), segment_data.get());
+  output->solid_id = faces[face_id].solid_id;
+  for (int axis = 1; axis <= 3; ++axis) {
+    output->origin[axis - 1] = origin.Coord(axis);
+    output->x_axis[axis - 1] = x_axis.Coord(axis);
+    output->y_axis[axis - 1] = y_axis.Coord(axis);
+    output->normal[axis - 1] = normal.Coord(axis);
+  }
+  output->loops = loop_data.release();
+  output->loop_count = loops.size();
+  output->segments = segment_data.release();
+  output->segment_count = segments.size();
+}
+
+void planar_frame_from_face(const TopoDS_Face& face, double* frame) {
+  const BRepAdaptor_Surface surface(face);
+  if (surface.GetType() != GeomAbs_Plane) {
+    throw CadFailure{profile_not_planar, "Le repère exige une face STEP plane."};
+  }
+  const auto plane = surface.Plane();
+  auto normal = plane.Axis().Direction();
+  if (face.Orientation() == TopAbs_REVERSED) normal.Reverse();
+  else if (face.Orientation() != TopAbs_FORWARD) {
+    throw CadFailure{profile_invalid, "L'orientation de la face est invalide."};
+  }
+  const auto x = plane.Position().XDirection();
+  const auto y = normal.Crossed(x);
+  for (int axis = 1; axis <= 3; ++axis) {
+    frame[axis - 1] = plane.Location().Coord(axis);
+    frame[axis + 2] = x.Coord(axis);
+    frame[axis + 5] = y.Coord(axis);
+    frame[axis + 8] = normal.Coord(axis);
+  }
+}
+
+// Returns an explicit face frame even when its boundary curves cannot be exported.
+void extract_planar_face_frame(const unsigned char* bytes, size_t size, size_t face_id, double* frame) {
+  if (size == 0 || size > 128 * 1024 * 1024) {
+    throw CadFailure{read_failed, "Le STEP doit être non vide et ne pas dépasser 128 Mio."};
+  }
+  StepInputBuffer buffer(bytes, size);
+  std::istream stream(&buffer);
+  STEPControl_Reader reader;
+  load_step(reader, stream);
+  TopoDS_Compound document;
+  TopTools_IndexedMapOfShape face_map;
+  std::vector<ResultFaceData> faces;
+  std::vector<TopoDS_Face> native_faces;
+  read_result_topology(reader, document, face_map, faces, native_faces);
+  if (face_id >= native_faces.size()) {
+    throw CadFailure{profile_face_not_found, "La face STEP sélectionnée n'existe pas."};
+  }
+  planar_frame_from_face(native_faces[face_id], frame);
+}
+
+struct SectionWire {
+  TopoDS_Wire wire;
+  TopoDS_Face interior; // Temporary classification domain only, never a model cap.
+  gp_Pnt witness;
+  size_t edge_count;
+  std::vector<size_t> containers;
+};
+
+// Build closed cycles using native shared vertices only: no sewing, tolerance
+// matching, endpoint replacement, or newly constructed connecting edge.
+std::vector<SectionWire> section_wires(const TopoDS_Shape& section, const gp_Pln& plane,
+                                      size_t& global_edges, size_t& global_loops) {
+  constexpr size_t edge_limit = 100'000;
+  TopTools_IndexedMapOfShape edges, vertices;
+  std::vector<std::array<size_t, 2>> endpoints;
+  std::vector<std::vector<size_t>> incidences;
+  for (TopExp_Explorer it(section, TopAbs_EDGE); it.More(); it.Next()) {
+    if (edges.Contains(it.Current())) continue;
+    if (++global_edges > edge_limit) throw CadFailure{profile_too_complex, "La section dépasse 100 000 arêtes."};
+    const auto edge = TopoDS::Edge(it.Current());
+    if (BRep_Tool::Degenerated(edge)) throw CadFailure{section_tangent, "La coupe contient une arête dégénérée ou tangente."};
+    const auto id = static_cast<size_t>(edges.Add(edge) - 1);
+    TopoDS_Vertex a, b;
+    TopExp::Vertices(edge, a, b, true);
+    if (a.IsNull() || b.IsNull()) throw CadFailure{section_open, "La coupe contient une arête sans extrémités."};
+    const size_t ia = vertices.Add(a) - 1, ib = vertices.Add(b) - 1;
+    incidences.resize(vertices.Extent());
+    incidences[ia].push_back(id);
+    incidences[ib].push_back(id);
+    if (incidences[ia].size() > 2 || incidences[ib].size() > 2) {
+      throw CadFailure{section_tangent, "La coupe présente un embranchement ou une tangence."};
+    }
+    endpoints.push_back({ia, ib});
+  }
+  size_t vertex_visits = 0;
+  for (TopExp_Explorer it(section, TopAbs_VERTEX); it.More(); it.Next()) {
+    if (++vertex_visits > 2 * edge_limit) throw CadFailure{profile_too_complex, "Le parcours des sommets de coupe dépasse son budget."};
+    if (!vertices.Contains(it.Current())) throw CadFailure{section_tangent, "La coupe touche le solide en un point isolé."};
+  }
+  for (const auto& row : incidences) {
+    if (row.size() != 2) throw CadFailure{section_open, "La section contient un contour ouvert."};
+  }
+  std::vector<bool> visited(endpoints.size());
+  std::vector<SectionWire> result;
+  for (size_t first = 0; first < endpoints.size(); ++first) {
+    if (visited[first]) continue;
+    if (++global_loops > 4096) throw CadFailure{profile_too_complex, "La section dépasse 4 096 contours."};
+    TopoDS_Wire wire;
+    BRep_Builder builder;
+    builder.MakeWire(wire);
+    size_t edge_id = first, vertex = endpoints[first][0];
+    const size_t first_vertex = vertex;
+    size_t count = 0;
+    do {
+      if (visited[edge_id]) throw CadFailure{section_open, "Le parcours de la section ne forme pas un cycle simple."};
+      visited[edge_id] = true;
+      auto edge = TopoDS::Edge(edges(static_cast<int>(edge_id + 1)));
+      const auto& pair = endpoints[edge_id];
+      if (pair[0] == vertex) vertex = pair[1];
+      else if (pair[1] == vertex) { vertex = pair[0]; edge.Reverse(); }
+      else throw CadFailure{section_open, "Les sommets de coupe ne sont pas partagés."};
+      builder.Add(wire, edge);
+      ++count;
+      const auto& next = incidences[vertex];
+      edge_id = next[0] == edge_id ? next[1] : next[0];
+    } while (vertex != first_vertex);
+    if (!BRep_Tool::IsClosed(wire)) throw CadFailure{section_open, "Un contour de coupe n'est pas fermé."};
+    BRepBuilderAPI_MakeFace classification(plane, wire, true);
+    if (!classification.IsDone()) throw CadFailure{profile_invalid, "Le contour ne définit pas un domaine de classification plan."};
+    result.push_back({wire, classification.Face(), BRep_Tool::Pnt(TopoDS::Vertex(vertices(static_cast<int>(first_vertex + 1)))), count, {}});
+  }
+  return result;
+}
+
+// Conservative exclusion only. Native geometry (never display triangles) and
+// shape tolerances bound the entire trimmed face/body. Unusable boxes retain
+// the original checks rather than guessing that an intersection is absent.
+bool section_bounds_may_intersect(const TopoDS_Shape& shape, const gp_Pln& plane) {
+  Bnd_Box bounds;
+  BRepBndLib::AddOptimal(shape, bounds, false, true);
+  if (bounds.IsVoid() || bounds.IsOpen()) return true;
+  double minimum[3], maximum[3];
+  bounds.Get(minimum[0], minimum[1], minimum[2], maximum[0], maximum[1], maximum[2]);
+  double lower = 0., upper = 0., scale = 1.;
+  for (int axis = 0; axis < 3; ++axis) {
+    const double origin = plane.Location().Coord(axis + 1);
+    const double normal = plane.Axis().Direction().Coord(axis + 1);
+    const double a = (minimum[axis] - origin) * normal;
+    const double b = (maximum[axis] - origin) * normal;
+    if (!std::isfinite(a) || !std::isfinite(b)) return true;
+    lower += std::min(a, b);
+    upper += std::max(a, b);
+    scale += std::abs(minimum[axis]) + std::abs(maximum[axis]) + std::abs(origin);
+  }
+  const double margin = 1e-7 + 64. * std::numeric_limits<double>::epsilon() * scale;
+  if (!std::isfinite(lower) || !std::isfinite(upper) || !std::isfinite(margin)) return true;
+  return lower <= margin && upper >= -margin;
+}
+
+// A periodic seam has two pcurves on one native face, but no second incident
+// face. No geometric matching is used to identify a common section edge.
+const TopoDS_Face* exact_section_seam_face(const TopoDS_Edge& edge,
+                                          const TopTools_IndexedMapOfShape& source_edges,
+                                          const std::vector<size_t>& source_ancestors,
+                                          const std::vector<TopoDS_Face>& native_faces) {
+  const int index = source_edges.FindIndex(edge);
+  if (index <= 0) return nullptr;
+  const size_t ancestor = source_ancestors[static_cast<size_t>(index - 1)];
+  if (ancestor >= native_faces.size()) return nullptr;
+  const auto& face = native_faces[ancestor];
+  return BRep_Tool::IsClosed(edge, face) ? &face : nullptr;
+}
+
+// Analytic critical heights exclude tangencies over the entire native support,
+// not just sampled points of an intersection curve. This is deliberately
+// conservative for trimmed patches: an excluded support level remains refused.
+void check_section_surface_support(const BRepAdaptor_Surface& surface, const gp_Pln& plane) {
+  constexpr double tolerance = 1e-7;
+  const gp_Dir normal = plane.Axis().Direction();
+  auto signed_height = [&](const gp_Pnt& center) { return gp_Vec(center, plane.Location()).Dot(gp_Vec(normal)); };
+  auto tangent = [] { throw CadFailure{section_tangent, "Le plan atteint un niveau tangent ou singulier d'une surface support ; modifier le décalage."}; };
+  switch (surface.GetType()) {
+    case GeomAbs_Plane: {
+      const auto support = surface.Plane();
+      if (std::abs(support.Axis().Direction().Dot(normal)) >= 1. - 1e-12 && plane.Distance(support.Location()) <= tolerance) {
+        throw CadFailure{section_coplanar, "Le plan de coupe coïncide avec une face du solide ; modifier le décalage."};
+      }
+      return;
+    }
+    case GeomAbs_Sphere: {
+      const auto sphere = surface.Sphere();
+      if (std::abs(std::abs(signed_height(sphere.Location())) - sphere.Radius()) <= tolerance) tangent();
+      return;
+    }
+    case GeomAbs_Cylinder: {
+      const auto cylinder = surface.Cylinder();
+      if (std::abs(cylinder.Axis().Direction().Dot(normal)) <= 1e-12 &&
+          std::abs(std::abs(signed_height(cylinder.Location())) - cylinder.Radius()) <= tolerance) tangent();
+      return;
+    }
+    case GeomAbs_Cone: {
+      const auto cone = surface.Cone();
+      if (plane.Distance(cone.Apex()) <= tolerance) tangent();
+      return;
+    }
+    case GeomAbs_Torus: {
+      const auto torus = surface.Torus();
+      if (torus.MajorRadius() <= torus.MinorRadius() || torus.MinorRadius() <= tolerance) {
+        throw CadFailure{profile_unsupported_curve, "Seuls les tores annulaires réguliers sont pris en charge en section."};
+      }
+      const double axial = normal.Dot(torus.Axis().Direction());
+      const double radial = gp_Vec(normal).Crossed(gp_Vec(torus.Axis().Direction())).Magnitude();
+      const double height = signed_height(torus.Location());
+      for (const double major_sign : {-1., 1.}) {
+        for (const double minor_sign : {-1., 1.}) {
+          if (std::abs(height - major_sign * torus.MajorRadius() * radial - minor_sign * torus.MinorRadius()) <= tolerance) tangent();
+        }
+      }
+      const bool horizontal = std::abs(axial) >= 1. - 1e-12;
+      const bool meridian = std::abs(axial) <= 1e-12 && std::abs(height) <= tolerance;
+      if (!horizontal && !meridian) {
+        throw CadFailure{profile_unsupported_curve, "Le tore exige une coupe perpendiculaire à son axe ou un plan contenant son axe."};
+      }
+      return;
+    }
+    default: throw CadFailure{profile_unsupported_curve, "La transversalité de cette famille de surfaces n'est pas prise en charge."};
+  }
+}
+
+// Whitelist of exact analytic intersections with globally controlled normals.
+// Native pcurve samples below are additional consistency checks, not the proof.
+void check_section_curve_family(const BRepAdaptor_Surface& surface, const BRepAdaptor_Curve& curve,
+                                const gp_Pln& plane) {
+  const bool circle = curve.GetType() == GeomAbs_Circle;
+  const bool ellipse = curve.GetType() == GeomAbs_Ellipse;
+  const bool line = curve.GetType() == GeomAbs_Line;
+  auto parallel = [](const gp_Dir& a, const gp_Dir& b) { return std::abs(a.Dot(b)) >= 1. - 1e-12; };
+  bool supported = false;
+  switch (surface.GetType()) {
+    case GeomAbs_Plane: supported = line; break;
+    case GeomAbs_Sphere: supported = circle; break;
+    case GeomAbs_Cylinder: {
+      const auto axis = surface.Cylinder().Axis().Direction();
+      // A non-parallel plane cuts a circular cylinder in an exact ellipse.
+      // Smooth cylinder tangencies require a plane parallel to its axis and
+      // were excluded by the global analytic support check.
+      supported = (circle && parallel(curve.Circle().Axis().Direction(), axis)) ||
+                  (line && parallel(curve.Line().Direction(), axis)) ||
+                  (ellipse && std::abs(plane.Axis().Direction().Dot(axis)) > 1e-12);
+      break;
+    }
+    case GeomAbs_Cone:
+      // Every tangent plane of a cone contains its apex. The support preflight
+      // excludes all such planes (conservatively also for trimmed frusta).
+      supported = ellipse || (circle && parallel(curve.Circle().Axis().Direction(), surface.Cone().Axis().Direction()));
+      break;
+    case GeomAbs_Torus:
+      check_section_surface_support(surface, plane);
+      supported = circle;
+      break;
+    default: break;
+  }
+  if (!supported) throw CadFailure{profile_unsupported_curve, "Cette intersection analytique n'a pas de preuve de transversalité prise en charge."};
+}
+
+// Exact native pcurves locate the section on the ancestor surface. A section
+// along a tangency (including a closed tangent torus circle) is never a profile.
+void check_section_transversality(BRepAlgoAPI_Section& operation, const TopoDS_Edge& edge,
+                                 const gp_Pln& plane,
+                                 const TopTools_IndexedMapOfShape& source_edges,
+                                 const std::vector<size_t>& source_ancestors,
+                                 const std::vector<TopoDS_Face>& native_faces) {
+  const gp_Dir normal = plane.Axis().Direction();
+  TopoDS_Shape ancestor;
+  if (!operation.HasAncestorFaceOn1(edge, ancestor) || ancestor.ShapeType() != TopAbs_FACE) {
+    const auto* seam_face = exact_section_seam_face(edge, source_edges, source_ancestors, native_faces);
+    if (!seam_face) {
+      throw CadFailure{section_tangent, "La coupe coïncide avec une arête native ambiguë ou une tangence."};
+    }
+    ancestor = *seam_face;
+  }
+  const auto face = TopoDS::Face(ancestor);
+  const BRepAdaptor_Surface surface(face);
+  const BRepAdaptor_Curve native_curve(edge);
+  check_section_curve_family(surface, native_curve, plane);
+  if (surface.GetType() == GeomAbs_Sphere) {
+    // A spherical pole is a UV singularity, not a singularity of the sphere.
+    // The critical-height proof above is global; these radial normals are
+    // coordinate-independent consistency checks, including at both poles.
+    const auto sphere = surface.Sphere();
+    const double first = native_curve.FirstParameter(), last = native_curve.LastParameter();
+    for (const double fraction : {0., 0.5, 1.}) {
+      const gp_Vec radial(sphere.Location(), native_curve.Value(first + (last - first) * fraction));
+      if (std::abs(radial.Magnitude() - sphere.Radius()) > 1e-7 ||
+          radial.Magnitude() <= 1e-7 ||
+          radial.Crossed(gp_Vec(normal)).Magnitude() <= 1e-8 * radial.Magnitude()) {
+        throw CadFailure{section_tangent, "La coupe est tangente à la surface sphérique native."};
+      }
+    }
+    return;
+  }
+  double first, last;
+  const auto curve = BRep_Tool::CurveOnSurface(edge, face, first, last);
+  if (curve.IsNull() || !std::isfinite(first) || !std::isfinite(last)) {
+    throw CadFailure{profile_invalid, "La coupe n'a pas de courbe paramétrique native vérifiable."};
+  }
+  for (const double fraction : {0., 0.5, 1.}) {
+    const auto uv = curve->Value(first + (last - first) * fraction);
+    BRepLProp_SLProps properties(surface, uv.X(), uv.Y(), 1, 1e-12);
+    if (!properties.IsNormalDefined() || gp_Vec(properties.Normal()).Crossed(gp_Vec(normal)).Magnitude() <= 1e-8) {
+      throw CadFailure{section_tangent, "La coupe est tangente à une surface native ou passe par une singularité."};
+    }
+  }
+}
+
+void extract_section_profile(const unsigned char* bytes, size_t size, const double* frame,
+                             const size_t* solid_ids, size_t solid_count, SectionOutput* output) {
+  constexpr double tolerance = 1e-7;
+  if (size == 0 || size > 128 * 1024 * 1024) throw CadFailure{read_failed, "Le STEP doit être non vide et ne pas dépasser 128 Mio."};
+  if (!frame || !solid_ids || solid_count == 0 || solid_count > 32) throw CadFailure{section_invalid_plane, "Le plan et le choix des corps sont invalides."};
+  for (size_t i = 0; i < 12; ++i) if (!std::isfinite(frame[i])) throw CadFailure{section_invalid_plane, "Le repère de coupe doit être fini."};
+  const gp_Vec x(frame[3], frame[4], frame[5]), y(frame[6], frame[7], frame[8]), n(frame[9], frame[10], frame[11]);
+  if (std::abs(x.Magnitude() - 1.) > 1e-9 || std::abs(y.Magnitude() - 1.) > 1e-9 ||
+      std::abs(n.Magnitude() - 1.) > 1e-9 || x.Crossed(y).Subtracted(n).Magnitude() > 1e-9) {
+    throw CadFailure{section_invalid_plane, "Le repère de coupe doit être orthonormé direct."};
+  }
+  const gp_Dir normal(n), x_axis(x), y_axis(y);
+  const gp_Pln plane(gp_Ax3(gp_Pnt(frame[0], frame[1], frame[2]), normal, x_axis));
+  StepInputBuffer buffer(bytes, size);
+  std::istream stream(&buffer);
+  STEPControl_Reader reader;
+  load_step(reader, stream);
+  TopoDS_Compound document;
+  TopTools_IndexedMapOfShape face_map;
+  std::vector<ResultFaceData> faces;
+  std::vector<TopoDS_Face> native_faces;
+  read_result_topology(reader, document, face_map, faces, native_faces);
+  std::vector<TopoDS_Shape> solids;
+  for (TopoDS_Iterator it(document); it.More(); it.Next()) solids.push_back(it.Value());
+  for (size_t i = 0; i < solid_count; ++i) {
+    if (solid_ids[i] >= solids.size() || (i && solid_ids[i - 1] >= solid_ids[i])) {
+      throw CadFailure{profile_invalid, "La sélection des corps est vide, répétée ou inconnue."};
+    }
+  }
+  std::vector<SectionLoopData> loops;
+  std::vector<PlanarProfileSegmentData> segments;
+  size_t global_edges = 0, global_loops = 0, converted_edges = 0, classification_work = 0;
+  size_t source_edge_visits = 0;
+  for (size_t selected = 0; selected < solid_count; ++selected) {
+    const size_t solid_id = solid_ids[selected];
+    const auto& solid = solids[solid_id];
+    // A disjoint conservative body box proves this selected body empty; the
+    // Rust result still contains its requested identity with an empty loop list.
+    if (!section_bounds_may_intersect(solid, plane)) continue;
+    TopTools_IndexedMapOfShape source_edges;
+    std::vector<size_t> source_ancestors;
+    const auto multiple_faces = std::numeric_limits<size_t>::max();
+    for (size_t i = 0; i < faces.size(); ++i) {
+      if (faces[i].solid_id != solid_id) continue;
+      const auto& face = native_faces[i];
+      if (section_bounds_may_intersect(face, plane)) {
+        check_section_surface_support(BRepAdaptor_Surface(face), plane);
+      }
+      for (TopExp_Explorer it(face, TopAbs_EDGE); it.More(); it.Next()) {
+        if (++source_edge_visits > 600'000) throw CadFailure{profile_too_complex, "Le contrôle des arêtes source dépasse son budget."};
+        const auto index = static_cast<size_t>(source_edges.Add(it.Current()) - 1);
+        if (index == source_ancestors.size()) source_ancestors.push_back(i);
+        else if (source_ancestors[index] != i) source_ancestors[index] = multiple_faces;
+      }
+    }
+    for (int source_id = 1; source_id <= source_edges.Extent(); ++source_id) {
+      const auto edge = TopoDS::Edge(source_edges(source_id));
+      if (BRep_Tool::Degenerated(edge)) continue;
+      const BRepAdaptor_Curve curve(edge);
+      bool coincides = false;
+      if (curve.GetType() == GeomAbs_Line) {
+        coincides = plane.Distance(curve.Value(curve.FirstParameter())) <= tolerance &&
+                    plane.Distance(curve.Value(curve.LastParameter())) <= tolerance;
+      } else if (curve.GetType() == GeomAbs_Circle) {
+        const auto circle = curve.Circle();
+        coincides = plane.Distance(circle.Location()) <= tolerance &&
+                    std::abs(circle.Axis().Direction().Dot(normal)) >= 1. - 1e-12;
+      } else if (curve.GetType() == GeomAbs_Ellipse) {
+        const auto ellipse = curve.Ellipse();
+        coincides = plane.Distance(ellipse.Location()) <= tolerance &&
+                    std::abs(ellipse.Axis().Direction().Dot(normal)) >= 1. - 1e-12;
+      }
+      if (coincides && !exact_section_seam_face(edge, source_edges, source_ancestors, native_faces)) {
+        throw CadFailure{section_tangent, "Le plan de coupe contient une arête native entre faces ; modifier le décalage."};
+      }
+    }
+    BRepAlgoAPI_Section operation(solid, plane, false);
+    operation.SetRunParallel(false);
+    operation.Approximation(false);
+    operation.ComputePCurveOn1(true);
+    operation.Build();
+    if (!operation.IsDone() || operation.HasErrors()) throw CadFailure{profile_invalid, "Le noyau ne peut pas construire cette section."};
+    TopTools_IndexedMapOfShape checked_edges;
+    for (TopExp_Explorer it(operation.Shape(), TopAbs_EDGE); it.More(); it.Next()) {
+      if (checked_edges.Contains(it.Current())) continue;
+      if (checked_edges.Extent() >= 100'000) throw CadFailure{profile_too_complex, "La section dépasse 100 000 arêtes."};
+      checked_edges.Add(it.Current());
+      const auto edge = TopoDS::Edge(it.Current());
+      const auto kind = BRepAdaptor_Curve(edge).GetType();
+      if (kind != GeomAbs_Line && kind != GeomAbs_Circle && kind != GeomAbs_Ellipse) throw CadFailure{profile_unsupported_curve, "La section contient une courbe non prise en charge."};
+      check_section_transversality(operation, edge, plane, source_edges, source_ancestors, native_faces);
+    }
+    auto wires = section_wires(operation.Shape(), plane, global_edges, global_loops);
+    // Non-intersecting closed cycles can be nested using one native witness.
+    // Pair distance rejects contacts/crossings before containment is considered.
+    for (size_t a = 0; a < wires.size(); ++a) {
+      for (size_t b = a + 1; b < wires.size(); ++b) {
+        const size_t cost = wires[a].edge_count * wires[b].edge_count;
+        if (cost > 1'000'000 - classification_work) throw CadFailure{profile_too_complex, "La classification des contours dépasse son budget."};
+        classification_work += cost;
+        BRepExtrema_DistShapeShape distance(wires[a].wire, wires[b].wire);
+        if (!distance.IsDone() || distance.Value() <= tolerance) throw CadFailure{section_tangent, "Deux contours de section se touchent ou se croisent."};
+        const BRepClass_FaceClassifier a_in_b(wires[b].interior, wires[a].witness, tolerance, false, tolerance);
+        const BRepClass_FaceClassifier b_in_a(wires[a].interior, wires[b].witness, tolerance, false, tolerance);
+        if (a_in_b.State() == TopAbs_IN) wires[a].containers.push_back(b);
+        else if (a_in_b.State() != TopAbs_OUT) throw CadFailure{profile_invalid, "La position d'un contour de section est ambiguë."};
+        if (b_in_a.State() == TopAbs_IN) wires[b].containers.push_back(a);
+        else if (b_in_a.State() != TopAbs_OUT) throw CadFailure{profile_invalid, "La position d'un contour de section est ambiguë."};
+      }
+    }
+    size_t next_component = 0;
+    std::vector<size_t> components(wires.size(), std::numeric_limits<size_t>::max());
+    for (size_t i = 0; i < wires.size(); ++i) if (wires[i].containers.size() % 2 == 0) components[i] = next_component++;
+    for (size_t i = 0; i < wires.size(); ++i) {
+      const bool is_outer = wires[i].containers.size() % 2 == 0;
+      if (!is_outer) {
+        size_t parent = std::numeric_limits<size_t>::max();
+        for (const size_t candidate : wires[i].containers) {
+          if (wires[candidate].containers.size() + 1 == wires[i].containers.size()) {
+            if (parent != std::numeric_limits<size_t>::max()) throw CadFailure{profile_invalid, "L'imbrication des contours est ambiguë."};
+            parent = candidate;
+          }
+        }
+        if (parent == std::numeric_limits<size_t>::max() || components[parent] == std::numeric_limits<size_t>::max()) throw CadFailure{profile_invalid, "Un trou de section n'a pas de contour extérieur."};
+        components[i] = components[parent];
+      }
+      const size_t start = segments.size();
+      append_profile_wire(wires[i].wire, plane, x_axis, y_axis, normal, segments, converted_edges);
+      loops.push_back({solid_id, components[i], start, segments.size() - start, static_cast<size_t>(is_outer)});
+    }
+  }
+  auto loop_data = std::make_unique<SectionLoopData[]>(loops.size());
+  auto segment_data = std::make_unique<PlanarProfileSegmentData[]>(segments.size());
+  std::copy(loops.begin(), loops.end(), loop_data.get());
+  std::copy(segments.begin(), segments.end(), segment_data.get());
+  output->loops = loop_data.release();
+  output->loop_count = loops.size();
+  output->segments = segment_data.release();
+  output->segment_count = segments.size();
+}
+
 template <typename BuildSolid>
 int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
                    char* error, size_t error_capacity,
-                   const RoundedBoxFrame* expected_box = nullptr) noexcept {
+                   const RoundedBoxFrame* expected_box = nullptr,
+                   FaceLabels* labels = nullptr) noexcept {
   *output = {};
   return with_occt(invalid_model, error, error_capacity, [&](Status& stage) {
     const TopoDS_Solid solid = build();
@@ -1748,6 +2895,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     if (writer.Transfer(solid, STEPControl_ManifoldSolidBrep, parameters) != IFSelect_RetDone) {
       throw CadFailure{stage, "Impossible de traduire le solide en STEP."};
     }
+    if (labels) write_face_labels(writer, *labels);
     std::stringstream stream;
     if (writer.WriteStream(stream) != IFSelect_RetDone || !stream.good()) {
       throw CadFailure{stage, "Impossible de sérialiser le fichier STEP."};
@@ -1775,6 +2923,17 @@ extern "C" int fabstep_build_step(
   return validated_step(
       [&] { return build_solid(points, point_count, normals, face_count, face_loops, loop_vertices, vertex_ids); },
       {face_count, 0}, output, error, error_capacity);
+}
+
+extern "C" int fabstep_build_step_with_provenance(
+    const double* points, size_t point_count, const double* normals, size_t face_count,
+    const size_t* face_loops, const size_t* loop_vertices, const size_t* vertex_ids,
+    const size_t* tokens, StepOutput* output, char* error, size_t error_capacity) noexcept {
+  FaceLabels labels;
+  return validated_step(
+      [&] { return build_solid(points, point_count, normals, face_count, face_loops,
+                              loop_vertices, vertex_ids, tokens, &labels); },
+      {face_count, 0}, output, error, error_capacity, nullptr, &labels);
 }
 
 extern "C" int fabstep_validate_source(
@@ -1815,20 +2974,89 @@ extern "C" int fabstep_build_mixed_step(
     const MixedCylinderData* cones, size_t cone_count,
     const SphericalPatchData* spheres, size_t sphere_count,
     const ToroidalPatchData* tori, size_t torus_count,
+    const MixedCylinderData* partial_cones, size_t partial_cone_count,
     StepOutput* output, char* error, size_t error_capacity) noexcept {
   return validated_step(
       [&] {
         return build_mixed_solid(points, point_count, rings, ring_count, normals, plane_count,
                                  plane_loops, loops, segments, cylinders, cylinder_count,
                                  arcs, arc_count, partial, partial_count, cones, cone_count,
-                                 spheres, sphere_count, tori, torus_count);
+                                 spheres, sphere_count, tori, torus_count,
+                                 nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+                                 partial_cones, partial_cone_count);
       },
-      {plane_count, cylinder_count + partial_count, partial_count, cone_count, sphere_count, torus_count},
+      {plane_count, cylinder_count + partial_count, partial_count, cone_count + partial_cone_count,
+       sphere_count, torus_count, 0, partial_cone_count},
       output, error, error_capacity);
 }
 
-extern "C" int fabstep_build_complete_sphere_step(
-    const double* center, double radius, StepOutput* output, char* error, size_t error_capacity) noexcept {
+extern "C" int fabstep_build_mixed_step_with_provenance(
+    const double* points, size_t point_count, const MixedRingData* rings, size_t ring_count,
+    const double* normals, size_t plane_count, const size_t* plane_loops, const MixedLoopData* loops,
+    const MixedSegmentData* segments, const MixedCylinderData* cylinders, size_t cylinder_count,
+    const size_t* plane_tokens, const size_t* cylinder_tokens,
+    StepOutput* output, char* error, size_t error_capacity) noexcept {
+  FaceLabels labels;
+  return validated_step(
+      [&] {
+        return build_mixed_solid(points, point_count, rings, ring_count, normals, plane_count,
+                                 plane_loops, loops, segments, cylinders, cylinder_count,
+                                 nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0,
+                                 plane_tokens, cylinder_tokens, &labels);
+      },
+      {plane_count, cylinder_count}, output, error, error_capacity, nullptr, &labels);
+}
+
+extern "C" int fabstep_build_revolved_step_with_provenance(
+    const double* points, size_t point_count, const MixedRingData* rings, size_t ring_count,
+    const double* normals, size_t plane_count, const size_t* plane_loops, const MixedLoopData* loops,
+    const MixedSegmentData* segments, const MixedCylinderData* cylinders, size_t cylinder_count,
+    const MixedCylinderData* cones, size_t cone_count,
+    const size_t* plane_tokens, const size_t* cylinder_tokens, const size_t* cone_tokens,
+    StepOutput* output, char* error, size_t error_capacity) noexcept {
+  FaceLabels labels;
+  return validated_step(
+      [&] {
+        return build_mixed_solid(points, point_count, rings, ring_count, normals, plane_count,
+                                 plane_loops, loops, segments, cylinders, cylinder_count,
+                                 nullptr, 0, nullptr, 0, cones, cone_count, nullptr, 0, nullptr, 0,
+                                 plane_tokens, cylinder_tokens, &labels, cone_tokens);
+      },
+      {plane_count, cylinder_count, 0, cone_count}, output, error, error_capacity, nullptr, &labels);
+}
+
+extern "C" int fabstep_build_rounded_step_with_provenance(
+    const double* points, size_t point_count, const MixedRingData* rings, size_t ring_count,
+    const double* normals, size_t plane_count, const size_t* plane_loops, const MixedLoopData* loops,
+    const MixedSegmentData* segments, const MixedCylinderData* cylinders, size_t cylinder_count,
+    const MixedArcData* arcs, size_t arc_count, const MixedCylinderData* partial, size_t partial_count,
+    const MixedCylinderData* cones, size_t cone_count,
+    const SphericalPatchData* spheres, size_t sphere_count,
+    const ToroidalPatchData* tori, size_t torus_count,
+    const size_t* plane_tokens, const size_t* cylinder_tokens, const size_t* partial_tokens,
+    const size_t* cone_tokens, const size_t* sphere_tokens, const size_t* torus_tokens,
+    const MixedCylinderData* partial_cones, size_t partial_cone_count,
+    const size_t* partial_cone_tokens,
+    StepOutput* output, char* error, size_t error_capacity) noexcept {
+  FaceLabels labels;
+  return validated_step(
+      [&] {
+        return build_mixed_solid(points, point_count, rings, ring_count, normals, plane_count,
+                                 plane_loops, loops, segments, cylinders, cylinder_count,
+                                 arcs, arc_count, partial, partial_count, cones, cone_count,
+                                 spheres, sphere_count, tori, torus_count,
+                                 plane_tokens, cylinder_tokens, &labels, cone_tokens,
+                                 sphere_tokens, torus_tokens, partial_tokens,
+                                 partial_cones, partial_cone_count, partial_cone_tokens);
+      },
+      {plane_count, cylinder_count + partial_count, partial_count, cone_count + partial_cone_count,
+       sphere_count, torus_count, 0, partial_cone_count},
+      output, error, error_capacity, nullptr, &labels);
+}
+
+static int build_complete_sphere_step_impl(
+    const double* center, double radius, StepOutput* output, char* error, size_t error_capacity, size_t token) noexcept {
+  FaceLabels labels;
   return validated_step(
       [&] {
         if (!std::isfinite(radius) || radius <= Precision::Confusion()) {
@@ -1839,14 +3067,33 @@ extern "C" int fabstep_build_complete_sphere_step(
         if (!sphere.IsDone() || solid.IsNull()) {
           throw CadFailure{invalid_solid, "Impossible de construire la sphère complète."};
         }
+        if (token != 0) {
+          TopExp_Explorer faces(solid, TopAbs_FACE);
+          if (faces.More()) {
+            const auto face = TopoDS::Face(faces.Current());
+            faces.Next();
+            if (!faces.More()) labels.push_back({face, token});
+          }
+        }
         return solid;
       },
-      {0, 0, 0, 0, 1}, output, error, error_capacity);
+      {0, 0, 0, 0, 1}, output, error, error_capacity, nullptr, token ? &labels : nullptr);
 }
 
-extern "C" int fabstep_build_complete_torus_step(
+extern "C" int fabstep_build_complete_sphere_step(
+    const double* center, double radius, StepOutput* output, char* error, size_t error_capacity) noexcept {
+  return build_complete_sphere_step_impl(center, radius, output, error, error_capacity, 0);
+}
+
+extern "C" int fabstep_build_complete_sphere_step_with_provenance(
+    const double* center, double radius, size_t token, StepOutput* output, char* error, size_t error_capacity) noexcept {
+  return build_complete_sphere_step_impl(center, radius, output, error, error_capacity, token);
+}
+
+static int build_complete_torus_step_impl(
     const double* center, const double* axis, double major, double minor,
-    StepOutput* output, char* error, size_t error_capacity) noexcept {
+    StepOutput* output, char* error, size_t error_capacity, size_t token) noexcept {
+  FaceLabels labels;
   return validated_step(
       [&] {
         const double axis_norm = std::hypot(axis[0], axis[1], axis[2]);
@@ -1861,9 +3108,27 @@ extern "C" int fabstep_build_complete_torus_step(
         if (!torus.IsDone() || solid.IsNull()) {
           throw CadFailure{invalid_solid, "Impossible de construire le tore complet."};
         }
+        if (token != 0) {
+          TopExp_Explorer faces(solid, TopAbs_FACE);
+          if (faces.More()) {
+            const auto face = TopoDS::Face(faces.Current());
+            faces.Next();
+            if (!faces.More()) labels.push_back({face, token});
+          }
+        }
         return solid;
       },
-      {0, 0, 0, 0, 0, 1}, output, error, error_capacity);
+      {0, 0, 0, 0, 0, 1}, output, error, error_capacity, nullptr, token ? &labels : nullptr);
+}
+
+extern "C" int fabstep_build_complete_torus_step(
+    const double* center, const double* axis, double major, double minor, StepOutput* output, char* error, size_t error_capacity) noexcept {
+  return build_complete_torus_step_impl(center, axis, major, minor, output, error, error_capacity, 0);
+}
+
+extern "C" int fabstep_build_complete_torus_step_with_provenance(
+    const double* center, const double* axis, double major, double minor, size_t token, StepOutput* output, char* error, size_t error_capacity) noexcept {
+  return build_complete_torus_step_impl(center, axis, major, minor, output, error, error_capacity, token);
 }
 
 extern "C" int fabstep_build_rounded_box_step(
@@ -1929,6 +3194,15 @@ extern "C" int fabstep_combine_steps(const StepPartInput* parts, size_t count, C
   });
 }
 
+extern "C" int fabstep_combine_steps_with_provenance(
+    const StepPartInput* parts, size_t count, CadMetrics* bodies, StepOutput* output,
+    char* error, size_t error_capacity) noexcept {
+  *output = {};
+  return with_occt(read_failed, error, error_capacity, [&](Status& stage) {
+    combine(parts, count, bodies, output, stage, true);
+  });
+}
+
 extern "C" int fabstep_validate_sources_separated(const PlanarPartInput* parts, size_t count,
                                                    char* error, size_t error_capacity) noexcept {
   return with_occt(invalid_model, error, error_capacity, [&](Status& stage) {
@@ -1962,6 +3236,54 @@ extern "C" int fabstep_tessellate_step(const unsigned char* bytes, size_t size, 
 extern "C" void fabstep_free_mesh(double* points, size_t* triangles) noexcept {
   delete[] points;
   delete[] triangles;
+}
+
+extern "C" int fabstep_result_faces(const unsigned char* bytes, size_t size, double deflection,
+                                    ResultFacesOutput* output, char* error, size_t capacity) noexcept {
+  *output = {};
+  return with_occt(read_failed, error, capacity, [&](Status&) {
+    inspect_result_faces(bytes, size, deflection, output);
+  });
+}
+
+extern "C" void fabstep_free_result_faces(ResultFaceData* faces, size_t* neighbors) noexcept {
+  delete[] faces;
+  delete[] neighbors;
+}
+
+extern "C" int fabstep_planar_face_profile(const unsigned char* bytes, size_t size, size_t face_id,
+                                           PlanarProfileOutput* output, char* error, size_t capacity) noexcept {
+  *output = {};
+  return with_occt(profile_invalid, error, capacity, [&](Status&) {
+    extract_planar_profile(bytes, size, face_id, output);
+  });
+}
+
+extern "C" void fabstep_free_planar_profile(PlanarProfileLoopData* loops,
+                                            PlanarProfileSegmentData* segments) noexcept {
+  delete[] loops;
+  delete[] segments;
+}
+
+extern "C" int fabstep_planar_face_frame(const unsigned char* bytes, size_t size, size_t face_id,
+                                         double* frame, char* error, size_t capacity) noexcept {
+  return with_occt(profile_invalid, error, capacity, [&](Status&) {
+    extract_planar_face_frame(bytes, size, face_id, frame);
+  });
+}
+
+extern "C" int fabstep_section_profile(const unsigned char* bytes, size_t size, const double* frame,
+                                       const size_t* solid_ids, size_t solid_count,
+                                       SectionOutput* output, char* error, size_t capacity) noexcept {
+  *output = {};
+  return with_occt(profile_invalid, error, capacity, [&](Status&) {
+    extract_section_profile(bytes, size, frame, solid_ids, solid_count, output);
+  });
+}
+
+extern "C" void fabstep_free_section_profile(SectionLoopData* loops, PlanarProfileSegmentData* segments) noexcept {
+  delete[] loops;
+  delete[] segments;
 }
 
 extern "C" const char* fabstep_cad_version() noexcept {

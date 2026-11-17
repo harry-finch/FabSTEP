@@ -1,0 +1,28 @@
+{
+  "height_mm": 7,
+  "d_volume_mm3": 274.8893571891069,
+  "lens_volume_mm3": 43.364749121565104,
+  "rotation_xyz": {
+    "x_rad": 0.37,
+    "y_rad": -0.51,
+    "translation_mm": [
+      4,
+      8,
+      12
+    ]
+  },
+  "positive": [
+    "d_staggered",
+    "d_staggered_delayed",
+    "d_staggered_rotated",
+    "d_staggered_f32_translated",
+    "lens_shared_rails"
+  ],
+  "negative": [
+    "d_bulge",
+    "d_dent",
+    "d_excursion",
+    "d_fold",
+    "d_missing"
+  ]
+}

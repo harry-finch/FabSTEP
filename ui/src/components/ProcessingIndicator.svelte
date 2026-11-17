@@ -2,7 +2,7 @@
   // État flottant non modal : phase réelle et durée écoulée, sans progression chiffrée.
   import { t } from '../lib/i18n.svelte';
 
-  let { phase, startedAt }: { phase: 'queued' | 'preview' | 'converting'; startedAt: number } = $props();
+  let { phase, startedAt }: { phase: 'queued' | 'preview' | 'converting' | 'searching'; startedAt: number } = $props();
   let elapsed = $state(0);
   const clock = $derived(`${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`);
 

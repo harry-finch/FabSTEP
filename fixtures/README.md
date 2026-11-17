@@ -1,5 +1,15 @@
 # Corpus synthétique
 
+## Cylindres ouverts à triangulation décalée
+
+`python3 fixtures/generate_partial_staggered.py` génère `partial_staggered/` sans lire de fichier utilisateur ni appeler le reconnaisseur. Les références analytiques décrivent un demi-disque extrudé R5/H7 et une lentille extrudée délimitée par deux cercles R3 dont les centres sont espacés de 4 mm. Les cinq positifs couvrent décalage des angles intérieurs, bandes alignées près des bouchons, rotation 3D, coordonnées f32 translatées et deux génératrices partagées entre cylindres. Les cinq négatifs ajoutent bosse, creux, excursion axiale, repli ou triangle manquant. `expected.json` fixe volumes et transformation ; générer le corpus ne valide pas la conversion. Voir [ADR-0021](../docs/adr/0021-staggered-open-cylinder-walls.md) et les essais exécutés dans [VALIDATION](../docs/VALIDATION.md).
+
+## Petits arcs contextuels
+
+`python3 fixtures/generate_short_arcs.py` génère `short_arcs/` indépendamment du moteur et des fichiers privés. Le profil est construit par intégration de trois arcs tangents R4/R1/R4, puis fermé par une corde et extrudé de 7 mm. Les quatre positifs couvrent raccord court convexe, concave, rotation 3D et quantification f32 translatée. Deux témoins gardent volontairement le petit intervalle facettisé : rayon insuffisamment déterminé sur 2° et arc cocirculaire incompatible avec les tangentes voisines. Trois autres sources vérifient absence d'appuis, bosse et repli intérieurs ; les deux dernières conservent les contours et raccords des appuis. `expected.json` donne les mesures analytiques, les comptes attendus et les codes de refus du core. Le mode Surfaces peut poursuivre ses replis historiques après `recognition.unsupported` et rendre un code terminal différent. La génération est reproductible, mais ne remplace pas les conversions consignées dans [VALIDATION](../docs/VALIDATION.md). Voir [ADR-0022](../docs/adr/0022-contextual-short-arcs.md).
+
+## Corpus historiques
+
 Les fichiers `m2_*.stl` sont produits par `python3 fixtures/generate_m2.py`, sans dépendance ni appel au convertisseur. Le générateur et les données sont distribués sous GPL-3.0-or-later, comme le projet. Les STL ne contiennent pas d'unité ; les coordonnées sont à interpréter en millimètres.
 
 Le manifeste `m2_manifest.json` donne les volumes **analytiques nominaux**, les rayons, le nombre de faces cibles et la flèche maximale de corde de la tessellation source. Les volumes des STL polygonaux sont légèrement différents des volumes nominaux. La plaque emploie 16 points par côté, y compris les coins ; les angles du trou en résultent et ne sont pas uniformes. Les points supplémentaires du bord rectangulaire sont collinéaires.
@@ -95,3 +105,12 @@ Cinq STEP CLI positifs, représentant six solides, ont été réimportés dans F
 ## Régressions de validation et de noms
 
 `generate_v1_source_validation.py` crée un témoin de plaque auto-intersectée et une plaque peu profonde valide : le regroupement planaire ne doit pas masquer l’intersection source. `generate_name_origins.py` compare un nom 3MF absent, vide et un nom fourni identique à une traduction générée : seul le nom généré doit être traduit.
+
+
+## Reconstruction guidée I2a
+
+`guided_cylinder_instances.3mf` place deux occurrences du maillage indépendant `m2b_boss_blind.stl`, dont une miroir X translatée de 100 mm. `generate_guided_cylinder.py` produit le ZIP/XML avec la bibliothèque standard Python, sans appeler le reconnaisseur. Le manifeste `guided_cylinder_instances.json` conserve les empreintes et placements ; les sorties attendues y sont des références, pas une preuve d’exécution. Le test app sélectionne une face de l’instance miroir, reconstruit une seule paroi cylindrique et vérifie que l’autre occurrence reste facettisée.
+
+## Chaînes coniques de même signe avec portées
+
+Le corpus indépendant [same_sign_chains](same_sign_chains/README.md) couvre C1b1 : chaînes montantes, descendantes et mixtes, transformations, quantification STL et instances 3MF, avec profils/mesures attendus dans son manifeste. Les cas sans portée, courbes et à séparation ambiguë restent négatifs.

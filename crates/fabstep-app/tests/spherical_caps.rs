@@ -144,7 +144,6 @@ fn unproven_caps_and_insufficient_budgets_cannot_fall_back_to_facets() {
     for name in [
         "m5b_spheroid.stl",
         "m5b_shifted_pole.stl",
-        "m5b_spherical_zone.stl",
         "m5b_sparse_cap.stl",
     ] {
         let error = convert_stl(&fixture(name), &options())

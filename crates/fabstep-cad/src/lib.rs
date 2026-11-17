@@ -1,14 +1,18 @@
 //! Adaptateur natif Open CASCADE. Le STEP est écrit puis relu en mémoire.
 
 use fabstep_core::{
-    AnalyticExtrusion, FabError, Mesh, MixedCone, MixedLoop, MixedModel, MixedSegment, MixedSphere,
-    MixedTorus, PlanarModel, ProfileLoop, RevolvedModel, RoundedBoxModel, RoundedModel,
+    AnalyticExtrusion, FabError, Mesh, MixedCone, MixedLoop, MixedModel, MixedPartialCone,
+    MixedSegment, MixedSphere, MixedTorus, PlanarFaceProfile, PlanarModel, PlanarProfileLoop,
+    ProfileFrame, ProfileLoop, ProfileSegment, RevolvedModel, RoundedBoxModel, RoundedModel,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::f64::consts::TAU;
 use std::ffi::{c_char, CStr, CString};
 use std::slice;
+
+mod section;
+pub use section::{planar_face_frame, section_profile};
 
 const MAX_STEP_BYTES: usize = 128 * 1024 * 1024;
 const MAX_STEP_BODIES: usize = 32;
@@ -107,6 +111,108 @@ struct NativeMesh {
 }
 
 #[repr(C)]
+struct NativeResultFace {
+    solid_id: usize,
+    family: usize,
+    triangle_start: usize,
+    triangle_count: usize,
+    neighbor_start: usize,
+    neighbor_count: usize,
+    source_face_token: usize,
+}
+
+#[repr(C)]
+#[derive(Default)]
+struct NativeResultFaces {
+    mesh: NativeMesh,
+    faces: *mut NativeResultFace,
+    face_count: usize,
+    neighbors: *mut usize,
+    neighbor_count: usize,
+}
+
+impl Drop for NativeResultFaces {
+    fn drop(&mut self) {
+        // NativeMesh separately releases its owned buffers.
+        unsafe { fabstep_free_result_faces(self.faces, self.neighbors) };
+    }
+}
+
+#[repr(C)]
+struct NativeProfileSegment {
+    kind: usize,
+    start: [f64; 2],
+    end: [f64; 2],
+    center: [f64; 2],
+    radius: f64,
+    start_angle: f64,
+    sweep_angle: f64,
+    major_axis: [f64; 2],
+    ratio: f64,
+}
+
+#[repr(C)]
+struct NativePlanarProfileLoop {
+    start: usize,
+    count: usize,
+    is_outer: usize,
+}
+
+#[repr(C)]
+#[derive(Default)]
+struct NativePlanarProfile {
+    solid_id: usize,
+    origin: [f64; 3],
+    x_axis: [f64; 3],
+    y_axis: [f64; 3],
+    normal: [f64; 3],
+    loops: *mut NativePlanarProfileLoop,
+    loop_count: usize,
+    segments: *mut NativeProfileSegment,
+    segment_count: usize,
+}
+
+impl Drop for NativePlanarProfile {
+    fn drop(&mut self) {
+        // Only this ABI allocator owns these scalar buffers.
+        unsafe { fabstep_free_planar_profile(self.loops, self.segments) };
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ResultFaceFamily {
+    Plane,
+    Cylinder,
+    Cone,
+    Sphere,
+    Torus,
+    Other,
+}
+
+/// IDs are zero-based and scoped to this read of the final STEP, not the source.
+#[derive(Debug, Serialize)]
+pub struct ResultFace {
+    pub id: usize,
+    pub solid_id: usize,
+    pub family: ResultFaceFamily,
+    pub triangle_start: usize,
+    pub triangle_count: usize,
+    pub adjacent_face_ids: Vec<usize>,
+    /// Exact transfer-table label, not source identity by itself. Only a
+    /// trusted sidecar from the same conversion may give it source meaning.
+    /// The entire inspection is None if any STEP face label is ambiguous.
+    pub source_face_token: Option<usize>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ResultFaces {
+    pub mesh: Mesh,
+    pub faces: Vec<ResultFace>,
+    pub deflection_mm: f64,
+}
+
+#[repr(C)]
 struct NativeMixedRing {
     center: [f64; 3],
     axis: [f64; 3],
@@ -185,6 +291,19 @@ unsafe extern "C" {
         error: *mut c_char,
         error_capacity: usize,
     ) -> i32;
+    fn fabstep_build_step_with_provenance(
+        points: *const f64,
+        point_count: usize,
+        normals: *const f64,
+        face_count: usize,
+        face_loops: *const usize,
+        loop_vertices: *const usize,
+        vertex_ids: *const usize,
+        tokens: *const usize,
+        output: *mut NativeStep,
+        error: *mut c_char,
+        error_capacity: usize,
+    ) -> i32;
     fn fabstep_validate_source(
         points: *const f64,
         point_count: usize,
@@ -231,6 +350,82 @@ unsafe extern "C" {
         sphere_count: usize,
         tori: *const NativeTorus,
         torus_count: usize,
+        partial_cones: *const NativeMixedCylinder,
+        partial_cone_count: usize,
+        output: *mut NativeStep,
+        error: *mut c_char,
+        error_capacity: usize,
+    ) -> i32;
+    fn fabstep_build_rounded_step_with_provenance(
+        points: *const f64,
+        point_count: usize,
+        rings: *const NativeMixedRing,
+        ring_count: usize,
+        normals: *const f64,
+        plane_count: usize,
+        plane_loops: *const usize,
+        loops: *const NativeMixedLoop,
+        segments: *const NativeMixedSegment,
+        cylinders: *const NativeMixedCylinder,
+        cylinder_count: usize,
+        arcs: *const NativeMixedArc,
+        arc_count: usize,
+        partial: *const NativeMixedCylinder,
+        partial_count: usize,
+        cones: *const NativeMixedCylinder,
+        cone_count: usize,
+        spheres: *const NativeSphere,
+        sphere_count: usize,
+        tori: *const NativeTorus,
+        torus_count: usize,
+        plane_tokens: *const usize,
+        cylinder_tokens: *const usize,
+        partial_tokens: *const usize,
+        cone_tokens: *const usize,
+        sphere_tokens: *const usize,
+        torus_tokens: *const usize,
+        partial_cones: *const NativeMixedCylinder,
+        partial_cone_count: usize,
+        partial_cone_tokens: *const usize,
+        output: *mut NativeStep,
+        error: *mut c_char,
+        error_capacity: usize,
+    ) -> i32;
+    fn fabstep_build_mixed_step_with_provenance(
+        points: *const f64,
+        point_count: usize,
+        rings: *const NativeMixedRing,
+        ring_count: usize,
+        normals: *const f64,
+        plane_count: usize,
+        plane_loops: *const usize,
+        loops: *const NativeMixedLoop,
+        segments: *const NativeMixedSegment,
+        cylinders: *const NativeMixedCylinder,
+        cylinder_count: usize,
+        plane_tokens: *const usize,
+        cylinder_tokens: *const usize,
+        output: *mut NativeStep,
+        error: *mut c_char,
+        error_capacity: usize,
+    ) -> i32;
+    fn fabstep_build_revolved_step_with_provenance(
+        points: *const f64,
+        point_count: usize,
+        rings: *const NativeMixedRing,
+        ring_count: usize,
+        normals: *const f64,
+        plane_count: usize,
+        plane_loops: *const usize,
+        loops: *const NativeMixedLoop,
+        segments: *const NativeMixedSegment,
+        cylinders: *const NativeMixedCylinder,
+        cylinder_count: usize,
+        cones: *const NativeMixedCylinder,
+        cone_count: usize,
+        plane_tokens: *const usize,
+        cylinder_tokens: *const usize,
+        cone_tokens: *const usize,
         output: *mut NativeStep,
         error: *mut c_char,
         error_capacity: usize,
@@ -242,11 +437,29 @@ unsafe extern "C" {
         error: *mut c_char,
         error_capacity: usize,
     ) -> i32;
+    fn fabstep_build_complete_sphere_step_with_provenance(
+        center: *const f64,
+        radius: f64,
+        token: usize,
+        output: *mut NativeStep,
+        error: *mut c_char,
+        error_capacity: usize,
+    ) -> i32;
     fn fabstep_build_complete_torus_step(
         center: *const f64,
         axis: *const f64,
         major_radius: f64,
         minor_radius: f64,
+        output: *mut NativeStep,
+        error: *mut c_char,
+        error_capacity: usize,
+    ) -> i32;
+    fn fabstep_build_complete_torus_step_with_provenance(
+        center: *const f64,
+        axis: *const f64,
+        major_radius: f64,
+        minor_radius: f64,
+        token: usize,
         output: *mut NativeStep,
         error: *mut c_char,
         error_capacity: usize,
@@ -269,6 +482,14 @@ unsafe extern "C" {
         error: *mut c_char,
         error_capacity: usize,
     ) -> i32;
+    fn fabstep_combine_steps_with_provenance(
+        parts: *const NativeStepPart,
+        count: usize,
+        bodies: *mut Metrics,
+        output: *mut NativeStep,
+        error: *mut c_char,
+        error_capacity: usize,
+    ) -> i32;
     fn fabstep_validate_sources_separated(
         parts: *const NativePlanarPart,
         count: usize,
@@ -284,6 +505,27 @@ unsafe extern "C" {
         error_capacity: usize,
     ) -> i32;
     fn fabstep_free_mesh(points: *mut f64, triangles: *mut usize);
+    fn fabstep_result_faces(
+        bytes: *const u8,
+        size: usize,
+        deflection: f64,
+        output: *mut NativeResultFaces,
+        error: *mut c_char,
+        error_capacity: usize,
+    ) -> i32;
+    fn fabstep_free_result_faces(faces: *mut NativeResultFace, neighbors: *mut usize);
+    fn fabstep_planar_face_profile(
+        bytes: *const u8,
+        size: usize,
+        face_id: usize,
+        output: *mut NativePlanarProfile,
+        error: *mut c_char,
+        error_capacity: usize,
+    ) -> i32;
+    fn fabstep_free_planar_profile(
+        loops: *mut NativePlanarProfileLoop,
+        segments: *mut NativeProfileSegment,
+    );
     fn fabstep_cad_version() -> *const c_char;
 }
 
@@ -294,6 +536,17 @@ unsafe extern "C" {
 /// Le volume du document est la somme des volumes mesurés au réimport.
 /// Un nom est refusé si le lecteur STEP ne retrouve pas son libellé.
 pub fn combine_steps(parts: &[StepPart<'_>]) -> Result<CombinedStep, FabError> {
+    combine_steps_impl(parts, false)
+}
+
+/// Combines valid geometry while preserving exact transfer labels when every
+/// face of every root has a distinct label. Metadata loss never changes the
+/// geometry's export eligibility; inspection then exposes no source tokens.
+pub fn combine_steps_with_provenance(parts: &[StepPart<'_>]) -> Result<CombinedStep, FabError> {
+    combine_steps_impl(parts, true)
+}
+
+fn combine_steps_impl(parts: &[StepPart<'_>], provenance: bool) -> Result<CombinedStep, FabError> {
     if !(1..=MAX_STEP_BODIES).contains(&parts.len()) {
         return Err(FabError::new(
             "cad.invalid_model",
@@ -340,7 +593,12 @@ pub fn combine_steps(parts: &[StepPart<'_>]) -> Result<CombinedStep, FabError> {
     let mut bodies: Vec<Metrics> = (0..parts.len()).map(|_| Metrics::default()).collect();
     // Tous les octets, noms et tampons de mesures restent valides pendant l'appel.
     let combined = native_step(|output, error, capacity| unsafe {
-        fabstep_combine_steps(
+        let combine = if provenance {
+            fabstep_combine_steps_with_provenance
+        } else {
+            fabstep_combine_steps
+        };
+        combine(
             inputs.as_ptr(),
             inputs.len(),
             bodies.as_mut_ptr(),
@@ -439,6 +697,48 @@ pub fn build_step(model: &PlanarModel) -> Result<ValidatedStep, FabError> {
             input.face_loops.as_ptr(),
             input.loop_vertices.as_ptr(),
             input.vertex_ids.as_ptr(),
+            output,
+            error,
+            capacity,
+        )
+    })
+}
+
+/// Labels each input planar face at construction and tracks its exact identity
+/// through sewing and STEP transfer. Labels must be globally unique within a
+/// document, in 1..=100_000. They have no source meaning without a trusted
+/// caller-owned sidecar. Any incomplete native history omits all labels.
+pub fn build_step_with_provenance(
+    model: &PlanarModel,
+    face_tokens: &[usize],
+) -> Result<ValidatedStep, FabError> {
+    if face_tokens.len() != model.faces.len() || face_tokens.len() > 100_000 {
+        return Err(FabError::new(
+            "cad.invalid_model",
+            "Les identifiants de provenance des faces doivent être exhaustifs et bornés.",
+        ));
+    }
+    let mut unique = face_tokens.to_vec();
+    unique.sort_unstable();
+    if unique.iter().any(|&token| !(1..=100_000).contains(&token))
+        || unique.windows(2).any(|pair| pair[0] == pair[1])
+    {
+        return Err(FabError::new(
+            "cad.invalid_model",
+            "Les identifiants de provenance des faces doivent être exhaustifs, uniques et bornés.",
+        ));
+    }
+    let input = prepare_planar(model)?;
+    native_step(|output, error, capacity| unsafe {
+        fabstep_build_step_with_provenance(
+            model.vertices.as_ptr().cast(),
+            model.vertices.len(),
+            input.normals.as_ptr().cast(),
+            input.normals.len(),
+            input.face_loops.as_ptr(),
+            input.loop_vertices.as_ptr(),
+            input.vertex_ids.as_ptr(),
+            face_tokens.as_ptr(),
             output,
             error,
             capacity,
@@ -652,9 +952,117 @@ pub fn build_mixed_step(model: &MixedModel) -> Result<ValidatedStep, FabError> {
     build_surface_step(model, &[], &[], &[])
 }
 
+/// Tracks exact construction identities for planes and complete cylinders.
+/// Each token slice indexes the corresponding `MixedModel` array; tokens must
+/// be unique across both slices, in 1..=100_000, and require a trusted sidecar
+/// to have source meaning. Incomplete native history omits all labels. Models
+/// with partial cylinders retain their validated geometry without provenance.
+pub fn build_mixed_step_with_provenance(
+    model: &MixedModel,
+    plane_tokens: &[usize],
+    cylinder_tokens: &[usize],
+) -> Result<ValidatedStep, FabError> {
+    if plane_tokens.len() != model.planes.len()
+        || cylinder_tokens.len() != model.cylinders.len()
+        || plane_tokens.len().saturating_add(cylinder_tokens.len()) > 100_000
+    {
+        return Err(FabError::new(
+            "cad.invalid_model",
+            "Les identifiants des plans et cylindres doivent être exhaustifs et bornés.",
+        ));
+    }
+    let mut unique: Vec<_> = plane_tokens
+        .iter()
+        .chain(cylinder_tokens)
+        .copied()
+        .collect();
+    unique.sort_unstable();
+    if unique.iter().any(|token| !(1..=100_000).contains(token))
+        || unique.windows(2).any(|pair| pair[0] == pair[1])
+    {
+        return Err(FabError::new(
+            "cad.invalid_model",
+            "Les identifiants des plans et cylindres doivent être uniques et bornés.",
+        ));
+    }
+    if !model.partial_cylinders.is_empty() {
+        return build_mixed_step(model);
+    }
+    build_surface_step_with_tokens(
+        model,
+        &[],
+        &[],
+        &[],
+        &[],
+        Some(SurfaceTokens {
+            planes: plane_tokens,
+            cylinders: cylinder_tokens,
+            ..SurfaceTokens::default()
+        }),
+    )
+}
+
 /// Construit un solide comportant des parois coniques et valide son réimport STEP.
 pub fn build_revolved_step(model: &RevolvedModel) -> Result<ValidatedStep, FabError> {
     build_surface_step(&model.mixed, &model.cones, &[], &[])
+}
+
+/// Tracks exact construction identities for planes, complete cylinders and cones.
+/// Each slice indexes its corresponding model array; all tokens must be unique
+/// in 1..=100_000 and have source meaning only with a trusted same-result sidecar.
+/// Incomplete native history omits all labels without weakening solid validation.
+/// Partial-cylinder models remain validated but carry no provenance.
+pub fn build_revolved_step_with_provenance(
+    model: &RevolvedModel,
+    plane_tokens: &[usize],
+    cylinder_tokens: &[usize],
+    cone_tokens: &[usize],
+) -> Result<ValidatedStep, FabError> {
+    let count = plane_tokens
+        .len()
+        .saturating_add(cylinder_tokens.len())
+        .saturating_add(cone_tokens.len());
+    if plane_tokens.len() != model.mixed.planes.len()
+        || cylinder_tokens.len() != model.mixed.cylinders.len()
+        || cone_tokens.len() != model.cones.len()
+        || count > 100_000
+    {
+        return Err(FabError::new(
+            "cad.invalid_model",
+            "Les identifiants des plans, cylindres et cônes doivent être exhaustifs et bornés.",
+        ));
+    }
+    let mut unique: Vec<_> = plane_tokens
+        .iter()
+        .chain(cylinder_tokens)
+        .chain(cone_tokens)
+        .copied()
+        .collect();
+    unique.sort_unstable();
+    if unique.iter().any(|token| !(1..=100_000).contains(token))
+        || unique.windows(2).any(|pair| pair[0] == pair[1])
+    {
+        return Err(FabError::new(
+            "cad.invalid_model",
+            "Les identifiants des plans, cylindres et cônes doivent être uniques et bornés.",
+        ));
+    }
+    if !model.mixed.partial_cylinders.is_empty() {
+        return build_revolved_step(model);
+    }
+    build_surface_step_with_tokens(
+        &model.mixed,
+        &model.cones,
+        &[],
+        &[],
+        &[],
+        Some(SurfaceTokens {
+            planes: plane_tokens,
+            cylinders: cylinder_tokens,
+            cones: cone_tokens,
+            ..SurfaceTokens::default()
+        }),
+    )
 }
 
 fn has_no_boundary_surfaces(model: &RevolvedModel) -> bool {
@@ -709,6 +1117,133 @@ pub fn build_rounded_box_step(model: &RoundedBoxModel) -> Result<ValidatedStep, 
 
 /// Construit les surfaces de révolution reconnues, puis valide le STEP réimporté.
 pub fn build_rounded_step(model: &RoundedModel) -> Result<ValidatedStep, FabError> {
+    build_rounded_step_impl(model, None)
+}
+
+#[derive(Clone, Copy, Default)]
+struct SurfaceTokens<'a> {
+    planes: &'a [usize],
+    cylinders: &'a [usize],
+    partial: &'a [usize],
+    cones: &'a [usize],
+    spheres: &'a [usize],
+    tori: &'a [usize],
+    partial_cones: &'a [usize],
+}
+
+/// Tracks construction identities for all complete rounded surface families.
+/// Models containing partial cylinders require `build_rounded_step_with_all_provenance`.
+pub fn build_rounded_step_with_provenance(
+    model: &RoundedModel,
+    plane_tokens: &[usize],
+    cylinder_tokens: &[usize],
+    cone_tokens: &[usize],
+    sphere_tokens: &[usize],
+    torus_tokens: &[usize],
+) -> Result<ValidatedStep, FabError> {
+    build_rounded_step_with_all_provenance(
+        model,
+        plane_tokens,
+        cylinder_tokens,
+        &[],
+        cone_tokens,
+        sphere_tokens,
+        torus_tokens,
+    )
+}
+
+/// Each slice indexes the corresponding model array. All tokens are exhaustive,
+/// globally unique and in 1..=100_000. Their source meaning requires a trusted
+/// sidecar belonging to this exact result; failed native history omits all labels.
+pub fn build_rounded_step_with_all_provenance(
+    model: &RoundedModel,
+    plane_tokens: &[usize],
+    cylinder_tokens: &[usize],
+    partial_cylinder_tokens: &[usize],
+    cone_tokens: &[usize],
+    sphere_tokens: &[usize],
+    torus_tokens: &[usize],
+) -> Result<ValidatedStep, FabError> {
+    build_rounded_step_with_chain_provenance(
+        model,
+        plane_tokens,
+        cylinder_tokens,
+        partial_cylinder_tokens,
+        cone_tokens,
+        sphere_tokens,
+        torus_tokens,
+        &[],
+    )
+}
+
+/// Tracks all rounded families, including partial conical transitions.
+#[allow(clippy::too_many_arguments)]
+pub fn build_rounded_step_with_chain_provenance(
+    model: &RoundedModel,
+    plane_tokens: &[usize],
+    cylinder_tokens: &[usize],
+    partial_cylinder_tokens: &[usize],
+    cone_tokens: &[usize],
+    sphere_tokens: &[usize],
+    torus_tokens: &[usize],
+    partial_cone_tokens: &[usize],
+) -> Result<ValidatedStep, FabError> {
+    let arrays = [
+        plane_tokens,
+        cylinder_tokens,
+        partial_cylinder_tokens,
+        cone_tokens,
+        sphere_tokens,
+        torus_tokens,
+        partial_cone_tokens,
+    ];
+    let counts = [
+        model.revolved.mixed.planes.len(),
+        model.revolved.mixed.cylinders.len(),
+        model.revolved.mixed.partial_cylinders.len(),
+        model.revolved.cones.len(),
+        model.spheres.len(),
+        model.tori.len(),
+        model.partial_cones.len(),
+    ];
+    let invalid = || {
+        FabError::new(
+            "cad.invalid_model",
+            "Les identifiants de surfaces doivent être exhaustifs, uniques et bornés.",
+        )
+    };
+    let mut total = 0usize;
+    for (tokens, count) in arrays.iter().zip(counts) {
+        total = total.saturating_add(tokens.len());
+        if tokens.len() != count || total > 100_000 {
+            return Err(invalid());
+        }
+    }
+    let mut unique: Vec<_> = arrays.into_iter().flatten().copied().collect();
+    unique.sort_unstable();
+    if unique.iter().any(|token| !(1..=100_000).contains(token))
+        || unique.windows(2).any(|pair| pair[0] == pair[1])
+    {
+        return Err(invalid());
+    }
+    build_rounded_step_impl(
+        model,
+        Some(SurfaceTokens {
+            planes: plane_tokens,
+            cylinders: cylinder_tokens,
+            partial: partial_cylinder_tokens,
+            cones: cone_tokens,
+            spheres: sphere_tokens,
+            tori: torus_tokens,
+            partial_cones: partial_cone_tokens,
+        }),
+    )
+}
+
+fn build_rounded_step_impl(
+    model: &RoundedModel,
+    tokens: Option<SurfaceTokens<'_>>,
+) -> Result<ValidatedStep, FabError> {
     if model.spheres.iter().any(|sphere| sphere.rings.is_none()) {
         let invalid = || {
             FabError::new(
@@ -723,6 +1258,7 @@ pub fn build_rounded_step(model: &RoundedModel) -> Result<ValidatedStep, FabErro
             || !sphere.radius_mm.is_finite()
             || sphere.radius_mm <= 0.0
             || sphere.center.iter().any(|v| !v.is_finite())
+            || !model.partial_cones.is_empty()
             || !has_no_boundary_surfaces(&model.revolved)
             || !model.tori.is_empty()
         {
@@ -730,6 +1266,16 @@ pub fn build_rounded_step(model: &RoundedModel) -> Result<ValidatedStep, FabErro
         }
         // The native seam and poles are parametric, with no source-ring indices.
         return native_step(|output, error, capacity| unsafe {
+            if let Some(tokens) = tokens {
+                return fabstep_build_complete_sphere_step_with_provenance(
+                    sphere.center.as_ptr(),
+                    sphere.radius_mm,
+                    tokens.spheres[0],
+                    output,
+                    error,
+                    capacity,
+                );
+            }
             fabstep_build_complete_sphere_step(
                 sphere.center.as_ptr(),
                 sphere.radius_mm,
@@ -757,12 +1303,25 @@ pub fn build_rounded_step(model: &RoundedModel) -> Result<ValidatedStep, FabErro
             || !torus.minor_radius_mm.is_finite()
             || torus.minor_radius_mm <= 0.0
             || torus.major_radius_mm <= torus.minor_radius_mm
+            || !model.partial_cones.is_empty()
             || !has_no_boundary_surfaces(&model.revolved)
             || !model.spheres.is_empty()
         {
             return Err(invalid());
         }
         return native_step(|output, error, capacity| unsafe {
+            if let Some(tokens) = tokens {
+                return fabstep_build_complete_torus_step_with_provenance(
+                    torus.center.as_ptr(),
+                    axis.as_ptr(),
+                    torus.major_radius_mm,
+                    torus.minor_radius_mm,
+                    tokens.tori[0],
+                    output,
+                    error,
+                    capacity,
+                );
+            }
             fabstep_build_complete_torus_step(
                 torus.center.as_ptr(),
                 axis.as_ptr(),
@@ -774,11 +1333,13 @@ pub fn build_rounded_step(model: &RoundedModel) -> Result<ValidatedStep, FabErro
             )
         });
     }
-    build_surface_step(
+    build_surface_step_with_tokens(
         &model.revolved.mixed,
         &model.revolved.cones,
         &model.spheres,
         &model.tori,
+        &model.partial_cones,
+        tokens,
     )
 }
 
@@ -788,8 +1349,20 @@ fn build_surface_step(
     spheres: &[MixedSphere],
     tori: &[MixedTorus],
 ) -> Result<ValidatedStep, FabError> {
+    build_surface_step_with_tokens(model, cones, spheres, tori, &[], None)
+}
+
+fn build_surface_step_with_tokens(
+    model: &MixedModel,
+    cones: &[MixedCone],
+    spheres: &[MixedSphere],
+    tori: &[MixedTorus],
+    partial_cones: &[MixedPartialCone],
+    tokens: Option<SurfaceTokens<'_>>,
+) -> Result<ValidatedStep, FabError> {
     let invalid = |message| FabError::new("cad.invalid_model", message);
-    let legacy = cones.is_empty() && spheres.is_empty() && tori.is_empty();
+    let legacy =
+        cones.is_empty() && spheres.is_empty() && tori.is_empty() && partial_cones.is_empty();
     if model.planes.is_empty()
         || (model.cylinders.is_empty() && model.partial_cylinders.is_empty() && legacy)
         || model
@@ -945,33 +1518,51 @@ fn build_surface_step(
             vertices: arc.vertices,
         });
     }
-    let mut arc_cylinders = vec![false; arcs.len()];
-    let mut rails = BTreeMap::new();
+    let mut arc_walls = vec![0u8; arcs.len()];
+    let mut rails: BTreeMap<_, (u8, u8)> = BTreeMap::new();
     let mut partial = Vec::with_capacity(model.partial_cylinders.len());
-    for cylinder in &model.partial_cylinders {
-        for arc in cylinder.arcs {
-            let used = arc_cylinders
+    let mut native_partial_cones = Vec::with_capacity(partial_cones.len());
+    for (arc_ids, inner, conical) in model
+        .partial_cylinders
+        .iter()
+        .map(|c| (c.arcs, c.inner, false))
+        .chain(partial_cones.iter().map(|c| (c.arcs, c.inner, true)))
+    {
+        for arc in arc_ids {
+            let used = arc_walls
                 .get_mut(arc)
-                .ok_or_else(|| invalid("Un cylindre partiel référence un arc absent."))?;
-            if *used {
-                return Err(invalid(
-                    "Un arc appartient à plusieurs parois cylindriques.",
-                ));
+                .ok_or_else(|| invalid("Une paroi partielle référence un arc absent."))?;
+            if *used == 2 {
+                return Err(invalid("Un arc appartient à plus de deux parois."));
             }
-            *used = true;
+            *used += 1;
         }
-        let [lower, upper] = cylinder.arcs;
+        let [lower, upper] = arc_ids;
+        if edge_key([arcs[lower].vertices[0], arcs[upper].vertices[0]])
+            == edge_key([arcs[lower].vertices[1], arcs[upper].vertices[1]])
+        {
+            return Err(invalid(
+                "Les deux génératrices d'une paroi partielle sont confondues.",
+            ));
+        }
         for (from, to) in arcs[lower].vertices.into_iter().zip(arcs[upper].vertices) {
-            if from == to || rails.insert(edge_key([from, to]), false).is_some() {
+            let incidence = rails.entry(edge_key([from, to])).or_default();
+            incidence.0 += 1;
+            if from == to || incidence.0 > 2 {
                 return Err(invalid(
-                    "Une génératrice du cylindre partiel est invalide ou partagée entre cylindres.",
+                    "Une génératrice doit border au plus deux parois partielles distinctes.",
                 ));
             }
         }
-        partial.push(NativeMixedCylinder {
-            rings: cylinder.arcs,
-            inner: i32::from(cylinder.inner),
-        });
+        let data = NativeMixedCylinder {
+            rings: arc_ids,
+            inner: i32::from(inner),
+        };
+        if conical {
+            native_partial_cones.push(data);
+        } else {
+            partial.push(data);
+        }
     }
 
     let mut ring_planes = vec![false; rings.len()];
@@ -1086,13 +1677,11 @@ fn build_surface_step(
                 return Err(invalid("Un contour plan a une aire ou un sens invalide."));
             }
             for segment in path.iter().filter(|segment| segment.arc == usize::MAX) {
-                if let Some(used) = rails.get_mut(&edge_key(segment.vertices)) {
-                    if *used {
-                        return Err(invalid(
-                            "Une génératrice appartient à plusieurs contours plans.",
-                        ));
+                if let Some(incidence) = rails.get_mut(&edge_key(segment.vertices)) {
+                    incidence.1 += 1;
+                    if incidence.0 + incidence.1 > 2 {
+                        return Err(invalid("Une génératrice appartient à plus de deux faces."));
                     }
-                    *used = true;
                 }
             }
             loops.push(NativeMixedLoop {
@@ -1115,18 +1704,106 @@ fn build_surface_step(
             "Un anneau doit relier deux faces dont une paroi de révolution, et un pôle une seule paroi.",
         ));
     }
-    if !arc_cylinders.into_iter().all(|used| used)
-        || !arc_planes.into_iter().all(|used| used)
-        || !rails.into_values().all(|used| used)
+    if arc_walls
+        .into_iter()
+        .zip(arc_planes)
+        .any(|(walls, plane)| walls == 0 || walls + u8::from(plane) != 2)
+        || !rails
+            .into_values()
+            .all(|(walls, planes)| matches!((walls, planes), (1, 1) | (2, 0)))
     {
         return Err(invalid(
-            "Chaque arc et chaque génératrice doivent relier une face plane à un cylindre partiel.",
+            "Chaque arc et génératrice relient exactement deux faces, dont au moins une paroi partielle.",
         ));
     }
 
     // La validation des indices précède l'appel. Aucun pointeur de ces
     // tableaux à plat ne survit à l'appel natif.
     native_step(|output, error, capacity| unsafe {
+        if let Some(tokens) = tokens {
+            if spheres.is_empty()
+                && tori.is_empty()
+                && model.partial_cylinders.is_empty()
+                && partial_cones.is_empty()
+            {
+                if !cones.is_empty() {
+                    return fabstep_build_revolved_step_with_provenance(
+                        model.vertices.as_ptr().cast(),
+                        model.vertices.len(),
+                        rings.as_ptr(),
+                        rings.len(),
+                        normals.as_ptr().cast(),
+                        normals.len(),
+                        plane_loops.as_ptr(),
+                        loops.as_ptr(),
+                        segments.as_ptr(),
+                        cylinders.as_ptr(),
+                        cylinders.len(),
+                        native_cones.as_ptr(),
+                        native_cones.len(),
+                        tokens.planes.as_ptr(),
+                        tokens.cylinders.as_ptr(),
+                        tokens.cones.as_ptr(),
+                        output,
+                        error,
+                        capacity,
+                    );
+                }
+                return fabstep_build_mixed_step_with_provenance(
+                    model.vertices.as_ptr().cast(),
+                    model.vertices.len(),
+                    rings.as_ptr(),
+                    rings.len(),
+                    normals.as_ptr().cast(),
+                    normals.len(),
+                    plane_loops.as_ptr(),
+                    loops.as_ptr(),
+                    segments.as_ptr(),
+                    cylinders.as_ptr(),
+                    cylinders.len(),
+                    tokens.planes.as_ptr(),
+                    tokens.cylinders.as_ptr(),
+                    output,
+                    error,
+                    capacity,
+                );
+            }
+            return fabstep_build_rounded_step_with_provenance(
+                model.vertices.as_ptr().cast(),
+                model.vertices.len(),
+                rings.as_ptr(),
+                rings.len(),
+                normals.as_ptr().cast(),
+                normals.len(),
+                plane_loops.as_ptr(),
+                loops.as_ptr(),
+                segments.as_ptr(),
+                cylinders.as_ptr(),
+                cylinders.len(),
+                arcs.as_ptr(),
+                arcs.len(),
+                partial.as_ptr(),
+                partial.len(),
+                native_cones.as_ptr(),
+                native_cones.len(),
+                native_spheres.as_ptr(),
+                native_spheres.len(),
+                native_tori.as_ptr(),
+                native_tori.len(),
+                tokens.planes.as_ptr(),
+                tokens.cylinders.as_ptr(),
+                tokens.partial.as_ptr(),
+                tokens.cones.as_ptr(),
+                tokens.spheres.as_ptr(),
+                tokens.tori.as_ptr(),
+                native_partial_cones.as_ptr(),
+                native_partial_cones.len(),
+                tokens.partial_cones.as_ptr(),
+                output,
+                error,
+                capacity,
+            );
+        }
         fabstep_build_mixed_step(
             model.vertices.as_ptr().cast(),
             model.vertices.len(),
@@ -1149,6 +1826,8 @@ fn build_surface_step(
             native_spheres.len(),
             native_tori.as_ptr(),
             native_tori.len(),
+            native_partial_cones.as_ptr(),
+            native_partial_cones.len(),
             output,
             error,
             capacity,
@@ -1229,6 +1908,15 @@ fn native_error(status: i32, error: &[c_char; 512]) -> FabError {
         9 => "cad.bodies_not_separated",
         10 => "cad.step_document_too_large",
         11 => "cad.bodies_separation_budget",
+        12 => "dxf.face_not_found",
+        13 => "dxf.face_not_planar",
+        14 => "dxf.unsupported_curve",
+        15 => "dxf.invalid_profile",
+        16 => "dxf.too_complex",
+        17 => "dxf.section_coplanar",
+        18 => "dxf.section_tangent",
+        19 => "dxf.section_open",
+        20 => "dxf.section_invalid_plane",
         _ => "cad.kernel_failure",
     };
     // C++ termine toujours le tampon d'erreur par un octet nul.
@@ -1291,6 +1979,237 @@ pub fn tessellate_step(bytes: &[u8], deflection_mm: f64) -> Result<Mesh, FabErro
     })
 }
 
+/// Exact boundary of one planar face in the same face order as `result_faces`.
+/// IDs are scoped to these immutable STEP bytes. No display mesh is used.
+pub fn planar_face_profile(bytes: &[u8], face_id: usize) -> Result<PlanarFaceProfile, FabError> {
+    if bytes.is_empty() || bytes.len() > MAX_STEP_BYTES {
+        return Err(FabError::new(
+            "cad.read_failed",
+            "Le STEP à inspecter doit être non vide et ne pas dépasser 128 Mio.",
+        ));
+    }
+    let invalid = || {
+        FabError::new(
+            "dxf.invalid_profile",
+            "Le noyau a renvoyé un profil incohérent.",
+        )
+    };
+    let mut native = NativePlanarProfile::default();
+    let mut error = [0; 512];
+    let status = unsafe {
+        fabstep_planar_face_profile(
+            bytes.as_ptr(),
+            bytes.len(),
+            face_id,
+            &mut native,
+            error.as_mut_ptr(),
+            error.len(),
+        )
+    };
+    if status != 0 {
+        return Err(native_error(status, &error));
+    }
+    if native.solid_id >= MAX_STEP_BODIES
+        || native.loops.is_null()
+        || native.segments.is_null()
+        || !(1..=4096).contains(&native.loop_count)
+        || !(1..=100_000).contains(&native.segment_count)
+    {
+        return Err(invalid());
+    }
+    // Native-owned contiguous buffers are bounded before any Rust slice exists.
+    let native_loops = unsafe { slice::from_raw_parts(native.loops, native.loop_count) };
+    let native_segments = unsafe { slice::from_raw_parts(native.segments, native.segment_count) };
+    let mut loops = Vec::with_capacity(native.loop_count);
+    let mut end = 0;
+    for row in native_loops {
+        if row.start != end
+            || row.count == 0
+            || row.count > native.segment_count - end
+            || row.is_outer > 1
+        {
+            return Err(invalid());
+        }
+        end += row.count;
+        let mut segments = Vec::with_capacity(row.count);
+        for segment in &native_segments[row.start..end] {
+            segments.push(match segment.kind {
+                0 => ProfileSegment::Line {
+                    start_mm: segment.start,
+                    end_mm: segment.end,
+                },
+                1 => ProfileSegment::Arc {
+                    center_mm: segment.center,
+                    radius_mm: segment.radius,
+                    start_angle_rad: segment.start_angle,
+                    sweep_angle_rad: segment.sweep_angle,
+                },
+                2 => ProfileSegment::Circle {
+                    center_mm: segment.center,
+                    radius_mm: segment.radius,
+                },
+                3 => ProfileSegment::Ellipse {
+                    center_mm: segment.center,
+                    major_axis_mm: segment.major_axis,
+                    ratio: segment.ratio,
+                    start_param_rad: segment.start_angle,
+                    sweep_param_rad: segment.sweep_angle,
+                },
+                _ => return Err(invalid()),
+            });
+        }
+        loops.push(PlanarProfileLoop {
+            is_outer: row.is_outer == 1,
+            segments,
+        });
+    }
+    if end != native.segment_count {
+        return Err(invalid());
+    }
+    let profile = PlanarFaceProfile {
+        face_id,
+        solid_id: native.solid_id,
+        frame: ProfileFrame {
+            origin_mm: native.origin,
+            x_axis: native.x_axis,
+            y_axis: native.y_axis,
+            normal: native.normal,
+        },
+        loops,
+    };
+    fabstep_core::validate_planar_profile(&profile)?;
+    Ok(profile)
+}
+
+/// Read-only face inspection of a previously validated FabSTEP document.
+/// The fixed display deflection is not a geometric correction or an audit bound.
+/// No topology identifier here denotes a source triangle or recognition region.
+pub fn result_faces(bytes: &[u8]) -> Result<ResultFaces, FabError> {
+    const MAX_TRIANGLES: usize = 100_000;
+    const MAX_INCIDENCES: usize = 600_000;
+    const DEFLECTION_MM: f64 = 0.01;
+    if bytes.is_empty() || bytes.len() > MAX_STEP_BYTES {
+        return Err(FabError::new(
+            "cad.read_failed",
+            "Le STEP à inspecter doit être non vide et ne pas dépasser 128 Mio.",
+        ));
+    }
+    let invalid = || {
+        FabError::new(
+            "cad.tessellation_failed",
+            "Le noyau a renvoyé une inspection de faces STEP incohérente.",
+        )
+    };
+    let mut native = NativeResultFaces::default();
+    let mut error = [0; 512];
+    let status = unsafe {
+        fabstep_result_faces(
+            bytes.as_ptr(),
+            bytes.len(),
+            DEFLECTION_MM,
+            &mut native,
+            error.as_mut_ptr(),
+            error.len(),
+        )
+    };
+    if status != 0 {
+        return Err(native_error(status, &error));
+    }
+    let mesh = &native.mesh;
+    if mesh.points.is_null()
+        || mesh.triangles.is_null()
+        || !(1..=3 * MAX_TRIANGLES).contains(&mesh.point_count)
+        || !(1..=MAX_TRIANGLES).contains(&mesh.triangle_count)
+        || native.faces.is_null()
+        || !(1..=MAX_TRIANGLES).contains(&native.face_count)
+        || native.neighbor_count > MAX_INCIDENCES
+        || (native.neighbor_count > 0 && native.neighbors.is_null())
+    {
+        return Err(invalid());
+    }
+    // Only bounded, native-owned scalar arrays cross the ABI.
+    let vertices = unsafe { slice::from_raw_parts(mesh.points, mesh.point_count) };
+    let triangles = unsafe { slice::from_raw_parts(mesh.triangles, mesh.triangle_count) };
+    if vertices.iter().flatten().any(|v| !v.is_finite())
+        || triangles.iter().flatten().any(|&v| v >= vertices.len())
+    {
+        return Err(invalid());
+    }
+    let metadata = unsafe { slice::from_raw_parts(native.faces, native.face_count) };
+    let neighbors = if native.neighbor_count == 0 {
+        &[]
+    } else {
+        unsafe { slice::from_raw_parts(native.neighbors, native.neighbor_count) }
+    };
+    let mut faces = Vec::with_capacity(metadata.len());
+    let mut triangle_end = 0;
+    let mut neighbor_end = 0;
+    let mut largest_solid = 0;
+    for (id, face) in metadata.iter().enumerate() {
+        if face.solid_id >= MAX_STEP_BODIES
+            || face.solid_id > largest_solid + usize::from(id != 0)
+            || (id > 0 && face.solid_id < metadata[id - 1].solid_id)
+            || face.triangle_start != triangle_end
+            || face.triangle_count == 0
+            || face.triangle_count > triangles.len() - triangle_end
+            || face.neighbor_start != neighbor_end
+            || face.neighbor_count > neighbors.len() - neighbor_end
+        {
+            return Err(invalid());
+        }
+        largest_solid = face.solid_id;
+        triangle_end += face.triangle_count;
+        neighbor_end += face.neighbor_count;
+        let adjacent = &neighbors[face.neighbor_start..neighbor_end];
+        if adjacent.windows(2).any(|pair| pair[0] >= pair[1])
+            || adjacent.iter().any(|&other| {
+                other >= metadata.len() || other == id || metadata[other].solid_id != face.solid_id
+            })
+        {
+            return Err(invalid());
+        }
+        let family = match face.family {
+            0 => ResultFaceFamily::Plane,
+            1 => ResultFaceFamily::Cylinder,
+            2 => ResultFaceFamily::Cone,
+            3 => ResultFaceFamily::Sphere,
+            4 => ResultFaceFamily::Torus,
+            5 => ResultFaceFamily::Other,
+            _ => return Err(invalid()),
+        };
+        faces.push(ResultFace {
+            id,
+            solid_id: face.solid_id,
+            family,
+            triangle_start: face.triangle_start,
+            triangle_count: face.triangle_count,
+            adjacent_face_ids: adjacent.to_vec(),
+            source_face_token: (face.source_face_token != 0).then_some(face.source_face_token),
+        });
+    }
+    if triangle_end != triangles.len()
+        || neighbor_end != neighbors.len()
+        || faces.iter().any(|face| {
+            face.adjacent_face_ids.iter().any(|&other| {
+                faces[other]
+                    .adjacent_face_ids
+                    .binary_search(&face.id)
+                    .is_err()
+            })
+        })
+    {
+        return Err(invalid());
+    }
+    Ok(ResultFaces {
+        mesh: Mesh {
+            vertices: vertices.to_vec(),
+            triangles: triangles.to_vec(),
+        },
+        faces,
+        deflection_mm: DEFLECTION_MM,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1336,6 +2255,1068 @@ mod tests {
             }
         }
         build_step(&model).unwrap()
+    }
+
+    fn assert_label_supports(inspection: &ResultFaces, model: &PlanarModel, tokens: &[usize]) {
+        let found: std::collections::BTreeSet<_> = inspection
+            .faces
+            .iter()
+            .map(|face| face.source_face_token.expect("exact transfer label"))
+            .collect();
+        assert_eq!(found, tokens.iter().copied().collect());
+        for face in &inspection.faces {
+            let token = face.source_face_token.unwrap();
+            let source = &model.faces[tokens.iter().position(|&t| t == token).unwrap()];
+            let origin = model.vertices[source.loops[0][0]];
+            for triangle in &inspection.mesh.triangles
+                [face.triangle_start..face.triangle_start + face.triangle_count]
+            {
+                for &vertex in triangle {
+                    let point = inspection.mesh.vertices[vertex];
+                    let distance: f64 = (0..3)
+                        .map(|axis| (point[axis] - origin[axis]) * source.normal[axis])
+                        .sum();
+                    assert!(
+                        distance.abs() < 1e-8,
+                        "label {token} attached to wrong plane"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn provenance_tracks_constructed_faces_through_sewing_and_step_transfer() {
+        let mut model = box_model();
+        model.faces.rotate_left(3);
+        model.faces.swap(1, 4);
+        // Separate vertex/edge topology for each input face forces sewing to
+        // replace subshapes: input handles cannot just bypass sewing history.
+        let original = model.vertices.clone();
+        model.vertices.clear();
+        for face in &mut model.faces {
+            for boundary in &mut face.loops {
+                for vertex in boundary {
+                    let point = original[*vertex];
+                    *vertex = model.vertices.len();
+                    model.vertices.push(point);
+                }
+            }
+        }
+        let tokens = [91, 7, 54, 100_000, 3, 12];
+        let step = build_step_with_provenance(&model, &tokens).unwrap();
+        let inspected = result_faces(&step.bytes).unwrap();
+        assert_label_supports(&inspected, &model, &tokens);
+        assert!(result_faces(&build_step(&model).unwrap().bytes)
+            .unwrap()
+            .faces
+            .iter()
+            .all(|face| face.source_face_token.is_none()));
+    }
+
+    #[test]
+    fn provenance_is_independent_of_step_entity_numbers() {
+        let model = box_model();
+        let tokens = [43, 71, 18, 6, 99, 21];
+        let step = build_step_with_provenance(&model, &tokens).unwrap();
+        let text = String::from_utf8(step.bytes).unwrap();
+        // Reverse every entity number and its references. This fixture has no
+        // '#' in strings; source attribution must not depend on entity rank.
+        let largest = text
+            .split('#')
+            .skip(1)
+            .map(|tail| {
+                tail.chars()
+                    .take_while(char::is_ascii_digit)
+                    .collect::<String>()
+                    .parse::<usize>()
+                    .unwrap()
+            })
+            .max()
+            .unwrap();
+        let mut rewritten = String::new();
+        let mut parts = text.split('#');
+        rewritten.push_str(parts.next().unwrap());
+        for tail in parts {
+            let digits = tail.chars().take_while(char::is_ascii_digit).count();
+            let number: usize = tail[..digits].parse().unwrap();
+            rewritten.push('#');
+            rewritten.push_str(&(largest + 1 - number).to_string());
+            rewritten.push_str(&tail[digits..]);
+        }
+        let inspected = result_faces(rewritten.as_bytes()).unwrap();
+        assert_label_supports(&inspected, &model, &tokens);
+    }
+
+    #[test]
+    fn provenance_missing_duplicate_and_malformed_labels_preserve_display_without_mapping() {
+        let step = build_step_with_provenance(&box_model(), &[1, 2, 3, 4, 5, 6]).unwrap();
+        let text = String::from_utf8(step.bytes).unwrap();
+        for replacement in [
+            "",
+            "FABSTEP_SOURCE_FACE_V1_2",
+            "FABSTEP_SOURCE_FACE_V1_0",
+            "FABSTEP_SOURCE_FACE_V1_100001",
+            "FABSTEP_SOURCE_FACE_V1_01",
+            "unrelated",
+        ] {
+            let corrupted =
+                text.replacen("FABSTEP_SOURCE_FACE_V1_1'", &format!("{replacement}'"), 1);
+            assert_ne!(corrupted, text);
+            let inspected = result_faces(corrupted.as_bytes()).unwrap();
+            assert_eq!(inspected.faces.len(), 6);
+            assert!(inspected
+                .faces
+                .iter()
+                .all(|face| face.source_face_token.is_none()));
+        }
+    }
+
+    #[test]
+    fn provenance_combination_preserves_labels_across_reversed_roots_and_repeated_names() {
+        let mut first_model = box_model();
+        first_model.faces.reverse();
+        let first_tokens = [81, 14, 73, 22, 19, 55];
+        let first = build_step_with_provenance(&first_model, &first_tokens).unwrap();
+        let mut second_model = box_model();
+        for point in &mut second_model.vertices {
+            point[0] += 40.;
+        }
+        let second_tokens = [29, 61, 32, 88, 9, 100];
+        let second = build_step_with_provenance(&second_model, &second_tokens).unwrap();
+        let combined = combine_steps_with_provenance(&[
+            StepPart {
+                bytes: &second.bytes,
+                name: "same",
+            },
+            StepPart {
+                bytes: &first.bytes,
+                name: "same",
+            },
+        ])
+        .unwrap();
+        let inspected = result_faces(&combined.bytes).unwrap();
+        let mut model = first_model;
+        // Keep source coordinates disjoint while collecting expected face supports.
+        let offset = model.vertices.len();
+        model.vertices.extend(second_model.vertices);
+        for mut face in second_model.faces {
+            for boundary in &mut face.loops {
+                for vertex in boundary {
+                    *vertex += offset;
+                }
+            }
+            model.faces.push(face);
+        }
+        let tokens: Vec<_> = first_tokens.into_iter().chain(second_tokens).collect();
+        assert_label_supports(&inspected, &model, &tokens);
+        for face in inspected.faces {
+            assert_eq!(
+                face.solid_id,
+                usize::from(first_tokens.contains(&face.source_face_token.unwrap()))
+            );
+        }
+    }
+
+    #[test]
+    fn provenance_combination_drops_incomplete_or_cross_root_duplicate_metadata_only() {
+        let first = build_step_with_provenance(&box_model(), &[1, 2, 3, 4, 5, 6]).unwrap();
+        let mut model = box_model();
+        for point in &mut model.vertices {
+            point[0] += 40.;
+        }
+        let duplicate = build_step_with_provenance(&model, &[1, 2, 3, 4, 5, 6]).unwrap();
+        let absent = build_step(&model).unwrap();
+        for second in [&duplicate, &absent] {
+            let combined = combine_steps_with_provenance(&[
+                StepPart {
+                    bytes: &first.bytes,
+                    name: "a",
+                },
+                StepPart {
+                    bytes: &second.bytes,
+                    name: "b",
+                },
+            ])
+            .unwrap();
+            assert_eq!(combined.report.solids, 2);
+            assert_eq!(combined.report.volume_mm3, 12_000.);
+            assert!(result_faces(&combined.bytes)
+                .unwrap()
+                .faces
+                .iter()
+                .all(|face| face.source_face_token.is_none()));
+        }
+    }
+
+    #[test]
+    fn provenance_rejects_invalid_requested_tokens() {
+        for tokens in [
+            &[1, 2, 3, 4, 5][..],
+            &[1, 2, 3, 4, 5, 5],
+            &[0, 2, 3, 4, 5, 6],
+            &[100_001, 2, 3, 4, 5, 6],
+        ] {
+            assert_eq!(
+                build_step_with_provenance(&box_model(), tokens)
+                    .unwrap_err()
+                    .code,
+                "cad.invalid_model"
+            );
+        }
+    }
+
+    fn section_request(z: f64, solid_ids: Vec<usize>) -> fabstep_core::SectionRequest {
+        fabstep_core::SectionRequest {
+            frame: ProfileFrame {
+                origin_mm: [0., 0., z],
+                x_axis: [1., 0., 0.],
+                y_axis: [0., 1., 0.],
+                normal: [0., 0., 1.],
+            },
+            solid_ids,
+        }
+    }
+
+    #[test]
+    fn section_profile_cuts_box_and_preserves_empty_body_choices() {
+        let first = build_step(&box_model()).unwrap();
+        let second = placed_box(1., [40., 0., 50.]);
+        let combined = combine_steps(&[
+            StepPart {
+                bytes: &first.bytes,
+                name: "first",
+            },
+            StepPart {
+                bytes: &second.bytes,
+                name: "second",
+            },
+        ])
+        .unwrap();
+        let section = section_profile(&combined.bytes, &section_request(15., vec![0, 1])).unwrap();
+        assert_eq!(section.bodies.len(), 2);
+        assert_eq!(section.bodies[0].loops.len(), 1);
+        assert_eq!(section.bodies[0].loops[0].segments.len(), 4);
+        assert!(section.bodies[0].loops[0].is_outer);
+        assert!(section.bodies[1].loops.is_empty());
+        let empty = section_profile(&combined.bytes, &section_request(100., vec![0, 1])).unwrap();
+        assert!(empty.bodies.iter().all(|b| b.loops.is_empty()));
+        assert_eq!(
+            fabstep_core::export_section_dxf(&empty).unwrap_err().code,
+            "dxf.section_empty"
+        );
+        fabstep_core::export_section_dxf(&section).unwrap();
+    }
+
+    #[test]
+    fn section_profile_preserves_circular_and_polygonal_holes() {
+        let mut polygon = plate();
+        polygon.holes = vec![ProfileLoop::Polygon {
+            points: vec![[-1., -1.], [1., -1.], [1., 1.], [-1., 1.]],
+        }];
+        for model in [plate(), polygon] {
+            let step = build_extrusion_step(&model).unwrap();
+            let section = section_profile(&step.bytes, &section_request(2.5, vec![0])).unwrap();
+            let loops = &section.bodies[0].loops;
+            assert_eq!(loops.len(), 2);
+            assert_eq!(loops.iter().filter(|l| l.is_outer).count(), 1);
+            assert_eq!(loops[0].component_id, loops[1].component_id);
+            let hole = loops.iter().find(|l| !l.is_outer).unwrap();
+            match model.holes[0] {
+                ProfileLoop::Circle { .. } => assert!(
+                    matches!(hole.segments.as_slice(),[ProfileSegment::Circle{radius_mm,..}] if (*radius_mm-1.).abs()<1e-10)
+                ),
+                _ => assert_eq!(hole.segments.len(), 4),
+            }
+            fabstep_core::export_section_dxf(&section).unwrap();
+        }
+    }
+
+    #[test]
+    fn section_profile_torus_has_annulus_or_two_disconnected_components() {
+        let step = build_rounded_step(&complete_torus_model([0.; 3], [0., 0., 1.])).unwrap();
+        let annulus = section_profile(&step.bytes, &section_request(1., vec![0])).unwrap();
+        assert_eq!(annulus.bodies[0].loops.len(), 2);
+        assert_eq!(
+            annulus.bodies[0]
+                .loops
+                .iter()
+                .filter(|l| l.is_outer)
+                .count(),
+            1
+        );
+        for boundary in &annulus.bodies[0].loops {
+            let [ProfileSegment::Circle { radius_mm, .. }] = boundary.segments.as_slice() else {
+                panic!("native torus section must remain circular")
+            };
+            let expected = 6.
+                + if boundary.is_outer {
+                    3_f64.sqrt()
+                } else {
+                    -3_f64.sqrt()
+                };
+            assert!((radius_mm - expected).abs() < 1e-7);
+        }
+        let request = fabstep_core::SectionRequest {
+            frame: ProfileFrame {
+                origin_mm: [0.; 3],
+                x_axis: [0., 1., 0.],
+                y_axis: [0., 0., 1.],
+                normal: [1., 0., 0.],
+            },
+            solid_ids: vec![0],
+        };
+        let split = section_profile(&step.bytes, &request).unwrap();
+        assert_eq!(split.bodies[0].loops.len(), 2);
+        assert!(split.bodies[0].loops.iter().all(|l| l.is_outer));
+        assert_ne!(
+            split.bodies[0].loops[0].component_id,
+            split.bodies[0].loops[1].component_id
+        );
+        for boundary in &split.bodies[0].loops {
+            let [ProfileSegment::Circle { radius_mm, .. }] = boundary.segments.as_slice() else {
+                panic!("native torus meridian must remain circular")
+            };
+            assert!((radius_mm - 2.).abs() < 1e-7);
+        }
+        fabstep_core::export_section_dxf(&annulus).unwrap();
+        fabstep_core::export_section_dxf(&split).unwrap();
+    }
+
+    #[test]
+    fn section_profile_rejects_coplanar_tangent_and_native_common_edges() {
+        let cube = build_step(&box_model()).unwrap();
+        assert_eq!(
+            section_profile(&cube.bytes, &section_request(0., vec![0]))
+                .unwrap_err()
+                .code,
+            "dxf.section_coplanar"
+        );
+        let torus = build_rounded_step(&complete_torus_model([0.; 3], [0., 0., 1.])).unwrap();
+        assert_eq!(
+            section_profile(&torus.bytes, &section_request(2., vec![0]))
+                .unwrap_err()
+                .code,
+            "dxf.section_tangent"
+        );
+        let sphere = build_rounded_step(&complete_sphere_model([0.; 3], 6.)).unwrap();
+        assert_eq!(
+            section_profile(&sphere.bytes, &section_request(6., vec![0]))
+                .unwrap_err()
+                .code,
+            "dxf.section_tangent"
+        );
+    }
+
+    #[test]
+    fn section_profile_keeps_oblique_mirrored_placements_and_large_native_circle() {
+        let mut model = plate();
+        model.origin = [40., -31., 12.];
+        model.axis = [0.6, 0., 0.8];
+        model.x_axis = [-0.8, 0., 0.6];
+        let step = build_extrusion_step(&model).unwrap();
+        let request = fabstep_core::SectionRequest {
+            frame: ProfileFrame {
+                origin_mm: [41.5, -31., 14.],
+                x_axis: [-0.8, 0., 0.6],
+                y_axis: [0., -1., 0.],
+                normal: [0.6, 0., 0.8],
+            },
+            solid_ids: vec![0],
+        };
+        let section = section_profile(&step.bytes, &request).unwrap();
+        assert_eq!(section.bodies[0].loops.len(), 2);
+        let hole = section.bodies[0]
+            .loops
+            .iter()
+            .find(|l| !l.is_outer)
+            .unwrap();
+        let [ProfileSegment::Circle {
+            center_mm,
+            radius_mm,
+        }] = hole.segments.as_slice()
+        else {
+            panic!("hole must stay circular")
+        };
+        assert!(
+            (center_mm[0] - 1.).abs() < 1e-7
+                && (center_mm[1] + 1.).abs() < 1e-7
+                && (radius_mm - 1.).abs() < 1e-7
+        );
+        let sphere = build_rounded_step(&complete_sphere_model([0.; 3], 1000.)).unwrap();
+        let circle = section_profile(&sphere.bytes, &section_request(0., vec![0])).unwrap();
+        let [ProfileSegment::Circle { radius_mm, .. }] =
+            circle.bodies[0].loops[0].segments.as_slice()
+        else {
+            panic!("large sphere section must remain exact circle")
+        };
+        assert!((radius_mm - 1000.).abs() < 1e-7);
+    }
+
+    #[test]
+    fn section_profile_validates_selection_frame_and_surface_only_face_frame() {
+        let step = build_extrusion_step(&cylinder()).unwrap();
+        let inspection = result_faces(&step.bytes).unwrap();
+        for face in inspection
+            .faces
+            .iter()
+            .filter(|f| f.family == ResultFaceFamily::Plane)
+        {
+            let frame = planar_face_frame(&step.bytes, face.id).unwrap();
+            let profile = planar_face_profile(&step.bytes, face.id).unwrap();
+            assert_eq!(frame.origin_mm, profile.frame.origin_mm);
+            assert_eq!(frame.normal, profile.frame.normal);
+        }
+        let mut request = section_request(2.5, vec![0]);
+        request.frame.normal = [0.; 3];
+        assert_eq!(
+            section_profile(&step.bytes, &request).unwrap_err().code,
+            "dxf.section_invalid_plane"
+        );
+        assert!(section_profile(&step.bytes, &section_request(2.5, vec![1])).is_err());
+        assert!(section_profile(&step.bytes, &section_request(2.5, vec![0, 0])).is_err());
+    }
+
+    #[test]
+    fn section_profile_refuses_tangent_point_away_from_seam_after_valid_body() {
+        let regular = build_rounded_step(&complete_sphere_model([20., 0., 0.], 8.)).unwrap();
+        let tangent = build_rounded_step(&complete_sphere_model([0.; 3], 6.)).unwrap();
+        let combined = combine_steps(&[
+            StepPart {
+                bytes: &regular.bytes,
+                name: "regular",
+            },
+            StepPart {
+                bytes: &tangent.bytes,
+                name: "tangent",
+            },
+        ])
+        .unwrap();
+        let mut request = fabstep_core::SectionRequest {
+            frame: ProfileFrame {
+                origin_mm: [3.6, 4.8, 0.],
+                x_axis: [-0.8, 0.6, 0.],
+                y_axis: [0., 0., 1.],
+                normal: [0.6, 0.8, 0.],
+            },
+            solid_ids: vec![0],
+        };
+        let section = section_profile(&combined.bytes, &request).unwrap();
+        assert_eq!(section.bodies[0].loops.len(), 1);
+        request.solid_ids = vec![0, 1];
+        assert_eq!(
+            section_profile(&combined.bytes, &request).unwrap_err().code,
+            "dxf.section_tangent"
+        );
+    }
+
+    #[test]
+    fn section_profile_refuses_unsupported_torus_planes_and_trimmed_support_levels() {
+        let torus = build_rounded_step(&complete_torus_model([0.; 3], [0., 0., 1.])).unwrap();
+        let mut request = section_request(0., vec![0]);
+        request.frame.normal = [0.6, 0., 0.8];
+        request.frame.x_axis = [0.8, 0., -0.6];
+        assert_eq!(
+            section_profile(&torus.bytes, &request).unwrap_err().code,
+            "dxf.unsupported_curve"
+        );
+        // A conservative native body box proves this trimmed hemisphere absent
+        // from the plane; its distant spherical support cannot veto emptiness.
+        let hemisphere = build_rounded_step(&hemisphere_model()).unwrap();
+        assert!(
+            section_profile(&hemisphere.bytes, &section_request(-6., vec![0]))
+                .unwrap()
+                .bodies[0]
+                .loops
+                .is_empty()
+        );
+        let frustum = build_revolved_step(&cone_frustum(4., 2.)).unwrap();
+        assert!(
+            section_profile(&frustum.bytes, &section_request(16., vec![0]))
+                .unwrap()
+                .bodies[0]
+                .loops
+                .is_empty()
+        );
+        let cone = build_revolved_step(&cone_frustum(4., 0.)).unwrap();
+        assert_eq!(
+            section_profile(&cone.bytes, &section_request(8., vec![0]))
+                .unwrap_err()
+                .code,
+            "dxf.section_tangent"
+        );
+    }
+
+    #[test]
+    fn section_profile_accepts_oblique_ellipses_and_partial_elliptic_arcs() {
+        let cylinder = build_extrusion_step(&cylinder()).unwrap();
+        for degrees in [1_f64, 5., 30., 60., 89.] {
+            let (s, c) = degrees.to_radians().sin_cos();
+            let mut request = section_request(2.5, vec![0]);
+            request.frame.normal = [s, 0., c];
+            request.frame.x_axis = [c, 0., -s];
+            for reverse in [false, true] {
+                if reverse {
+                    request.frame.normal = request.frame.normal.map(|v| -v);
+                    request.frame.y_axis = request.frame.y_axis.map(|v| -v);
+                }
+                let profile = section_profile(&cylinder.bytes, &request).unwrap();
+                let ellipses: Vec<_> = profile.bodies[0].loops[0]
+                    .segments
+                    .iter()
+                    .filter_map(|segment| {
+                        if let ProfileSegment::Ellipse {
+                            major_axis_mm,
+                            ratio,
+                            sweep_param_rad,
+                            ..
+                        } = segment
+                        {
+                            Some((
+                                major_axis_mm[0].hypot(major_axis_mm[1]),
+                                *ratio,
+                                *sweep_param_rad,
+                            ))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                assert!(!ellipses.is_empty());
+                for (major, ratio, sweep) in ellipses {
+                    assert!((major - 2. / c).abs() < 1e-7);
+                    assert!((ratio - c).abs() < 1e-10);
+                    assert_eq!(sweep.abs() == TAU, degrees <= 30.);
+                }
+                fabstep_core::export_section_dxf(&profile).unwrap();
+            }
+        }
+        let cone = build_revolved_step(&cone_frustum(4., 2.)).unwrap();
+        let (s, c) = 5_f64.to_radians().sin_cos();
+        let mut request = section_request(4., vec![0]);
+        request.frame.normal = [s, 0., c];
+        request.frame.x_axis = [c, 0., -s];
+        let profile = section_profile(&cone.bytes, &request).unwrap();
+        assert!(profile.bodies[0].loops[0]
+            .segments
+            .iter()
+            .all(|segment| matches!(segment, ProfileSegment::Ellipse { .. })));
+        fabstep_core::export_section_dxf(&profile).unwrap();
+    }
+
+    #[test]
+    fn section_profile_rejects_hyperbola_without_partial_body_output() {
+        let cone = build_revolved_step(&cone_frustum(4., 2.)).unwrap();
+        let cube = placed_box(1., [20., 0., 0.]);
+        let combined = combine_steps(&[
+            StepPart {
+                bytes: &cube.bytes,
+                name: "box",
+            },
+            StepPart {
+                bytes: &cone.bytes,
+                name: "hyperbola",
+            },
+        ])
+        .unwrap();
+        let mut request = section_request(0., vec![0]);
+        request.frame.origin_mm = [0., 1., 0.];
+        request.frame.normal = [0., -1., 0.];
+        request.frame.y_axis = [0., 0., 1.];
+        assert_eq!(
+            section_profile(&cone.bytes, &request).unwrap_err().code,
+            "dxf.unsupported_curve"
+        );
+        assert_eq!(
+            section_profile(&combined.bytes, &request).unwrap().bodies[0]
+                .loops
+                .len(),
+            1
+        );
+        request.solid_ids = vec![0, 1];
+        assert_eq!(
+            section_profile(&combined.bytes, &request).unwrap_err().code,
+            "dxf.unsupported_curve"
+        );
+    }
+
+    #[test]
+    fn section_profile_crosses_exact_periodic_seams_without_joining_faces() {
+        let cylinder = build_extrusion_step(&cylinder()).unwrap();
+        let sphere = build_rounded_step(&complete_sphere_model([0.; 3], 6.)).unwrap();
+        let hemisphere = build_rounded_step(&hemisphere_model()).unwrap();
+        let mut meridian = section_request(0., vec![0]);
+        meridian.frame.normal = [0., -1., 0.];
+        meridian.frame.y_axis = [0., 0., 1.];
+        for (step, segments) in [(&cylinder, 4), (&sphere, 2), (&hemisphere, 3)] {
+            let profile = section_profile(&step.bytes, &meridian).unwrap();
+            assert_eq!(profile.bodies[0].loops.len(), 1);
+            assert_eq!(profile.bodies[0].loops[0].segments.len(), segments);
+            fabstep_core::export_section_dxf(&profile).unwrap();
+        }
+        let torus = build_rounded_step(&complete_torus_model([0.; 3], [0., 0., 1.])).unwrap();
+        let profile = section_profile(&torus.bytes, &section_request(0., vec![0])).unwrap();
+        assert_eq!(profile.bodies[0].loops.len(), 2);
+        for boundary in &profile.bodies[0].loops {
+            let [ProfileSegment::Circle { radius_mm, .. }] = boundary.segments.as_slice() else {
+                panic!("exact equatorial circles")
+            };
+            assert!((radius_mm - if boundary.is_outer { 8. } else { 4. }).abs() < 1e-7);
+        }
+        let rounded = build_rounded_box_step(&rounded_box_model([0.; 3])).unwrap();
+        assert_eq!(
+            section_profile(&rounded.bytes, &section_request(18., vec![0]))
+                .unwrap_err()
+                .code,
+            "dxf.section_tangent"
+        );
+    }
+
+    #[test]
+    fn planar_profile_keeps_exact_native_ellipse_holes_and_oriented_frames() {
+        // Native elliptical annular prism, validated after STEP roundtrip:
+        // major/minor axes 4/2 mm and 1/.5 mm; height 5 mm; volume 37.5*pi.
+        let bytes = include_bytes!("../tests/fixtures/elliptical_ring.step");
+        let mut caps = 0;
+        for face_id in 0..4 {
+            let Ok(frame) = planar_face_frame(bytes, face_id) else {
+                continue;
+            };
+            let profile = planar_face_profile(bytes, face_id).unwrap();
+            caps += 1;
+            assert_eq!(profile.loops.len(), 2);
+            assert!(frame.normal[2].abs() > 1. - 1e-12);
+            for boundary in &profile.loops {
+                let [ProfileSegment::Ellipse {
+                    major_axis_mm,
+                    ratio,
+                    sweep_param_rad,
+                    ..
+                }] = boundary.segments.as_slice()
+                else {
+                    panic!("native ellipse preserved")
+                };
+                assert!(
+                    (major_axis_mm[0].hypot(major_axis_mm[1])
+                        - if boundary.is_outer { 4. } else { 1. })
+                    .abs()
+                        < 1e-7
+                );
+                assert!((ratio - 0.5).abs() < 1e-12);
+                assert_eq!(sweep_param_rad.abs(), TAU);
+            }
+            fabstep_core::export_planar_face_dxf(&profile).unwrap();
+        }
+        assert_eq!(caps, 2);
+    }
+
+    fn profile_world(profile: &PlanarFaceProfile, p: [f64; 2]) -> [f64; 3] {
+        std::array::from_fn(|i| {
+            profile.frame.origin_mm[i]
+                + p[0] * profile.frame.x_axis[i]
+                + p[1] * profile.frame.y_axis[i]
+        })
+    }
+
+    #[test]
+    fn planar_profile_keeps_display_face_identity_and_placed_mirrored_oblique_geometry() {
+        let first = placed_box(1., [80., 0., 0.]);
+        let mut model = box_model();
+        // Reflection X, followed by a proper rotation around Y and translation.
+        let transform = |[x, y, z]: [f64; 3]| [-0.8 * x + 0.6 * z, y, 0.6 * x + 0.8 * z];
+        for p in &mut model.vertices {
+            *p = transform(*p);
+            for (value, offset) in p.iter_mut().zip([17., -31., 12.]) {
+                *value += offset;
+            }
+        }
+        for face in &mut model.faces {
+            face.normal = transform(face.normal);
+            for boundary in &mut face.loops {
+                boundary.reverse();
+            }
+        }
+        let second = build_step(&model).unwrap();
+        let combined = combine_steps(&[
+            StepPart {
+                bytes: &first.bytes,
+                name: "first",
+            },
+            StepPart {
+                bytes: &second.bytes,
+                name: "mirrored",
+            },
+        ])
+        .unwrap();
+        let inspection = result_faces(&combined.bytes).unwrap();
+        for face in &inspection.faces {
+            let profile = planar_face_profile(&combined.bytes, face.id).unwrap();
+            assert_eq!(
+                (profile.face_id, profile.solid_id),
+                (face.id, face.solid_id)
+            );
+            assert_eq!(profile.loops.len(), 1);
+            assert!(profile.loops[0].is_outer);
+            assert_eq!(profile.loops[0].segments.len(), 4);
+            let face_vertices: Vec<_> = inspection.mesh.triangles
+                [face.triangle_start..face.triangle_start + face.triangle_count]
+                .iter()
+                .flatten()
+                .map(|&id| inspection.mesh.vertices[id])
+                .collect();
+            for segment in &profile.loops[0].segments {
+                let ProfileSegment::Line { start_mm, end_mm } = segment else {
+                    panic!("box must retain native lines")
+                };
+                for point in [start_mm, end_mm] {
+                    let world = profile_world(&profile, *point);
+                    assert!(face_vertices
+                        .iter()
+                        .any(|p| p.iter().zip(world).all(|(a, b)| (a - b).abs() < 1e-7)));
+                }
+            }
+            fabstep_core::export_planar_face_dxf(&profile).unwrap();
+        }
+    }
+
+    #[test]
+    fn planar_profile_retains_long_arc_sweep_without_shortening() {
+        let model = MixedModel {
+            vertices: vec![[2., 0., 0.], [0., -2., 0.], [2., 0., 5.], [0., -2., 5.]],
+            rings: vec![],
+            cylinders: vec![],
+            arcs: vec![
+                CircularArc {
+                    center: [0., 0., 0.],
+                    axis: [0., 0., 1.],
+                    radius_mm: 2.,
+                    sweep_rad: 1.5 * std::f64::consts::PI,
+                    vertices: [0, 1],
+                },
+                CircularArc {
+                    center: [0., 0., 5.],
+                    axis: [0., 0., 1.],
+                    radius_mm: 2.,
+                    sweep_rad: 1.5 * std::f64::consts::PI,
+                    vertices: [2, 3],
+                },
+            ],
+            partial_cylinders: vec![MixedPartialCylinder {
+                arcs: [0, 1],
+                inner: false,
+            }],
+            planes: vec![
+                MixedPlane {
+                    normal: [0., 0., -1.],
+                    loops: vec![MixedLoop::Segments {
+                        segments: vec![
+                            MixedSegment::Line { vertices: [0, 1] },
+                            MixedSegment::Arc {
+                                arc: 0,
+                                reversed: true,
+                            },
+                        ],
+                    }],
+                },
+                MixedPlane {
+                    normal: [0., 0., 1.],
+                    loops: vec![MixedLoop::Segments {
+                        segments: vec![
+                            MixedSegment::Arc {
+                                arc: 1,
+                                reversed: false,
+                            },
+                            MixedSegment::Line { vertices: [3, 2] },
+                        ],
+                    }],
+                },
+                MixedPlane {
+                    normal: [
+                        std::f64::consts::FRAC_1_SQRT_2,
+                        -std::f64::consts::FRAC_1_SQRT_2,
+                        0.,
+                    ],
+                    loops: vec![MixedLoop::Polygon {
+                        vertices: vec![1, 0, 2, 3],
+                    }],
+                },
+            ],
+        };
+        let step = build_mixed_step(&model).unwrap();
+        let inspection = result_faces(&step.bytes).unwrap();
+        let mut count = 0;
+        for face in inspection
+            .faces
+            .iter()
+            .filter(|f| f.family == ResultFaceFamily::Plane)
+        {
+            let profile = planar_face_profile(&step.bytes, face.id).unwrap();
+            for segment in profile.loops.iter().flat_map(|l| &l.segments) {
+                if let ProfileSegment::Arc {
+                    sweep_angle_rad, ..
+                } = segment
+                {
+                    count += 1;
+                    assert!((sweep_angle_rad.abs() - 1.5 * std::f64::consts::PI).abs() < 1e-10);
+                }
+            }
+            fabstep_core::export_planar_face_dxf(&profile).unwrap();
+        }
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn planar_profile_keeps_circle_caps_and_circular_holes() {
+        for model in [cylinder(), plate()] {
+            let step = build_extrusion_step(&model).unwrap();
+            let inspection = result_faces(&step.bytes).unwrap();
+            let mut cap_count = 0;
+            for face in &inspection.faces {
+                if face.family != ResultFaceFamily::Plane {
+                    continue;
+                }
+                let profile = planar_face_profile(&step.bytes, face.id).unwrap();
+                let circles: Vec<_> = profile
+                    .loops
+                    .iter()
+                    .filter(|l| matches!(l.segments.as_slice(), [ProfileSegment::Circle { .. }]))
+                    .collect();
+                if circles.is_empty() {
+                    continue;
+                }
+                cap_count += 1;
+                assert_eq!(circles.len(), 1);
+                assert_eq!(
+                    profile.loops.len(),
+                    if model.holes.is_empty() { 1 } else { 2 }
+                );
+                assert_eq!(circles[0].is_outer, model.holes.is_empty());
+                let ProfileSegment::Circle { radius_mm, .. } = circles[0].segments[0] else {
+                    unreachable!()
+                };
+                assert!((radius_mm - if model.holes.is_empty() { 2. } else { 1. }).abs() < 1e-10);
+                fabstep_core::export_planar_face_dxf(&profile).unwrap();
+            }
+            assert_eq!(cap_count, 2);
+        }
+    }
+
+    #[test]
+    fn planar_profile_preserves_native_arcs_and_reversed_face_frames() {
+        let step = build_mixed_step(&notched_box()).unwrap();
+        let inspection = result_faces(&step.bytes).unwrap();
+        let mut arcs = Vec::new();
+        for face in &inspection.faces {
+            if face.family != ResultFaceFamily::Plane {
+                continue;
+            }
+            let profile = planar_face_profile(&step.bytes, face.id).unwrap();
+            for segment in profile.loops.iter().flat_map(|l| &l.segments) {
+                if let ProfileSegment::Arc {
+                    radius_mm,
+                    sweep_angle_rad,
+                    ..
+                } = segment
+                {
+                    assert!((radius_mm - 2.).abs() < 1e-10);
+                    assert!((sweep_angle_rad.abs() - std::f64::consts::PI).abs() < 1e-10);
+                    arcs.push(profile.frame.normal);
+                }
+            }
+            fabstep_core::export_planar_face_dxf(&profile).unwrap();
+        }
+        assert_eq!(arcs.len(), 2);
+        assert!((arcs[0][2] + arcs[1][2]).abs() < 1e-10);
+    }
+
+    #[test]
+    fn planar_profile_keeps_polygonal_holes_as_lines() {
+        let mut model = plate();
+        model.holes = vec![ProfileLoop::Polygon {
+            points: vec![[-1., -1.], [1., -1.], [1., 1.], [-1., 1.]],
+        }];
+        let step = build_extrusion_step(&model).unwrap();
+        let inspection = result_faces(&step.bytes).unwrap();
+        let mut holes = 0;
+        for face in &inspection.faces {
+            let profile = planar_face_profile(&step.bytes, face.id).unwrap();
+            if profile.loops.len() == 2 {
+                holes += 1;
+                assert_eq!(profile.loops.iter().filter(|l| l.is_outer).count(), 1);
+                assert!(profile.loops.iter().all(|l| l.segments.len() == 4
+                    && l.segments
+                        .iter()
+                        .all(|s| matches!(s, ProfileSegment::Line { .. }))));
+            }
+        }
+        assert_eq!(holes, 2);
+    }
+
+    #[test]
+    fn planar_profile_refuses_missing_nonplanar_and_invalid_step() {
+        let step = build_extrusion_step(&cylinder()).unwrap();
+        let inspection = result_faces(&step.bytes).unwrap();
+        let side = inspection
+            .faces
+            .iter()
+            .find(|f| f.family == ResultFaceFamily::Cylinder)
+            .unwrap();
+        assert_eq!(
+            planar_face_profile(&step.bytes, side.id).unwrap_err().code,
+            "dxf.face_not_planar"
+        );
+        assert_eq!(
+            planar_face_profile(&step.bytes, usize::MAX)
+                .unwrap_err()
+                .code,
+            "dxf.face_not_found"
+        );
+        for bytes in [b"".as_slice(), b"not STEP"] {
+            assert_eq!(
+                planar_face_profile(bytes, 0).unwrap_err().code,
+                "cad.read_failed"
+            );
+        }
+    }
+
+    #[test]
+    fn planar_profile_rejects_incomplete_native_boundary() {
+        let step = build_step(&box_model()).unwrap();
+        let text = String::from_utf8(step.bytes).unwrap();
+        let mut changed = false;
+        let text = text
+            .lines()
+            .map(|line| {
+                if !changed && line.contains(" = EDGE_LOOP(") {
+                    let comma = line.rfind(',').unwrap();
+                    changed = true;
+                    format!("{}));", &line[..comma])
+                } else {
+                    line.to_owned()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(changed);
+        let error = planar_face_profile(text.as_bytes(), 0).unwrap_err();
+        // The STEP reader already refuses the now-open solid, before extraction.
+        assert_eq!(error.code, "cad.read_failed");
+    }
+
+    #[test]
+    fn planar_profile_native_byte_limit_precedes_reading_buffer() {
+        let mut native = NativePlanarProfile::default();
+        let mut error = [0; 512];
+        // This one-byte input is safe because oversized inputs must be refused
+        // before StepInputBuffer or the STEP reader accesses their contents.
+        let status = unsafe {
+            fabstep_planar_face_profile(
+                b"x".as_ptr(),
+                MAX_STEP_BYTES + 1,
+                0,
+                &mut native,
+                error.as_mut_ptr(),
+                error.len(),
+            )
+        };
+        assert_eq!(native_error(status, &error).code, "cad.read_failed");
+        assert!(native.loops.is_null() && native.segments.is_null());
+    }
+
+    #[test]
+    fn result_faces_exposes_six_actual_cube_faces_and_shared_edge_neighbors() {
+        let step = build_step(&box_model()).unwrap();
+        let inspection = result_faces(&step.bytes).unwrap();
+        assert_eq!(inspection.faces.len(), 6);
+        assert_eq!(inspection.mesh.triangles.len(), 12);
+        let mut supports = Vec::new();
+        for face in &inspection.faces {
+            assert_eq!(face.family, ResultFaceFamily::Plane);
+            assert_eq!(face.solid_id, 0);
+            assert_eq!(face.triangle_count, 2);
+            assert_eq!(face.adjacent_face_ids.len(), 4);
+            let points = inspection.mesh.triangles
+                [face.triangle_start..face.triangle_start + face.triangle_count]
+                .iter()
+                .flatten()
+                .map(|&i| inspection.mesh.vertices[i])
+                .collect::<Vec<_>>();
+            let axis = (0..3)
+                .find(|&axis| points.iter().all(|p| p[axis] == points[0][axis]))
+                .expect("every triangle in a STEP planar face lies on its exact support");
+            supports.push((axis, points[0][axis]));
+        }
+        supports.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        supports.dedup();
+        assert_eq!(supports.len(), 6);
+    }
+
+    #[test]
+    fn result_faces_keeps_multiroot_placements_and_adjacency_separate() {
+        let first = placed_box(1., [40., 0., 0.]);
+        let second = placed_box(1., [0., 0., 0.]);
+        let combined = combine_steps(&[
+            StepPart {
+                bytes: &first.bytes,
+                name: "same",
+            },
+            StepPart {
+                bytes: &second.bytes,
+                name: "same",
+            },
+        ])
+        .unwrap();
+        let inspected = result_faces(&combined.bytes).unwrap();
+        assert_eq!(inspected.faces.len(), 12);
+        for face in &inspected.faces {
+            assert_eq!(face.solid_id, usize::from(face.id >= 6));
+            for &other in &face.adjacent_face_ids {
+                assert_eq!(inspected.faces[other].solid_id, face.solid_id);
+            }
+            for triangle in &inspected.mesh.triangles
+                [face.triangle_start..face.triangle_start + face.triangle_count]
+            {
+                for &vertex in triangle {
+                    let x = inspected.mesh.vertices[vertex][0];
+                    assert!(if face.solid_id == 0 {
+                        (40.0..=50.0).contains(&x)
+                    } else {
+                        (0.0..=10.0).contains(&x)
+                    });
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn result_faces_cylinder_ignores_periodic_self_seam() {
+        let step = build_extrusion_step(&cylinder()).unwrap();
+        let inspected = result_faces(&step.bytes).unwrap();
+        assert_eq!(inspected.faces.len(), 3);
+        let side = inspected
+            .faces
+            .iter()
+            .find(|f| f.family == ResultFaceFamily::Cylinder)
+            .unwrap();
+        assert_eq!(side.adjacent_face_ids.len(), 2);
+        for face in &inspected.faces {
+            assert!(!face.adjacent_face_ids.contains(&face.id));
+            if face.family == ResultFaceFamily::Plane {
+                assert_eq!(face.adjacent_face_ids, vec![side.id]);
+            }
+        }
+    }
+
+    #[test]
+    fn result_faces_rejects_invalid_step_and_excessive_display_resolution() {
+        for bytes in [b"".as_slice(), b"not STEP"] {
+            assert_eq!(result_faces(bytes).unwrap_err().code, "cad.read_failed");
+        }
+        let step = build_rounded_step(&complete_sphere_model([0.; 3], 1_000_000.)).unwrap();
+        assert_eq!(
+            result_faces(&step.bytes).unwrap_err().code,
+            "cad.tessellation_too_complex"
+        );
     }
 
     #[test]
@@ -1819,6 +3800,214 @@ mod tests {
         assert_eq!(step.matches("CYLINDRICAL_SURFACE(").count(), cylindrical);
     }
 
+    fn assert_mixed_label_supports(
+        inspected: &ResultFaces,
+        model: &MixedModel,
+        plane_tokens: &[usize],
+        cylinder_tokens: &[usize],
+    ) {
+        let mut seen = std::collections::BTreeSet::new();
+        for face in &inspected.faces {
+            let token = face.source_face_token.expect("complete native provenance");
+            let plane = plane_tokens.iter().position(|&value| value == token);
+            let cylinder = cylinder_tokens.iter().position(|&value| value == token);
+            if plane.is_none() && cylinder.is_none() {
+                continue; // Other explicitly labelled roots may share this inspection.
+            }
+            assert!(seen.insert(token));
+            for triangle in &inspected.mesh.triangles
+                [face.triangle_start..face.triangle_start + face.triangle_count]
+            {
+                for &vertex in triangle {
+                    let point = inspected.mesh.vertices[vertex];
+                    if let Some(index) = plane {
+                        assert_eq!(face.family, ResultFaceFamily::Plane);
+                        let source = &model.planes[index];
+                        let origin = match &source.loops[0] {
+                            MixedLoop::Polygon { vertices } => model.vertices[vertices[0]],
+                            MixedLoop::Circle { ring } => model.rings[*ring].center,
+                            _ => panic!("test fixture expects polygons or circles"),
+                        };
+                        let distance: f64 = (0..3)
+                            .map(|axis| (point[axis] - origin[axis]) * source.normal[axis])
+                            .sum();
+                        assert!(distance.abs() < 1e-8, "wrong plane for token {token}");
+                    } else {
+                        assert_eq!(face.family, ResultFaceFamily::Cylinder);
+                        let rings = model.cylinders[cylinder.unwrap()].rings;
+                        let first = &model.rings[rings[0]];
+                        let second = &model.rings[rings[1]];
+                        let offset: [f64; 3] =
+                            std::array::from_fn(|axis| point[axis] - first.center[axis]);
+                        let axial: f64 = (0..3).map(|i| offset[i] * first.axis[i]).sum();
+                        let height: f64 = (0..3)
+                            .map(|i| (second.center[i] - first.center[i]) * first.axis[i])
+                            .sum();
+                        let radial: f64 = (0..3)
+                            .map(|i| (offset[i] - axial * first.axis[i]).powi(2))
+                            .sum::<f64>()
+                            .sqrt();
+                        assert!(
+                            (radial - first.radius_mm).abs() < 1e-8,
+                            "wrong cylinder for token {token}"
+                        );
+                        assert!(axial >= height.min(0.) - 1e-8);
+                        assert!(axial <= height.max(0.) + 1e-8);
+                    }
+                }
+            }
+        }
+        assert_eq!(seen.len(), plane_tokens.len() + cylinder_tokens.len());
+    }
+
+    #[test]
+    fn mixed_provenance_tracks_permuted_planes_and_distinct_cylinders_through_sewing() {
+        let mut model = blind_box();
+        let [left, right] = add_wall(
+            &mut model,
+            [[0., 13., 15.], [10., 13., 15.]],
+            [1., 0., 0.],
+            1.,
+            true,
+        );
+        model.planes[5].loops.push(MixedLoop::Circle { ring: left });
+        model.planes[3]
+            .loops
+            .push(MixedLoop::Circle { ring: right });
+        model.planes.rotate_left(3);
+        model.cylinders.reverse();
+        // Distinct input edge topology exercises exact sewing history as well
+        // as circle/plane construction sharing; token order is arbitrary.
+        let original = model.vertices.clone();
+        model.vertices.clear();
+        for plane in &mut model.planes {
+            for boundary in &mut plane.loops {
+                if let MixedLoop::Polygon { vertices } = boundary {
+                    for vertex in vertices {
+                        let point = original[*vertex];
+                        *vertex = model.vertices.len();
+                        model.vertices.push(point);
+                    }
+                }
+            }
+        }
+        let planes = [71, 4, 91, 23, 8, 100_000, 16];
+        let cylinders = [43, 2];
+        let step = build_mixed_step_with_provenance(&model, &planes, &cylinders).unwrap();
+        assert_eq!(step.report.faces, 9);
+        assert!((step.report.volume_mm3 - (6000. - 34. * std::f64::consts::PI)).abs() < 1e-7);
+        assert_mixed_label_supports(
+            &result_faces(&step.bytes).unwrap(),
+            &model,
+            &planes,
+            &cylinders,
+        );
+        assert!(result_faces(&build_mixed_step(&model).unwrap().bytes)
+            .unwrap()
+            .faces
+            .iter()
+            .all(|face| face.source_face_token.is_none()));
+    }
+
+    #[test]
+    fn mixed_provenance_survives_reversed_mixed_and_planar_roots() {
+        let model = blind_box();
+        let planes = [31, 19, 81, 41, 12, 6, 58];
+        let cylinders = [97];
+        let mixed = build_mixed_step_with_provenance(&model, &planes, &cylinders).unwrap();
+        let mut planar_model = box_model();
+        for point in &mut planar_model.vertices {
+            point[0] += 40.;
+        }
+        let planar_tokens = [72, 35, 90, 24, 18, 44];
+        let planar = build_step_with_provenance(&planar_model, &planar_tokens).unwrap();
+        for reverse in [false, true] {
+            let mut parts = [
+                StepPart {
+                    bytes: &mixed.bytes,
+                    name: "same",
+                },
+                StepPart {
+                    bytes: &planar.bytes,
+                    name: "same",
+                },
+            ];
+            if reverse {
+                parts.reverse();
+            }
+            let combined = combine_steps_with_provenance(&parts).unwrap();
+            assert_eq!(combined.report.solids, 2);
+            let inspected = result_faces(&combined.bytes).unwrap();
+            assert_eq!(inspected.faces.len(), 14);
+            assert_mixed_label_supports(&inspected, &model, &planes, &cylinders);
+            let mut planar_inspection = inspected;
+            planar_inspection.faces.retain(|face| {
+                let is_planar_root = planar_tokens.contains(&face.source_face_token.unwrap());
+                assert_eq!(face.solid_id, usize::from(is_planar_root != reverse));
+                is_planar_root
+            });
+            assert_label_supports(&planar_inspection, &planar_model, &planar_tokens);
+        }
+    }
+
+    #[test]
+    fn mixed_provenance_corruption_drops_metadata_without_losing_geometry() {
+        let step =
+            build_mixed_step_with_provenance(&blind_box(), &[1, 2, 3, 4, 5, 6, 7], &[8]).unwrap();
+        let text = String::from_utf8(step.bytes).unwrap();
+        for replacement in [
+            "",
+            "FABSTEP_SOURCE_FACE_V1_1",
+            "FABSTEP_SOURCE_FACE_V1_100001",
+        ] {
+            let corrupted =
+                text.replacen("FABSTEP_SOURCE_FACE_V1_8'", &format!("{replacement}'"), 1);
+            assert_ne!(corrupted, text);
+            let inspected = result_faces(corrupted.as_bytes()).unwrap();
+            assert_eq!(inspected.faces.len(), 8);
+            assert_eq!(
+                inspected
+                    .faces
+                    .iter()
+                    .filter(|face| face.family == ResultFaceFamily::Cylinder)
+                    .count(),
+                1
+            );
+            assert!(inspected
+                .faces
+                .iter()
+                .all(|face| face.source_face_token.is_none()));
+        }
+    }
+
+    #[test]
+    fn mixed_provenance_validates_tokens_and_leaves_partial_cylinders_unlabelled() {
+        let model = blind_box();
+        for (planes, cylinders) in [
+            (&[1, 2, 3, 4, 5, 6][..], &[8][..]),
+            (&[1, 2, 3, 4, 5, 6, 7][..], &[][..]),
+            (&[1, 2, 3, 4, 5, 6, 7][..], &[7][..]),
+            (&[1, 2, 3, 4, 5, 6, 7][..], &[0][..]),
+            (&[1, 2, 3, 4, 5, 6, 7][..], &[100_001][..]),
+        ] {
+            assert_eq!(
+                build_mixed_step_with_provenance(&model, planes, cylinders)
+                    .unwrap_err()
+                    .code,
+                "cad.invalid_model"
+            );
+        }
+        let partial = notched_box();
+        let planes: Vec<_> = (1..=partial.planes.len()).collect();
+        let step = build_mixed_step_with_provenance(&partial, &planes, &[]).unwrap();
+        assert_eq!(step.report.cylindrical_faces, 1);
+        assert!(result_faces(&step.bytes)
+            .unwrap()
+            .faces
+            .iter()
+            .all(|face| face.source_face_token.is_none()));
+    }
+
     fn cone_frustum(lower: f64, upper: f64) -> RevolvedModel {
         let rings = [(lower, 0.), (upper, 8.)];
         let planes = rings
@@ -1852,6 +4041,176 @@ mod tests {
         }
     }
 
+    fn labelled_revolved_fixture() -> RevolvedModel {
+        let mut model = cone_frustum(4., 2.);
+        model
+            .mixed
+            .rings
+            .extend([(2., 12.), (3., 16.)].map(|(radius_mm, z)| CircularRing {
+                center: [0., 0., z],
+                axis: [0., 0., 1.],
+                radius_mm,
+            }));
+        model.mixed.planes[1].loops = vec![MixedLoop::Circle { ring: 3 }];
+        model.mixed.cylinders.push(MixedCylinder {
+            rings: [1, 2],
+            inner: false,
+        });
+        model.cones.push(MixedCone {
+            rings: [2, 3],
+            inner: false,
+        });
+        model.mixed.planes.reverse();
+        model.cones.reverse();
+        model
+    }
+
+    fn assert_revolved_label_supports(
+        inspected: &ResultFaces,
+        model: &RevolvedModel,
+        plane_tokens: &[usize],
+        cylinder_tokens: &[usize],
+        cone_tokens: &[usize],
+    ) {
+        // The existing helper verifies plane/cylinder supports, ignoring other roots.
+        assert_mixed_label_supports(inspected, &model.mixed, plane_tokens, cylinder_tokens);
+        let mut seen = std::collections::BTreeSet::new();
+        for face in &inspected.faces {
+            let token = face.source_face_token.expect("complete native provenance");
+            let Some(index) = cone_tokens.iter().position(|&value| value == token) else {
+                continue;
+            };
+            assert!(seen.insert(token));
+            assert_eq!(face.family, ResultFaceFamily::Cone);
+            let [first, second] = model.cones[index]
+                .rings
+                .map(|ring| &model.mixed.rings[ring]);
+            let height: f64 = (0..3)
+                .map(|axis| (second.center[axis] - first.center[axis]) * first.axis[axis])
+                .sum();
+            for triangle in &inspected.mesh.triangles
+                [face.triangle_start..face.triangle_start + face.triangle_count]
+            {
+                for &vertex in triangle {
+                    let offset: [f64; 3] = std::array::from_fn(|axis| {
+                        inspected.mesh.vertices[vertex][axis] - first.center[axis]
+                    });
+                    let axial: f64 = (0..3).map(|axis| offset[axis] * first.axis[axis]).sum();
+                    let radial = (0..3)
+                        .map(|axis| (offset[axis] - axial * first.axis[axis]).powi(2))
+                        .sum::<f64>()
+                        .sqrt();
+                    let radius =
+                        first.radius_mm + (second.radius_mm - first.radius_mm) * axial / height;
+                    assert!(
+                        (radial - radius).abs() < 1e-8,
+                        "wrong cone for token {token}"
+                    );
+                    assert!(axial >= height.min(0.) - 1e-8 && axial <= height.max(0.) + 1e-8);
+                }
+            }
+        }
+        assert_eq!(seen.len(), cone_tokens.len());
+    }
+
+    #[test]
+    fn revolved_provenance_tracks_permuted_surfaces_and_combined_roots() {
+        let model = labelled_revolved_fixture();
+        let planes = [91, 7];
+        let cylinders = [63];
+        let cones = [100_000, 2];
+        let step =
+            build_revolved_step_with_provenance(&model, &planes, &cylinders, &cones).unwrap();
+        assert_eq!(step.report.faces, 5);
+        assert_eq!(step.report.conical_faces, 2);
+        assert_revolved_label_supports(
+            &result_faces(&step.bytes).unwrap(),
+            &model,
+            &planes,
+            &cylinders,
+            &cones,
+        );
+        let mut planar = box_model();
+        for point in &mut planar.vertices {
+            point[0] += 40.;
+        }
+        let planar_tokens = [72, 35, 90, 24, 18, 44];
+        let planar_step = build_step_with_provenance(&planar, &planar_tokens).unwrap();
+        for reverse in [false, true] {
+            let mut parts = [
+                StepPart {
+                    bytes: &step.bytes,
+                    name: "same",
+                },
+                StepPart {
+                    bytes: &planar_step.bytes,
+                    name: "same",
+                },
+            ];
+            if reverse {
+                parts.reverse();
+            }
+            let combined = combine_steps_with_provenance(&parts).unwrap();
+            assert_eq!(combined.report.solids, 2);
+            assert_eq!(combined.report.conical_faces, 2);
+            let inspected = result_faces(&combined.bytes).unwrap();
+            assert_revolved_label_supports(&inspected, &model, &planes, &cylinders, &cones);
+            let mut planar_inspection = inspected;
+            planar_inspection.faces.retain(|face| {
+                let is_planar_root = planar_tokens.contains(&face.source_face_token.unwrap());
+                assert_eq!(face.solid_id, usize::from(is_planar_root != reverse));
+                is_planar_root
+            });
+            assert_label_supports(&planar_inspection, &planar, &planar_tokens);
+        }
+    }
+
+    #[test]
+    fn revolved_provenance_rejects_invalid_tokens_and_drops_corrupt_metadata() {
+        let model = labelled_revolved_fixture();
+        for (planes, cylinders, cones) in [
+            (&[1][..], &[3][..], &[4, 5][..]),
+            (&[1, 2][..], &[][..], &[4, 5][..]),
+            (&[1, 2][..], &[3][..], &[4][..]),
+            (&[1, 2][..], &[3][..], &[4, 3][..]),
+            (&[1, 2][..], &[3][..], &[4, 2][..]),
+            (&[1, 2][..], &[3][..], &[4, 0][..]),
+            (&[1, 2][..], &[3][..], &[4, 100_001][..]),
+        ] {
+            assert_eq!(
+                build_revolved_step_with_provenance(&model, planes, cylinders, cones)
+                    .unwrap_err()
+                    .code,
+                "cad.invalid_model"
+            );
+        }
+        let step = build_revolved_step_with_provenance(&model, &[1, 2], &[3], &[4, 5]).unwrap();
+        let text = String::from_utf8(step.bytes).unwrap();
+        for replacement in [
+            "",
+            "FABSTEP_SOURCE_FACE_V1_1",
+            "FABSTEP_SOURCE_FACE_V1_100001",
+        ] {
+            let corrupted =
+                text.replacen("FABSTEP_SOURCE_FACE_V1_5'", &format!("{replacement}'"), 1);
+            assert_ne!(corrupted, text);
+            let inspected = result_faces(corrupted.as_bytes()).unwrap();
+            assert_eq!(inspected.faces.len(), 5);
+            assert_eq!(
+                inspected
+                    .faces
+                    .iter()
+                    .filter(|face| face.family == ResultFaceFamily::Cone)
+                    .count(),
+                2
+            );
+            assert!(inspected
+                .faces
+                .iter()
+                .all(|face| face.source_face_token.is_none()));
+        }
+    }
+
     fn spherical_cap_model(height: f64) -> RoundedModel {
         let radius = 6.;
         let rim_radius = (height * (2. * radius - height)).sqrt();
@@ -1859,6 +4218,7 @@ mod tests {
         revolved.cones.clear();
         revolved.mixed.rings[1].center[2] = height;
         RoundedModel {
+            partial_cones: vec![],
             revolved,
             spheres: vec![MixedSphere {
                 rings: Some([0, 1]),
@@ -1876,6 +4236,7 @@ mod tests {
 
     fn complete_sphere_model(center: [f64; 3], radius_mm: f64) -> RoundedModel {
         RoundedModel {
+            partial_cones: vec![],
             revolved: RevolvedModel {
                 mixed: MixedModel {
                     vertices: vec![],
@@ -2233,6 +4594,123 @@ mod tests {
         );
     }
 
+    #[test]
+    fn rounded_provenance_tracks_all_surface_families_and_partial_cylinders() {
+        let partial = RoundedModel {
+            partial_cones: vec![],
+            revolved: RevolvedModel {
+                mixed: notched_box(),
+                cones: vec![],
+            },
+            spheres: vec![],
+            tori: vec![],
+        };
+        for model in [
+            toroidal_fillet_model(),
+            hemisphere_model(),
+            complete_sphere_model([1., 2., 3.], 4.),
+            complete_torus_model([1., 2., 3.], [0., 0., 1.]),
+            partial,
+        ] {
+            let mixed = &model.revolved.mixed;
+            let counts = [
+                mixed.planes.len(),
+                mixed.cylinders.len(),
+                mixed.partial_cylinders.len(),
+                model.revolved.cones.len(),
+                model.spheres.len(),
+                model.tori.len(),
+            ];
+            let total: usize = counts.iter().sum();
+            let all: Vec<_> = (1..=total).rev().map(|i| i * 7).collect();
+            let mut at = 0;
+            let tokens: Vec<_> = counts
+                .iter()
+                .map(|&n| {
+                    let slice = &all[at..at + n];
+                    at += n;
+                    slice
+                })
+                .collect();
+            let step = build_rounded_step_with_all_provenance(
+                &model, tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5],
+            )
+            .unwrap();
+            let historical = build_rounded_step(&model).unwrap();
+            assert!((step.report.volume_mm3 - historical.report.volume_mm3).abs() < 1e-8);
+            let inspected = result_faces(&step.bytes).unwrap();
+            assert_eq!(inspected.faces.len(), total);
+            let families = [
+                ResultFaceFamily::Plane,
+                ResultFaceFamily::Cylinder,
+                ResultFaceFamily::Cylinder,
+                ResultFaceFamily::Cone,
+                ResultFaceFamily::Sphere,
+                ResultFaceFamily::Torus,
+            ];
+            for face in &inspected.faces {
+                let token = face.source_face_token.expect("complete tracked history");
+                let group = tokens.iter().position(|row| row.contains(&token)).unwrap();
+                assert_eq!(face.family, families[group]);
+            }
+            let seen: std::collections::BTreeSet<_> = inspected
+                .faces
+                .iter()
+                .map(|f| f.source_face_token.unwrap())
+                .collect();
+            assert_eq!(seen, all.iter().copied().collect());
+        }
+    }
+
+    #[test]
+    fn rounded_provenance_requires_exhaustive_unique_bounded_tokens() {
+        let model = toroidal_fillet_model();
+        let mixed = &model.revolved.mixed;
+        let planes: Vec<_> = (1..=mixed.planes.len()).collect();
+        let cylinders: Vec<_> = (planes.len() + 1..=planes.len() + mixed.cylinders.len()).collect();
+        let torus = planes.len() + cylinders.len() + 1;
+        assert!(build_rounded_step_with_provenance(
+            &model,
+            &planes,
+            &cylinders,
+            &[],
+            &[],
+            &[torus]
+        )
+        .is_ok());
+        for bad in [vec![], vec![0], vec![100_001], vec![planes[0]]] {
+            assert_eq!(
+                build_rounded_step_with_provenance(&model, &planes, &cylinders, &[], &[], &bad)
+                    .unwrap_err()
+                    .code,
+                "cad.invalid_model"
+            );
+        }
+        let partial = RoundedModel {
+            partial_cones: vec![],
+            revolved: RevolvedModel {
+                mixed: notched_box(),
+                cones: vec![],
+            },
+            spheres: vec![],
+            tori: vec![],
+        };
+        let planes: Vec<_> = (1..=partial.revolved.mixed.planes.len()).collect();
+        assert_eq!(
+            build_rounded_step_with_provenance(&partial, &planes, &[], &[], &[], &[])
+                .unwrap_err()
+                .code,
+            "cad.invalid_model"
+        );
+        let sphere = complete_sphere_model([0.; 3], 2.);
+        assert_eq!(
+            build_rounded_step_with_provenance(&sphere, &[], &[], &[], &[0], &[])
+                .unwrap_err()
+                .code,
+            "cad.invalid_model"
+        );
+    }
+
     fn toroidal_fillet_model() -> RoundedModel {
         let mut revolved = cone_frustum(8., 6.);
         revolved.cones.clear();
@@ -2246,6 +4724,7 @@ mod tests {
             inner: false,
         });
         RoundedModel {
+            partial_cones: vec![],
             revolved,
             spheres: vec![],
             tori: vec![MixedTorus {
@@ -2649,6 +5128,206 @@ mod tests {
         }
     }
 
+    fn shared_rail_lens() -> MixedModel {
+        let y = 5_f64.sqrt();
+        let sweep = 2. * (2_f64 / 3.).acos();
+        let arcs = [
+            (-2., 0., [0, 1]),
+            (-2., 7., [2, 3]),
+            (2., 0., [1, 0]),
+            (2., 7., [3, 2]),
+        ]
+        .into_iter()
+        .map(|(x, z, vertices)| CircularArc {
+            center: [x, 0., z],
+            axis: [0., 0., 1.],
+            radius_mm: 3.,
+            sweep_rad: sweep,
+            vertices,
+        })
+        .collect();
+        MixedModel {
+            vertices: vec![[0., -y, 0.], [0., y, 0.], [0., -y, 7.], [0., y, 7.]],
+            rings: vec![],
+            cylinders: vec![],
+            arcs,
+            partial_cylinders: vec![
+                MixedPartialCylinder {
+                    arcs: [0, 1],
+                    inner: false,
+                },
+                MixedPartialCylinder {
+                    arcs: [2, 3],
+                    inner: false,
+                },
+            ],
+            planes: vec![
+                MixedPlane {
+                    normal: [0., 0., -1.],
+                    loops: vec![MixedLoop::Segments {
+                        segments: vec![
+                            MixedSegment::Arc {
+                                arc: 0,
+                                reversed: true,
+                            },
+                            MixedSegment::Arc {
+                                arc: 2,
+                                reversed: true,
+                            },
+                        ],
+                    }],
+                },
+                MixedPlane {
+                    normal: [0., 0., 1.],
+                    loops: vec![MixedLoop::Segments {
+                        segments: vec![
+                            MixedSegment::Arc {
+                                arc: 1,
+                                reversed: false,
+                            },
+                            MixedSegment::Arc {
+                                arc: 3,
+                                reversed: false,
+                            },
+                        ],
+                    }],
+                },
+            ],
+        }
+    }
+
+    fn reverse_partial_axis(model: &mut MixedModel, index: usize) {
+        let ids = model.partial_cylinders[index].arcs;
+        model.partial_cylinders[index].arcs.reverse();
+        for id in ids {
+            model.arcs[id].axis = model.arcs[id].axis.map(|x| -x);
+            model.arcs[id].vertices.reverse();
+        }
+        for plane in &mut model.planes {
+            for lp in &mut plane.loops {
+                if let MixedLoop::Segments { segments } = lp {
+                    for segment in segments {
+                        if let MixedSegment::Arc { arc, reversed } = segment {
+                            if ids.contains(arc) {
+                                *reversed = !*reversed;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn split_notched_box() -> MixedModel {
+        let mut model = notched_box();
+        model.vertices.extend([[0., 2., 0.], [0., 2., 10.]]);
+        for (arc, midpoint) in [(0, 12), (1, 13)] {
+            let mut second = model.arcs[arc].clone();
+            model.arcs[arc].vertices[1] = midpoint;
+            model.arcs[arc].sweep_rad *= 0.5;
+            second.vertices[0] = midpoint;
+            second.sweep_rad *= 0.5;
+            model.arcs.push(second);
+        }
+        model.partial_cylinders.push(MixedPartialCylinder {
+            arcs: [2, 3],
+            inner: true,
+        });
+        for plane in &mut model.planes {
+            for lp in &mut plane.loops {
+                if let MixedLoop::Segments { segments } = lp {
+                    let mut expanded = vec![];
+                    for segment in std::mem::take(segments) {
+                        if let MixedSegment::Arc { arc, reversed } = segment {
+                            let pair = if reversed {
+                                [arc + 2, arc]
+                            } else {
+                                [arc, arc + 2]
+                            };
+                            expanded.extend(pair.map(|arc| MixedSegment::Arc { arc, reversed }));
+                        } else {
+                            expanded.push(segment);
+                        }
+                    }
+                    *segments = expanded;
+                }
+            }
+        }
+        model
+    }
+
+    #[test]
+    fn exports_partial_cylinders_sharing_source_rails() {
+        for reversed_axis in [false, true] {
+            for permuted in [false, true] {
+                let mut lens = shared_rail_lens();
+                let mut notch = split_notched_box();
+                if reversed_axis {
+                    reverse_partial_axis(&mut lens, 1);
+                    reverse_partial_axis(&mut notch, 1);
+                }
+                if permuted {
+                    lens.partial_cylinders.reverse();
+                    notch.partial_cylinders.reverse();
+                }
+                check_mixed(
+                    &lens,
+                    2,
+                    2,
+                    7. * (18. * (2_f64 / 3.).acos() - 4. * 5_f64.sqrt()),
+                );
+                check_mixed(&notch, 7, 2, 800. - 20. * std::f64::consts::PI);
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_shared_partial_rail_incidence() {
+        let mut duplicate = shared_rail_lens();
+        duplicate
+            .partial_cylinders
+            .push(duplicate.partial_cylinders[0].clone());
+        assert_eq!(
+            build_mixed_step(&duplicate).unwrap_err().code,
+            "cad.invalid_model"
+        );
+        let mut third = shared_rail_lens();
+        third
+            .arcs
+            .extend([third.arcs[0].clone(), third.arcs[1].clone()]);
+        third.partial_cylinders.push(MixedPartialCylinder {
+            arcs: [4, 5],
+            inner: false,
+        });
+        assert_eq!(
+            build_mixed_step(&third).unwrap_err().code,
+            "cad.invalid_model"
+        );
+        let mut planar_third = shared_rail_lens();
+        planar_third.planes.push(MixedPlane {
+            normal: [-1., 0., 0.],
+            loops: vec![MixedLoop::Polygon {
+                vertices: vec![0, 2, 3, 1],
+            }],
+        });
+        assert_eq!(
+            build_mixed_step(&planar_third).unwrap_err().code,
+            "cad.invalid_model"
+        );
+        let mut endpoints = shared_rail_lens();
+        endpoints.arcs[3].vertices.reverse();
+        assert_eq!(
+            build_mixed_step(&endpoints).unwrap_err().code,
+            "cad.invalid_model"
+        );
+        let mut orientation = shared_rail_lens();
+        orientation.partial_cylinders[1].inner = true;
+        assert_eq!(
+            build_mixed_step(&orientation).unwrap_err().code,
+            "cad.invalid_model"
+        );
+    }
+
     #[test]
     fn exports_partial_cylinder_sharing_arcs_and_generators_with_planes() {
         let model = notched_box();
@@ -2714,5 +5393,278 @@ mod tests {
             build_mixed_step(&model).unwrap_err().code,
             "cad.invalid_model"
         );
+    }
+    fn partial_cone_chain() -> RoundedModel {
+        let levels = [(0., 2.), (1., 2.), (2., 3.), (3., 3.)];
+        let vertices = levels
+            .iter()
+            .flat_map(|&(z, r)| [[r, 0., z], [-r, 0., z]])
+            .collect();
+        let arcs = levels
+            .iter()
+            .enumerate()
+            .map(|(i, &(z, r))| CircularArc {
+                center: [0., 0., z],
+                axis: [0., 0., 1.],
+                radius_mm: r,
+                sweep_rad: std::f64::consts::PI,
+                vertices: [2 * i, 2 * i + 1],
+            })
+            .collect();
+        let line = |a, b| MixedSegment::Line { vertices: [a, b] };
+        let planes = vec![
+            MixedPlane {
+                normal: [0., 0., -1.],
+                loops: vec![MixedLoop::Segments {
+                    segments: vec![
+                        MixedSegment::Arc {
+                            arc: 0,
+                            reversed: true,
+                        },
+                        line(0, 1),
+                    ],
+                }],
+            },
+            MixedPlane {
+                normal: [0., 0., 1.],
+                loops: vec![MixedLoop::Segments {
+                    segments: vec![
+                        MixedSegment::Arc {
+                            arc: 3,
+                            reversed: false,
+                        },
+                        line(7, 6),
+                    ],
+                }],
+            },
+            MixedPlane {
+                normal: [0., -1., 0.],
+                loops: vec![MixedLoop::Polygon {
+                    vertices: vec![1, 0, 2, 4, 6, 7, 5, 3],
+                }],
+            },
+        ];
+        RoundedModel {
+            revolved: RevolvedModel {
+                mixed: MixedModel {
+                    vertices,
+                    rings: vec![],
+                    planes,
+                    cylinders: vec![],
+                    arcs,
+                    partial_cylinders: vec![
+                        MixedPartialCylinder {
+                            arcs: [0, 1],
+                            inner: false,
+                        },
+                        MixedPartialCylinder {
+                            arcs: [2, 3],
+                            inner: false,
+                        },
+                    ],
+                },
+                cones: vec![],
+            },
+            spheres: vec![],
+            tori: vec![],
+            partial_cones: vec![MixedPartialCone {
+                arcs: [1, 2],
+                inner: false,
+            }],
+        }
+    }
+
+    #[test]
+    fn partial_cone_chain_reimports_with_exact_shared_arcs_and_provenance() {
+        let model = partial_cone_chain();
+        let step = build_rounded_step_with_chain_provenance(
+            &model,
+            &[31, 9, 17],
+            &[],
+            &[42, 7],
+            &[],
+            &[],
+            &[],
+            &[93],
+        )
+        .unwrap();
+        assert_eq!(step.report.solids, 1);
+        assert_eq!(step.report.faces, 6);
+        assert_eq!(step.report.cylindrical_faces, 2);
+        assert_eq!(step.report.conical_faces, 1);
+        assert!((step.report.volume_mm3 - std::f64::consts::PI * 29. / 3.).abs() < 1e-7);
+        let inspected = result_faces(&step.bytes).unwrap();
+        let mut tokens = inspected
+            .faces
+            .iter()
+            .map(|f| f.source_face_token.unwrap())
+            .collect::<Vec<_>>();
+        tokens.sort_unstable();
+        assert_eq!(tokens, vec![7, 9, 17, 31, 42, 93]);
+        let plain = build_rounded_step(&model).unwrap();
+        assert!((plain.report.volume_mm3 - step.report.volume_mm3).abs() < 1e-9);
+    }
+
+    #[test]
+    fn partial_cone_chain_rejects_missing_overincident_or_incompatible_boundaries() {
+        let mut absent = partial_cone_chain();
+        absent.partial_cones.clear();
+        let mut duplicate = partial_cone_chain();
+        duplicate
+            .partial_cones
+            .push(duplicate.partial_cones[0].clone());
+        let mut shifted = partial_cone_chain();
+        shifted.revolved.mixed.arcs[2].center[0] += 0.01;
+        let mut endpoint = partial_cone_chain();
+        endpoint.revolved.mixed.vertices[4][0] += 0.01;
+        let mut missing_cap = partial_cone_chain();
+        missing_cap.revolved.mixed.planes.remove(0);
+        let mut axis = partial_cone_chain();
+        axis.revolved.mixed.arcs[2].axis = [0., 1., 0.];
+        let mut sweep = partial_cone_chain();
+        sweep.revolved.mixed.arcs[2].sweep_rad -= 0.1;
+        for model in [
+            absent,
+            duplicate,
+            shifted,
+            endpoint,
+            missing_cap,
+            axis,
+            sweep,
+        ] {
+            assert_eq!(
+                build_rounded_step(&model).unwrap_err().code,
+                "cad.invalid_model"
+            );
+        }
+        let model = partial_cone_chain();
+        assert_eq!(
+            build_rounded_step_with_all_provenance(&model, &[1, 2, 3], &[], &[4, 5], &[], &[], &[])
+                .unwrap_err()
+                .code,
+            "cad.invalid_model"
+        );
+        assert_eq!(
+            build_rounded_step_with_chain_provenance(
+                &model,
+                &[1, 2, 3],
+                &[],
+                &[4, 5],
+                &[],
+                &[],
+                &[],
+                &[5]
+            )
+            .unwrap_err()
+            .code,
+            "cad.invalid_model"
+        );
+    }
+    #[test]
+    fn partial_cone_chain_accepts_decreasing_radius_rotation_and_concave_notch() {
+        let expected = std::f64::consts::PI * 29. / 3.;
+        let mut decreasing = partial_cone_chain();
+        for (i, arc) in decreasing.revolved.mixed.arcs.iter_mut().enumerate() {
+            arc.radius_mm = if i < 2 { 3. } else { 2. };
+            decreasing.revolved.mixed.vertices[2 * i][0] = arc.radius_mm;
+            decreasing.revolved.mixed.vertices[2 * i + 1][0] = -arc.radius_mm;
+        }
+        let mut rotated = partial_cone_chain();
+        let rotate = |p: [f64; 3]| [p[2], p[0], p[1]];
+        for p in &mut rotated.revolved.mixed.vertices {
+            *p = rotate(*p);
+        }
+        for arc in &mut rotated.revolved.mixed.arcs {
+            arc.center = rotate(arc.center);
+            arc.axis = rotate(arc.axis);
+        }
+        for plane in &mut rotated.revolved.mixed.planes {
+            plane.normal = rotate(plane.normal);
+        }
+        let mut inner = partial_cone_chain();
+        let mixed = &mut inner.revolved.mixed;
+        mixed.vertices = (0..4)
+            .flat_map(|i| {
+                let r = if i < 2 { 2. } else { 3. };
+                [
+                    [-5., 0., i as f64],
+                    [-r, 0., i as f64],
+                    [r, 0., i as f64],
+                    [5., 0., i as f64],
+                    [5., 8., i as f64],
+                    [-5., 8., i as f64],
+                ]
+            })
+            .collect();
+        for (i, arc) in mixed.arcs.iter_mut().enumerate() {
+            arc.vertices = [i * 6 + 2, i * 6 + 1];
+        }
+        for cylinder in &mut mixed.partial_cylinders {
+            cylinder.inner = true;
+        }
+        inner.partial_cones[0].inner = true;
+        let line = |a, b| MixedSegment::Line { vertices: [a, b] };
+        mixed.planes = vec![
+            MixedPlane {
+                normal: [0., 0., -1.],
+                loops: vec![MixedLoop::Segments {
+                    segments: vec![
+                        line(0, 5),
+                        line(5, 4),
+                        line(4, 3),
+                        line(3, 2),
+                        MixedSegment::Arc {
+                            arc: 0,
+                            reversed: false,
+                        },
+                        line(1, 0),
+                    ],
+                }],
+            },
+            MixedPlane {
+                normal: [0., 0., 1.],
+                loops: vec![MixedLoop::Segments {
+                    segments: vec![
+                        line(18, 19),
+                        MixedSegment::Arc {
+                            arc: 3,
+                            reversed: true,
+                        },
+                        line(20, 21),
+                        line(21, 22),
+                        line(22, 23),
+                        line(23, 18),
+                    ],
+                }],
+            },
+        ];
+        for level in 0..3 {
+            for (a, b, normal) in [
+                (0, 1, [0., -1., 0.]),
+                (2, 3, [0., -1., 0.]),
+                (3, 4, [1., 0., 0.]),
+                (4, 5, [0., 1., 0.]),
+                (5, 0, [-1., 0., 0.]),
+            ] {
+                let offset = level * 6;
+                mixed.planes.push(MixedPlane {
+                    normal,
+                    loops: vec![MixedLoop::Polygon {
+                        vertices: vec![offset + a, offset + b, offset + b + 6, offset + a + 6],
+                    }],
+                });
+            }
+        }
+        for (model, volume) in [
+            (decreasing, expected),
+            (rotated, expected),
+            (inner, 240. - expected),
+        ] {
+            let step = build_rounded_step(&model).unwrap();
+            assert_eq!(step.report.solids, 1);
+            assert_eq!(step.report.cylindrical_faces, 2);
+            assert_eq!(step.report.conical_faces, 1);
+            assert!((step.report.volume_mm3 - volume).abs() < 1e-7);
+        }
     }
 }

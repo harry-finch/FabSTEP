@@ -13,8 +13,20 @@ use fabstep_core::{
 use fabstep_verify::{compare_meshes, FidelityReport};
 use serde::Serialize;
 
+mod control;
+use control::{controlled, ConversionControl};
+pub use control::{ConversionCheckpoint, ConversionPhase};
 mod document;
 pub use document::*;
+mod parameter_search;
+pub use parameter_search::{search_parameters, ParameterSearchReport, ParameterTrial};
+mod source_section;
+pub use source_section::{
+    prepare_source_section, prepare_source_section_controlled, PreparedSourceSection,
+    SourceSectionBody, SourceSectionMetadata,
+};
+mod source_proof_cache;
+use source_proof_cache::SourceProofCache;
 
 /// Snapshot des réglages géométriques de la requête. L'unité effective est
 /// portée séparément par DocumentSource : une préférence STL ne décrit pas un 3MF.
@@ -101,6 +113,9 @@ impl Recognized {
 /// échouée ou un budget dépassé ne sont jamais masqués par un repli.
 pub fn recognize_surfaces(analysis: &Analysis, options: &Options) -> Result<Recognized, FabError> {
     match options.reconstruction {
+        ReconstructionMode::Auto => {
+            fabstep_core::recognize_automatic(analysis, options).map(Recognized::Rounded)
+        }
         ReconstructionMode::Planar => Err(FabError::new(
             "recognition.disabled",
             "Activer un mode de reconstruction analytique.",
@@ -183,30 +198,152 @@ pub fn convert_stl(bytes: &[u8], options: &Options) -> Result<Conversion, FabErr
     Ok(conversion)
 }
 
-fn convert_analysis(mut analysis: Analysis, options: &Options) -> Result<Conversion, FabError> {
+fn convert_analysis(analysis: Analysis, options: &Options) -> Result<Conversion, FabError> {
+    controlled(&mut |_| Ok(()), |control| {
+        convert_analysis_with_face_tokens(analysis, options, None, control, 0, None)
+    })
+}
+
+fn convert_analysis_with_face_tokens(
+    analysis: Analysis,
+    options: &Options,
+    face_tokens: Option<&[usize]>,
+    control: &mut ConversionControl<'_>,
+    body_index: usize,
+    source_proofs: Option<&mut SourceProofCache>,
+) -> Result<Conversion, FabError> {
     let recognized = match options.reconstruction {
         ReconstructionMode::Planar => None,
-        ReconstructionMode::Cylinders
+        ReconstructionMode::Auto
+        | ReconstructionMode::Cylinders
         | ReconstructionMode::Primitives
-        | ReconstructionMode::Surfaces => Some(recognize_surfaces(&analysis, options)?),
+        | ReconstructionMode::Surfaces => Some(control.run(
+            ConversionPhase::Recognition,
+            Some(body_index),
+            || recognize_surfaces(&analysis, options),
+        )?),
     };
+    convert_analysis_with_recognized(
+        analysis,
+        options,
+        face_tokens,
+        recognized,
+        control,
+        body_index,
+        source_proofs,
+    )
+}
+
+fn convert_analysis_with_recognized(
+    mut analysis: Analysis,
+    options: &Options,
+    face_tokens: Option<&[usize]>,
+    recognized: Option<Recognized>,
+    control: &mut ConversionControl<'_>,
+    body_index: usize,
+    source_proofs: Option<&mut SourceProofCache>,
+) -> Result<Conversion, FabError> {
     // Contrôler les triangles exacts dans TOUS les modes avant la construction.
     // Même le regroupement planaire peut effacer un relief auto-intersectant
     // dont les écarts restent sous la tolérance de segmentation. La validité
     // du seul modèle regroupé ne prouverait donc pas celle de la source.
     // Aucun STEP source intermédiaire n'est sérialisé.
-    validate_source(&triangle_model(&analysis.mesh))?;
-    let result = if let Some(recognized) = &recognized {
-        match recognized {
-            Recognized::Extrusion(r) => build_extrusion_step(&r.extrusion)?,
-            Recognized::Mixed(r) => build_mixed_step(&r.model)?,
-            Recognized::Revolved(r) => build_revolved_step(&r.model)?,
-            Recognized::Rounded(r) => build_rounded_step(&r.model)?,
-            Recognized::RoundedBox(r) => build_rounded_box_step(&r.model)?,
+    control.run(ConversionPhase::SourceValidation, Some(body_index), || {
+        let prove = || validate_source(&triangle_model(&analysis.mesh)).map(|_| ());
+        match source_proofs {
+            Some(cache) => cache.validate_source(body_index, &analysis.mesh, prove),
+            None => prove(),
         }
-    } else {
-        build_step(&analysis.model)?
-    };
+    })?;
+    let result = control.run(ConversionPhase::Build, Some(body_index), || {
+        if let Some(recognized) = &recognized {
+            match recognized {
+                Recognized::Extrusion(r) => build_extrusion_step(&r.extrusion),
+                Recognized::Mixed(r) => {
+                    if let Some(tokens) = face_tokens {
+                        let count = r.model.planes.len();
+                        if tokens.len() != count + r.model.cylinders.len() {
+                            return Err(FabError::new(
+                                "step.invalid_source_provenance",
+                                "Le nombre de jetons du résultat guidé est incohérent.",
+                            ));
+                        }
+                        fabstep_cad::build_mixed_step_with_provenance(
+                            &r.model,
+                            &tokens[..count],
+                            &tokens[count..],
+                        )
+                    } else {
+                        build_mixed_step(&r.model)
+                    }
+                }
+                Recognized::Revolved(r) => {
+                    // Plan-only guidance uses the existing planar native path.
+                    // Keep its recognition report for fidelity and provenance.
+                    if r.model.cones.is_empty() && r.model.mixed.cylinders.is_empty()
+                        && r.model.mixed.partial_cylinders.is_empty()
+                    {
+                        let model = PlanarModel {
+                            vertices: r.model.mixed.vertices.clone(),
+                            faces: r.model.mixed.planes.iter().map(|plane| {
+                                let loops = plane.loops.iter().map(|lp| match lp {
+                                    fabstep_core::MixedLoop::Polygon { vertices } => Ok(vertices.clone()),
+                                    _ => Err(FabError::new("guidance.plane_unsupported_boundary", "Contour courbe non pris en charge pour cette correction plane.")),
+                                }).collect::<Result<Vec<_>, _>>()?;
+                                Ok(PlanarFace { loops, normal: plane.normal })
+                            }).collect::<Result<Vec<_>, FabError>>()?,
+                        };
+                        return if let Some(tokens) = face_tokens {
+                            fabstep_cad::build_step_with_provenance(&model, tokens)
+                        } else { build_step(&model) };
+                    }
+                    if let Some(tokens) = face_tokens {
+                        let planes = r.model.mixed.planes.len();
+                        let cylinders = r.model.mixed.cylinders.len();
+                        if tokens.len() != planes + cylinders + r.model.cones.len() {
+                            return Err(FabError::new(
+                                "step.invalid_source_provenance",
+                                "Le nombre de jetons du résultat guidé est incohérent.",
+                            ));
+                        }
+                        fabstep_cad::build_revolved_step_with_provenance(
+                            &r.model,
+                            &tokens[..planes],
+                            &tokens[planes..planes + cylinders],
+                            &tokens[planes + cylinders..],
+                        )
+                    } else {
+                        build_revolved_step(&r.model)
+                    }
+                }
+                Recognized::Rounded(r) => {
+                    let m = &r.model.revolved.mixed;
+                    if m.cylinders.is_empty() && m.partial_cylinders.is_empty() && r.model.revolved.cones.is_empty() && r.model.spheres.is_empty() && r.model.tori.is_empty() && r.model.partial_cones.is_empty() {
+                        let model = PlanarModel { vertices: m.vertices.clone(), faces: m.planes.iter().map(|plane| {
+                            let loops = plane.loops.iter().map(|lp| match lp {
+                                fabstep_core::MixedLoop::Polygon { vertices } => Ok(vertices.clone()),
+                                _ => Err(FabError::new("cad.invalid_model", "Un modèle entièrement plan contient une frontière courbe.")),
+                            }).collect::<Result<Vec<_>, _>>()?;
+                            Ok(PlanarFace { normal: plane.normal, loops })
+                        }).collect::<Result<Vec<_>, FabError>>()? };
+                        return match face_tokens { Some(tokens) => fabstep_cad::build_step_with_provenance(&model,tokens), None => build_step(&model) };
+                    }
+                    if let Some(tokens) = face_tokens {
+                        let counts = [m.planes.len(),m.cylinders.len(),m.partial_cylinders.len(),r.model.revolved.cones.len(),r.model.spheres.len(),r.model.tori.len(),r.model.partial_cones.len()];
+                        if counts.iter().sum::<usize>() != tokens.len() { return Err(FabError::new("step.invalid_source_provenance", "Nombre de jetons du résultat arrondi incohérent.")); }
+                        let mut start = 0;
+                        let parts:Vec<_> = counts.iter().map(|count| {let part=&tokens[start..start+count];start+=count;part}).collect();
+                        fabstep_cad::build_rounded_step_with_chain_provenance(&r.model,parts[0],parts[1],parts[2],parts[3],parts[4],parts[5],parts[6])
+                    } else { build_rounded_step(&r.model) }
+                },
+                Recognized::RoundedBox(r) => build_rounded_box_step(&r.model),
+            }
+        } else if let Some(tokens) = face_tokens {
+            fabstep_cad::build_step_with_provenance(&analysis.model, tokens)
+        } else {
+            build_step(&analysis.model)
+        }
+    })?;
     let bounds = analysis.report.bounds_mm;
     let extent: [f64; 3] = std::array::from_fn(|i| bounds[1][i] - bounds[0][i]);
     let tolerance = options.weld_tolerance_mm.max(options.plane_tolerance_mm);
@@ -302,8 +439,12 @@ fn convert_analysis(mut analysis: Analysis, options: &Options) -> Result<Convers
         if deflection < 1e-6 {
             return Err(FabError::new("validation.distance_resolution", "Le budget demandé nécessite une tessellation plus fine que la résolution prise en charge."));
         }
-        let target = tessellate_step(&result.bytes, deflection)?;
-        let report = compare_meshes(&analysis.mesh, &target, deflection)?;
+        let target = control.run(ConversionPhase::AuditTessellation, Some(body_index), || {
+            tessellate_step(&result.bytes, deflection)
+        })?;
+        let report = control.run(ConversionPhase::AuditComparison, Some(body_index), || {
+            compare_meshes(&analysis.mesh, &target, deflection)
+        })?;
         // Audit échantillonné de deux maillages : le paramètre de tessellation
         // est explicite. Aucun maximum mesuré n’est présenté comme une preuve
         // de distance globale entre les surfaces continues.

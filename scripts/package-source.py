@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Snapshot project sources, excluding private inputs and generated files.
+"""Snapshot reviewed Git-tracked sources from a clean working tree.
 
 This archive contains FabSTEP sources and lockfiles, not vendored third-party
 sources. It is a local development deliverable, not a complete distribution kit.
@@ -9,8 +9,8 @@ import gzip
 import hashlib
 import io
 import json
-import os
 from pathlib import Path
+import subprocess
 import tarfile
 import tomllib
 
@@ -21,20 +21,43 @@ SOURCE_SUFFIXES = {".rs", ".toml", ".lock", ".json", ".stl", ".3mf", ".py", ".ts
 SOURCE_NAMES = {"LICENSE", "LICENSE-MIT", "LICENSE-APACHE", "LICENSE_MIT", "LICENSE_APACHE-2.0", ".gitignore"}
 
 
+def git_output(*arguments):
+    try:
+        return subprocess.run(
+            ["git", "--no-optional-locks", "-C", str(ROOT), *arguments],
+            check=True, capture_output=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise ValueError("A readable Git repository is required for the source snapshot.") from error
+
+
+def require_clean_repository():
+    top_level = Path(git_output("rev-parse", "--show-toplevel").decode().strip())
+    if top_level.resolve() != ROOT.resolve():
+        raise ValueError("The source root must be the Git repository root.")
+    if git_output("status", "--porcelain=v1", "-z", "--untracked-files=all"):
+        raise ValueError(
+            "Source snapshot requires a clean Git working tree, including untracked files; "
+            "review and commit the intended sources first. No archive was created."
+        )
+
+
 def source_files():
-    root_files = sorted(ROOT.glob("*.md")) + [ROOT / name for name in ("Cargo.toml", "Cargo.lock", "LICENSE", ".gitignore")]
-    paths = list(root_files)
-    for tree in TREES:
-        for folder, directories, files in os.walk(ROOT / tree):
-            directories[:] = sorted(name for name in directories if name not in EXCLUDED)
-            for name in directories:
-                if (Path(folder) / name).is_symlink():
-                    raise ValueError(f"Symbolic directory not allowed: {Path(folder) / name}")
-            paths.extend(Path(folder) / name for name in files)
-    for path in sorted(set(paths)):
-        relative = path.relative_to(ROOT)
+    require_clean_repository()
+    tracked = git_output("ls-files", "--cached", "-z").split(b"\0")
+    for name in sorted(set(tracked) - {b""}):
+        relative = Path(name.decode("utf-8"))
+        root_file = len(relative.parts) == 1 and (
+            relative.suffix == ".md" or relative.name in {"Cargo.toml", "Cargo.lock", "LICENSE", ".gitignore"}
+        )
+        if not root_file and relative.parts[0] not in TREES:
+            continue
+        path = ROOT / relative
         if any(part in EXCLUDED for part in relative.parts) or path.suffix == ".pyc":
             continue
+        for parent in relative.parents:
+            if parent != Path(".") and (ROOT / parent).is_symlink():
+                raise ValueError(f"Symbolic directory not allowed: {parent}")
         if path.is_symlink():
             raise ValueError(f"Symbolic link not allowed in source snapshot: {relative}")
         if path.is_file():
@@ -43,6 +66,8 @@ def source_files():
             if path.suffix not in SOURCE_SUFFIXES and path.name not in SOURCE_NAMES:
                 raise ValueError(f"Review unexpected source file before archiving: {relative}")
             yield path, relative.as_posix()
+        else:
+            raise ValueError(f"Tracked source is not a regular file: {relative}")
 
 
 def main():
@@ -52,9 +77,12 @@ def main():
     output = args.output.resolve()
     if output.is_relative_to(ROOT) and output.relative_to(ROOT).parts[0] in TREES:
         parser.error("Place the archive outside the source trees (for example artifacts/release/).")
-    version = tomllib.loads((ROOT / "Cargo.toml").read_text())["workspace"]["package"]["version"]
+    try:
+        entries = [(relative, path.read_bytes(), path.stat().st_mode & 0o111 != 0) for path, relative in source_files()]
+        version = tomllib.loads((ROOT / "Cargo.toml").read_text())["workspace"]["package"]["version"]
+    except ValueError as error:
+        parser.error(str(error))
     prefix = f"FabSTEP-{version}"
-    entries = [(relative, path.read_bytes(), path.stat().st_mode & 0o111 != 0) for path, relative in source_files()]
     manifest = {"version": version, "scope": "FabSTEP project sources; dependencies pinned by lockfiles, not vendored", "files": {name: hashlib.sha256(data).hexdigest() for name, data, _ in entries}}
     entries.append(("SOURCE-MANIFEST.json", (json.dumps(manifest, indent=2, ensure_ascii=False) + "\n").encode(), False))
     args.output.parent.mkdir(parents=True, exist_ok=True)

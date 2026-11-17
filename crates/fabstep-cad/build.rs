@@ -1,6 +1,9 @@
 use std::env;
 use std::path::{Path, PathBuf};
 
+#[path = "build_support/occt_version.rs"]
+mod occt_version;
+
 fn main() {
     println!("cargo:rerun-if-changed=src/occt.cpp");
     println!("cargo:rerun-if-env-changed=OCCT_ROOT");
@@ -28,6 +31,18 @@ fn main() {
         .find_map(|root| sdk_paths(root))
         .expect("Open CASCADE 7.9 SDK introuvable. Installer opencascade ou définir OCCT_ROOT (include/opencascade et lib).");
 
+    let version_header = include.join("Standard_Version.hxx");
+    println!("cargo:rerun-if-changed={}", version_header.display());
+    let header = std::fs::read_to_string(&version_header).unwrap_or_else(|error| {
+        panic!(
+            "Lecture du SDK OCCT {} impossible : {error}",
+            version_header.display()
+        )
+    });
+    let version = occt_version::supported_version(&header)
+        .unwrap_or_else(|error| panic!("SDK OCCT {} : {error}", version_header.display()));
+    println!("cargo:metadata=occt_version={version}");
+
     cc::Build::new()
         .cpp(true)
         .std("c++17")
@@ -47,6 +62,7 @@ fn main() {
         "TKTopAlgo",
         "TKBRep",
         "TKG3d",
+        "TKG2d",
         "TKMath",
         "TKernel",
     ] {

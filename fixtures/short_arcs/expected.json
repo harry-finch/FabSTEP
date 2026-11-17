@@ -1,0 +1,198 @@
+{
+  "height_mm": 7.0,
+  "description": "Three tangent circular arcs R4/R1/R4, then the closing chord; source-only defects are explicit.",
+  "cases": {
+    "convex": {
+      "sha256": "225c61a771cc7cc79be90bd7bc17ed31ef838172aaa3c33fa06355312fa1b4e5",
+      "triangles": 164,
+      "fit_mm": 1e-05,
+      "short_recognized": true,
+      "cylinders": 3,
+      "planes": 3,
+      "volume_mm3": 81.71583288834287,
+      "bounds_mm": [
+        [
+          0.0,
+          -2.586342685733949,
+          0.0
+        ],
+        [
+          6.475651900285685,
+          0.0,
+          7.0
+        ]
+      ]
+    },
+    "concave": {
+      "sha256": "a7a17aa2b92f7b78a3476b7dad52475ccb7f951027ce8e1edc9b9b968a231d69",
+      "triangles": 164,
+      "fit_mm": 1e-05,
+      "short_recognized": true,
+      "cylinders": 3,
+      "planes": 3,
+      "volume_mm3": 59.58863245622936,
+      "bounds_mm": [
+        [
+          0.0,
+          -1.428849561253842,
+          0.0
+        ],
+        [
+          7.864837321621128,
+          4.440892098500626e-16,
+          7.0
+        ]
+      ]
+    },
+    "rotated": {
+      "sha256": "2fd8e9aa7853ee6716d254b6617d4d92a1a86b1ea2ffd46f2f6d22aec4eedf2f",
+      "triangles": 164,
+      "fit_mm": 1e-05,
+      "short_recognized": true,
+      "cylinders": 3,
+      "planes": 3,
+      "volume_mm3": 81.71583288834287,
+      "bounds_mm": [
+        [
+          0.8140130225987798,
+          3.057373965227351,
+          11.941477362516123
+        ],
+        [
+          9.651589629400103,
+          8.0,
+          20.857050907892795
+        ]
+      ]
+    },
+    "f32_translated": {
+      "sha256": "27961abf08ea6b3a1e6088bfcc7cb44a907da829f7dffe929e3645519aabc8a0",
+      "triangles": 164,
+      "fit_mm": 2e-05,
+      "short_recognized": true,
+      "cylinders": 3,
+      "planes": 3,
+      "volume_mm3": 81.71583288834287,
+      "bounds_mm": [
+        [
+          73.0,
+          -135.58634268573394,
+          0.0
+        ],
+        [
+          79.47565190028568,
+          -133.0,
+          7.0
+        ]
+      ]
+    },
+    "unresolved": {
+      "sha256": "5ce584ee8b748676200c0affb065f413e50265c1b3f7aeaf83102af1496ce107",
+      "triangles": 164,
+      "fit_mm": 1e-05,
+      "short_recognized": false,
+      "cylinders": 2,
+      "planes": 6,
+      "volume_mm3": 70.239732376302,
+      "bounds_mm": [
+        [
+          0.0,
+          -2.0602876813415696,
+          0.0
+        ],
+        [
+          6.892243218491465,
+          2.220446049250313e-16,
+          7.0
+        ]
+      ]
+    },
+    "polygonal_gap": {
+      "sha256": "2f0682347f2676438eb9b1591f95e5587d5142ecf5c7458dee464064d860e245",
+      "triangles": 164,
+      "fit_mm": 1e-05,
+      "short_recognized": false,
+      "cylinders": 2,
+      "planes": 6,
+      "volume_mm3": 81.70575706064876,
+      "bounds_mm": [
+        [
+          0.0,
+          -2.580144497922456,
+          0.0
+        ],
+        [
+          6.475651900285685,
+          0.0,
+          7.0
+        ]
+      ]
+    },
+    "no_anchors": {
+      "sha256": "be89e56ff4b56d04ffc63799715710a5773e2e2ac424374f47974d6895c7a821",
+      "triangles": 56,
+      "fit_mm": 1e-05,
+      "short_recognized": false,
+      "cylinders": 2,
+      "planes": 6,
+      "volume_mm3": 79.34572043366748,
+      "bounds_mm": [
+        [
+          0.0,
+          -2.584650844005217,
+          0.0
+        ],
+        [
+          6.475651900285685,
+          0.0,
+          7.0
+        ]
+      ],
+      "expected_error": "recognition.unsupported"
+    },
+    "bulge": {
+      "sha256": "e24b7c68c016ad7719ff87e8fc8c173abefc466b5039f7490dd3ab808650ace1",
+      "triangles": 166,
+      "fit_mm": 1e-05,
+      "short_recognized": true,
+      "cylinders": 3,
+      "planes": 3,
+      "volume_mm3": 81.71583288834287,
+      "bounds_mm": [
+        [
+          0.0,
+          -2.586342685733949,
+          0.0
+        ],
+        [
+          6.475651900285685,
+          0.0,
+          7.0
+        ]
+      ],
+      "expected_error": "recognition.partial_unproven"
+    },
+    "fold": {
+      "sha256": "c42a5c1234f0927434460ff388f6f6d680d8a757557b8f5368a8b4c1615b2d48",
+      "triangles": 166,
+      "fit_mm": 1e-05,
+      "short_recognized": true,
+      "cylinders": 3,
+      "planes": 3,
+      "volume_mm3": 81.71583288834287,
+      "bounds_mm": [
+        [
+          0.0,
+          -2.586342685733949,
+          0.0
+        ],
+        [
+          6.475651900285685,
+          0.0,
+          7.0
+        ]
+      ],
+      "expected_error": "recognition.partial_unproven"
+    }
+  }
+}

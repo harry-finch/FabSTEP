@@ -1,9 +1,10 @@
 //! Explicit, bounded recognition of full circular ruled bands. Axes originate
 //! in real planar circular boundaries; every wall triangle, intermediate ring
 //! and apex is proved. Consecutive conical bands must form ONE affine radius
-//! law. Multiple conical spans remain excluded except for two opposed chamfers
-//! separated by a resolved cylindrical land. Tiny radius changes must not let
-//! a curved meridian bypass this rule through artificial cylindrical separators.
+//! law. Multiple conical spans require resolved cylindrical lands; chains with
+//! unrestricted slope signs require interior source-ring evidence. Tiny
+//! radius changes must not let a curved meridian bypass this rule through
+//! artificial cylindrical separators.
 use crate::math::*;
 use crate::recognition::{fit_circle, signed_area, validate_analysis, Work};
 use crate::{
@@ -42,6 +43,15 @@ fn unproven(detail: impl std::fmt::Display) -> FabError {
 /// slopes additionally exclude a monotone meridian split into several cones.
 /// This is an admissibility restriction, never a relaxed fitting tolerance.
 pub(crate) fn resolved_double_chamfer(profile: [[f64; 2]; 4], epsilon: f64) -> bool {
+    resolved_cone_land_pair(profile, epsilon)
+        && (profile[1][1] - profile[0][1]).is_sign_positive()
+            != (profile[3][1] - profile[2][1]).is_sign_positive()
+}
+
+/// A real cylindrical land distinguishes both adjacent affine runs even when
+/// their slopes have the same sign. Callers admitting unrestricted signs must
+/// additionally require interior source witnesses in every run.
+fn resolved_cone_land_pair(profile: [[f64; 2]; 4], epsilon: f64) -> bool {
     if !epsilon.is_finite() || epsilon <= 0. || profile.iter().flatten().any(|x| !x.is_finite()) {
         return false;
     }
@@ -52,7 +62,6 @@ pub(crate) fn resolved_double_chamfer(profile: [[f64; 2]; 4], epsilon: f64) -> b
         || changes[1].abs() > 2. * epsilon
         || changes[0].abs() <= 2. * epsilon
         || changes[2].abs() <= 2. * epsilon
-        || changes[0].is_sign_positive() == changes[2].is_sign_positive()
     {
         return false;
     }
@@ -60,6 +69,54 @@ pub(crate) fn resolved_double_chamfer(profile: [[f64; 2]; 4], epsilon: f64) -> b
     [0, 2].into_iter().all(|i| {
         (changes[i].abs() - 2. * epsilon) * (heights[1] - 2. * epsilon)
             > 8. * epsilon * (heights[i] + 2. * epsilon)
+    })
+}
+/// Interior evidence must come from complete source rings, not interpolated
+/// endpoints. Two separated levels in the middle half witness each affine run.
+/// The caller still proves their radii and the full triangular wall.
+pub(crate) fn resolved_run_samples(
+    z0: f64,
+    z1: f64,
+    samples: impl Iterator<Item = f64>,
+    epsilon: f64,
+) -> bool {
+    let height = z1 - z0;
+    let mut lower = None::<f64>;
+    let mut upper = None::<f64>;
+    for z in samples {
+        let t = (z - z0) / height;
+        if (0.25..0.5).contains(&t) {
+            lower = Some(lower.map_or(z, |old| old.min(z)));
+        }
+        if t > 0.5 && t <= 0.75 {
+            upper = Some(upper.map_or(z, |old| old.max(z)));
+        }
+    }
+    matches!((lower, upper), (Some(a), Some(b)) if b - a > 4. * epsilon)
+}
+
+/// Bounded C1 subset: 2..=8 cones separated by resolved cylinders.
+/// Every run has interior source evidence; every cone/land transition retains
+/// the historical slope-uncertainty margin. Signs may differ or agree, but
+/// adjacent cones without a land remain excluded. No new break is inferred.
+pub(crate) fn resolved_conical_chain(
+    profile: &[[f64; 2]],
+    witnessed: &[bool],
+    epsilon: f64,
+) -> bool {
+    let spans = witnessed.len();
+    if !(3..=15).contains(&spans)
+        || spans % 2 == 0
+        || profile.len() != spans + 1
+        || witnessed.iter().any(|w| !w)
+    {
+        return false;
+    }
+    (0..spans - 2).step_by(2).all(|i| {
+        resolved_cone_land_pair(
+            [profile[i], profile[i + 1], profile[i + 2], profile[i + 3]],
+            epsilon,
+        )
     })
 }
 #[derive(Clone)]
@@ -213,7 +270,7 @@ pub fn recognize_revolved(a: &Analysis, o: &Options) -> Result<RevolvedRecogniti
     for frame in frames {
         let data = axis_data(a, frame, &edges, o, &mut work)?;
         potential |= data.potential;
-        match prove_axis(a, data, &edges, o, &mut work) {
+        match prove_axis(a, data, &edges, o, &mut work, None) {
             Ok(result) => results.push(result),
             Err(e) if e.code == "recognition.conic_unproven" => {
                 if failure.is_none() {
@@ -548,11 +605,15 @@ fn prove_axis(
     edges: &BTreeMap<Edge, Vec<usize>>,
     o: &Options,
     work: &mut Work,
+    scope: Option<&BTreeSet<usize>>,
 ) -> Result<AxisResult, FabError> {
     let tol = o.plane_tolerance_mm.max(o.cylinder_fit_tolerance_mm);
     let mut groups: BTreeMap<[usize; 2], Vec<usize>> = BTreeMap::new();
     for (t, triangle) in a.mesh.triangles.iter().enumerate() {
         work.spend(1)?;
+        if scope.is_some_and(|scope| !scope.contains(&t)) {
+            continue;
+        }
         if !triangle.iter().any(|&v| d.vertex_node[v].is_some()) {
             continue;
         }
@@ -694,7 +755,18 @@ fn prove_axis(
         let chain_spans = &spans[first_span..];
         work.spend(chain_spans.len())?;
         if chain_spans.iter().filter(|s| s.conic).count() > 1 {
-            let allowed = if let [left, land, right] = chain_spans {
+            let epsilon = o
+                .cylinder_fit_tolerance_mm
+                .max(o.plane_tolerance_mm)
+                .max(o.weld_tolerance_mm);
+            let cone_count = chain_spans.iter().filter(|s| s.conic).count();
+            if cone_count > 8 {
+                return Err(FabError::new(
+                    "recognition.too_complex",
+                    "Plus de 8 portions coniques dans une chaîne.",
+                ));
+            }
+            let historical = if let [left, land, right] = chain_spans {
                 let profile = [left.nodes[0], land.nodes[0], land.nodes[1], right.nodes[1]]
                     .map(|n| [d.nodes[n].z, d.nodes[n].radius]);
                 left.conic
@@ -709,8 +781,42 @@ fn prove_axis(
             } else {
                 false
             };
-            if !allowed {
-                return Err(unproven("plusieurs plages coniques sans deux pentes opposées et portée cylindrique résolue"));
+            let extended = if !historical && cone_count >= 2 {
+                let start = usize::from(!chain_spans[0].conic);
+                let end = chain_spans.len() - usize::from(!chain_spans.last().unwrap().conic);
+                let inner_spans = &chain_spans[start..end];
+                work.spend(chain_spans.iter().map(|s| 2 * s.bands.len()).sum())?;
+                let witnessed: Vec<_> = chain_spans
+                    .iter()
+                    .map(|s| {
+                        resolved_run_samples(
+                            d.nodes[s.nodes[0]].z,
+                            d.nodes[s.nodes[1]].z,
+                            s.bands
+                                .iter()
+                                .flat_map(|&b| bands[b].nodes)
+                                .map(|n| d.nodes[n].z),
+                            epsilon,
+                        )
+                    })
+                    .collect();
+                let mut profile: Vec<_> = inner_spans
+                    .iter()
+                    .map(|s| [d.nodes[s.nodes[0]].z, d.nodes[s.nodes[0]].radius])
+                    .collect();
+                let last = &d.nodes[inner_spans.last().unwrap().nodes[1]];
+                profile.push([last.z, last.radius]);
+                witnessed.iter().all(|&w| w)
+                    && inner_spans
+                        .iter()
+                        .enumerate()
+                        .all(|(i, s)| s.conic == (i % 2 == 0))
+                    && resolved_conical_chain(&profile, &witnessed[start..end], epsilon)
+            } else {
+                false
+            };
+            if !historical && !extended {
+                return Err(unproven("plusieurs plages coniques sans portées résolues et anneaux intérieurs démontrés (hors double chanfrein historique)"));
             }
         }
     }
@@ -797,7 +903,7 @@ fn prove_axis(
                 .wall
                 .max(correspondence_residual(&d, bands[b].nodes, work)?);
             for &t in &bands[b].triangles {
-                result.owners.push((t, owner.clone()));
+                result.owners.push((t, owner));
             }
         }
         result.chord = result
@@ -989,7 +1095,7 @@ fn prove_band(
     Ok(inner.unwrap())
 }
 
-fn volume(model: &RevolvedModel) -> Result<f64, FabError> {
+pub(crate) fn volume(model: &RevolvedModel) -> Result<f64, FabError> {
     let m = &model.mixed;
     let bbox = bounds(&m.vertices);
     let reference = std::array::from_fn(|i| bbox[0][i] + (bbox[1][i] - bbox[0][i]) * 0.5);
@@ -1047,5 +1153,169 @@ fn volume(model: &RevolvedModel) -> Result<f64, FabError> {
         Ok(value)
     } else {
         Err(unproven("volume analytique non positif ou non fini"))
+    }
+}
+
+/// Uses exactly the ordinary band, affine-meridian, coverage and residual
+/// proofs, restricted to one topologically isolated wall. Unrelated walls do
+/// not participate, and complexity failures are never converted to a miss.
+pub(crate) struct GuidedConeProof {
+    pub rings: [CircularRing; 2],
+    pub first_boundary: usize,
+    pub inner: bool,
+    pub radial: f64,
+    pub wall: f64,
+    pub chord: f64,
+}
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn prove_guided_cone(
+    a: &Analysis,
+    triangles: &BTreeSet<usize>,
+    boundaries: [&[usize]; 2],
+    origin: V,
+    normal: V,
+    edges: &BTreeMap<Edge, Vec<usize>>,
+    o: &Options,
+    work: &mut Work,
+) -> Result<Option<GuidedConeProof>, FabError> {
+    let mut attempt = || -> Result<GuidedConeProof, FabError> {
+        let mut data = axis_data(a, Frame::new(origin, normal), edges, o, work)?;
+        work.spend(a.mesh.vertices.len() + triangles.len() * 3)?;
+        let used: BTreeSet<_> = triangles
+            .iter()
+            .flat_map(|&t| a.mesh.triangles[t])
+            .collect();
+        let mut mapping = BTreeMap::new();
+        let mut nodes = Vec::new();
+        for (old, node) in data.nodes.into_iter().enumerate() {
+            if node.vertices.iter().any(|v| used.contains(v)) {
+                mapping.insert(old, nodes.len());
+                nodes.push(node);
+            }
+        }
+        for (v, node) in data.vertex_node.iter_mut().enumerate() {
+            *node = if used.contains(&v) {
+                node.and_then(|n| mapping.get(&n).copied())
+            } else {
+                None
+            };
+        }
+        data.nodes = nodes;
+        let result = prove_axis(a, data, edges, o, work, Some(triangles))?;
+        if result.cones.len() != 1
+            || !result.cylinders.is_empty()
+            || result.rings.len() != 2
+            || result.rings.iter().any(|r| r.radius_mm <= 0.)
+            || result.owners.len() != triangles.len()
+        {
+            return Err(unproven("la sélection doit désigner un seul tronc de cône"));
+        }
+        let boundary_sets = boundaries.map(|vs| vs.iter().copied().collect::<BTreeSet<_>>());
+        let first_set = result.ring_vertices[0]
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
+        let second_set = result.ring_vertices[1]
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
+        let first_boundary = if first_set == boundary_sets[0] && second_set == boundary_sets[1] {
+            0
+        } else if first_set == boundary_sets[1] && second_set == boundary_sets[0] {
+            1
+        } else {
+            return Err(unproven(
+                "les frontières ne sont pas les deux contours plans source",
+            ));
+        };
+        Ok(GuidedConeProof {
+            rings: [result.rings[0].clone(), result.rings[1].clone()],
+            first_boundary,
+            inner: result.cones[0].inner,
+            radial: result.radial,
+            wall: result.wall,
+            chord: result.chord,
+        })
+    };
+    match attempt() {
+        Ok(proof) => Ok(Some(proof)),
+        Err(e) if e.code == "recognition.conic_unproven" => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+#[cfg(test)]
+mod guided_budget_tests {
+    use super::*;
+    #[test]
+    fn same_sign_guard_is_additive_to_the_historical_pair() {
+        let profile = [[0., 10.], [3., 13.], [9., 13.], [12., 16.]];
+        assert!(!resolved_double_chamfer(profile, 1e-5));
+        assert!(resolved_conical_chain(&profile, &[true; 3], 1e-5));
+        assert!(!resolved_conical_chain(
+            &profile,
+            &[true, false, true],
+            1e-5
+        ));
+        assert!(!resolved_conical_chain(&profile, &[true; 3], f64::NAN));
+        assert!(!resolved_conical_chain(&profile, &[true; 3], 0.));
+        let opposed = [[0., 10.], [3., 13.], [9., 13.], [12., 10.]];
+        // Historical pairs do not acquire an interior-witness requirement.
+        assert!(resolved_double_chamfer(opposed, 1e-5));
+    }
+    #[test]
+    fn same_sign_axis_cannot_bypass_an_exhausted_work_budget() {
+        let o = Options::default();
+        let a = crate::analyze_stl(
+            include_bytes!("../../../fixtures/same_sign_chains/two_increasing.stl"),
+            &o,
+        )
+        .unwrap();
+        let mut edges = BTreeMap::<Edge, Vec<usize>>::new();
+        for (t, triangle) in a.mesh.triangles.iter().enumerate() {
+            for i in 0..3 {
+                edges
+                    .entry(edge(triangle[i], triangle[(i + 1) % 3]))
+                    .or_default()
+                    .push(t);
+            }
+        }
+        let data = axis_data(
+            &a,
+            Frame::new([0.; 3], [0., 0., 1.]),
+            &edges,
+            &o,
+            &mut Work::default(),
+        )
+        .unwrap();
+        let mut exhausted = Work::default();
+        exhausted.spend(10_000_000).unwrap();
+        let error = prove_axis(&a, data, &edges, &o, &mut exhausted, None)
+            .err()
+            .unwrap();
+        assert_eq!(error.code, "recognition.too_complex");
+    }
+    #[test]
+    fn guided_cone_proof_preserves_the_callers_exhausted_budget() {
+        let a = crate::analyze_stl(
+            include_bytes!("../../../fixtures/m4_frustum.stl"),
+            &Options::default(),
+        )
+        .unwrap();
+        let mut work = Work::default();
+        work.spend(10_000_000).unwrap();
+        let error = prove_guided_cone(
+            &a,
+            &BTreeSet::new(),
+            [&[], &[]],
+            [0.; 3],
+            [0., 0., 1.],
+            &BTreeMap::new(),
+            &Options::default(),
+            &mut work,
+        )
+        .err()
+        .unwrap();
+        assert_eq!(error.code, "recognition.too_complex");
     }
 }

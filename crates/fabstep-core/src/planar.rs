@@ -7,6 +7,7 @@ const MAX_SEGMENT_CHECKS: usize = 5_000_000;
 const NORMAL_DOT_MIN: f64 = 1.0 - 1e-10;
 type P2 = [f64; 2];
 
+#[cfg(test)]
 pub(crate) fn build(
     mesh: &Mesh,
     adjacency: &[Vec<usize>],
@@ -94,6 +95,82 @@ pub(crate) fn build_with_provenance(
         approximate_faces,
         triangle_regions,
     })
+}
+
+/// Construct a single indicated patch without changing source vertex positions.
+/// Unlike automatic segmentation, this tests the whole patch against one plane,
+/// not the nearly parallel triangle-normal heuristic. The 1e-7 contour ceiling
+/// is a conservative interoperability constraint, not a dependency on a kernel.
+pub(crate) fn guided_face(
+    mesh: &Mesh,
+    adjacency: &[Vec<usize>],
+    region: &BTreeSet<usize>,
+    tolerance: f64,
+    checks: &mut usize,
+) -> Result<PlanarFace, FabError> {
+    let unproven = || {
+        FabError::new("guidance.plane_unproven", "La sélection doit former une zone plane connectée dont les contours sont conservés sans déplacer les sommets.")
+    };
+    let seed = *region.first().ok_or_else(unproven)?;
+    let mut reached = BTreeSet::from([seed]);
+    let mut pending = VecDeque::from([seed]);
+    while let Some(triangle) = pending.pop_front() {
+        for &neighbor in &adjacency[triangle] {
+            if region.contains(&neighbor) && reached.insert(neighbor) {
+                pending.push_back(neighbor);
+            }
+        }
+    }
+    if reached.len() != region.len() {
+        return Err(unproven());
+    }
+    let mut normal = [Sum::default(), Sum::default(), Sum::default()];
+    for &triangle in region {
+        let [a, b, c] = mesh.triangles[triangle].map(|i| mesh.vertices[i]);
+        let cross = cross(sub(b, a), sub(c, a));
+        for axis in 0..3 {
+            normal[axis].add(cross[axis]);
+        }
+    }
+    let normal = normal.map(|sum| sum.get());
+    let length = norm(normal);
+    if !length.is_finite() || length <= 0. {
+        return Err(unproven());
+    }
+    let normal = scale(normal, 1. / length);
+    let loops = boundaries(mesh, region)?;
+    let origin = mesh.vertices[loops[0][0]];
+    for &triangle in region {
+        let vertices = mesh.triangles[triangle].map(|i| mesh.vertices[i]);
+        if dot(
+            cross(sub(vertices[1], vertices[0]), sub(vertices[2], vertices[0])),
+            normal,
+        ) <= 0.
+            || vertices
+                .iter()
+                .any(|&p| dot(sub(p, origin), normal).abs() > tolerance)
+        {
+            return Err(unproven());
+        }
+    }
+    let loops = validate_loops(mesh, loops, origin, normal, checks)?;
+    // validate_loops may move the outer contour to index zero. The native
+    // face uses that first boundary vertex as its plane origin, so check the
+    // actual output plane, including the full patch, once more.
+    let origin = mesh.vertices[loops[0][0]];
+    if loops
+        .iter()
+        .flatten()
+        .any(|&i| dot(sub(mesh.vertices[i], origin), normal).abs() > tolerance.min(1e-7))
+        || region.iter().any(|&t| {
+            mesh.triangles[t]
+                .iter()
+                .any(|&i| dot(sub(mesh.vertices[i], origin), normal).abs() > tolerance)
+        })
+    {
+        return Err(unproven());
+    }
+    Ok(PlanarFace { loops, normal })
 }
 
 fn boundaries(mesh: &Mesh, region: &BTreeSet<usize>) -> Result<Vec<Vec<usize>>, FabError> {

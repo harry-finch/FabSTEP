@@ -13,7 +13,7 @@ Usage :
   fabstep convert <entrée.stl|entrée.3mf> -o <sortie.step> [--unit mm|inch] [--json] [--force]
 
 Options :
-  --mode planar|cylinders|primitives|surfaces  Plans (défaut), cylindres, cônes, surfaces arrondies
+  --mode auto|planar|cylinders|primitives|surfaces  Plans (défaut), cylindres, cônes, surfaces arrondies
   --max-deviation <mm>     Budget de borne composée (défaut : 0.05 mm)
   --fit <mm>              Résidu radial maximal d'ajustement (défaut : 0.00001 mm)
   --weld <mm>    Tolérance de soudage (défaut : 0.000001 mm)
@@ -22,8 +22,13 @@ Options :
   --force       Autoriser le remplacement du fichier de sortie
 
 Mode cylinders : plans, cylindres complets et partiels ; bossages, trous et encoches.
-Mode primitives : ajoute les cônes droits et chanfreins circulaires prouvés ; pas de congés.
-Mode surfaces : ajoute les portions sphériques et toriques prouvées, dont les congés toriques reconnus.
+Les cylindres partiels incluent les parois décalées et les petits raccords contextuels prouvés.
+Mode primitives : ajoute les cônes et chanfreins prouvés, dont les chaînes de pentes alternées
+séparées par des portées résolues ; pas de congés généraux.
+Mode surfaces : ajoute les portions sphériques (dont les zones sans pôle) et toriques prouvées,
+les sphères et tores complets, les boîtiers convexes entièrement arrondis à rayon uniforme,
+et la combinaison prouvée d’un cône complet et d’un cylindre ouvert.
+Les formes libres et les congés généraux à rayon variable restent hors périmètre.
 3MF Core : unité du fichier ; --unit interdit. Corps séparés, sans fusion.
 Les extensions requises inconnues et les corps en contact ou imbriqués sont refusés.
 Une forme non reconnue est refusée ; le mode planar reste disponible.
@@ -86,17 +91,17 @@ fn run() -> Result<(), FabError> {
                 }
             }
             "--mode" => {
-                options.reconstruction = match args.next().as_deref() {
-                    Some("planar") => ReconstructionMode::Planar,
-                    Some("cylinders") => ReconstructionMode::Cylinders,
-                    Some("primitives") => ReconstructionMode::Primitives,
-                    Some("surfaces") => ReconstructionMode::Surfaces,
-                    _ => {
-                        return Err(usage(
-                            "Le mode doit être planar, cylinders, primitives ou surfaces.",
-                        ))
+                options.reconstruction =
+                    match args.next().as_deref() {
+                        Some("auto") => ReconstructionMode::Auto,
+                        Some("planar") => ReconstructionMode::Planar,
+                        Some("cylinders") => ReconstructionMode::Cylinders,
+                        Some("primitives") => ReconstructionMode::Primitives,
+                        Some("surfaces") => ReconstructionMode::Surfaces,
+                        _ => return Err(usage(
+                            "Le mode doit être auto, planar, cylinders, primitives ou surfaces.",
+                        )),
                     }
-                }
             }
             "--weld" | "--plane" | "--fit" | "--max-deviation" => {
                 let value = args
@@ -161,7 +166,8 @@ fn run() -> Result<(), FabError> {
         for body in &document.bodies {
             let recognition = match options.reconstruction {
                 ReconstructionMode::Planar => None,
-                ReconstructionMode::Cylinders
+                ReconstructionMode::Auto
+                | ReconstructionMode::Cylinders
                 | ReconstructionMode::Primitives
                 | ReconstructionMode::Surfaces => Some(
                     fabstep_app::recognize_surfaces(&body.analysis, &options)

@@ -1,0 +1,132 @@
+{
+  "unit": "mm",
+  "dimensions_mm": [
+    44,
+    24,
+    10
+  ],
+  "bore_center_mm": [
+    32,
+    12
+  ],
+  "bore_radius_mm": 3,
+  "bore_height_mm": 6,
+  "countersink_end_radii_mm": [
+    3,
+    6
+  ],
+  "countersink_height_mm": 4,
+  "notch_radius_mm": 4,
+  "notch_sweep_rad": 3.141592653589793,
+  "cases": {
+    "countersink_notch": {
+      "triangles": 1028,
+      "transform": "plain",
+      "bounds_mm": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          44,
+          24,
+          10
+        ]
+      ],
+      "volume_mm3": 9875.132801517426,
+      "planes": 7,
+      "cylinders": 2,
+      "cones": 1,
+      "partial_cylinders": 1
+    },
+    "countersink_notch_rotated": {
+      "triangles": 1028,
+      "transform": "rotated",
+      "bounds_mm": [
+        [
+          2.32139110355574,
+          -7.751816346647678,
+          -1.0460629010987024
+        ],
+        [
+          52.717033300990224,
+          35.69986111005098,
+          26.067891590647847
+        ]
+      ],
+      "volume_mm3": 9875.132801517426,
+      "planes": 7,
+      "cylinders": 2,
+      "cones": 1,
+      "partial_cylinders": 1
+    },
+    "countersink_notch_mirrored": {
+      "triangles": 1028,
+      "transform": "mirrored",
+      "bounds_mm": [
+        [
+          11,
+          -17,
+          3
+        ],
+        [
+          55,
+          7,
+          13
+        ]
+      ],
+      "volume_mm3": 9875.132801517426,
+      "planes": 7,
+      "cylinders": 2,
+      "cones": 1,
+      "partial_cylinders": 1
+    },
+    "cone_warp": {
+      "triangles": 1028,
+      "transform": "plain",
+      "expected_refusal": "cone_warp"
+    },
+    "arc_bulge": {
+      "triangles": 1028,
+      "transform": "plain",
+      "expected_refusal": "arc_bulge"
+    },
+    "arc_sparse": {
+      "triangles": 908,
+      "transform": "plain",
+      "expected_non_promotion": "arc_underresolved: historical faceted notch remains"
+    },
+    "arc_dense_budget": {
+      "triangles": 3284,
+      "transform": "plain",
+      "expected_refusal": "recognition.too_complex"
+    },
+    "intersecting_features": {
+      "triangles": 1028,
+      "transform": "plain",
+      "expected_refusal": "intersection"
+    },
+    "countersink_only": {
+      "triangles": 878,
+      "transform": "plain",
+      "bounds_mm": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          44,
+          24,
+          10
+        ]
+      ],
+      "volume_mm3": 10126.460213804608,
+      "planes": 6,
+      "cylinders": 1,
+      "cones": 1,
+      "partial_cylinders": 0
+    }
+  }
+}

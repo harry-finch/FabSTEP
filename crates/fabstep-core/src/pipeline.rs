@@ -14,6 +14,50 @@ struct WeldStats {
     max_displacement: f64,
 }
 
+/// Source topology and orientation in millimetres, independent of reconstruction.
+/// Spatial self-intersection and separation still require native validation.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PreparedMesh {
+    pub mesh: Mesh,
+    pub input_triangles: usize,
+    pub welded_vertices: usize,
+    pub volume_mm3: f64,
+    pub bounds_mm: [[f64; 3]; 2],
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+pub fn prepare_mesh_bodies_for_sections(
+    mesh: &Mesh,
+    options: &Options,
+) -> Result<Vec<PreparedMesh>, FabError> {
+    prepare_mesh_bodies_for_sections_controlled(mesh, options, &mut || Ok(()))
+}
+
+/// Component ordering and welding match ordinary analysis, without planar regions.
+pub fn prepare_mesh_bodies_for_sections_controlled(
+    mesh: &Mesh,
+    options: &Options,
+    check_current: &mut impl FnMut() -> Result<(), FabError>,
+) -> Result<Vec<PreparedMesh>, FabError> {
+    check_current()?;
+    let raw = mesh_triangles(mesh)?;
+    let topology = source_components_controlled(&raw, options, check_current)?;
+    check_current()?;
+    let mut prepared = Vec::with_capacity(topology.len());
+    for component in topology {
+        check_current()?;
+        let triangles = component
+            .analysis_to_source_triangles
+            .iter()
+            .map(|&i| raw[i])
+            .collect();
+        let (body, _) = prepare_raw(triangles, options, check_current)?;
+        prepared.push(body);
+    }
+    check_current()?;
+    Ok(prepared)
+}
+
 /// Analyzes one closed, consistently oriented STL component in millimetres.
 /// No hole filling, triangle removal, or per-face vertex projection is performed.
 /// Global inversion is corrected. Spatial self-intersection remains the CAD
@@ -56,6 +100,32 @@ pub fn analyze_mesh_bodies(mesh: &Mesh, options: &Options) -> Result<Vec<Analysi
 /// STL counterpart retaining the explicit STL input unit, up to 32 bodies.
 pub fn analyze_stl_bodies(bytes: &[u8], options: &Options) -> Result<Vec<Analysis>, FabError> {
     analyze_bodies(read_stl_mm(bytes, options)?, options)
+}
+
+/// Companion API retaining exact source triangle indices, without changing
+/// the historical analysis structures or their serialized representation.
+pub fn analyze_mesh_bodies_with_provenance(
+    mesh: &Mesh,
+    options: &Options,
+) -> Result<Vec<crate::ProvenancedAnalysis>, FabError> {
+    analyze_bodies_with_provenance(mesh_triangles(mesh)?, options)
+}
+
+pub fn analyze_stl_bodies_with_provenance(
+    bytes: &[u8],
+    options: &Options,
+) -> Result<Vec<crate::ProvenancedAnalysis>, FabError> {
+    analyze_bodies_with_provenance(read_stl_mm(bytes, options)?, options)
+}
+
+/// Source adjacency after validated welding, independent of planar contour
+/// construction, recognition and CAD. This does NOT validate spatial geometry
+/// or authorize export. Limited to 100,000 triangles and 32 components.
+pub fn selection_mesh_topology(
+    mesh: &Mesh,
+    options: &Options,
+) -> Result<Vec<crate::SourceComponentTopology>, FabError> {
+    source_components(&mesh_triangles(mesh)?, options)
 }
 
 fn read_stl_mm(bytes: &[u8], options: &Options) -> Result<Vec<[V; 3]>, FabError> {
@@ -126,12 +196,61 @@ fn validate_raw(raw: &[[V; 3]], options: &Options) -> Result<(), FabError> {
 }
 
 fn analyze_bodies(raw: Vec<[V; 3]>, options: &Options) -> Result<Vec<Analysis>, FabError> {
-    validate_raw(&raw, options)?;
-    let (mesh, _) = weld(raw.clone(), options.weld_tolerance_mm)?;
-    let adjacency = validate_topology_impl(&mesh, false)?;
+    Ok(analyze_bodies_with_provenance(raw, options)?
+        .into_iter()
+        .map(|body| body.analysis)
+        .collect())
+}
+
+fn analyze_bodies_with_provenance(
+    raw: Vec<[V; 3]>,
+    options: &Options,
+) -> Result<Vec<crate::ProvenancedAnalysis>, FabError> {
+    source_components(&raw, options)?
+        .into_iter()
+        .map(|topology| {
+            // Reanalyze original coordinates, not welded representatives, so
+            // displacement diagnostics describe the actual source. No triangle
+            // is removed or reordered by analyze_raw (orientation swaps corners).
+            let (analysis, planar_triangle_faces) = analyze_raw_with_provenance(
+                topology
+                    .analysis_to_source_triangles
+                    .iter()
+                    .map(|&i| raw[i])
+                    .collect(),
+                options,
+            )?;
+            Ok(crate::ProvenancedAnalysis {
+                analysis,
+                topology,
+                planar_triangle_faces,
+            })
+        })
+        .collect()
+}
+
+fn source_components(
+    raw: &[[V; 3]],
+    options: &Options,
+) -> Result<Vec<crate::SourceComponentTopology>, FabError> {
+    source_components_controlled(raw, options, &mut || Ok(()))
+}
+
+fn source_components_controlled(
+    raw: &[[V; 3]],
+    options: &Options,
+    check_current: &mut impl FnMut() -> Result<(), FabError>,
+) -> Result<Vec<crate::SourceComponentTopology>, FabError> {
+    check_current()?;
+    validate_raw(raw, options)?;
+    let (mesh, _) = weld_controlled(raw.to_vec(), options.weld_tolerance_mm, check_current)?;
+    let adjacency = validate_topology_impl_controlled(&mesh, false, check_current)?;
     let mut seen = vec![false; raw.len()];
     let mut result = Vec::new();
     for start in 0..raw.len() {
+        if start % 1024 == 0 {
+            check_current()?;
+        }
         if seen[start] {
             continue;
         }
@@ -146,6 +265,9 @@ fn analyze_bodies(raw: Vec<[V; 3]>, options: &Options) -> Result<Vec<Analysis>, 
         seen[start] = true;
         while let Some(i) = pending.pop_front() {
             ids.push(i);
+            if ids.len() % 1024 == 0 {
+                check_current()?;
+            }
             for &j in &adjacency[i] {
                 if !seen[j] {
                     seen[j] = true;
@@ -154,23 +276,88 @@ fn analyze_bodies(raw: Vec<[V; 3]>, options: &Options) -> Result<Vec<Analysis>, 
             }
         }
         ids.sort_unstable();
-        // Reanalyze original coordinates, not welded representatives, so each
-        // body's displacement diagnostics describe the actual source.
-        result.push(analyze_raw(ids.iter().map(|&i| raw[i]).collect(), options)?);
+        let source_triangle_neighbors = ids
+            .iter()
+            .map(|&i| {
+                let mut neighbors = adjacency[i].clone();
+                neighbors.sort_unstable();
+                neighbors
+            })
+            .collect();
+        result.push(crate::SourceComponentTopology {
+            analysis_to_source_triangles: ids,
+            source_triangle_neighbors,
+        });
     }
     Ok(result)
 }
 
 fn analyze_raw(raw: Vec<[V; 3]>, options: &Options) -> Result<Analysis, FabError> {
+    analyze_raw_with_provenance(raw, options).map(|(analysis, _)| analysis)
+}
+
+fn analyze_raw_with_provenance(
+    raw: Vec<[V; 3]>,
+    options: &Options,
+) -> Result<(Analysis, Vec<usize>), FabError> {
+    let (prepared, adjacency) = prepare_raw(raw, options, &mut || Ok(()))?;
+    let PreparedMesh {
+        mesh,
+        input_triangles,
+        welded_vertices,
+        volume_mm3,
+        bounds_mm,
+        mut diagnostics,
+    } = prepared;
+    // Preserve the historical analysis report wording after its contour proof.
+    diagnostics[0].message = "Topologie et contours contrôlés ; la validité géométrique 3D doit être confirmée par le noyau CAO.".into();
+    let segmentation =
+        crate::planar::build_with_provenance(&mesh, &adjacency, options.plane_tolerance_mm)?;
+    let model = segmentation.model;
+    let approximate_faces = segmentation.approximate_faces;
+    if approximate_faces > 0 {
+        diagnostics.push(Diagnostic { code: "planar.approximate".into(), severity: Severity::Warning,
+            message: "Des faces ont un résidu de planéité non nul. Sommets conservés ; validation CAO nécessaire.".into(), count: approximate_faces });
+    }
+    let report = Report {
+        input_triangles,
+        vertices: mesh.vertices.len(),
+        planar_faces: model.faces.len(),
+        welded_vertices,
+        volume_mm3,
+        bounds_mm,
+        diagnostics,
+    };
+    Ok((
+        Analysis {
+            mesh,
+            model,
+            report,
+        },
+        segmentation.triangle_regions,
+    ))
+}
+
+fn prepare_raw(
+    raw: Vec<[V; 3]>,
+    options: &Options,
+    check_current: &mut impl FnMut() -> Result<(), FabError>,
+) -> Result<(PreparedMesh, Vec<Vec<usize>>), FabError> {
+    check_current()?;
     validate_raw(&raw, options)?;
     let input_triangles = raw.len();
-    let (mut mesh, welded) = weld(raw, options.weld_tolerance_mm)?;
-    let adjacency = validate_topology(&mesh)?;
+    let (mut mesh, welded) = weld_controlled(raw, options.weld_tolerance_mm, check_current)?;
+    check_current()?;
+    let adjacency = validate_topology_controlled(&mesh, check_current)?;
+    check_current()?;
     let bbox = bounds(&mesh.vertices);
     let reference = std::array::from_fn(|i| bbox[0][i] + (bbox[1][i] - bbox[0][i]) * 0.5);
     let mut volume = Sum::default();
     let mut absolute = Sum::default();
-    for tri in &mesh.triangles {
+    for (index, tri) in mesh.triangles.iter().enumerate() {
+        if index % 1024 == 0 {
+            check_current()?;
+        }
         let term = dot(
             sub(mesh.vertices[tri[0]], reference),
             cross(
@@ -189,8 +376,12 @@ fn analyze_raw(raw: Vec<[V; 3]>, options: &Options) -> Result<Analysis, FabError
         ));
     }
     let mut diagnostics = vec![Diagnostic {
-        code: "validation.native_required".into(), severity: Severity::Info,
-        message: "Topologie et contours contrôlés ; la validité géométrique 3D doit être confirmée par le noyau CAO.".into(), count: 1,
+        code: "validation.native_required".into(),
+        severity: Severity::Info,
+        message:
+            "Topologie contrôlée ; la validité géométrique 3D doit être confirmée par le noyau CAO."
+                .into(),
+        count: 1,
     }];
     if welded.moved > 0 {
         diagnostics.push(Diagnostic {
@@ -214,29 +405,25 @@ fn analyze_raw(raw: Vec<[V; 3]>, options: &Options) -> Result<Analysis, FabError
             count: input_triangles,
         });
     }
-    let (model, approximate_faces) =
-        crate::planar::build(&mesh, &adjacency, options.plane_tolerance_mm)?;
-    if approximate_faces > 0 {
-        diagnostics.push(Diagnostic { code: "planar.approximate".into(), severity: Severity::Warning,
-            message: "Des faces ont un résidu de planéité non nul. Sommets conservés ; validation CAO nécessaire.".into(), count: approximate_faces });
-    }
-    let report = Report {
-        input_triangles,
-        vertices: mesh.vertices.len(),
-        planar_faces: model.faces.len(),
-        welded_vertices: welded.reused,
-        volume_mm3: signed_volume.abs(),
-        bounds_mm: bbox,
-        diagnostics,
-    };
-    Ok(Analysis {
-        mesh,
-        model,
-        report,
-    })
+    check_current()?;
+    Ok((
+        PreparedMesh {
+            mesh,
+            input_triangles,
+            welded_vertices: welded.reused,
+            volume_mm3: signed_volume.abs(),
+            bounds_mm: bbox,
+            diagnostics,
+        },
+        adjacency,
+    ))
 }
 
-fn weld(raw: Vec<[[f64; 3]; 3]>, tolerance: f64) -> Result<(Mesh, WeldStats), FabError> {
+fn weld_controlled(
+    raw: Vec<[[f64; 3]; 3]>,
+    tolerance: f64,
+    check_current: &mut impl FnMut() -> Result<(), FabError>,
+) -> Result<(Mesh, WeldStats), FabError> {
     let origin = raw.iter().flatten().fold([f64::INFINITY; 3], |mut a, p| {
         for i in 0..3 {
             a[i] = a[i].min(p[i]);
@@ -248,7 +435,10 @@ fn weld(raw: Vec<[[f64; 3]; 3]>, tolerance: f64) -> Result<(Mesh, WeldStats), Fa
     let mut cells: BTreeMap<[i64; 3], Vec<usize>> = BTreeMap::new();
     let mut unique = BTreeSet::new();
     let mut welded = WeldStats::default();
-    for triangle in raw {
+    for (triangle_index, triangle) in raw.into_iter().enumerate() {
+        if triangle_index % 1024 == 0 {
+            check_current()?;
+        }
         let mut indices = [0; 3];
         for (i, point) in triangle.into_iter().enumerate() {
             let mut key = [0; 3];
@@ -330,15 +520,25 @@ fn weld(raw: Vec<[[f64; 3]; 3]>, tolerance: f64) -> Result<(Mesh, WeldStats), Fa
 }
 
 pub(crate) fn validate_topology(mesh: &Mesh) -> Result<Vec<Vec<usize>>, FabError> {
-    validate_topology_impl(mesh, true)
+    validate_topology_controlled(mesh, &mut || Ok(()))
 }
-fn validate_topology_impl(
+pub(crate) fn validate_topology_controlled(
+    mesh: &Mesh,
+    check_current: &mut (impl FnMut() -> Result<(), FabError> + ?Sized),
+) -> Result<Vec<Vec<usize>>, FabError> {
+    validate_topology_impl_controlled(mesh, true, check_current)
+}
+fn validate_topology_impl_controlled(
     mesh: &Mesh,
     require_connected: bool,
+    check_current: &mut (impl FnMut() -> Result<(), FabError> + ?Sized),
 ) -> Result<Vec<Vec<usize>>, FabError> {
     let mut edges: BTreeMap<(usize, usize), Vec<(usize, bool)>> = BTreeMap::new();
     let mut stars = vec![Vec::new(); mesh.vertices.len()];
     for (index, &[a, b, c]) in mesh.triangles.iter().enumerate() {
+        if index % 1024 == 0 {
+            check_current()?;
+        }
         for (u, v) in [(a, b), (b, c), (c, a)] {
             edges
                 .entry((u.min(v), u.max(v)))
@@ -362,7 +562,10 @@ fn validate_topology_impl(
         ));
     }
     let mut adjacency = vec![Vec::new(); mesh.triangles.len()];
-    for edge in edges.values() {
+    for (index, edge) in edges.values().enumerate() {
+        if index % 1024 == 0 {
+            check_current()?;
+        }
         if edge[0].1 == edge[1].1 {
             return Err(FabError::new(
                 "mesh.inconsistent_orientation",
@@ -375,7 +578,12 @@ fn validate_topology_impl(
     let mut seen = vec![false; mesh.triangles.len()];
     let mut pending = VecDeque::from([0]);
     seen[0] = true;
+    let mut traversed = 0usize;
     while let Some(face) = pending.pop_front() {
+        traversed += 1;
+        if traversed % 1024 == 0 {
+            check_current()?;
+        }
         for &next in &adjacency[face] {
             if !seen[next] {
                 seen[next] = true;
@@ -390,9 +598,15 @@ fn validate_topology_impl(
         ));
     }
     // Edge manifoldness alone does not exclude a pinched (bow-tie) vertex.
-    for star in stars {
+    for (index, star) in stars.into_iter().enumerate() {
+        if index % 1024 == 0 {
+            check_current()?;
+        }
         let mut link: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
-        for (a, b) in star {
+        for (index, (a, b)) in star.into_iter().enumerate() {
+            if index % 1024 == 0 {
+                check_current()?;
+            }
             link.entry(a).or_default().push(b);
             link.entry(b).or_default().push(a);
         }
@@ -404,6 +618,9 @@ fn validate_topology_impl(
         let mut pending = vec![start];
         while let Some(v) = pending.pop() {
             if visited.insert(v) {
+                if visited.len() % 1024 == 0 {
+                    check_current()?;
+                }
                 pending.extend(&link[&v]);
             }
         }

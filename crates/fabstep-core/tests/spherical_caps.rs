@@ -63,7 +63,6 @@ fn cap_candidates_require_a_real_pole_curvature_and_dense_boundary() {
     for bytes in [
         include_bytes!("../../../fixtures/m5b_spheroid.stl").as_slice(),
         include_bytes!("../../../fixtures/m5b_shifted_pole.stl").as_slice(),
-        include_bytes!("../../../fixtures/m5b_spherical_zone.stl").as_slice(),
         include_bytes!("../../../fixtures/m5b_sparse_cap.stl").as_slice(),
     ] {
         let o = options();

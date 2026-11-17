@@ -52,6 +52,7 @@ pub enum InputUnit {
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ReconstructionMode {
+    Auto,
     #[default]
     Planar,
     Cylinders,
@@ -132,6 +133,26 @@ pub struct Analysis {
     pub mesh: Mesh,
     pub model: PlanarModel,
     pub report: Report,
+}
+
+/// Component ordering and source triangle identity shared by analysis and
+/// selection. Components are ordered by their first source triangle.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SourceComponentTopology {
+    /// Strictly increasing source indices; entry i identifies analysis triangle i.
+    pub analysis_to_source_triangles: Vec<usize>,
+    /// Row i belongs to analysis_to_source_triangles[i]. Values are sorted
+    /// SOURCE triangle indices (not analysis indices), exactly three per row.
+    pub source_triangle_neighbors: Vec<Vec<usize>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProvenancedAnalysis {
+    pub analysis: Analysis,
+    pub topology: SourceComponentTopology,
+    /// Exact membership from the planar construction pass. Entry i identifies
+    /// the constructed planar face containing analysis triangle i.
+    pub planar_triangle_faces: Vec<usize>,
 }
 
 /// A profile in the orthonormal frame (x_axis, axis × x_axis).
@@ -273,7 +294,7 @@ pub struct RevolvedModel {
     pub cones: Vec<MixedCone>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RevolvedFaceRef {
     Plane { index: usize },
@@ -320,15 +341,25 @@ pub struct MixedTorus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MixedPartialCone {
+    /// Shared source arcs ordered positively along their common axis.
+    pub arcs: [usize; 2],
+    pub inner: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoundedModel {
     pub revolved: RevolvedModel,
     pub spheres: Vec<MixedSphere>,
     pub tori: Vec<MixedTorus>,
+    #[serde(default)]
+    pub partial_cones: Vec<MixedPartialCone>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RoundedFaceRef {
+    PartialCone { index: usize },
     Plane { index: usize },
     Cylinder { index: usize },
     PartialCylinder { index: usize },
@@ -385,19 +416,49 @@ pub use rounded_box::recognize_rounded_box;
 mod complete_sphere;
 mod complete_torus;
 mod math;
+mod mesh_section;
+pub use mesh_section::{section_meshes, section_meshes_controlled};
 mod mixed;
 mod partial;
 mod pipeline;
 mod planar;
+mod profile;
+pub use profile::{
+    export_planar_face_dxf, export_section_dxf, validate_planar_profile, validate_profile_frame,
+    validate_section_profile, validate_section_request, PlanarFaceProfile, PlanarProfileLoop,
+    ProfileFrame, ProfileSegment, SectionBodyProfile, SectionLoop, SectionProfile, SectionRequest,
+};
 mod recognition;
 mod revolved;
 mod rounded;
 pub use complete_sphere::recognize_complete_sphere;
 pub use complete_torus::recognize_complete_torus;
+mod automatic;
+mod guided_plane;
+pub use automatic::{
+    automatic_region, guided_rounded_region, recognize_automatic, recognize_automatic_guided,
+};
 mod stl;
-pub use mixed::recognize_mixed;
+pub use mixed::{
+    recognize_guided_cylinder, recognize_guided_cylinders, recognize_guided_surfaces,
+    recognize_mixed,
+};
+
+/// Explicit family hypothesis for one selected source wall.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GuidanceFamily {
+    Auto,
+    Torus,
+    Plane,
+    Cylinder,
+    Cone,
+}
 pub use pipeline::{
-    analyze_mesh, analyze_mesh_bodies, analyze_stl, analyze_stl_bodies, read_stl_mesh,
+    analyze_mesh, analyze_mesh_bodies, analyze_mesh_bodies_with_provenance, analyze_stl,
+    analyze_stl_bodies, analyze_stl_bodies_with_provenance, prepare_mesh_bodies_for_sections,
+    prepare_mesh_bodies_for_sections_controlled, read_stl_mesh, selection_mesh_topology,
+    PreparedMesh,
 };
 pub use recognition::recognize_extrusion;
 pub use revolved::recognize_revolved;

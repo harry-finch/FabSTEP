@@ -7,6 +7,9 @@ use crate::{
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::f64::consts::{PI, TAU};
+pub(crate) mod chain;
+mod short;
+
 type P2 = [f64; 2];
 type Edge = (usize, usize);
 const NATIVE_TOL: f64 = 1e-7;
@@ -75,6 +78,7 @@ struct Proven {
     wall: f64,
 }
 pub(crate) struct Residual {
+    pub rejected: usize,
     pub radial: f64,
     pub chord: f64,
     pub wall: f64,
@@ -268,6 +272,10 @@ fn candidates(
             }
         }
     }
+    // Endpoint-constrained fits are not monotone as the endpoint advances.
+    // Recover overlapping fragments only by proving their complete ordered union;
+    // never choose a smaller convenient subset of a failed boundary candidate.
+    merge_candidates(&mut result, model, o, work)?;
     // Overlapping maximal arcs on a source boundary are ambiguous.
     for i in 0..result.len() {
         for j in i + 1..result.len() {
@@ -292,6 +300,170 @@ fn candidates(
     Ok(result)
 }
 
+/// Bounded recovery after the conservative local candidate search. A failed
+/// union remains ambiguous; no tolerance is enlarged and no candidate discarded.
+fn merge_candidates(
+    candidates: &mut Vec<Candidate>,
+    model: &MixedModel,
+    o: &Options,
+    work: &mut Work,
+) -> Result<(), FabError> {
+    let mut visited = BTreeSet::new();
+    work.spend(candidates.iter().map(|c| c.chain.len()).sum())?;
+    let edge_sets: Vec<BTreeSet<Edge>> = candidates
+        .iter()
+        .map(|candidate| {
+            candidate
+                .chain
+                .windows(2)
+                .map(|p| edge(p[0], p[1]))
+                .collect()
+        })
+        .collect();
+    let mut removed = BTreeSet::new();
+    for seed in 0..candidates.len() {
+        if !visited.insert(seed) {
+            continue;
+        }
+        let mut group = vec![seed];
+        let mut next = 0;
+        while next < group.len() {
+            let i = group[next];
+            next += 1;
+            for j in 0..candidates.len() {
+                work.spend(1)?;
+                if visited.contains(&j)
+                    || candidates[i].plane != candidates[j].plane
+                    || candidates[i].loop_index != candidates[j].loop_index
+                {
+                    continue;
+                }
+                work.spend(edge_sets[i].len().min(edge_sets[j].len()))?;
+                if !edge_sets[i].is_disjoint(&edge_sets[j]) {
+                    visited.insert(j);
+                    group.push(j);
+                }
+            }
+        }
+        if group.len() == 1 {
+            continue;
+        }
+        let a = &candidates[seed];
+        work.spend(group.iter().map(|&i| candidates[i].chain.len()).sum())?;
+        let ids: BTreeSet<usize> = group
+            .iter()
+            .flat_map(|&i| candidates[i].chain.iter().copied())
+            .collect();
+        let union_edges: BTreeSet<Edge> = group
+            .iter()
+            .flat_map(|&i| edge_sets[i].iter().copied())
+            .collect();
+        let MixedLoop::Polygon { vertices } = &model.planes[a.plane].loops[a.loop_index] else {
+            return Err(unproven());
+        };
+        work.spend(vertices.len() + ids.len())?;
+        let Some(start) = (0..vertices.len()).find(|&k| {
+            union_edges.contains(&edge(vertices[k], vertices[(k + 1) % vertices.len()]))
+                && !union_edges.contains(&edge(
+                    vertices[k],
+                    vertices[(k + vertices.len() - 1) % vertices.len()],
+                ))
+        }) else {
+            continue;
+        };
+        let chain: Vec<usize> = (0..ids.len())
+            .map(|k| vertices[(start + k) % vertices.len()])
+            .collect();
+        if chain.len() != union_edges.len() + 1
+            || !chain.iter().all(|v| ids.contains(v))
+            || !chain
+                .windows(2)
+                .all(|p| union_edges.contains(&edge(p[0], p[1])))
+        {
+            continue;
+        }
+        let frame = Frame::new(model.vertices[chain[0]], a.normal);
+        let points: Vec<P2> = chain
+            .iter()
+            .map(|&v| frame.project(model.vertices[v]).0)
+            .collect();
+        work.spend(points.len())?;
+        let Some(f) = fit(&points, o.cylinder_fit_tolerance_mm) else {
+            continue;
+        };
+        if !(30_f64.to_radians()..=330_f64.to_radians()).contains(&f.sweep.abs()) {
+            continue;
+        }
+        candidates[seed].chain = chain;
+        candidates[seed].center = frame.lift(f.center);
+        candidates[seed].radius = f.radius;
+        removed.extend(group.into_iter().filter(|&i| i != seed));
+    }
+    let mut index = 0;
+    candidates.retain(|_| {
+        let keep = !removed.contains(&index);
+        index += 1;
+        keep
+    });
+    Ok(())
+}
+
+/// A rail can border one retained plane or one other proven cylindrical wall.
+/// Shared rails require identical source chains and precisely those two wall
+/// patches on every segment. Endpoint coincidence alone is not an incidence.
+fn shared_rails(
+    patches: &[Proven],
+    edges: &BTreeMap<Edge, Vec<usize>>,
+    triangle_count: usize,
+    work: &mut Work,
+) -> Result<BTreeSet<Edge>, FabError> {
+    work.spend(triangle_count)?;
+    let mut patch_owner = vec![None; triangle_count];
+    let mut rails: BTreeMap<Edge, Vec<(usize, usize)>> = BTreeMap::new();
+    for (index, patch) in patches.iter().enumerate() {
+        work.spend(patch.triangles.len())?;
+        for &t in &patch.triangles {
+            if patch_owner[t].replace(index).is_some() {
+                return Err(unproven());
+            }
+        }
+        for (side, chain) in patch.rails.iter().enumerate() {
+            rails
+                .entry(edge(chain[0], *chain.last().unwrap()))
+                .or_default()
+                .push((index, side));
+        }
+    }
+    let mut shared = BTreeSet::new();
+    for (key, uses) in rails {
+        work.spend(uses.len())?;
+        if uses.len() == 1 {
+            continue;
+        }
+        if uses.len() != 2 || uses[0].0 == uses[1].0 {
+            return Err(unproven());
+        }
+        let a = &patches[uses[0].0].rails[uses[0].1];
+        let b = &patches[uses[1].0].rails[uses[1].1];
+        work.spend(a.len() + b.len())?;
+        if a != b && !a.iter().eq(b.iter().rev()) {
+            return Err(unproven());
+        }
+        for pair in a.windows(2) {
+            work.spend(1)?;
+            let adjacent = &edges[&edge(pair[0], pair[1])];
+            if adjacent.len() != 2
+                || !adjacent.iter().any(|&t| patch_owner[t] == Some(uses[0].0))
+                || !adjacent.iter().any(|&t| patch_owner[t] == Some(uses[1].0))
+            {
+                return Err(unproven());
+            }
+        }
+        shared.insert(key);
+    }
+    Ok(shared)
+}
+
 pub(crate) fn augment(
     a: &Analysis,
     model: &mut MixedModel,
@@ -299,9 +471,29 @@ pub(crate) fn augment(
     o: &Options,
     work: &mut Work,
 ) -> Result<Residual, FabError> {
-    let candidates = candidates(model, o, work)?;
+    augment_policy(a, model, owners, o, work, false)
+}
+pub(crate) fn augment_auto(
+    a: &Analysis,
+    model: &mut MixedModel,
+    owners: &mut [Option<MixedFaceRef>],
+    o: &Options,
+    work: &mut Work,
+) -> Result<Residual, FabError> {
+    augment_policy(a, model, owners, o, work, true)
+}
+fn augment_policy(
+    a: &Analysis,
+    model: &mut MixedModel,
+    owners: &mut [Option<MixedFaceRef>],
+    o: &Options,
+    work: &mut Work,
+    automatic: bool,
+) -> Result<Residual, FabError> {
+    let mut candidates = candidates(model, o, work)?;
     if candidates.is_empty() {
         return Ok(Residual {
+            rejected: 0,
             radial: 0.,
             chord: 0.,
             wall: 0.,
@@ -340,12 +532,60 @@ pub(crate) fn augment(
             }
         }
     }
-    if matches.iter().any(|&n| n != 1) {
+    if automatic {
+        patches.retain(|p| matches[p.pair[0]] == 1 && matches[p.pair[1]] == 1);
+    } else if matches.iter().any(|&n| n != 1) {
         return Err(unproven());
     }
+    // Only historical, fully proven patches can support this second pass.
+    // Newly admitted short arcs never seed another short-arc search.
+    let short = short::candidates(model, &candidates, &patches, o, work)?;
+    let first_short = candidates.len();
+    let short_supports: Vec<_> = short.iter().map(|c| c.supports).collect();
+    candidates.extend(short.into_iter().map(|c| c.candidate));
+    let mut short_matches = vec![0_usize; candidates.len() - first_short];
+    for i in first_short..candidates.len() {
+        for j in i + 1..candidates.len() {
+            work.spend(1)?;
+            if short_supports[i - first_short] != short_supports[j - first_short] {
+                continue;
+            }
+            if let Some(p) = prove(
+                a,
+                owners,
+                &candidates,
+                [i, j],
+                &adjacency,
+                &edges,
+                &vertex_triangles,
+                o,
+                work,
+            )? {
+                short_matches[i - first_short] += 1;
+                short_matches[j - first_short] += 1;
+                patches.push(p);
+            }
+        }
+    }
+    if automatic {
+        patches.retain(|p| {
+            p.pair
+                .iter()
+                .all(|&i| i < first_short || short_matches[i - first_short] == 1)
+        });
+    } else if short_matches.iter().any(|&count| count != 1) {
+        return Err(unproven());
+    }
+    let shared_rails = shared_rails(&patches, &edges, a.mesh.triangles.len(), work)?;
     let mut replacements: BTreeMap<usize, Vec<Replacement>> = BTreeMap::new();
     let mut deleted = BTreeSet::new();
     let mut residual = Residual {
+        rejected: if automatic {
+            matches.iter().filter(|&&n| n != 1).count()
+                + short_matches.iter().filter(|&&n| n != 1).count()
+        } else {
+            0
+        },
         radial: 0.,
         chord: 0.,
         wall: 0.,
@@ -367,15 +607,20 @@ pub(crate) fn augment(
                         reversed,
                     },
                 });
-            replacements
-                .entry(patch.rail_planes[end])
-                .or_default()
-                .push(Replacement {
-                    chain: patch.rails[end].clone(),
-                    segment: MixedSegment::Line {
-                        vertices: [patch.rails[end][0], *patch.rails[end].last().unwrap()],
-                    },
-                });
+            if !shared_rails.contains(&edge(
+                patch.rails[end][0],
+                *patch.rails[end].last().unwrap(),
+            )) {
+                replacements
+                    .entry(patch.rail_planes[end])
+                    .or_default()
+                    .push(Replacement {
+                        chain: patch.rails[end].clone(),
+                        segment: MixedSegment::Line {
+                            vertices: [patch.rails[end][0], *patch.rails[end].last().unwrap()],
+                        },
+                    });
+            }
         }
         model.arcs.extend(patch.arcs);
         model.partial_cylinders.push(MixedPartialCylinder {
@@ -579,6 +824,57 @@ fn prove(
         wall = wall.max(best);
         queue.extend(adjacency[t].iter().copied());
     }
+    let mut curved_chord = 0_f64;
+    // A stopped traversal may already cover the bottom ring (or both rings).
+    // Check its entire boundary before deciding the prism proof was complete.
+    let mut prism_complete = true;
+    for &t in &selected {
+        work.spend(3)?;
+        let tri = a.mesh.triangles[t];
+        for pair in [[tri[0], tri[1]], [tri[1], tri[2]], [tri[2], tri[0]]] {
+            let key = edge(pair[0], pair[1]);
+            if arc_edges.contains(&key) || edges[&key].iter().all(|n| selected.contains(n)) {
+                continue;
+            }
+            let on_rail = [points[0], *points.last().unwrap()].iter().any(|endpoint| {
+                pair.iter().all(|&v| {
+                    let p = projected[v].0;
+                    (p[0] - endpoint[0]).hypot(p[1] - endpoint[1]) <= NATIVE_TOL
+                })
+            });
+            prism_complete &= on_rail;
+        }
+    }
+    for key in &arc_edges {
+        work.spend(1)?;
+        prism_complete &= edges[key].iter().any(|t| selected.contains(t));
+    }
+    if !prism_complete {
+        // The historical prism proof permits source vertices on cap chords.
+        // A different tessellation needs a separate proof with radial witnesses
+        // at EVERY wall vertex; a defective prism is not accepted by a looser fit.
+        if let Some(curved) = curved_wall(
+            a,
+            owners,
+            adjacency,
+            &projected,
+            &frame,
+            [lower.plane, upper.plane],
+            first,
+            points[0],
+            initial.sweep.abs(),
+            lower.radius,
+            height,
+            inner,
+            o,
+            work,
+        )? {
+            selected = curved.triangles;
+            radial = radial.max(curved.radial);
+            curved_chord = curved.chord;
+            wall = curved.trim;
+        }
+    }
     if starts.iter().any(|t| !selected.contains(t)) {
         return Ok(None);
     }
@@ -663,6 +959,9 @@ fn prove(
             vertices: [top[0], *top.last().unwrap()],
         },
     ];
+    if !native_endpoints_match(&arcs, &a.mesh.vertices) {
+        return Ok(None);
+    }
     Ok(Some(Proven {
         pair,
         arcs,
@@ -671,10 +970,162 @@ fn prove(
         triangles: selected,
         inner,
         radial: radial.max(final_fit.radial),
-        chord: final_fit.chord,
+        chord: final_fit.chord.max(curved_chord),
         wall: wall + cap + correspondence,
     }))
 }
+
+/// Match the four corners of the native cylinder's parameter rectangle, not
+/// separate transverse/axial errors between source vertices. Its frame is the
+/// lower arc's axis and projected start direction; its upper corners use the
+/// projected height, just as partial_cylindrical_face constructs them.
+fn native_endpoints_match(arcs: &[CircularArc; 2], vertices: &[V]) -> bool {
+    let [lower, upper] = arcs;
+    let unit = |v| scale(v, 1. / norm(v));
+    let axis = unit(lower.axis);
+    let start = unit(sub(vertices[lower.vertices[0]], lower.center));
+    // gp_Ax3 orthogonalizes its supplied X direction with this double cross.
+    let x = unit(cross(axis, cross(start, axis)));
+    let y = unit(cross(axis, x));
+    let height = dot(sub(upper.center, lower.center), axis);
+    for (arc, z) in [(lower, 0.), (upper, height)] {
+        for (id, angle) in arc.vertices.into_iter().zip([0., lower.sweep_rad]) {
+            let (sin, cos) = angle.sin_cos();
+            let corner = std::array::from_fn(|i| {
+                lower.center[i] + lower.radius_mm * (cos * x[i] + sin * y[i]) + z * axis[i]
+            });
+            // A nonfinite distance also fails this comparison.
+            if norm(sub(vertices[id], corner)) <= NATIVE_TOL {
+                continue;
+            }
+            return false;
+        }
+    }
+    true
+}
+struct CurvedWall {
+    triangles: BTreeSet<usize>,
+    radial: f64,
+    chord: f64,
+    trim: f64,
+}
+
+/// Project a connected source wall onto its cylindrical parameter rectangle.
+/// Each accepted triangle has strictly oriented radial-projection Jacobian
+/// throughout its interior: its numerator is affine, checked at all vertices.
+/// The caller must still prove the sole boundary is the two source cap chains
+/// and two straight rails. Their degree-one boundary, internal-edge cancellation
+/// and positive Jacobians then prove full coverage without folds or overlaps.
+#[allow(clippy::too_many_arguments)]
+fn curved_wall(
+    a: &Analysis,
+    owners: &[Option<MixedFaceRef>],
+    adjacency: &[Vec<usize>],
+    projected: &[(P2, f64)],
+    frame: &Frame,
+    caps: [usize; 2],
+    first: usize,
+    start: P2,
+    sweep: f64,
+    radius: f64,
+    height: f64,
+    inner: bool,
+    o: &Options,
+    work: &mut Work,
+) -> Result<Option<CurvedWall>, FabError> {
+    let mut triangles = BTreeSet::new();
+    let mut examined = BTreeSet::new();
+    let mut queue = VecDeque::from([first]);
+    let mut radial = 0_f64;
+    let mut maximum_span = 0_f64;
+    let mut trim = 0_f64;
+    let mut area = Sum::default();
+    let orientation = if inner { -1. } else { 1. };
+    // Only native numerical slack at the exact rails/cap planes, not the
+    // user radial tolerance, is allowed outside the parameter rectangle.
+    let angle_slack = NATIVE_TOL / radius;
+    while let Some(t) = queue.pop_front() {
+        if !examined.insert(t) {
+            continue;
+        }
+        work.spend(1)?;
+        if !matches!(owners[t], Some(MixedFaceRef::Plane { .. }))
+            || caps.iter().any(|&plane| is_plane(&owners[t], plane))
+        {
+            continue;
+        }
+        let ids = a.mesh.triangles[t];
+        let xyz = ids.map(|v| a.mesh.vertices[v]);
+        let normal = cross(sub(xyz[1], xyz[0]), sub(xyz[2], xyz[0]));
+        let positions = ids.map(|v| projected[v]);
+        let uv = positions.map(|(p, z)| {
+            let mut angle =
+                (start[0] * p[1] - start[1] * p[0]).atan2(start[0] * p[0] + start[1] * p[1]);
+            if angle < -angle_slack {
+                angle += TAU;
+            }
+            [angle, z]
+        });
+        let residual = positions
+            .iter()
+            .map(|(p, _)| (p[0].hypot(p[1]) - radius).abs())
+            .fold(0_f64, f64::max);
+        if residual > o.cylinder_fit_tolerance_mm
+            || uv.iter().any(|p| {
+                p[0] < -angle_slack
+                    || p[0] > sweep + angle_slack
+                    || p[1] < -NATIVE_TOL
+                    || p[1] > height + NATIVE_TOL
+            })
+        {
+            continue;
+        }
+        let span = uv.iter().map(|p| p[0]).fold(f64::NEG_INFINITY, f64::max)
+            - uv.iter().map(|p| p[0]).fold(f64::INFINITY, f64::min);
+        if span > PI / 4. + 1e-12 || span <= 0. {
+            continue;
+        }
+        if positions.iter().any(|(p, _)| {
+            let r = std::array::from_fn(|i| frame.x[i] * p[0] + frame.y[i] * p[1]);
+            orientation * dot(normal, r) <= 0.
+        }) {
+            continue;
+        }
+        let twice_area = (uv[1][0] - uv[0][0]) * (uv[2][1] - uv[0][1])
+            - (uv[1][1] - uv[0][1]) * (uv[2][0] - uv[0][0]);
+        if orientation * twice_area <= 0. {
+            continue;
+        }
+        area.add(orientation * twice_area * 0.5);
+        radial = radial.max(residual);
+        // Numerical admission just outside the trimmed rectangle is still a
+        // real displacement: charge axial and circumferential clamp distances.
+        for p in uv {
+            trim = trim.max(
+                (-p[1]).max(p[1] - height).max(0.) + radius * (-p[0]).max(p[0] - sweep).max(0.),
+            );
+        }
+        maximum_span = maximum_span.max(span);
+        triangles.insert(t);
+        queue.extend(adjacency[t].iter().copied());
+    }
+    // This PL-UV area check is additional to (not a substitute for) the actual
+    // radial Jacobian and exact topological boundary proof performed by caller.
+    let expected_area = sweep * height;
+    let numerical_area = 8. * NATIVE_TOL * (sweep + height / radius) + expected_area * 1e-10;
+    if (area.get() - expected_area).abs() > numerical_area {
+        return Ok(None);
+    }
+    Ok(Some(CurvedWall {
+        triangles,
+        radial,
+        // Any convex combination of vertices in a sector of this width is
+        // within radial_residual + R*(1-cos(width/2)) of the cylinder.
+        chord: 2. * radius * (maximum_span / 4.).sin().powi(2),
+        trim,
+    }))
+}
+
 fn is_plane(owner: &Option<MixedFaceRef>, plane: usize) -> bool {
     matches!(owner,Some(MixedFaceRef::Plane{index}) if *index==plane)
 }
@@ -926,4 +1377,72 @@ pub(crate) fn cylinder_flux(
         * height
         * (a.radius_mm * theta + dot(sub(a.center, reference), integral))
         / 3.
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn native_rectangle_checks_each_corner_with_the_euclidean_tolerance() {
+        let arcs = [0., 7.].map(|z| CircularArc {
+            center: [0., 0., z],
+            axis: [0., 0., 1.],
+            radius_mm: 5.,
+            sweep_rad: PI / 2.,
+            vertices: if z == 0. { [0, 1] } else { [2, 3] },
+        });
+        let exact = [[5., 0., 0.], [0., 5., 0.], [5., 0., 7.], [0., 5., 7.]];
+        for id in 0..4 {
+            for (radial, axial, accepted) in [
+                (0.6e-7, 0.6e-7, true),
+                (0.8e-7, 0.8e-7, false),
+                (0.95e-7, 0., true),
+                (0., 0.95e-7, true),
+            ] {
+                let mut points = exact;
+                points[id][id % 2] += radial;
+                points[id][2] += axial;
+                assert_eq!(native_endpoints_match(&arcs, &points), accepted, "{id}");
+            }
+        }
+    }
+
+    #[test]
+    fn whole_union_recovers_nonmonotone_endpoint_constrained_fits() {
+        // Independent translated f32 semicircle, unrelated to any private mesh.
+        let vertices: Vec<V> = (0..=16)
+            .map(|i| {
+                let angle = 0.338 + PI * i as f64 / 16.;
+                [
+                    (60.308 + 1.45 * angle.cos()) as f32 as f64,
+                    (-130. + 1.45 * angle.sin()) as f32 as f64,
+                    0.,
+                ]
+            })
+            .collect();
+        let points: Vec<P2> = vertices.iter().map(|p| [p[0], p[1]]).collect();
+        assert!(fit(&points[..10], 1e-5).is_none());
+        assert!(fit(&points, 1e-5).is_some());
+        for reverse in [false, true] {
+            let mut chain: Vec<usize> = (0..vertices.len()).collect();
+            if reverse {
+                chain.reverse();
+            }
+            let model = MixedModel {
+                vertices: vertices.clone(),
+                planes: vec![crate::MixedPlane {
+                    normal: [0., 0., 1.],
+                    loops: vec![MixedLoop::Polygon { vertices: chain }],
+                }],
+                rings: vec![],
+                cylinders: vec![],
+                arcs: vec![],
+                partial_cylinders: vec![],
+            };
+            let found = candidates(&model, &Options::default(), &mut Work::default()).unwrap();
+            assert_eq!(found.len(), 1);
+            assert_eq!(found[0].chain.len(), 17);
+        }
+    }
 }

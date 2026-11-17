@@ -4,12 +4,15 @@
   import { ChevronRight } from '@lucide/svelte';
   import type { Snippet } from 'svelte';
   import { storageKey } from '../lib/app';
+  import { ContextReveal } from '../lib/context-reveal';
 
   let {
     id,
     title,
     step,
     open: initiallyOpen = true,
+    revealKey,
+    revealContext,
     actions,
     children,
   }: {
@@ -17,6 +20,8 @@
     title: string;
     step?: number;
     open?: boolean;
+    revealKey?: string | null;
+    revealContext?: ContextReveal;
     actions?: Snippet;
     children: Snippet;
   } = $props();
@@ -31,6 +36,10 @@
     }
   }
   let open = $state(initial());
+  const contextReveal = new ContextReveal();
+  // Opt-in only: a fresh selection reveals tools even after a persisted collapse.
+  // The user can collapse again until the selection actually changes.
+  $effect(() => { if ((revealContext ?? contextReveal).next(revealKey)) open = true; });
 
   function toggle() {
     open = !open;

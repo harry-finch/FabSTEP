@@ -1,0 +1,349 @@
+{
+  "unit": "mm",
+  "construction": "Independent analytical frusta and resolved cylinders; R5 bore; source rings at thirds",
+  "cases": {
+    "two_increasing": {
+      "profile": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          3.0,
+          13.0
+        ],
+        [
+          9.0,
+          13.0
+        ],
+        [
+          12.0,
+          16.0
+        ]
+      ],
+      "cones": 2,
+      "cylinders": 2,
+      "planes": 2,
+      "faces": 6,
+      "volume_mm3": 5485.220773167779,
+      "bounds_mm": [
+        [
+          -16.0,
+          -16.0,
+          0.0
+        ],
+        [
+          16.0,
+          16.0,
+          12.0
+        ]
+      ],
+      "sha256": "a463d0ae944908e6213cfb7763b9d7813fcc8cd334370cc22bd289a75dff418b"
+    },
+    "binary": {
+      "profile": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          3.0,
+          13.0
+        ],
+        [
+          9.0,
+          13.0
+        ],
+        [
+          12.0,
+          16.0
+        ]
+      ],
+      "cones": 2,
+      "cylinders": 2,
+      "planes": 2,
+      "faces": 6,
+      "volume_mm3": 5485.220773167779,
+      "bounds_mm": [
+        [
+          -16.0,
+          -16.0,
+          0.0
+        ],
+        [
+          16.0,
+          16.0,
+          12.0
+        ]
+      ],
+      "binary_f32": true,
+      "sha256": "40710d6f073c8be0dc973c73d9fa64c58aaa6db64190a15b7806dd9528290ccf"
+    },
+    "instances": {
+      "format": "3mf",
+      "bodies": 2,
+      "cones": 4,
+      "cylinders": 4,
+      "volume_mm3": 10970.441546335558,
+      "body_bounds_mm": [
+        [
+          [
+            -16.0,
+            -16.0,
+            0.0
+          ],
+          [
+            16.0,
+            16.0,
+            12.0
+          ]
+        ],
+        [
+          [
+            24.0,
+            -16.0,
+            0.0
+          ],
+          [
+            56.0,
+            16.0,
+            12.0
+          ]
+        ]
+      ],
+      "sha256": "a06d28c2d2cd14c4ac2e2db6500fd3c96ee4f3a7f91c483ee667cafd9daa390c"
+    },
+    "two_rotated": {
+      "profile": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          3.0,
+          13.0
+        ],
+        [
+          9.0,
+          13.0
+        ],
+        [
+          12.0,
+          16.0
+        ]
+      ],
+      "cones": 2,
+      "cylinders": 2,
+      "planes": 2,
+      "faces": 6,
+      "volume_mm3": 5485.220773167779,
+      "bounds_mm": [
+        [
+          1.9200649728411925,
+          -23.85689731273193,
+          7.361009552341216
+        ],
+        [
+          32.224059164030436,
+          8.052538080777508,
+          27.99964546616328
+        ]
+      ],
+      "sha256": "66806c4514be369c714abdf3271a77568eaa06d5cafd625ca573c39c0635bda1"
+    },
+    "three_decreasing": {
+      "profile": [
+        [
+          0.0,
+          22.0
+        ],
+        [
+          3.0,
+          19.0
+        ],
+        [
+          9.0,
+          19.0
+        ],
+        [
+          12.0,
+          16.0
+        ],
+        [
+          18.0,
+          16.0
+        ],
+        [
+          21.0,
+          13.0
+        ]
+      ],
+      "cones": 3,
+      "cylinders": 3,
+      "planes": 2,
+      "faces": 8,
+      "volume_mm3": 18830.70636561722,
+      "bounds_mm": [
+        [
+          -22.0,
+          -22.0,
+          0.0
+        ],
+        [
+          22.0,
+          22.0,
+          21.0
+        ]
+      ],
+      "sha256": "c3d5ff547e5bd4e54431b13b10eb82acf259b69634b728915e3981c058302044"
+    },
+    "mixed_signs": {
+      "profile": [
+        [
+          0.0,
+          12.0
+        ],
+        [
+          3.0,
+          15.0
+        ],
+        [
+          9.0,
+          15.0
+        ],
+        [
+          12.0,
+          18.0
+        ],
+        [
+          18.0,
+          18.0
+        ],
+        [
+          21.0,
+          14.0
+        ]
+      ],
+      "cones": 3,
+      "cylinders": 3,
+      "planes": 2,
+      "faces": 8,
+      "volume_mm3": 15422.078336472294,
+      "bounds_mm": [
+        [
+          -18.0,
+          -18.0,
+          0.0
+        ],
+        [
+          18.0,
+          18.0,
+          21.0
+        ]
+      ],
+      "sha256": "2f99b6ada3be04d37f7bc89d0cdd368f94cd8843bda8ca9c298204bd70dd09b5"
+    }
+  },
+  "negative_cases": {
+    "no_land": {
+      "profile": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          3.0,
+          13.0
+        ],
+        [
+          9.0,
+          16.0
+        ]
+      ],
+      "primitives_error": "recognition.conic_unproven",
+      "surfaces_error": "recognition.surface_unproven",
+      "auto_cones": 0,
+      "sha256": "ec382c188c76a49e5aca2e44f04321ca42528e486f835be394e989720d430657"
+    },
+    "curved_meridian": {
+      "profile": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          1.0,
+          10.01
+        ],
+        [
+          2.0,
+          10.04
+        ],
+        [
+          3.0,
+          10.09
+        ],
+        [
+          5.0,
+          10.25
+        ],
+        [
+          7.0,
+          10.49
+        ],
+        [
+          9.0,
+          10.81
+        ],
+        [
+          10.0,
+          11.0
+        ],
+        [
+          11.0,
+          11.21
+        ],
+        [
+          12.0,
+          11.44
+        ]
+      ],
+      "primitives_error": "recognition.conic_unproven",
+      "surfaces_error": "recognition.surface_unproven",
+      "auto_cones": 0,
+      "sha256": "c031598af80cc1c4e5255ae94342e3f989c3fb0579f05c09b20fd23054443620"
+    },
+    "late_ambiguous_land": {
+      "profile": [
+        [
+          0.0,
+          10.0
+        ],
+        [
+          3.0,
+          13.0
+        ],
+        [
+          9.0,
+          13.0
+        ],
+        [
+          12.0,
+          16.0
+        ],
+        [
+          12.00015,
+          16.0
+        ],
+        [
+          15.0,
+          16.5
+        ]
+      ],
+      "primitives_error": "recognition.conic_unproven",
+      "surfaces_error": "recognition.surface_unproven",
+      "auto_cones": 0,
+      "sha256": "38088835180ce7c8b39c03c93e7158342a5ef5095f1cb078da9f49f3c6991213"
+    }
+  }
+}

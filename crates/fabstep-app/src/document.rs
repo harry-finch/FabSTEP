@@ -1,13 +1,16 @@
 //! Documents placés en millimètres, sans fusion ni export partiel.
 use crate::{
-    convert_analysis, precision_diagnostic, triangle_model, ConversionReport, ProcessingSettings,
+    controlled, convert_analysis_with_face_tokens, convert_analysis_with_recognized,
+    precision_diagnostic, triangle_model, ConversionCheckpoint, ConversionControl, ConversionPhase,
+    ConversionReport, ProcessingSettings, Recognized, SourceProofCache,
 };
 use fabstep_cad::{combine_steps, validate_sources_separated, CadReport, StepPart};
 use fabstep_core::{
-    analyze_mesh_bodies, read_stl_mesh, Analysis, Diagnostic, FabError, InputUnit, Mesh, Options,
-    Severity,
+    analyze_mesh_bodies_with_provenance, read_stl_mesh, Analysis, Diagnostic, FabError,
+    GuidanceFamily, InputUnit, Mesh, Options, ReconstructionMode, Severity,
 };
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, OnceLock};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum InputFormat {
@@ -72,12 +75,74 @@ pub struct AnalyzedBody {
     pub analysis: Analysis,
 }
 
+#[derive(Debug, Clone)]
+struct BodySourceTriangles {
+    preview_body_id: String,
+    analysis_to_source_triangles: Vec<usize>,
+    planar_triangle_faces: Vec<usize>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct DocumentAnalysis {
     pub settings: ProcessingSettings,
     pub source: DocumentSource,
     pub bodies: Vec<AnalyzedBody>,
     pub diagnostics: Vec<Diagnostic>,
+}
+
+/// Additive source-only companion; never a conversion or export permission.
+#[derive(Debug, Clone, Serialize)]
+pub struct DocumentSelectionTopology {
+    pub components: Vec<SelectionComponent>,
+}
+
+/// Exact only when the native construction/transfer history and the trusted
+/// source partition both cover the complete current document.
+#[derive(Debug, Clone, Serialize)]
+pub struct ResultSourceCorrespondence {
+    pub status: &'static str,
+    #[serde(skip_serializing_if = "str::is_empty")]
+    pub reason: &'static str,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub faces: Vec<ResultFaceSource>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ResultFaceSource {
+    pub face_id: usize,
+    pub preview_body_id: String,
+    pub analysis_body_id: String,
+    pub source_triangle_ids: Vec<usize>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DocumentResultFaces {
+    #[serde(flatten)]
+    pub result: fabstep_cad::ResultFaces,
+    pub source_correspondence: ResultSourceCorrespondence,
+}
+
+/// Reads only the validated output bytes; no source ordering or proximity is
+/// used to assign STEP faces to recognition regions or imported triangles.
+pub fn result_faces(step_bytes: &[u8]) -> Result<DocumentResultFaces, FabError> {
+    Ok(DocumentResultFaces {
+        result: fabstep_cad::result_faces(step_bytes)?,
+        source_correspondence: ResultSourceCorrespondence {
+            status: "unavailable",
+            reason: "step.provenance_unavailable",
+            faces: Vec::new(),
+        },
+    })
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SelectionComponent {
+    pub preview_body_id: String,
+    pub analysis_body_id: String,
+    pub analysis_to_source_triangles: Vec<usize>,
+    /// Row i corresponds to analysis_to_source_triangles[i]; neighbor values
+    /// are source indices within preview_body_id, not component-local indices.
+    pub source_triangle_neighbors: Vec<Vec<usize>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -90,17 +155,494 @@ pub struct BodyReport {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct GuidanceReport {
+    pub hint_id: u64,
+    pub family: &'static str,
+    pub selected_face_ids: Vec<usize>,
+    pub preview_body_id: String,
+    pub analysis_body_id: String,
+    pub selected_source_triangle_ids: Vec<usize>,
+    pub reconstructed_source_triangle_ids: Vec<usize>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct DocumentReport {
     pub settings: ProcessingSettings,
     pub source: DocumentSource,
     pub bodies: Vec<BodyReport>,
     pub cad: CadReport,
     pub diagnostics: Vec<Diagnostic>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub guidance: Option<GuidanceReport>,
+    pub guidance_hints: Vec<GuidanceReport>,
 }
 
 pub struct DocumentConversion {
     pub report: DocumentReport,
     pub step_bytes: Vec<u8>,
+}
+
+/// Bytes and source provenance from one conversion, inseparable and immutable.
+/// Tokens extracted from arbitrary STEP bytes never establish source identity.
+#[derive(Debug)]
+pub struct DocumentStep {
+    bytes: Vec<u8>,
+    source_faces: Vec<ResultFaceSource>,
+    guidance_source: Option<GuidanceSource>,
+    // This mapping is valid only for these immutable bytes and trusted sidecar.
+    // No native object or display/audit tessellation is retained.
+    source_correspondence: OnceLock<ResultSourceCorrespondence>,
+    #[cfg(test)]
+    result_inspections: std::sync::atomic::AtomicUsize,
+}
+
+#[derive(Debug, Clone)]
+struct GuidanceSource {
+    bytes: Arc<Vec<u8>>,
+    format: InputFormat,
+    options: Options,
+    hints: Vec<GuidanceReport>,
+    next_hint_id: u64,
+}
+
+impl DocumentStep {
+    /// An untracked STEP can be inspected but never claims source correspondence.
+    pub fn untracked(bytes: Vec<u8>) -> Self {
+        Self {
+            bytes,
+            source_faces: Vec::new(),
+            guidance_source: None,
+            source_correspondence: OnceLock::new(),
+            #[cfg(test)]
+            result_inspections: std::sync::atomic::AtomicUsize::new(0),
+        }
+    }
+
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    /// Whether this immutable result carries accepted manual indications.
+    pub fn has_guidance_hints(&self) -> bool {
+        self.guidance_source
+            .as_ref()
+            .is_some_and(|s| !s.hints.is_empty())
+    }
+
+    /// The host verifies this exact source allocation before consuming a result.
+    /// Guidance never accepts replacement bytes or settings from the UI.
+    pub fn is_guidance_source(&self, bytes: &Arc<Vec<u8>>, format: InputFormat) -> bool {
+        self.guidance_source
+            .as_ref()
+            .is_some_and(|source| source.format == format && Arc::ptr_eq(&source.bytes, bytes))
+    }
+
+    /// Add a complete cylinder to the accepted native indication set.
+    /// This consumes no caller-supplied source triangles, source bytes or settings.
+    pub fn guided_cylinder(
+        &self,
+        face_ids: &[usize],
+    ) -> Result<ProvenancedDocumentConversion, FabError> {
+        self.guided_cylinder_controlled(face_ids, &mut |_| Ok(()))
+    }
+
+    /// Cooperative cancellation at processing boundaries; no native call is interrupted.
+    pub fn guided_cylinder_controlled(
+        &self,
+        face_ids: &[usize],
+        check_current: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
+    ) -> Result<ProvenancedDocumentConversion, FabError> {
+        self.guided_surface_controlled(face_ids, GuidanceFamily::Cylinder, check_current)
+    }
+
+    /// Add a verified surface hypothesis; geometry and settings remain native-owned.
+    pub fn guided_surface(
+        &self,
+        face_ids: &[usize],
+        family: GuidanceFamily,
+    ) -> Result<ProvenancedDocumentConversion, FabError> {
+        self.guided_surface_controlled(face_ids, family, &mut |_| Ok(()))
+    }
+
+    pub fn guided_surface_controlled(
+        &self,
+        face_ids: &[usize],
+        family: GuidanceFamily,
+        check_current: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
+    ) -> Result<ProvenancedDocumentConversion, FabError> {
+        controlled(check_current, |control| {
+            self.guided_surface_with_control(face_ids, family, control)
+        })
+    }
+
+    fn guided_surface_with_control(
+        &self,
+        face_ids: &[usize],
+        family: GuidanceFamily,
+        control: &mut ConversionControl<'_>,
+    ) -> Result<ProvenancedDocumentConversion, FabError> {
+        control.check(ConversionPhase::ResultInspection, None)?;
+        let source = self.guidance_source.as_ref().ok_or_else(|| {
+            FabError::new(
+                "guidance.provenance_unavailable",
+                "L’indication exige la provenance exacte d’un résultat Plans courant.",
+            )
+        })?;
+        if source.hints.len() >= 16 || source.next_hint_id > 9_007_199_254_740_991 {
+            return Err(FabError::new(
+                "guidance.limit",
+                "Au plus 16 indications sont admises.",
+            ));
+        }
+        let invalid = || {
+            FabError::new(
+                "guidance.invalid_selection",
+                "La sélection de faces STEP est invalide.",
+            )
+        };
+        if face_ids.is_empty() || face_ids.len() > self.source_faces.len() {
+            return Err(invalid());
+        }
+        let mut selected_face_ids = face_ids.to_vec();
+        selected_face_ids.sort_unstable();
+        if selected_face_ids.windows(2).any(|pair| pair[0] == pair[1]) {
+            return Err(invalid());
+        }
+        let correspondence = control.run(ConversionPhase::ResultInspection, None, || {
+            self.resolved_source_correspondence()
+        })?;
+        if correspondence.status != "exact" {
+            return Err(FabError::new(
+                "guidance.provenance_unavailable",
+                "La correspondance STEP/source exacte est indisponible.",
+            ));
+        }
+        let faces = &correspondence.faces;
+        let mut selected = Vec::with_capacity(selected_face_ids.len());
+        for &id in &selected_face_ids {
+            selected.push(
+                faces
+                    .get(id)
+                    .filter(|face| face.face_id == id)
+                    .ok_or_else(invalid)?,
+            );
+        }
+        let first = selected[0];
+        if selected.iter().any(|face| {
+            face.analysis_body_id != first.analysis_body_id
+                || face.preview_body_id != first.preview_body_id
+        }) {
+            return Err(FabError::new(
+                "guidance.multiple_bodies",
+                "Une indication doit appartenir à un seul corps.",
+            ));
+        }
+        let mut selected_source_triangle_ids = selected
+            .iter()
+            .flat_map(|face| face.source_triangle_ids.iter().copied())
+            .collect::<Vec<_>>();
+        selected_source_triangle_ids.sort_unstable();
+        selected_source_triangle_ids.dedup();
+        let guidance = GuidanceReport {
+            hint_id: source.next_hint_id,
+            family: match family {
+                GuidanceFamily::Cylinder => "cylinder",
+                GuidanceFamily::Cone => "cone",
+                GuidanceFamily::Plane => "plane",
+                GuidanceFamily::Auto => "auto",
+                GuidanceFamily::Torus => "torus",
+            },
+            selected_face_ids,
+            preview_body_id: first.preview_body_id.clone(),
+            analysis_body_id: first.analysis_body_id.clone(),
+            selected_source_triangle_ids,
+            reconstructed_source_triangle_ids: Vec::new(),
+        };
+        if source
+            .hints
+            .iter()
+            .map(|hint| hint.selected_source_triangle_ids.len())
+            .sum::<usize>()
+            .saturating_add(guidance.selected_source_triangle_ids.len())
+            > 100_000
+        {
+            return Err(FabError::new(
+                "guidance.limit",
+                "Les indications dépassent le budget de 100 000 triangles source.",
+            ));
+        }
+        let mut next = source.clone();
+        next.next_hint_id = next
+            .next_hint_id
+            .checked_add(1)
+            .ok_or_else(|| FabError::new("guidance.limit", "Identifiants d’indication épuisés."))?;
+        next.hints.push(guidance);
+        Self::rebuild_guidance(next, control)
+    }
+
+    /// Rebuild the accepted native indication set, never restore old STEP bytes.
+    pub fn recompute_guidance(&self) -> Result<ProvenancedDocumentConversion, FabError> {
+        self.recompute_guidance_controlled(&mut |_| Ok(()))
+    }
+
+    pub fn recompute_guidance_controlled(
+        &self,
+        check_current: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
+    ) -> Result<ProvenancedDocumentConversion, FabError> {
+        controlled(check_current, |control| {
+            Self::rebuild_guidance(
+                self.guidance_source.clone().ok_or_else(|| {
+                    FabError::new(
+                        "guidance.provenance_unavailable",
+                        "La session guidée est indisponible.",
+                    )
+                })?,
+                control,
+            )
+        })
+    }
+
+    pub fn remove_guidance(&self, hint_id: u64) -> Result<ProvenancedDocumentConversion, FabError> {
+        self.remove_guidance_controlled(hint_id, &mut |_| Ok(()))
+    }
+
+    pub fn remove_guidance_controlled(
+        &self,
+        hint_id: u64,
+        check_current: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
+    ) -> Result<ProvenancedDocumentConversion, FabError> {
+        controlled(check_current, |control| {
+            control.check(ConversionPhase::Analysis, None)?;
+            let mut source = self.guidance_source.clone().ok_or_else(|| {
+                FabError::new(
+                    "guidance.provenance_unavailable",
+                    "La session guidée est indisponible.",
+                )
+            })?;
+            let index = source
+                .hints
+                .iter()
+                .position(|hint| hint.hint_id == hint_id)
+                .ok_or_else(|| {
+                    FabError::new(
+                        "guidance.unknown_indication",
+                        "Cette indication n’appartient pas à la session courante.",
+                    )
+                })?;
+            source.hints.remove(index);
+            Self::rebuild_guidance(source, control)
+        })
+    }
+
+    fn rebuild_guidance(
+        mut source: GuidanceSource,
+        control: &mut ConversionControl<'_>,
+    ) -> Result<ProvenancedDocumentConversion, FabError> {
+        let (document, body_sources) = control.run(ConversionPhase::Analysis, None, || {
+            analyze_document_with_provenance(&source.bytes, source.format, &source.options)
+        })?;
+        let mut result = convert_analyzed_document(
+            document,
+            body_sources,
+            source.format,
+            &source.options,
+            source.hints.clone(),
+            control,
+            None,
+        )?;
+        source.hints = result.report.guidance_hints.clone();
+        result.step.guidance_source = Some(source);
+        Ok(result)
+    }
+
+    /// Read-only geometric selection bound to this immutable STEP and its source.
+    pub fn suggest_region_controlled(
+        &self,
+        face_id: usize,
+        check_current: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
+    ) -> Result<Vec<usize>, FabError> {
+        controlled(check_current, |control| {
+            control.check(ConversionPhase::ResultInspection, None)?;
+            let source = self.guidance_source.as_ref().ok_or_else(|| {
+                FabError::new(
+                    "guidance.provenance_unavailable",
+                    "La sélection de paroi exige une provenance exacte.",
+                )
+            })?;
+            let correspondence = control.run(ConversionPhase::ResultInspection, None, || {
+                self.resolved_source_correspondence()
+            })?;
+            let invalid = || {
+                FabError::new(
+                    "guidance.invalid_selection",
+                    "Face absente du résultat courant.",
+                )
+            };
+            if correspondence.status != "exact" {
+                return Err(FabError::new(
+                    "guidance.provenance_unavailable",
+                    "Correspondance source indisponible.",
+                ));
+            }
+            let face = correspondence
+                .faces
+                .get(face_id)
+                .filter(|face| face.face_id == face_id)
+                .ok_or_else(invalid)?;
+            let (document, sources) = control.run(ConversionPhase::Analysis, None, || {
+                analyze_document_with_provenance(&source.bytes, source.format, &source.options)
+            })?;
+            let index = document
+                .bodies
+                .iter()
+                .position(|body| body.id == face.analysis_body_id)
+                .ok_or_else(invalid)?;
+            let mapping = &sources[index].analysis_to_source_triangles;
+            let seed = mapping
+                .binary_search(face.source_triangle_ids.first().ok_or_else(invalid)?)
+                .map_err(|_| invalid())?;
+            let region = control.run(ConversionPhase::Recognition, Some(index), || {
+                fabstep_core::automatic_region(
+                    &document.bodies[index].analysis,
+                    &source.options,
+                    seed,
+                )
+            })?;
+            let selected = region
+                .into_iter()
+                .map(|i| mapping.get(i).copied().ok_or_else(invalid))
+                .collect::<Result<std::collections::BTreeSet<_>, _>>()?;
+            let mut result = Vec::new();
+            for row in &correspondence.faces {
+                if row.analysis_body_id != face.analysis_body_id {
+                    continue;
+                }
+                let count = row
+                    .source_triangle_ids
+                    .iter()
+                    .filter(|t| selected.contains(t))
+                    .count();
+                if count > 0 {
+                    if count != row.source_triangle_ids.len() {
+                        return Err(FabError::new(
+                            "guidance.region_unavailable",
+                            "La paroi proposée coupe une face existante ; sélection conservée.",
+                        ));
+                    }
+                    result.push(row.face_id);
+                }
+            }
+            if !result.contains(&face_id) {
+                return Err(invalid());
+            }
+            control.check(ConversionPhase::Finish, None)?;
+            Ok(result)
+        })
+    }
+
+    pub fn result_faces(&self) -> Result<DocumentResultFaces, FabError> {
+        #[cfg(test)]
+        self.result_inspections
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let mut inspected = result_faces(&self.bytes)?;
+        // Cache only after successful native inspection. Native errors remain
+        // retryable. Arbitrary STEP bytes still lack the trusted source sidecar.
+        inspected.source_correspondence = self
+            .source_correspondence
+            .get_or_init(|| self.resolve_source_correspondence(&inspected.result.faces))
+            .clone();
+        Ok(inspected)
+    }
+
+    fn resolved_source_correspondence(&self) -> Result<&ResultSourceCorrespondence, FabError> {
+        if let Some(correspondence) = self.source_correspondence.get() {
+            return Ok(correspondence);
+        }
+        // The ordinary inspection establishes the mapping even when the caller
+        // has not opened the STEP view yet. Its temporary mesh is then dropped.
+        self.result_faces()?;
+        Ok(self
+            .source_correspondence
+            .get()
+            .expect("successful inspection initializes correspondence"))
+    }
+
+    fn resolve_source_correspondence(
+        &self,
+        faces: &[fabstep_cad::ResultFace],
+    ) -> ResultSourceCorrespondence {
+        let unavailable = || ResultSourceCorrespondence {
+            status: "unavailable",
+            reason: "step.provenance_unavailable",
+            faces: Vec::new(),
+        };
+        if self.source_faces.is_empty() || faces.len() != self.source_faces.len() {
+            return unavailable();
+        }
+        let mut seen = vec![false; self.source_faces.len()];
+        let mut correspondence = Vec::with_capacity(faces.len());
+        for face in faces {
+            let Some(index) = face
+                .source_face_token
+                .and_then(|token| token.checked_sub(1))
+            else {
+                return unavailable();
+            };
+            if index >= seen.len() || seen[index] {
+                return unavailable();
+            }
+            seen[index] = true;
+            let mut source = self.source_faces[index].clone();
+            source.face_id = face.id;
+            correspondence.push(source);
+        }
+        ResultSourceCorrespondence {
+            status: "exact",
+            reason: "",
+            faces: correspondence,
+        }
+    }
+
+    pub fn result_faces_controlled(
+        &self,
+        check_current: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
+    ) -> Result<DocumentResultFaces, FabError> {
+        controlled(check_current, |control| {
+            control.run(ConversionPhase::ResultInspection, None, || {
+                self.result_faces()
+            })
+        })
+    }
+
+    /// Resolve the located plane without requiring exportable face contours.
+    pub fn planar_face_frame(
+        &self,
+        face_id: usize,
+    ) -> Result<fabstep_core::ProfileFrame, FabError> {
+        fabstep_cad::planar_face_frame(&self.bytes, face_id)
+    }
+
+    /// Read-only exact section; every requested solid remains represented.
+    pub fn section_profile(
+        &self,
+        request: &fabstep_core::SectionRequest,
+    ) -> Result<fabstep_core::SectionProfile, FabError> {
+        fabstep_cad::section_profile(&self.bytes, request)
+    }
+
+    /// Extract only native planar boundaries from this immutable STEP result.
+    /// The face identity uses the same traversal as result_faces.
+    pub fn planar_face_profile(
+        &self,
+        face_id: usize,
+    ) -> Result<fabstep_core::PlanarFaceProfile, FabError> {
+        fabstep_cad::planar_face_profile(&self.bytes, face_id)
+    }
+}
+
+pub struct ProvenancedDocumentConversion {
+    pub report: DocumentReport,
+    pub step: DocumentStep,
 }
 
 pub fn preview_document(
@@ -180,10 +722,19 @@ pub fn analyze_document(
     format: InputFormat,
     options: &Options,
 ) -> Result<DocumentAnalysis, FabError> {
+    analyze_document_with_provenance(bytes, format, options).map(|(document, _)| document)
+}
+
+fn analyze_document_with_provenance(
+    bytes: &[u8],
+    format: InputFormat,
+    options: &Options,
+) -> Result<(DocumentAnalysis, Vec<BodySourceTriangles>), FabError> {
     let preview = preview_document(bytes, format, options)?;
     let mut bodies = Vec::new();
+    let mut body_sources = Vec::new();
     for body in preview.bodies {
-        let analyses = analyze_mesh_bodies(&body.mesh, options)
+        let analyses = analyze_mesh_bodies_with_provenance(&body.mesh, options)
             .map_err(|e| body_error(e, &body.id, &body.name))?;
         let count = analyses.len();
         if bodies.len() + count > 32 {
@@ -192,7 +743,7 @@ pub fn analyze_document(
                 "Document limité à 32 corps après séparation des composantes.",
             ));
         }
-        for (index, analysis) in analyses.into_iter().enumerate() {
+        for (index, analyzed) in analyses.into_iter().enumerate() {
             let mut provenance = body.provenance.clone();
             provenance.component_index = index;
             let name = if count == 1 {
@@ -204,7 +755,12 @@ pub fn analyze_document(
                 id: format!("{}/component/{index}", body.id),
                 name,
                 provenance,
-                analysis,
+                analysis: analyzed.analysis,
+            });
+            body_sources.push(BodySourceTriangles {
+                preview_body_id: body.id.clone(),
+                analysis_to_source_triangles: analyzed.topology.analysis_to_source_triangles,
+                planar_triangle_faces: analyzed.planar_triangle_faces,
             });
         }
     }
@@ -215,12 +771,46 @@ pub fn analyze_document(
     if bodies.len() > 1 {
         diagnostics.push(Diagnostic { code: "document.separate_bodies".into(), severity: Severity::Info, message: "Chaque composante sera conservée comme solide distinct ; séparation spatiale à valider par le noyau CAO.".into(), count: bodies.len() });
     }
-    Ok(DocumentAnalysis {
-        settings: ProcessingSettings::from(options),
-        source: preview.source,
-        bodies,
-        diagnostics,
-    })
+    Ok((
+        DocumentAnalysis {
+            settings: ProcessingSettings::from(options),
+            source: preview.source,
+            bodies,
+            diagnostics,
+        },
+        body_sources,
+    ))
+}
+
+/// Import and validate source topology only. Planar/analytic/CAD failure does
+/// not prevent this operation, but invalid topology returns no partial graph.
+/// Import bounds global placed triangles; splitting also bounds total bodies.
+pub fn selection_topology(
+    bytes: &[u8],
+    format: InputFormat,
+    options: &Options,
+) -> Result<DocumentSelectionTopology, FabError> {
+    let preview = preview_document(bytes, format, options)?;
+    let mut components = Vec::new();
+    for body in preview.bodies {
+        let topology = fabstep_core::selection_mesh_topology(&body.mesh, options)
+            .map_err(|e| body_error(e, &body.id, &body.name))?;
+        if components.len() + topology.len() > 32 {
+            return Err(FabError::new(
+                "input.too_many_bodies",
+                "Document limité à 32 corps après séparation des composantes.",
+            ));
+        }
+        for (index, topology) in topology.into_iter().enumerate() {
+            components.push(SelectionComponent {
+                preview_body_id: body.id.clone(),
+                analysis_body_id: format!("{}/component/{index}", body.id),
+                analysis_to_source_triangles: topology.analysis_to_source_triangles,
+                source_triangle_neighbors: topology.source_triangle_neighbors,
+            });
+        }
+    }
+    Ok(DocumentSelectionTopology { components })
 }
 
 pub fn convert_document(
@@ -228,23 +818,256 @@ pub fn convert_document(
     format: InputFormat,
     options: &Options,
 ) -> Result<DocumentConversion, FabError> {
-    let document = analyze_document(bytes, format, options)?;
+    convert_document_controlled(bytes, format, options, &mut |_| Ok(()))
+}
+
+/// Converts the entire document, checking freshness between processing phases.
+pub fn convert_document_controlled(
+    bytes: &[u8],
+    format: InputFormat,
+    options: &Options,
+    check_current: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
+) -> Result<DocumentConversion, FabError> {
+    convert_document_with_source_proofs(bytes, format, options, check_current, None)
+}
+
+// Only the parameter search provides a cache. The public ordinary and guided
+// conversions continue to establish fresh source proofs on every invocation.
+pub(crate) fn convert_document_with_source_proofs(
+    bytes: &[u8],
+    format: InputFormat,
+    options: &Options,
+    check_current: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
+    source_proofs: Option<&mut SourceProofCache>,
+) -> Result<DocumentConversion, FabError> {
+    controlled(check_current, |control| {
+        let (document, body_sources) = control.run(ConversionPhase::Analysis, None, || {
+            analyze_document_with_provenance(bytes, format, options)
+        })?;
+        let conversion = convert_analyzed_document(
+            document,
+            body_sources,
+            format,
+            options,
+            Vec::new(),
+            control,
+            source_proofs,
+        )?;
+        Ok(DocumentConversion {
+            report: conversion.report,
+            step_bytes: conversion.step.bytes,
+        })
+    })
+}
+
+/// Companion conversion retaining source identity beside the exact STEP bytes.
+/// The legacy conversion remains available for consumers needing only export.
+pub fn convert_document_with_provenance(
+    bytes: &[u8],
+    format: InputFormat,
+    options: &Options,
+) -> Result<ProvenancedDocumentConversion, FabError> {
+    controlled(&mut |_| Ok(()), |control| {
+        // Copy only after import has enforced the source-size limits.
+        let (document, body_sources) = analyze_document_with_provenance(bytes, format, options)?;
+        let mut result = convert_analyzed_document(
+            document,
+            body_sources,
+            format,
+            options,
+            Vec::new(),
+            control,
+            None,
+        )?;
+        if matches!(
+            options.reconstruction,
+            ReconstructionMode::Planar | ReconstructionMode::Auto
+        ) {
+            result.step.guidance_source = Some(GuidanceSource {
+                bytes: Arc::new(bytes.to_vec()),
+                format,
+                options: options.clone(),
+                hints: Vec::new(),
+                next_hint_id: 1,
+            });
+        }
+        Ok(result)
+    })
+}
+
+/// Shares the immutable desktop upload instead of retaining a second source copy.
+pub fn convert_shared_document_with_provenance(
+    bytes: Arc<Vec<u8>>,
+    format: InputFormat,
+    options: &Options,
+) -> Result<ProvenancedDocumentConversion, FabError> {
+    convert_shared_document_with_provenance_controlled(bytes, format, options, &mut |_| Ok(()))
+}
+
+pub fn convert_shared_document_with_provenance_controlled(
+    bytes: Arc<Vec<u8>>,
+    format: InputFormat,
+    options: &Options,
+    check_current: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
+) -> Result<ProvenancedDocumentConversion, FabError> {
+    controlled(check_current, |control| {
+        let (document, body_sources) = control.run(ConversionPhase::Analysis, None, || {
+            analyze_document_with_provenance(&bytes, format, options)
+        })?;
+        let mut result = convert_analyzed_document(
+            document,
+            body_sources,
+            format,
+            options,
+            Vec::new(),
+            control,
+            None,
+        )?;
+        if matches!(
+            options.reconstruction,
+            ReconstructionMode::Planar | ReconstructionMode::Auto
+        ) {
+            result.step.guidance_source = Some(GuidanceSource {
+                bytes,
+                format,
+                options: options.clone(),
+                hints: Vec::new(),
+                next_hint_id: 1,
+            });
+        }
+        Ok(result)
+    })
+}
+
+fn convert_analyzed_document(
+    document: DocumentAnalysis,
+    body_sources: Vec<BodySourceTriangles>,
+    format: InputFormat,
+    options: &Options,
+    mut guidance_hints: Vec<GuidanceReport>,
+    control: &mut ConversionControl<'_>,
+    mut source_proofs: Option<&mut SourceProofCache>,
+) -> Result<ProvenancedDocumentConversion, FabError> {
+    // A previous report is not evidence for this reconstruction. Every hint
+    // must receive a newly proved wall, including when rebuilding a session.
+    for hint in &mut guidance_hints {
+        hint.reconstructed_source_triangle_ids.clear();
+    }
     if document.bodies.len() > 1 {
         // Une reconstruction ne doit pas dissimuler un contact ou recouvrement
         // de la source. La séparation est aussi contrôlée sur le STEP final.
-        let models = document
+        let meshes = document
             .bodies
             .iter()
-            .map(|b| triangle_model(&b.analysis.mesh))
+            .map(|b| &b.analysis.mesh)
             .collect::<Vec<_>>();
-        validate_sources_separated(&models)?;
+        control.run(ConversionPhase::SourceSeparation, None, || {
+            let prove = || {
+                let models = meshes
+                    .iter()
+                    .map(|mesh| triangle_model(mesh))
+                    .collect::<Vec<_>>();
+                validate_sources_separated(&models)
+            };
+            match source_proofs.as_deref_mut() {
+                Some(cache) => cache.validate_separation(&meshes, prove),
+                None => prove(),
+            }
+        })?;
     }
     let mut bodies = Vec::with_capacity(document.bodies.len());
     let mut steps = Vec::with_capacity(document.bodies.len());
+    let mut source_faces = Vec::new();
+    let tracked = matches!(
+        options.reconstruction,
+        ReconstructionMode::Planar | ReconstructionMode::Auto
+    );
     let mut step_size = 0usize;
-    for body in document.bodies {
-        let conversion = convert_analysis(body.analysis, options)
-            .map_err(|e| body_error(e, &body.id, &body.name))?;
+    for (body_index, (body, source)) in document.bodies.into_iter().zip(body_sources).enumerate() {
+        control.check(ConversionPhase::Body, Some(body_index))?;
+        let hints = guidance_hints
+            .iter_mut()
+            .filter(|hint| hint.analysis_body_id == body.id)
+            .collect::<Vec<_>>();
+        let conversion = if options.reconstruction == ReconstructionMode::Auto || hints.iter().any(|hint| matches!(hint.family, "auto" | "torus")) {
+            let requests = hints.iter().map(|hint| {
+                let family = match hint.family {
+                    "auto" => GuidanceFamily::Auto, "plane" => GuidanceFamily::Plane,
+                    "cylinder" => GuidanceFamily::Cylinder, "cone" => GuidanceFamily::Cone,
+                    "torus" => GuidanceFamily::Torus,
+                    _ => return Err(FabError::new("guidance.unsupported_family", "Famille guidée inconnue.")),
+                };
+                let selected = hint.selected_source_triangle_ids.iter().map(|triangle| source.analysis_to_source_triangles.binary_search(triangle).map_err(|_| FabError::new("guidance.invalid_selection", "Triangle absent de la composante."))).collect::<Result<Vec<_>,_>>()?;
+                Ok((family,selected))
+            }).collect::<Result<Vec<_>, FabError>>()?;
+            let recognized = control.run(ConversionPhase::Recognition,Some(body_index),|| {
+                if requests.is_empty() { fabstep_core::recognize_automatic(&body.analysis,options) }
+                else { fabstep_core::recognize_automatic_guided(&body.analysis,options,&requests) }
+            }).map_err(|e|body_error(e,&body.id,&body.name))?;
+            for (hint,(family,selection)) in hints.into_iter().zip(&requests) {
+                hint.reconstructed_source_triangle_ids = fabstep_core::guided_rounded_region(&recognized,*family,selection)?.into_iter().map(|t|source.analysis_to_source_triangles[t]).collect();
+            }
+            let faces=rounded_source_faces(&body.id,&source,&recognized)?;
+            let first=source_faces.len()+1;
+            let tokens=(first..first+faces.len()).collect::<Vec<_>>();
+            source_faces.extend(faces);
+            convert_analysis_with_recognized(body.analysis,options,Some(&tokens),Some(Recognized::Rounded(recognized)),control,body_index,source_proofs.as_deref_mut())
+        } else if !hints.is_empty() {
+            let selections = hints.iter().map(|hint| {
+                hint.selected_source_triangle_ids.iter().map(|triangle| {
+                    source.analysis_to_source_triangles.binary_search(triangle).map_err(|_| FabError::new("guidance.invalid_selection", "La sélection n’appartient pas à la composante source courante."))
+                }).collect::<Result<Vec<_>, _>>()
+            }).collect::<Result<Vec<_>, _>>()?;
+            let (recognized, faces) = if hints.iter().any(|hint| hint.family != "cylinder") {
+                let requests = hints.iter().zip(&selections).map(|(hint, selection)| {
+                    let family = match hint.family {
+                        "cylinder" => GuidanceFamily::Cylinder,
+                        "cone" => GuidanceFamily::Cone,
+                        "plane" => GuidanceFamily::Plane,
+                        _ => return Err(FabError::new("guidance.unsupported_family", "Famille guidée non prise en charge.")),
+                    };
+                    Ok((family, selection.clone()))
+                }).collect::<Result<Vec<_>, FabError>>()?;
+                let recognized = control.run(ConversionPhase::Recognition, Some(body_index), || fabstep_core::recognize_guided_surfaces(&body.analysis, options, &requests)).map_err(|e| body_error(e, &body.id, &body.name))?;
+                for (hint, selection) in hints.into_iter().zip(&selections) {
+                    let owner = recognized.triangle_faces[selection[0]];
+                    let correct_family = matches!((hint.family, owner),
+                        ("cylinder", fabstep_core::RevolvedFaceRef::Cylinder { .. }) |
+                        ("cone", fabstep_core::RevolvedFaceRef::Cone { .. }) |
+                        ("plane", fabstep_core::RevolvedFaceRef::Plane { .. }));
+                    if !correct_family || selection.iter().any(|&t| recognized.triangle_faces[t] != owner) {
+                        return Err(FabError::new("guidance.invalid_selection", "La paroi indiquée n’a pas été prouvée."));
+                    }
+                    hint.reconstructed_source_triangle_ids = recognized.triangle_faces.iter().enumerate().filter(|(_, face)| **face == owner).map(|(index, _)| source.analysis_to_source_triangles[index]).collect();
+                }
+                let faces = revolved_source_faces(&body.id, &source, &recognized)?;
+                (Recognized::Revolved(recognized), faces)
+            } else {
+            let recognized = control.run(ConversionPhase::Recognition, Some(body_index), || fabstep_core::recognize_guided_cylinders(&body.analysis, options, &selections)).map_err(|e| body_error(e, &body.id, &body.name))?;
+            for (hint, selection) in hints.into_iter().zip(&selections) {
+                let fabstep_core::MixedFaceRef::Cylinder { index: cylinder } = recognized.triangle_faces[selection[0]] else {
+                    return Err(FabError::new("guidance.cylinder_unproven", "La paroi indiquée n’a pas été prouvée."));
+                };
+                hint.reconstructed_source_triangle_ids = recognized.triangle_faces.iter().enumerate().filter(|(_, face)| matches!(face, fabstep_core::MixedFaceRef::Cylinder { index } if *index == cylinder)).map(|(index, _)| source.analysis_to_source_triangles[index]).collect();
+            }
+            let faces = mixed_source_faces(&body.id, &source, &recognized)?;
+            (Recognized::Mixed(recognized), faces)
+            };
+            let first = source_faces.len() + 1;
+            let tokens = (first..first + faces.len()).collect::<Vec<_>>();
+            source_faces.extend(faces);
+            convert_analysis_with_recognized(body.analysis, options, Some(&tokens), Some(recognized), control, body_index, source_proofs.as_deref_mut())
+        } else {
+            let face_tokens = if tracked {
+                let first = source_faces.len() + 1;
+                let faces = planar_source_faces(&body, &source)?;
+                let tokens = (first..first + faces.len()).collect::<Vec<_>>();
+                source_faces.extend(faces);
+                Some(tokens)
+            } else { None };
+            convert_analysis_with_face_tokens(body.analysis, options, face_tokens.as_deref(), control, body_index, source_proofs.as_deref_mut())
+        }
+        .map_err(|e| body_error(e, &body.id, &body.name))?;
         step_size = step_size.saturating_add(conversion.step_bytes.len());
         if step_size > 128 * 1024 * 1024 {
             return Err(FabError::new(
@@ -259,6 +1082,16 @@ pub fn convert_document(
             provenance: body.provenance,
             conversion: conversion.report,
         });
+        control.check(ConversionPhase::Body, Some(body_index))?;
+    }
+    if guidance_hints
+        .iter()
+        .any(|hint| hint.reconstructed_source_triangle_ids.is_empty())
+    {
+        return Err(FabError::new(
+            "guidance.invalid_selection",
+            "La composante source de l’indication est absente.",
+        ));
     }
     let mut names_adapted = 0;
     let (step_bytes, cad) = if bodies.len() == 1 && format == InputFormat::Stl {
@@ -281,10 +1114,42 @@ pub fn convert_document(
             .zip(&names)
             .map(|(bytes, name)| StepPart { bytes, name })
             .collect::<Vec<_>>();
-        let result = combine_steps(&parts)?;
+        let result = control.run(ConversionPhase::Combine, None, || {
+            if tracked {
+                fabstep_cad::combine_steps_with_provenance(&parts)
+            } else {
+                combine_steps(&parts)
+            }
+        })?;
         (result.bytes, result.report)
     };
     let mut diagnostics = document.diagnostics;
+    if !guidance_hints.is_empty() {
+        let active_options = Options {
+            reconstruction: ReconstructionMode::Cylinders,
+            ..options.clone()
+        };
+        if !diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "precision.custom_tolerances")
+        {
+            if let Some(diagnostic) = precision_diagnostic(&active_options) {
+                diagnostics.push(diagnostic);
+            }
+        }
+        for (family, code, message) in [
+            ("auto", "guidance.auto_applied", "La zone indiquée a été reconnue ; les autres régions prouvées sont conservées."),
+            ("torus", "guidance.torus_applied", "Le raccord torique indiqué et sa portée cylindrique ont été prouvés."),
+            ("plane", "guidance.plane_applied", "Les zones indiquées sont regroupées en plans vérifiés, sans déplacement des sommets source."),
+            ("cylinder", "guidance.cylinder_applied", "Les parois cylindriques indiquées et leurs raccords ont été prouvés ; les régions indépendantes sont conservées."),
+            ("cone", "guidance.cone_applied", "Les parois coniques indiquées et leurs contours ont été prouvés ; les régions indépendantes sont conservées."),
+        ] {
+            let count = guidance_hints.iter().filter(|hint| hint.family == family).count();
+            if count > 0 {
+                diagnostics.push(Diagnostic { code: code.into(), severity: Severity::Info, message: message.into(), count });
+            }
+        }
+    }
     if names_adapted > 0 {
         diagnostics.push(Diagnostic { code: "document.product_names_adapted".into(), severity: Severity::Info, message: "Des noms de produit STEP ont été raccourcis ou normalisés pour le noyau CAO ; les noms source restent dans le rapport.".into(), count: names_adapted });
     }
@@ -295,16 +1160,240 @@ pub fn convert_document(
                     .into();
         }
     }
-    Ok(DocumentConversion {
+    control.check(ConversionPhase::Finish, None)?;
+    Ok(ProvenancedDocumentConversion {
         report: DocumentReport {
             settings: document.settings,
             source: document.source,
             bodies,
             cad,
             diagnostics,
+            guidance: guidance_hints.last().cloned(),
+            guidance_hints,
         },
-        step_bytes,
+        step: DocumentStep {
+            bytes: step_bytes,
+            source_faces,
+            guidance_source: None,
+            source_correspondence: OnceLock::new(),
+            #[cfg(test)]
+            result_inspections: std::sync::atomic::AtomicUsize::new(0),
+        },
     })
+}
+
+fn mixed_source_faces(
+    body_id: &str,
+    source: &BodySourceTriangles,
+    recognized: &fabstep_core::MixedRecognition,
+) -> Result<Vec<ResultFaceSource>, FabError> {
+    let plane_count = recognized.model.planes.len();
+    let count = plane_count + recognized.model.cylinders.len();
+    let invalid = || {
+        FabError::new(
+            "step.invalid_source_provenance",
+            "La partition source du résultat guidé est incohérente.",
+        )
+    };
+    if count == 0
+        || recognized.triangle_faces.len() != source.analysis_to_source_triangles.len()
+        || !recognized.model.partial_cylinders.is_empty()
+    {
+        return Err(invalid());
+    }
+    let mut faces = (0..count)
+        .map(|_| ResultFaceSource {
+            face_id: 0,
+            preview_body_id: source.preview_body_id.clone(),
+            analysis_body_id: body_id.to_owned(),
+            source_triangle_ids: Vec::new(),
+        })
+        .collect::<Vec<_>>();
+    for (owner, &triangle) in recognized
+        .triangle_faces
+        .iter()
+        .zip(&source.analysis_to_source_triangles)
+    {
+        let index = match *owner {
+            fabstep_core::MixedFaceRef::Plane { index } if index < plane_count => index,
+            fabstep_core::MixedFaceRef::Cylinder { index }
+                if index < recognized.model.cylinders.len() =>
+            {
+                plane_count + index
+            }
+            _ => return Err(invalid()),
+        };
+        faces[index].source_triangle_ids.push(triangle);
+    }
+    if faces.iter().any(|face| face.source_triangle_ids.is_empty()) {
+        return Err(invalid());
+    }
+    Ok(faces)
+}
+
+fn rounded_source_faces(
+    body_id: &str,
+    source: &BodySourceTriangles,
+    recognized: &fabstep_core::RoundedRecognition,
+) -> Result<Vec<ResultFaceSource>, FabError> {
+    let m = &recognized.model.revolved.mixed;
+    let counts = [
+        m.planes.len(),
+        m.cylinders.len(),
+        m.partial_cylinders.len(),
+        recognized.model.revolved.cones.len(),
+        recognized.model.spheres.len(),
+        recognized.model.tori.len(),
+        recognized.model.partial_cones.len(),
+    ];
+    let count = counts.iter().sum::<usize>();
+    let invalid = || {
+        FabError::new(
+            "step.invalid_source_provenance",
+            "La partition source du modèle arrondi est incohérente.",
+        )
+    };
+    if count == 0
+        || count > 100_000
+        || recognized.triangle_faces.len() != source.analysis_to_source_triangles.len()
+    {
+        return Err(invalid());
+    }
+    let mut faces = (0..count)
+        .map(|_| ResultFaceSource {
+            face_id: 0,
+            preview_body_id: source.preview_body_id.clone(),
+            analysis_body_id: body_id.into(),
+            source_triangle_ids: Vec::new(),
+        })
+        .collect::<Vec<_>>();
+    for (owner, &triangle) in recognized
+        .triangle_faces
+        .iter()
+        .zip(&source.analysis_to_source_triangles)
+    {
+        use fabstep_core::RoundedFaceRef as F;
+        let (kind, index) = match *owner {
+            F::Plane { index } => (0, index),
+            F::Cylinder { index } => (1, index),
+            F::PartialCylinder { index } => (2, index),
+            F::Cone { index } => (3, index),
+            F::Sphere { index } => (4, index),
+            F::Torus { index } => (5, index),
+            F::PartialCone { index } => (6, index),
+        };
+        if index >= counts[kind] {
+            return Err(invalid());
+        }
+        faces[counts[..kind].iter().sum::<usize>() + index]
+            .source_triangle_ids
+            .push(triangle);
+    }
+    if faces.iter().any(|face| face.source_triangle_ids.is_empty()) {
+        return Err(invalid());
+    }
+    Ok(faces)
+}
+
+fn revolved_source_faces(
+    body_id: &str,
+    source: &BodySourceTriangles,
+    recognized: &fabstep_core::RevolvedRecognition,
+) -> Result<Vec<ResultFaceSource>, FabError> {
+    let planes = recognized.model.mixed.planes.len();
+    let cylinders = recognized.model.mixed.cylinders.len();
+    let cones = recognized.model.cones.len();
+    let count = planes + cylinders + cones;
+    let invalid = || {
+        FabError::new(
+            "step.invalid_source_provenance",
+            "La partition source du résultat guidé est incohérente.",
+        )
+    };
+    if count == 0
+        || count > 100_000
+        || recognized.triangle_faces.len() != source.analysis_to_source_triangles.len()
+        || !recognized.model.mixed.partial_cylinders.is_empty()
+    {
+        return Err(invalid());
+    }
+    let mut faces = (0..count)
+        .map(|_| ResultFaceSource {
+            face_id: 0,
+            preview_body_id: source.preview_body_id.clone(),
+            analysis_body_id: body_id.to_owned(),
+            source_triangle_ids: Vec::new(),
+        })
+        .collect::<Vec<_>>();
+    for (owner, &triangle) in recognized
+        .triangle_faces
+        .iter()
+        .zip(&source.analysis_to_source_triangles)
+    {
+        let index = match *owner {
+            fabstep_core::RevolvedFaceRef::Plane { index } if index < planes => index,
+            fabstep_core::RevolvedFaceRef::Cylinder { index } if index < cylinders => {
+                planes + index
+            }
+            fabstep_core::RevolvedFaceRef::Cone { index } if index < cones => {
+                planes + cylinders + index
+            }
+            _ => return Err(invalid()),
+        };
+        faces[index].source_triangle_ids.push(triangle);
+    }
+    if faces.iter().any(|face| face.source_triangle_ids.is_empty()) {
+        return Err(invalid());
+    }
+    Ok(faces)
+}
+
+fn planar_source_faces(
+    body: &AnalyzedBody,
+    source: &BodySourceTriangles,
+) -> Result<Vec<ResultFaceSource>, FabError> {
+    let triangle_count = body.analysis.mesh.triangles.len();
+    let face_count = body.analysis.model.faces.len();
+    let invalid = || {
+        FabError::new(
+            "step.invalid_source_provenance",
+            "La partition des triangles source en faces construites est incohérente.",
+        )
+    };
+    if source.planar_triangle_faces.len() != triangle_count
+        || source.analysis_to_source_triangles.len() != triangle_count
+        || face_count == 0
+        || face_count > triangle_count
+        || !source
+            .analysis_to_source_triangles
+            .windows(2)
+            .all(|p| p[0] < p[1])
+    {
+        return Err(invalid());
+    }
+    let mut faces = (0..face_count)
+        .map(|_| ResultFaceSource {
+            face_id: 0, // Filled only from the native reimport identity.
+            preview_body_id: source.preview_body_id.clone(),
+            analysis_body_id: body.id.clone(),
+            source_triangle_ids: Vec::new(),
+        })
+        .collect::<Vec<_>>();
+    for (&face, &triangle) in source
+        .planar_triangle_faces
+        .iter()
+        .zip(&source.analysis_to_source_triangles)
+    {
+        faces
+            .get_mut(face)
+            .ok_or_else(invalid)?
+            .source_triangle_ids
+            .push(triangle);
+    }
+    if faces.iter().any(|f| f.source_triangle_ids.is_empty()) {
+        return Err(invalid());
+    }
+    Ok(faces)
 }
 
 fn body_error(e: FabError, id: &str, name: &str) -> FabError {
@@ -325,5 +1414,115 @@ fn product_name(name: &str, fallback: &str) -> String {
         fallback.into()
     } else {
         clean
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn guidance_reuses_only_its_immutable_results_resolved_correspondence() {
+        use std::sync::atomic::Ordering;
+        let options = Options::default();
+        let converted = convert_document_with_provenance(
+            include_bytes!("../../../fixtures/cube.stl"),
+            InputFormat::Stl,
+            &options,
+        )
+        .unwrap();
+        assert!(converted.step.source_correspondence.get().is_none());
+        let inspection = converted.step.result_faces().unwrap();
+        assert_eq!(inspection.source_correspondence.status, "exact");
+        assert_eq!(converted.step.result_inspections.load(Ordering::Relaxed), 1);
+        let cached = converted.step.resolved_source_correspondence().unwrap();
+        assert_eq!(cached.faces, inspection.source_correspondence.faces);
+        assert!(std::ptr::eq(
+            cached,
+            converted.step.resolved_source_correspondence().unwrap()
+        ));
+        // A cube cap cannot become a cylinder. Even the rejected guided attempt
+        // reaches recognition using the cached table, with no second inspection.
+        assert_eq!(
+            converted.step.guided_cylinder(&[0]).err().unwrap().code,
+            "guidance.cylinder_unproven"
+        );
+        assert_eq!(converted.step.result_inspections.load(Ordering::Relaxed), 1);
+        let rebuilt = converted.step.recompute_guidance().unwrap();
+        assert!(rebuilt.step.source_correspondence.get().is_none());
+        assert_eq!(rebuilt.step.result_inspections.load(Ordering::Relaxed), 0);
+        // Recovered bytes alone cannot inherit the original object's sidecar.
+        let untracked = DocumentStep::untracked(converted.step.bytes().to_vec());
+        assert_eq!(
+            untracked.resolved_source_correspondence().unwrap().status,
+            "unavailable"
+        );
+        assert_eq!(untracked.result_inspections.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            untracked.resolved_source_correspondence().unwrap().status,
+            "unavailable"
+        );
+        assert_eq!(untracked.result_inspections.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn guidance_without_prior_view_resolves_once_and_native_failures_are_retryable() {
+        use std::sync::atomic::Ordering;
+        let converted = convert_document_with_provenance(
+            include_bytes!("../../../fixtures/cube.stl"),
+            InputFormat::Stl,
+            &Options::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            converted.step.guided_cylinder(&[0]).err().unwrap().code,
+            "guidance.cylinder_unproven"
+        );
+        assert_eq!(
+            converted.step.source_correspondence.get().unwrap().status,
+            "exact"
+        );
+        assert_eq!(converted.step.result_inspections.load(Ordering::Relaxed), 1);
+        let corrupt = DocumentStep::untracked(b"invalid STEP".to_vec());
+        for _ in 0..2 {
+            assert_eq!(
+                corrupt.resolved_source_correspondence().unwrap_err().code,
+                "cad.read_failed"
+            );
+            assert!(corrupt.source_correspondence.get().is_none());
+        }
+        assert_eq!(corrupt.result_inspections.load(Ordering::Relaxed), 2);
+    }
+
+    #[test]
+    fn an_old_wall_summary_cannot_validate_an_absent_hint_body() {
+        let options = Options::default();
+        let (document, sources) = analyze_document_with_provenance(
+            include_bytes!("../../../fixtures/cube.stl"),
+            InputFormat::Stl,
+            &options,
+        )
+        .unwrap();
+        let previous = GuidanceReport {
+            hint_id: 1,
+            family: "cylinder",
+            selected_face_ids: vec![0],
+            preview_body_id: "stl".into(),
+            analysis_body_id: "stl/component/absent".into(),
+            selected_source_triangle_ids: vec![0],
+            reconstructed_source_triangle_ids: vec![0, 1],
+        };
+        let error = convert_analyzed_document(
+            document,
+            sources,
+            InputFormat::Stl,
+            &options,
+            vec![previous],
+            &mut ConversionControl::new(&mut |_| Ok(())),
+            None,
+        )
+        .err()
+        .expect("A historical summary must not count as a current proof");
+        assert_eq!(error.code, "guidance.invalid_selection");
     }
 }

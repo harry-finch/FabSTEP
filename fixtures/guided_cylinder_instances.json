@@ -1,0 +1,16 @@
+{
+  "source": "m2b_boss_blind.stl",
+  "source_sha256": "1f02f8319f25e2549022b1e410b7e71d311dd9a44ca02592faa05d8d3c658185",
+  "output_sha256": "b1dcda56a4c7ffedb1d793b6ba54e444f76833d6c4ef6cd2720048ed5239a5e1",
+  "triangles_per_instance": 1728,
+  "transforms": [
+    "1 0 0 0 1 0 0 0 1 0 0 0",
+    "-1 0 0 0 1 0 0 0 1 100 0 0"
+  ],
+  "expected": {
+    "solids": 2,
+    "guided_cylinders": 1,
+    "other_instance": "planar",
+    "selected_instance": "mirrored"
+  }
+}

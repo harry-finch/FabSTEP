@@ -1,0 +1,352 @@
+{
+  "unit": "mm",
+  "construction": "R10 spherical zones; actual source disks or perforated block planes",
+  "cases": {
+    "cross_equator": {
+      "radius_mm": 10.0,
+      "center_mm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "latitudes_deg": [
+        -23.578178478201835,
+        36.86989764584402
+      ],
+      "faces": 3,
+      "planes": 2,
+      "spheres": 1,
+      "volume_mm3": 2848.3773392547455,
+      "bounds_mm": [
+        [
+          -10.0,
+          -10.0,
+          -4.0
+        ],
+        [
+          10.0,
+          10.0,
+          6.0
+        ]
+      ],
+      "inner": false,
+      "triangles": 2720,
+      "sha256": "626ac9a8ebaaa732ca97239b26b76b954093cd1ee9476ebffa8965ee1ffd59b5"
+    },
+    "binary": {
+      "radius_mm": 10.0,
+      "center_mm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "latitudes_deg": [
+        -23.578178478201835,
+        36.86989764584402
+      ],
+      "faces": 3,
+      "planes": 2,
+      "spheres": 1,
+      "volume_mm3": 2848.3773392547455,
+      "bounds_mm": [
+        [
+          -10.0,
+          -10.0,
+          -4.0
+        ],
+        [
+          10.0,
+          10.0,
+          6.0
+        ]
+      ],
+      "inner": false,
+      "triangles": 2720,
+      "binary_f32": true,
+      "sha256": "433e82e156e55f620be545e02bd0f59adce9ac0acf436e8e99917df01edcab4c"
+    },
+    "instances": {
+      "format": "3mf",
+      "bodies": 2,
+      "volume_mm3": 5696.754678509491,
+      "body_bounds_mm": [
+        [
+          [
+            -10.0,
+            -10.0,
+            -4.0
+          ],
+          [
+            10.0,
+            10.0,
+            6.0
+          ]
+        ],
+        [
+          [
+            25.0,
+            -10.0,
+            -4.0
+          ],
+          [
+            45.0,
+            10.0,
+            6.0
+          ]
+        ]
+      ],
+      "sha256": "49f704b167e4cea585cd74e378e5d9fa9173c194a7c83b41ac38e1aaace07613"
+    },
+    "touching": {
+      "format": "3mf",
+      "expected_refusal": "cad.bodies_not_separated",
+      "sha256": "3c779bc2469ee0441baf4443c3d0e3644e699d28434df82cd4ead8b595e4e63c"
+    },
+    "above_equator": {
+      "radius_mm": 10.0,
+      "center_mm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "latitudes_deg": [
+        11.536959032815489,
+        53.13010235415599
+      ],
+      "faces": 3,
+      "planes": 2,
+      "spheres": 1,
+      "volume_mm3": 1357.1680263507906,
+      "bounds_mm": [
+        [
+          -9.797958971132712,
+          -9.797958971132712,
+          2.0
+        ],
+        [
+          9.797958971132712,
+          9.797958971132712,
+          8.0
+        ]
+      ],
+      "inner": false,
+      "triangles": 2720,
+      "sha256": "96583703b631b9365ffe6324309a60495b31f4cc8904d07898c318db4062a18c"
+    },
+    "below_equator": {
+      "radius_mm": 10.0,
+      "center_mm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "latitudes_deg": [
+        -53.13010235415599,
+        -11.536959032815489
+      ],
+      "faces": 3,
+      "planes": 2,
+      "spheres": 1,
+      "volume_mm3": 1357.1680263507906,
+      "bounds_mm": [
+        [
+          -9.797958971132712,
+          -9.797958971132712,
+          -8.0
+        ],
+        [
+          9.797958971132712,
+          9.797958971132712,
+          -2.0
+        ]
+      ],
+      "inner": false,
+      "triangles": 2720,
+      "sha256": "0b4656306ec2c07cac90f75ad1e4281878dcfec463ac9ec0607a2494a672da7f"
+    },
+    "rotated": {
+      "radius_mm": 10.0,
+      "center_mm": [
+        13.0,
+        -7.0,
+        11.0
+      ],
+      "axis": [
+        0.35604808185222936,
+        -0.07518163466476757,
+        0.9314383958257686
+      ],
+      "latitudes_deg": [
+        -23.578178478201835,
+        36.86989764584402
+      ],
+      "faces": 3,
+      "planes": 2,
+      "spheres": 1,
+      "volume_mm3": 2848.3773392547455,
+      "bounds_mm": [
+        [
+          3.0,
+          -17.0,
+          3.9390565807734026
+        ],
+        [
+          23.0,
+          3.0,
+          19.49982273308164
+        ]
+      ],
+      "inner": false,
+      "triangles": 2720,
+      "sha256": "6738d1f8bd5633d41a53b754b1b5e8ec7e9fd37daa978a76a81d66aeaf61ac56"
+    },
+    "irregular": {
+      "radius_mm": 10.0,
+      "center_mm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "latitudes_deg": [
+        -23.578178478201835,
+        36.86989764584402
+      ],
+      "faces": 3,
+      "planes": 2,
+      "spheres": 1,
+      "volume_mm3": 2848.3773392547455,
+      "bounds_mm": [
+        [
+          -10.0,
+          -10.0,
+          -4.0
+        ],
+        [
+          10.0,
+          10.0,
+          6.0
+        ]
+      ],
+      "inner": false,
+      "triangles": 2720,
+      "sha256": "91c98136ce9f904be5f829f6a0f5369a1d8818c708fccbc77862a91c6e46909d"
+    },
+    "dense": {
+      "radius_mm": 10.0,
+      "center_mm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "latitudes_deg": [
+        -23.578178478201835,
+        36.86989764584402
+      ],
+      "faces": 3,
+      "planes": 2,
+      "spheres": 1,
+      "volume_mm3": 2848.3773392547455,
+      "bounds_mm": [
+        [
+          -10.0,
+          -10.0,
+          -4.0
+        ],
+        [
+          10.0,
+          10.0,
+          6.0
+        ]
+      ],
+      "inner": false,
+      "triangles": 6400,
+      "sha256": "889c61ab0a7814e628725c6af901d8a193e186f820b0d1b004d8d3a78ca9198f"
+    },
+    "concave": {
+      "radius_mm": 10.0,
+      "center_mm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "latitudes_deg": [
+        -23.578178478201835,
+        36.86989764584402
+      ],
+      "faces": 7,
+      "planes": 6,
+      "spheres": 1,
+      "volume_mm3": 6151.6226607452545,
+      "bounds_mm": [
+        [
+          -15.0,
+          -15.0,
+          -4.0
+        ],
+        [
+          15.0,
+          15.0,
+          6.0
+        ]
+      ],
+      "inner": true,
+      "triangles": 3040,
+      "sha256": "11d60ef080c04a5254528dad97f8ec9701f3b11ed905e68a1379fe78c5dc10e0"
+    },
+    "sparse": {
+      "expected_refusal": "insufficient deviation budget",
+      "triangles": 96,
+      "sha256": "97895789aedd891fa8d19fa04bddcc222dbfb11ef5a87bd124b08d20681fa656"
+    },
+    "spheroid": {
+      "expected_refusal": "non-spherical meridian",
+      "triangles": 2720,
+      "sha256": "198483673fa0185c5e546fe40c55c391decf1efbfd9370280b208e7fa1f77e02"
+    },
+    "missing_triangle": {
+      "expected_refusal": "source boundary",
+      "triangles": 2719,
+      "sha256": "83d1d89bcd615ae9452b502a4c7f771cc9a1afa56aca1ca9a1f5f434146656e9"
+    },
+    "folded": {
+      "expected_refusal": "folded spherical projection",
+      "triangles": 2720,
+      "sha256": "e619930f24b917e544237ecd7a15df3632459e79b51b66c9911bffc06c7b077e"
+    }
+  }
+}

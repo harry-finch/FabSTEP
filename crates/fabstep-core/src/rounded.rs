@@ -10,6 +10,8 @@ use crate::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::{PI, TAU};
+mod zone;
+
 type Edge = (usize, usize);
 fn edge(a: usize, b: usize) -> Edge {
     (a.min(b), a.max(b))
@@ -102,9 +104,9 @@ struct Section {
     triangles: Vec<usize>,
 }
 #[derive(Clone, Copy)]
-struct SphericalCap {
-    boundary: usize,
-    pole: usize,
+struct SphericalPatch {
+    // One ring plus a source pole for caps; two positive rings for zones.
+    ends: [usize; 2],
     center_z: f64,
     radius: f64,
 }
@@ -125,11 +127,26 @@ struct Patch {
     frame: Frame,
     nodes: Vec<Node>,
     sections: Vec<Section>,
-    sphere: Option<SphericalCap>,
+    sphere: Option<SphericalPatch>,
     triangles: Vec<usize>,
 }
 
 pub fn recognize_rounded(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
+    recognize_policy(a, o, false, None)
+}
+pub(crate) fn recognize_auto_patches(
+    a: &Analysis,
+    o: &Options,
+    scope: Option<&BTreeSet<usize>>,
+) -> Result<RoundedRecognition, FabError> {
+    recognize_policy(a, o, true, scope)
+}
+fn recognize_policy(
+    a: &Analysis,
+    o: &Options,
+    automatic: bool,
+    scope: Option<&BTreeSet<usize>>,
+) -> Result<RoundedRecognition, FabError> {
     if o.reconstruction != ReconstructionMode::Surfaces {
         return Err(FabError::new(
             "recognition.disabled",
@@ -189,7 +206,7 @@ pub fn recognize_rounded(a: &Analysis, o: &Options) -> Result<RoundedRecognition
             });
         }
     }
-    if rims.is_empty() {
+    if rims.is_empty() && !automatic {
         return Err(unsupported());
     }
     if rims.len() > 128 {
@@ -255,26 +272,95 @@ pub fn recognize_rounded(a: &Analysis, o: &Options) -> Result<RoundedRecognition
                     || p.sections
                         .iter()
                         .any(|s| matches!(s.shape, Shape::Torus { .. }))
-                    // Only the newly proved opposed pair opts into this UV
-                    // path without a rounded face. Older single-cone sources
-                    // retain their historical Primitives fallback.
-                    || p.sections.iter().filter(|s| matches!(s.shape, Shape::Cone)).count() == 2;
+                    // Resolved conical chains opt into this UV path without
+                    // a rounded face. Single cones need an additional proof
+                    // of an open cylinder below before entering this path.
+                    || p.sections.iter().filter(|s| matches!(s.shape, Shape::Cone)).count() >= 2;
                 patches.push(p);
             }
             Err(e) if e.code == "recognition.surface_unproven" => failure = Some(e),
             Err(e) => return Err(e),
         }
     }
-    if !rounded {
+    let mut rejected = usize::from(failure.is_some());
+    if automatic {
+        let mut proven = Vec::new();
+        for patch in patches {
+            if scope.is_some_and(|scope| !patch.triangles.iter().any(|t| scope.contains(t))) {
+                continue;
+            }
+            // Prove the entire candidate before inserting a single ring or face.
+            // A local mismatch leaves its exact facets; resource failures propagate.
+            let proof = (|| {
+                for rim in &rims {
+                    work.spend(
+                        patch
+                            .nodes
+                            .iter()
+                            .map(|n| n.vertices.len().saturating_add(rim.vertices.len()))
+                            .sum::<usize>(),
+                    )?;
+                    if patch
+                        .nodes
+                        .iter()
+                        .any(|node| boundary(&node.vertices) == boundary(&rim.vertices))
+                    {
+                        let face = &segmentation.model.faces[rim.region];
+                        work.spend(face.loops.iter().map(Vec::len).sum())?;
+                        let origin = a.mesh.vertices[face.loops[0][0]];
+                        if face.loops.iter().flatten().any(|&v| {
+                            dot(sub(a.mesh.vertices[v], origin), face.normal).abs() > 1e-7
+                        }) {
+                            return Err(unproven(
+                                "support plan non constructible sans déplacement",
+                            ));
+                        }
+                    }
+                }
+                let mut local = Errors::default();
+                if let Some(sphere) = patch.sphere {
+                    local.merge(&prove_sphere(a, &patch, sphere, &edges, o, &mut work)?.0);
+                } else {
+                    for section in &patch.sections {
+                        local.merge(&prove_section(a, &patch, section, &edges, o, &mut work)?.0);
+                    }
+                }
+                if o.weld_tolerance_mm + local.radial + local.chord + local.wall
+                    > o.max_deviation_mm
+                {
+                    return Err(unproven("candidat hors du budget géométrique"));
+                }
+                Ok(())
+            })();
+            match proof {
+                Ok(()) => proven.push(patch),
+                Err(e) if e.code == "recognition.surface_unproven" => rejected += 1,
+                Err(e) => return Err(e),
+            }
+        }
+        patches = proven;
+    }
+    let single_cone_candidate = !automatic
+        && !rounded
+        && patches
+            .iter()
+            .flat_map(|p| &p.sections)
+            .filter(|s| matches!(s.shape, Shape::Cone))
+            .count()
+            == 1;
+    if !automatic && !rounded && !single_cone_candidate {
         if let Some(e) = failure {
             return Err(e);
         }
         return Err(unsupported());
     }
-    if let Some(e) = failure {
-        return Err(e);
+    if !automatic {
+        if let Some(e) = failure {
+            return Err(e);
+        }
     }
     let mut model = RoundedModel {
+        partial_cones: vec![],
         revolved: RevolvedModel {
             mixed: MixedModel {
                 vertices: a.mesh.vertices.clone(),
@@ -292,7 +378,7 @@ pub fn recognize_rounded(a: &Analysis, o: &Options) -> Result<RoundedRecognition
     let mut owners = vec![None; a.mesh.triangles.len()];
     let mut ring_map = BTreeMap::new();
     let mut errors = Errors::default();
-    for patch in patches {
+    for patch in &patches {
         let offset = model.revolved.mixed.rings.len();
         for (n, node) in patch.nodes.iter().enumerate() {
             model.revolved.mixed.rings.push(CircularRing {
@@ -305,10 +391,10 @@ pub fn recognize_rounded(a: &Analysis, o: &Options) -> Result<RoundedRecognition
             }
         }
         if let Some(sphere) = patch.sphere {
-            let (e, inner) = prove_sphere(a, &patch, sphere, &edges, o, &mut work)?;
+            let (e, inner) = prove_sphere(a, patch, sphere, &edges, o, &mut work)?;
             errors.merge(&e);
             let index = model.spheres.len();
-            let mut ends = [sphere.boundary, sphere.pole];
+            let mut ends = sphere.ends;
             if patch.nodes[ends[0]].z > patch.nodes[ends[1]].z {
                 ends.swap(0, 1);
             }
@@ -328,8 +414,16 @@ pub fn recognize_rounded(a: &Analysis, o: &Options) -> Result<RoundedRecognition
             }
         } else {
             for section in &patch.sections {
-                let (e, inner) = prove_section(a, &patch, section, &edges, o, &mut work)?;
-                errors.merge(&e);
+                // Preserve the historical single-cone fallback: no new UV
+                // proof (or its budget/failure) runs until an open wall is
+                // actually proved. The temporary orientation is never exported.
+                let inner = if single_cone_candidate {
+                    false
+                } else {
+                    let (e, inner) = prove_section(a, patch, section, &edges, o, &mut work)?;
+                    errors.merge(&e);
+                    inner
+                };
                 let rings = section.ends.map(|n| offset + n);
                 let owner = match section.shape {
                     Shape::Cylinder => {
@@ -366,7 +460,7 @@ pub fn recognize_rounded(a: &Analysis, o: &Options) -> Result<RoundedRecognition
                     }
                 };
                 for &t in &section.triangles {
-                    if owners[t].replace(owner.clone()).is_some() {
+                    if owners[t].replace(owner).is_some() {
                         return Err(unproven("triangle attribué à plusieurs surfaces"));
                     }
                 }
@@ -421,16 +515,63 @@ pub fn recognize_rounded(a: &Analysis, o: &Options) -> Result<RoundedRecognition
             }
         }));
     }
-    let partial = crate::partial::augment(
-        a,
-        &mut model.revolved.mixed,
-        &mut partial_owners,
-        o,
-        &mut work,
-    )?;
-    errors.radial = errors.radial.max(partial.radial);
-    errors.chord = errors.chord.max(partial.chord);
-    errors.wall = errors.wall.max(partial.wall);
+    let partial_backup = automatic.then(|| (model.revolved.mixed.clone(), partial_owners.clone()));
+    let partial = if scope.is_some() {
+        None
+    } else {
+        let augment = if automatic {
+            crate::partial::augment_auto
+        } else {
+            crate::partial::augment
+        };
+        match augment(
+            a,
+            &mut model.revolved.mixed,
+            &mut partial_owners,
+            o,
+            &mut work,
+        ) {
+            Ok(proof) => Some(proof),
+            Err(e)
+                if automatic
+                    && matches!(
+                        e.code.as_str(),
+                        "recognition.partial_unproven" | "recognition.unsupported"
+                    ) =>
+            {
+                let (mixed, owners) = partial_backup.expect("automatic backup");
+                model.revolved.mixed = mixed;
+                partial_owners = owners;
+                rejected += 1;
+                None
+            }
+            Err(e) => return Err(e),
+        }
+    };
+    if single_cone_candidate {
+        if model.revolved.mixed.partial_cylinders.is_empty() {
+            return Err(unsupported());
+        }
+        for patch in &patches {
+            for section in &patch.sections {
+                let (e, inner) = prove_section(a, patch, section, &edges, o, &mut work)?;
+                errors.merge(&e);
+                match owners[section.triangles[0]].as_ref().unwrap() {
+                    RoundedFaceRef::Cone { index } => model.revolved.cones[*index].inner = inner,
+                    RoundedFaceRef::Cylinder { index } => {
+                        model.revolved.mixed.cylinders[*index].inner = inner
+                    }
+                    _ => return Err(unproven("attribution de section incohérente")),
+                }
+            }
+        }
+    }
+    if let Some(partial) = partial {
+        rejected += partial.rejected;
+        errors.radial = errors.radial.max(partial.radial);
+        errors.chord = errors.chord.max(partial.chord);
+        errors.wall = errors.wall.max(partial.wall);
+    }
     for (t, p) in partial_owners.into_iter().enumerate() {
         match p.unwrap() {
             MixedFaceRef::Cylinder { index } if index == usize::MAX => {}
@@ -480,7 +621,11 @@ pub fn recognize_rounded(a: &Analysis, o: &Options) -> Result<RoundedRecognition
         Diagnostic { code: "recognition.rounded_intent_assumed".into(), severity: Severity::Warning,
             count: spheres+tori, message: "Les patchs admissibles sont interprétés comme sphères ou raccords toriques dans le mode explicitement activé.".into() }
     };
-    Ok(RoundedRecognition{model,triangle_faces:owners.into_iter().map(Option::unwrap).collect(),report:RecognitionReport{cylinders,cones,spheres,tori,toroidal_fillets:tori,max_radial_residual_mm:errors.radial,max_chord_error_mm:errors.chord,max_wall_residual_mm:errors.wall,max_deviation_bound_mm:bound,expected_volume_mm3:volume,diagnostics:vec![intent,Diagnostic{code:"recognition.rounded_coverage".into(),severity:Severity::Info,count:a.mesh.triangles.len(),message:format!("Tous les triangles sont attribués : {spheres} sphères, {tori} tores, {cones} cônes, {cylinders} cylindres et {planes} plans. Frontières, raccords et pôles issus de la source.")},Diagnostic{code:"recognition.bound_scope".into(),severity:Severity::Info,count:1,message:"Borne composée : soudage, résidus de projection, flèche sphérique ou borne paramétrique des triangles. Validation native et audit bidirectionnel requis ; pas une mesure Hausdorff globale.".into()}]}})
+    let mut result = RoundedRecognition{model,triangle_faces:owners.into_iter().map(Option::unwrap).collect(),report:RecognitionReport{cylinders,cones,spheres,tori,toroidal_fillets:tori,max_radial_residual_mm:errors.radial,max_chord_error_mm:errors.chord,max_wall_residual_mm:errors.wall,max_deviation_bound_mm:bound,expected_volume_mm3:volume,diagnostics:vec![intent,Diagnostic{code:"recognition.rounded_coverage".into(),severity:Severity::Info,count:a.mesh.triangles.len(),message:format!("Tous les triangles sont attribués : {spheres} sphères, {tori} tores, {cones} cônes, {cylinders} cylindres et {planes} plans. Frontières, raccords et éventuels pôles issus de la source.")},Diagnostic{code:"recognition.bound_scope".into(),severity:Severity::Info,count:1,message:"Borne composée : soudage, résidus de projection, flèche sphérique ou borne paramétrique des triangles. Validation native et audit bidirectionnel requis ; pas une mesure Hausdorff globale.".into()}]}};
+    if automatic && rejected > 0 {
+        result.report.diagnostics.push(Diagnostic{code:"auto.regions_faceted".into(),severity:Severity::Info,count:rejected,message:"Les candidats locaux non prouvés restent facettisés ; aucun relâchement des tolérances.".into()});
+    }
+    Ok(result)
 }
 fn patch_boundary(
     a: &Analysis,
@@ -607,9 +752,8 @@ fn classify(
                     frame,
                     nodes,
                     sections: Vec::new(),
-                    sphere: Some(SphericalCap {
-                        boundary: 0,
-                        pole: 1,
+                    sphere: Some(SphericalPatch {
+                        ends: [0, 1],
                         center_z: base,
                         radius,
                     }),
@@ -671,9 +815,8 @@ fn classify(
                         frame,
                         nodes,
                         sections: Vec::new(),
-                        sphere: Some(SphericalCap {
-                            boundary: 0,
-                            pole: 1,
+                        sphere: Some(SphericalPatch {
+                            ends: [0, 1],
                             center_z,
                             radius: cap_radius,
                         }),
@@ -688,6 +831,17 @@ fn classify(
             });
         } else {
             return Err(unproven("patch à un anneau sans pôle source coaxial"));
+        }
+    }
+    if nodes.len() == 2 && nodes.iter().all(|n| n.radius > 0.) {
+        if let Some(sphere) = zone::candidate(&nodes, &projected, o, work)? {
+            return Ok(Patch {
+                frame,
+                nodes,
+                sections: Vec::new(),
+                sphere: Some(sphere),
+                triangles,
+            });
         }
     }
     // Discover genuine complete intermediate circles from horizontal source edges.
@@ -937,9 +1091,54 @@ fn classify(
     } else {
         false
     };
-    if (cones > 1 && !double_chamfer) || tori > 1 {
+    if cones > 8 {
+        return Err(FabError::new(
+            "recognition.too_complex",
+            "Plus de 8 portions coniques dans une chaîne.",
+        ));
+    }
+    let extended_chain = if !double_chamfer && cones >= 2 && tori == 0 {
+        let start = usize::from(matches!(sections[0].shape, Shape::Cylinder));
+        let end =
+            sections.len() - usize::from(matches!(sections.last().unwrap().shape, Shape::Cylinder));
+        let inner_sections = &sections[start..end];
+        let epsilon = o
+            .cylinder_fit_tolerance_mm
+            .max(o.plane_tolerance_mm)
+            .max(o.weld_tolerance_mm);
+        work.spend(sections.iter().map(|s| s.ends[1] - s.ends[0] + 1).sum())?;
+        let witnessed: Vec<_> = sections
+            .iter()
+            .map(|s| {
+                crate::revolved::resolved_run_samples(
+                    nodes[s.ends[0]].z,
+                    nodes[s.ends[1]].z,
+                    nodes[s.ends[0]..=s.ends[1]].iter().map(|n| n.z),
+                    epsilon,
+                )
+            })
+            .collect();
+        let mut profile: Vec<_> = inner_sections
+            .iter()
+            .map(|s| [nodes[s.ends[0]].z, nodes[s.ends[0]].radius])
+            .collect();
+        let last = &nodes[inner_sections.last().unwrap().ends[1]];
+        profile.push([last.z, last.radius]);
+        witnessed.iter().all(|&w| w)
+            && inner_sections.iter().enumerate().all(|(i, s)| {
+                if i % 2 == 0 {
+                    matches!(s.shape, Shape::Cone)
+                } else {
+                    matches!(s.shape, Shape::Cylinder)
+                }
+            })
+            && crate::revolved::resolved_conical_chain(&profile, &witnessed[start..end], epsilon)
+    } else {
+        false
+    };
+    if (cones > 1 && !double_chamfer && !extended_chain) || tori > 1 {
         return Err(unproven(
-            "plusieurs portions coniques ou toriques sans deux pentes opposées et portée cylindrique résolue",
+            "chaîne conique sans portées résolues et anneaux intérieurs démontrés (hors double chanfrein historique), ou plusieurs portions toriques",
         ));
     }
     let assigned: Vec<_> = sections
@@ -963,15 +1162,17 @@ fn classify(
 fn prove_sphere(
     a: &Analysis,
     p: &Patch,
-    cap: SphericalCap,
+    cap: SphericalPatch,
     edges: &BTreeMap<Edge, Vec<usize>>,
     o: &Options,
     work: &mut Work,
 ) -> Result<(Errors, bool), FabError> {
+    if cap.ends.iter().all(|&n| p.nodes[n].radius > 0.) {
+        return zone::prove(a, p, cap, edges, o, work);
+    }
     work.spend(p.triangles.len())?;
-    let SphericalCap {
-        boundary,
-        pole,
+    let SphericalPatch {
+        ends: [boundary, pole],
         center_z,
         radius,
     } = cap;
@@ -1302,7 +1503,7 @@ fn prove_pointed_cone(
     work: &mut Work,
 ) -> Result<(Errors, bool), FabError> {
     // Rounded mode need not reinterpret legacy pointed cones. This branch is
-    // used only when a separately proved rounded patch shares the same body.
+    // used when a separately proved rounded patch or open cylinder shares the body.
     let low = &p.nodes[s.ends[0]];
     let high = &p.nodes[s.ends[1]];
     if !matches!(s.shape, Shape::Cone) {
@@ -1448,7 +1649,7 @@ fn compact_rings(m: &mut RoundedModel) -> Result<(), FabError> {
     m.revolved.mixed.rings = rings;
     Ok(())
 }
-fn volume(m: &RoundedModel) -> Result<f64, FabError> {
+pub(crate) fn volume(m: &RoundedModel) -> Result<f64, FabError> {
     let mixed = &m.revolved.mixed;
     let bbox = bounds(&mixed.vertices);
     let reference = std::array::from_fn(|i| bbox[0][i] + (bbox[1][i] - bbox[0][i]) * 0.5);
@@ -1499,6 +1700,9 @@ fn volume(m: &RoundedModel) -> Result<f64, FabError> {
     }
     for c in &mixed.partial_cylinders {
         sum.add(crate::partial::cylinder_flux(mixed, c, reference));
+    }
+    for c in &m.partial_cones {
+        sum.add(crate::partial::chain::cone_flux(mixed, c, reference));
     }
     for s in &m.spheres {
         let Some(rings) = s.rings else {
@@ -1626,9 +1830,8 @@ mod trim_regression {
                 },
             ],
             sections: Vec::new(),
-            sphere: Some(SphericalCap {
-                boundary: 0,
-                pole: 1,
+            sphere: Some(SphericalPatch {
+                ends: [0, 1],
                 center_z: 0.,
                 radius: 6.,
             }),
