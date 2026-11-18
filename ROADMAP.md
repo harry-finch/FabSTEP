@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 86** (27 %)
+**Avancement : 23 livrés sur 87** (26 %)
 
 ## Restant à faire
 
@@ -138,6 +138,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Sur Flansch, le laboratoire réimporte 2 083 faces et retrouve leurs deux contours sur le STL. Raccorder les 80 126 triangles restants, puis valider le solide dans FabSTEP.
 63. **[R-086 D/E — poche borgne à congé de fond arrêté](roadmap/items/R-086-d-e-poche-borgne-a-conge-de-fond-arrete.md)** · À tester · jalon post-v1
    Auto reconstruit un congé intérieur à deux butées, même quand ses extrémités comportent des nombres de facettes différents.
+64. **[R-087 D/E — congé de poche arrêté par une paroi oblique](roadmap/items/R-087-d-e-conge-de-poche-arrete-par-une-paroi-oblique.md)** · En cours · jalon post-v1
+   Reconstruire le congé cylindrique entre une butée droite et une butée inclinée et vérifier son arc elliptique.
 
 ## Actions à faire
 
@@ -219,6 +221,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-084](roadmap/actions/A-084-essayer-le-conge-torique-partiel-dans-fabstep.md) Essayer le congé torique partiel dans FabSTEP (tester, R-085)
 - [ ] [A-085](roadmap/actions/A-085-controler-le-secteur-annulaire-dans-fusion.md) Contrôler le secteur annulaire dans Fusion (tester, R-085)
 - [ ] [A-086](roadmap/actions/A-086-inspecter-le-conge-de-la-poche-dans-fabstep-et.md) Inspecter le congé de la poche dans FabSTEP et Fusion (tester, R-086)
+- [ ] [A-087](roadmap/actions/A-087-autoriser-un-bord-elliptique-sur-un-cylindre-de.md) Autoriser un bord elliptique sur un cylindre de poche (decider, R-087)
 
 ## Livré
 

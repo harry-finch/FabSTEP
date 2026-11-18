@@ -2058,3 +2058,50 @@ L’essai manuel FabSTEP et Fusion est suivi dans A-086. Le cas qualifié est un
 ### Non-régression et paquet
 
 Les contrôles de `scripts/check.sh` ont été exécutés en deux passages. Après les **592 tests workspace** réussis, rustdoc ne retrouvait plus la bibliothèque locale `fabstep_import` dans la cible Cargo partagée avec une autre compilation. Le rejeu séquentiel de `cargo test --workspace --doc --offline --locked`, puis des commandes restantes du script, réussit. Au total, 777 passages de tests Rust réussis (SDK, bureau, worker, gros STL et transfert réel compris) et 21 occurrences ignorées dans les suites par défaut. Les trois tests de poche repassent séparément sous les deux profils de taille. Les 235 tests UI passent, Svelte compte zéro erreur et zéro avertissement, Clippy strict, formatage et builds passent. Vite signale la taille du bundle. Les 20 tests Python passent avec l’interpréteur scientifique, dont huit sont ignorés avec le Python système. Les deux exécutables du paquet macOS de développement reconstruit ont été comparés octet par octet aux binaires compilés.
+
+## V-1212 — R-087, cylindre de poche avec une butée oblique
+
+### Situation initiale mesurée
+
+Le corpus public `fixtures/oblique_pocket/` reprend une poche de rayon 2 mm dans un bloc de 30 × 20 × 12 mm. La paroi droite et la paroi inclinée arrêtent le même congé. Sur le cas nominal, le contour théorique de la butée inclinée a pour demi-axes √5 et 2 mm. Le volume de matière attendu vaut 5 771,780239856 mm³.
+
+| STL | Faces planes réimportées par Auto (build R-086) | Différence examinée |
+| --- | ---: | --- |
+| nominal | 46 | Butée de pente +0,5 |
+| reverse | 54 | Pente −0,5 |
+| staggered | 76 | 16 et 23 intervalles sur les arcs opposés |
+| rotated | 27 | Rotation de la pièce, coordonnées ASCII de haute précision |
+| compound | 60 | Inclinaison de la butée suivant deux directions |
+| warped_stop | 76 | Sommet déplacé radialement sur la butée |
+
+Chaque résultat est un solide fermé facettisé. Sur le cas nominal, 20 faces planes se partagent la butée oblique. À triangles et placement identiques, un STL ASCII de haute précision donne 27 plans dont un seul pour cette butée. Sur le cas déformé, le test applicatif contrôle le volume, l’attribution exhaustive et la fidélité dans les deux sens.
+
+### Lecture du STL sans manifeste
+
+La sonde de laboratoire `scripts/qualify-oblique-pocket.py` déduit les deux plans tangents, le cercle et l’ellipse à partir du seul STL. Elle exige onze régions planes dominantes et une paroi résiduelle connexe dont les quatre chaînes de bord sont partagées. Elle vérifie l’orientation et la couverture des triangles en coordonnées angle–hauteur. L’interpolant linéaire des hauteurs de la butée définit une correspondance avec le domaine exact. La borne cumule la flèche radiale, l’erreur axiale d’interpolation de la butée et le déplacement maximal des sommets. Elle concerne la paroi du congé. L’intégration exige également la preuve des boucles planes, des jonctions natives et du solide entier.
+
+Sur les cinq STL publics, la borne dans les deux sens va de 0,00134 à 0,00270 mm (valeurs arrondies). Sur la seconde poche FreeCAD, elle vaut 0,00831 et 0,00098 mm. Le sommet déformé entraîne un refus, avec un résidu supérieur à 0,17 mm pour un seuil de 0,00001 mm. La sonde est réservée aux petits maillages (4 096 triangles, 2 Mio) et emploie NumPy. Le moteur Rust de l’application ne l’appelle pas.
+
+### Deuxième pièce indépendante
+
+FreeCAD 1.1.1 construit une poche de rayon 2,5 mm de dimensions différentes, avec une pente de 0,75 et un cylindre d’axe Y. Dans le STEP de référence relu, le solide fermé comprend onze plans et un cylindre concave. Les deux génératrices mesurent 23 et 24,875 mm. La paroi d’arrêt inclinée partage avec le cylindre une ellipse de demi-axes 3,125 et 2,5 mm. Volume théorique 20 109,552139012 mm³, volume réimporté 20 109,552138972 mm³. Le script vérifie également huit positions dans la matière ou dans le vide. La CLI R-086 restitue respectivement 53 et 116 faces planes sur les deux STL indépendants de 82 et 164 triangles.
+
+Sur le STEP de référence, le noyau de FabSTEP extrait le quart d’ellipse et le quart de cercle sur deux faces adjacentes au même cylindre. L’export DXF écrit une entité ELLIPSE et une entité ARC sur leurs profils respectifs. Le STEP de référence de FreeCAD ne sérialise pas les courbes dans les coordonnées des surfaces (PCURVE). À la relecture, sur 257 valeurs du même paramètre, l’écart maximal entre l’arête 3D et sa représentation sur la surface est de 1,95 × 10⁻⁶ mm sur le cylindre et de 4,1 × 10⁻¹⁵ mm sur le plan. La tolérance d’arête déclarée est de 10⁻⁷ mm. Ces mesures motivent un contrôle explicite du futur transfert natif.
+
+### Reproduction
+
+```sh
+python3 scripts/generate-oblique-pocket-fixtures.py artifacts/r087/regenerated
+python scripts/qualify-oblique-pocket.py fixtures/oblique_pocket/nominal.stl
+python -m unittest discover -s scripts/tests
+cargo test -p fabstep-app --locked --offline --test oblique_pocket --test pocket_fillet
+cargo test -p fabstep-cad --locked --offline --test oblique_pocket_profiles
+cargo build -p fabstep-cli --locked --offline
+PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
+  /Applications/FreeCAD.app/Contents/Resources/bin/python \
+  scripts/validate-oblique-pocket-freecad.py artifacts/r087/freecad --cli target/debug/fabstep --baseline
+```
+
+L’option `--baseline` mesure le résultat initial. Sans cette option, le script exige de chaque conversion une poche analytique équivalente à la référence. Les essais natifs et DXF ci-dessus portent sur le STEP généré par FreeCAD. L’intégration du nouveau contour dans Auto relève d’ADR-0041.
+
+Contrôles du lot préparatoire : les cinq tests Rust ciblés passent (profil natif, repli sur déformation et non-régression R-086), ainsi que les 23 tests Python avec NumPy. Le manifeste et les six STL sont reproductibles octet par octet. Formatage Rust et Python, Ruff, Clippy strict sur les cibles app et CAD et validation FabBoard passent. La suite globale et les essais manuels dans Fusion n’ont pas été rejoués pour ce lot de qualification. Le paquet de développement reste celui de R-086.

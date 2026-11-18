@@ -1,0 +1,812 @@
+{
+  "unit": "mm",
+  "positives": [
+    "nominal",
+    "reverse",
+    "staggered",
+    "rotated",
+    "compound"
+  ],
+  "negatives": [
+    "warped_stop"
+  ],
+  "planes": 11,
+  "cylinders": 1,
+  "cases": {
+    "nominal": {
+      "triangles": 146,
+      "groups": {
+        "outer_bottom": [
+          0,
+          6
+        ],
+        "outer_y_min": [
+          6,
+          10
+        ],
+        "outer_x_max": [
+          10,
+          12
+        ],
+        "outer_y_max": [
+          12,
+          16
+        ],
+        "outer_x_min": [
+          16,
+          18
+        ],
+        "rim": [
+          18,
+          30
+        ],
+        "floor": [
+          30,
+          34
+        ],
+        "fillet": [
+          34,
+          98
+        ],
+        "tangent_wall": [
+          98,
+          102
+        ],
+        "opposite_wall": [
+          102,
+          106
+        ],
+        "stop_min": [
+          106,
+          126
+        ],
+        "stop_max": [
+          126,
+          146
+        ]
+      },
+      "mesh_volume_mm3": 5771.850169132657,
+      "sha256": "a249c087fe98fa0ea592e30c15091bb72450cfdbcfff45ce77f09f8ad4e8e293",
+      "radius_mm": 2,
+      "volume_mm3": 5771.780239856281,
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "bounds_mm": [
+        [
+          -15.0,
+          -10.0,
+          0
+        ],
+        [
+          15.0,
+          10.0,
+          12
+        ]
+      ],
+      "circular_center_mm": [
+        -8.0,
+        -3.0,
+        5
+      ],
+      "ellipse_center_mm": [
+        6.5,
+        -3.0,
+        5
+      ],
+      "ellipse_major_radius_mm": 2.23606797749979,
+      "ellipse_minor_radius_mm": 2,
+      "ellipse_major_direction": [
+        0.4472135954999579,
+        0.8944271909999159,
+        0.0
+      ],
+      "ellipse_minor_direction": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "ellipse_endpoints_mm": [
+        [
+          5.5,
+          -5.0,
+          5
+        ],
+        [
+          6.5,
+          -3.0,
+          3
+        ]
+      ],
+      "ellipse_midpoint_mm": [
+        5.792893218813452,
+        -4.414213562373095,
+        3.585786437626905
+      ],
+      "stop_max_normal": [
+        0.8944271909999159,
+        -0.4472135954999579,
+        0.0
+      ],
+      "floor_normal": [
+        0,
+        0,
+        1
+      ],
+      "tangent_wall_normal": [
+        0,
+        1,
+        0
+      ],
+      "before_oblique_stop_mm": [
+        6.85,
+        -2,
+        8
+      ],
+      "beyond_oblique_stop_mm": [
+        7.15,
+        -2,
+        8
+      ],
+      "inside_void_mm": [
+        0,
+        0,
+        7.5
+      ],
+      "inside_material_mm": [
+        0,
+        -4.7,
+        3.3
+      ]
+    },
+    "reverse": {
+      "triangles": 226,
+      "groups": {
+        "outer_bottom": [
+          0,
+          8
+        ],
+        "outer_y_min": [
+          8,
+          14
+        ],
+        "outer_x_max": [
+          14,
+          16
+        ],
+        "outer_y_max": [
+          16,
+          22
+        ],
+        "outer_x_min": [
+          22,
+          24
+        ],
+        "rim": [
+          24,
+          40
+        ],
+        "floor": [
+          40,
+          46
+        ],
+        "fillet": [
+          46,
+          166
+        ],
+        "tangent_wall": [
+          166,
+          172
+        ],
+        "opposite_wall": [
+          172,
+          178
+        ],
+        "stop_min": [
+          178,
+          202
+        ],
+        "stop_max": [
+          202,
+          226
+        ]
+      },
+      "mesh_volume_mm3": 5775.747355472042,
+      "sha256": "799e5717c8a046e029911168c01c1c8f01eda74d71c4190f5ef0e1ba51120389",
+      "radius_mm": 2,
+      "volume_mm3": 5775.688795228845,
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "bounds_mm": [
+        [
+          -15.0,
+          -10.0,
+          0
+        ],
+        [
+          15.0,
+          10.0,
+          12
+        ]
+      ],
+      "circular_center_mm": [
+        -8.0,
+        -3.0,
+        5
+      ],
+      "ellipse_center_mm": [
+        9.5,
+        -3.0,
+        5
+      ],
+      "ellipse_major_radius_mm": 2.23606797749979,
+      "ellipse_minor_radius_mm": 2,
+      "ellipse_major_direction": [
+        0.4472135954999579,
+        -0.8944271909999159,
+        0.0
+      ],
+      "ellipse_minor_direction": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "ellipse_endpoints_mm": [
+        [
+          10.5,
+          -5.0,
+          5
+        ],
+        [
+          9.5,
+          -3.0,
+          3
+        ]
+      ],
+      "ellipse_midpoint_mm": [
+        10.207106781186548,
+        -4.414213562373095,
+        3.585786437626905
+      ],
+      "stop_max_normal": [
+        0.8944271909999159,
+        0.4472135954999579,
+        0.0
+      ],
+      "floor_normal": [
+        0,
+        0,
+        1
+      ],
+      "tangent_wall_normal": [
+        0,
+        1,
+        0
+      ],
+      "before_oblique_stop_mm": [
+        8.85,
+        -2,
+        8
+      ],
+      "beyond_oblique_stop_mm": [
+        9.15,
+        -2,
+        8
+      ],
+      "inside_void_mm": [
+        0,
+        0,
+        7.5
+      ],
+      "inside_material_mm": [
+        0,
+        -4.7,
+        3.3
+      ]
+    },
+    "staggered": {
+      "triangles": 112,
+      "groups": {
+        "outer_bottom": [
+          0,
+          4
+        ],
+        "outer_y_min": [
+          4,
+          6
+        ],
+        "outer_x_max": [
+          6,
+          8
+        ],
+        "outer_y_max": [
+          8,
+          10
+        ],
+        "outer_x_min": [
+          10,
+          12
+        ],
+        "rim": [
+          12,
+          20
+        ],
+        "floor": [
+          20,
+          22
+        ],
+        "fillet": [
+          22,
+          61
+        ],
+        "tangent_wall": [
+          61,
+          63
+        ],
+        "opposite_wall": [
+          63,
+          65
+        ],
+        "stop_min": [
+          65,
+          85
+        ],
+        "stop_max": [
+          85,
+          112
+        ]
+      },
+      "mesh_volume_mm3": 5771.8256332704605,
+      "sha256": "1b96a456805b3ad274dd9fd5214434d2f1b616ea705a2218586f3c0e5fe24ad2",
+      "radius_mm": 2,
+      "volume_mm3": 5771.780239856281,
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "bounds_mm": [
+        [
+          -15.0,
+          -10.0,
+          0
+        ],
+        [
+          15.0,
+          10.0,
+          12
+        ]
+      ],
+      "circular_center_mm": [
+        -8.0,
+        -3.0,
+        5
+      ],
+      "ellipse_center_mm": [
+        6.5,
+        -3.0,
+        5
+      ],
+      "ellipse_major_radius_mm": 2.23606797749979,
+      "ellipse_minor_radius_mm": 2,
+      "ellipse_major_direction": [
+        0.4472135954999579,
+        0.8944271909999159,
+        0.0
+      ],
+      "ellipse_minor_direction": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "ellipse_endpoints_mm": [
+        [
+          5.5,
+          -5.0,
+          5
+        ],
+        [
+          6.5,
+          -3.0,
+          3
+        ]
+      ],
+      "ellipse_midpoint_mm": [
+        5.792893218813452,
+        -4.414213562373095,
+        3.585786437626905
+      ],
+      "stop_max_normal": [
+        0.8944271909999159,
+        -0.4472135954999579,
+        0.0
+      ],
+      "floor_normal": [
+        0,
+        0,
+        1
+      ],
+      "tangent_wall_normal": [
+        0,
+        1,
+        0
+      ],
+      "before_oblique_stop_mm": [
+        6.85,
+        -2,
+        8
+      ],
+      "beyond_oblique_stop_mm": [
+        7.15,
+        -2,
+        8
+      ],
+      "inside_void_mm": [
+        0,
+        0,
+        7.5
+      ],
+      "inside_material_mm": [
+        0,
+        -4.7,
+        3.3
+      ]
+    },
+    "rotated": {
+      "triangles": 146,
+      "groups": {
+        "outer_bottom": [
+          0,
+          6
+        ],
+        "outer_y_min": [
+          6,
+          10
+        ],
+        "outer_x_max": [
+          10,
+          12
+        ],
+        "outer_y_max": [
+          12,
+          16
+        ],
+        "outer_x_min": [
+          16,
+          18
+        ],
+        "rim": [
+          18,
+          30
+        ],
+        "floor": [
+          30,
+          34
+        ],
+        "fillet": [
+          34,
+          98
+        ],
+        "tangent_wall": [
+          98,
+          102
+        ],
+        "opposite_wall": [
+          102,
+          106
+        ],
+        "stop_min": [
+          106,
+          126
+        ],
+        "stop_max": [
+          126,
+          146
+        ]
+      },
+      "mesh_volume_mm3": 5771.8501700381985,
+      "sha256": "514a610dafe24a7541887e0df81f123b6337a4806de78c9a102a1acc41c072a3",
+      "radius_mm": 2,
+      "volume_mm3": 5771.780239856281,
+      "axis": [
+        0.7384615384615385,
+        0.6000000000000001,
+        -0.3076923076923077
+      ],
+      "bounds_mm": [
+        [
+          -12.615384615384617,
+          -20.0,
+          -4.923076923076923
+        ],
+        [
+          25.23076923076923,
+          14.0,
+          20.0
+        ]
+      ],
+      "circular_center_mm": [
+        1.6769230769230772,
+        -10.2,
+        8.384615384615385
+      ],
+      "ellipse_center_mm": [
+        12.384615384615385,
+        -1.5,
+        3.9230769230769234
+      ],
+      "ellipse_major_radius_mm": 2.23606797749979,
+      "ellipse_minor_radius_mm": 2,
+      "ellipse_major_direction": [
+        -0.16512501987690742,
+        0.9838699100999073,
+        0.0688020916153782
+      ],
+      "ellipse_minor_direction": [
+        0.384615384615385,
+        0.0,
+        0.9230769230769234
+      ],
+      "ellipse_endpoints_mm": [
+        [
+          12.753846153846155,
+          -3.7,
+          3.769230769230769
+        ],
+        [
+          11.615384615384615,
+          -1.5,
+          2.076923076923077
+        ]
+      ],
+      "ellipse_midpoint_mm": [
+        12.101772672140765,
+        -3.055634918610405,
+        2.5088633607038284
+      ],
+      "stop_max_normal": [
+        0.9081876093229919,
+        0.17888543819998315,
+        -0.37841150388457967
+      ],
+      "floor_normal": [
+        0.384615384615385,
+        0.0,
+        0.9230769230769234
+      ],
+      "tangent_wall_normal": [
+        -0.5538461538461537,
+        0.7999999999999998,
+        0.23076923076923084
+      ],
+      "before_oblique_stop_mm": [
+        13.243076923076924,
+        -0.49000000000000066,
+        6.815384615384615
+      ],
+      "beyond_oblique_stop_mm": [
+        13.464615384615383,
+        -0.3099999999999996,
+        6.723076923076923
+      ],
+      "inside_void_mm": [
+        6.884615384615385,
+        -3.0,
+        8.923076923076923
+      ],
+      "inside_material_mm": [
+        7.872307692307693,
+        -6.76,
+        3.961538461538461
+      ]
+    },
+    "compound": {
+      "triangles": 250,
+      "groups": {
+        "outer_bottom": [
+          0,
+          8
+        ],
+        "outer_y_min": [
+          8,
+          14
+        ],
+        "outer_x_max": [
+          14,
+          16
+        ],
+        "outer_y_max": [
+          16,
+          22
+        ],
+        "outer_x_min": [
+          22,
+          24
+        ],
+        "rim": [
+          24,
+          40
+        ],
+        "floor": [
+          40,
+          46
+        ],
+        "fillet": [
+          46,
+          184
+        ],
+        "tangent_wall": [
+          184,
+          190
+        ],
+        "opposite_wall": [
+          190,
+          196
+        ],
+        "stop_min": [
+          196,
+          223
+        ],
+        "stop_max": [
+          223,
+          250
+        ]
+      },
+      "mesh_volume_mm3": 5828.398199297278,
+      "sha256": "028cb811ceb7e03a245ca868648981af989dee56c45d2a7c84249822cbe6c03c",
+      "radius_mm": 2,
+      "volume_mm3": 5828.363573189615,
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "bounds_mm": [
+        [
+          -15.0,
+          -10.0,
+          0
+        ],
+        [
+          15.0,
+          10.0,
+          12
+        ]
+      ],
+      "circular_center_mm": [
+        -8.0,
+        -3.0,
+        5
+      ],
+      "ellipse_center_mm": [
+        6.5,
+        -3.0,
+        5
+      ],
+      "ellipse_major_radius_mm": 2.29128784747792,
+      "ellipse_minor_radius_mm": 2,
+      "ellipse_major_direction": [
+        0.48795003647426666,
+        0.7807200583588265,
+        -0.39036002917941326
+      ],
+      "ellipse_minor_direction": [
+        0.0,
+        0.4472135954999579,
+        0.8944271909999159
+      ],
+      "ellipse_endpoints_mm": [
+        [
+          5.5,
+          -5.0,
+          5
+        ],
+        [
+          7.0,
+          -3.0,
+          3
+        ]
+      ],
+      "ellipse_midpoint_mm": [
+        6.146446609406726,
+        -4.414213562373095,
+        3.585786437626905
+      ],
+      "stop_max_normal": [
+        0.8728715609439696,
+        -0.4364357804719848,
+        0.2182178902359924
+      ],
+      "floor_normal": [
+        0,
+        0,
+        1
+      ],
+      "tangent_wall_normal": [
+        0,
+        1,
+        0
+      ],
+      "before_oblique_stop_mm": [
+        6.1,
+        -2,
+        8
+      ],
+      "beyond_oblique_stop_mm": [
+        6.4,
+        -2,
+        8
+      ],
+      "inside_void_mm": [
+        0,
+        0,
+        7.5
+      ],
+      "inside_material_mm": [
+        0,
+        -4.7,
+        3.3
+      ]
+    },
+    "warped_stop": {
+      "triangles": 112,
+      "groups": {
+        "outer_bottom": [
+          0,
+          4
+        ],
+        "outer_y_min": [
+          4,
+          6
+        ],
+        "outer_x_max": [
+          6,
+          8
+        ],
+        "outer_y_max": [
+          8,
+          10
+        ],
+        "outer_x_min": [
+          10,
+          12
+        ],
+        "rim": [
+          12,
+          20
+        ],
+        "floor": [
+          20,
+          22
+        ],
+        "fillet": [
+          22,
+          61
+        ],
+        "tangent_wall": [
+          61,
+          63
+        ],
+        "opposite_wall": [
+          63,
+          65
+        ],
+        "stop_min": [
+          65,
+          85
+        ],
+        "stop_max": [
+          85,
+          112
+        ]
+      },
+      "mesh_volume_mm3": 5771.6534096866835,
+      "sha256": "781f571ec5b9bb51794cd08221b2978c23e2643b388b061464abccbc07e09ea7"
+    }
+  }
+}

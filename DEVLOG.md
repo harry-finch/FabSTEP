@@ -468,3 +468,7 @@ La revue a reproduit deux faux positifs dans les premières sondes des plans sup
 ## 2026-11-18 — R-086, congé de fond de poche entre deux parois
 
 La poche nominale était déjà reconnue. Avec 16 segments à une extrémité et 23 à l’autre, Auto conservait 50 faces planes. La preuve de couverture des triangles en coordonnées cylindriques permet de rétablir un seul congé, avec ses deux arrêts. Le même changement s’applique à une arête extérieure. Le corpus public, la poche indépendante de FreeCAD, le contrôle sur Flansch et la limite rencontrée sur une rotation en STL binaire sont détaillés dans V-1211.
+
+## 2026-11-18 — R-087, qualification d’un congé arrêté en biais
+
+Les STL témoins montrent deux difficultés distinctes : l’arrêt elliptique du cylindre et la fragmentation de son plan sous l’effet de l’encodage binaire. La référence CAO indépendante confirme les quatre bords partagés et le volume. Les profils de ses deux butées s’exportent en DXF exact. La proposition de représentation et les conditions de passage dans Auto sont consignées dans ADR-0041, les essais reproductibles dans V-1212.
