@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 85** (27 %)
+**Avancement : 23 livrés sur 86** (27 %)
 
 ## Restant à faire
 
@@ -101,9 +101,9 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 44. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · En cours · jalon post-v1
    Révolutions toriques composées et première méridienne cubique bornée ; la généralisation reste ouverte.
 45. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · En cours · jalon post-v1
-   Coin à trois arrondis intégré ; reste la généralisation des congés partiels et de leurs combinaisons.
+   Coin à trois arrondis et congé de poche à deux butées intégrés. Restent les autres arrêts et réseaux de congés.
 46. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · En cours · jalon post-v1
-   Bac ouvert et fond percé intégrés ; restent les congés du fond/rebord et autres combinaisons.
+   Bac ouvert, fond percé et poche à un congé de fond intégrés. Restent les arrêts obliques, congés multiples et rebords.
 47. **[R-036 F — perçages sécants](roadmap/items/R-036-f-percages-secants.md)** · En cours · jalon post-v1
    F1 centré orthogonal développé sous R-083 et qualifié automatiquement ; essais utilisateur et généralisation restent ouverts.
 48. **[R-037 G — congés variables](roadmap/items/R-037-g-conges-variables.md)** · En cours · jalon post-v1
@@ -136,6 +136,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
 62. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon post-v1
    Sur Flansch, le laboratoire réimporte 2 083 faces et retrouve leurs deux contours sur le STL. Raccorder les 80 126 triangles restants, puis valider le solide dans FabSTEP.
+63. **[R-086 D/E — poche borgne à congé de fond arrêté](roadmap/items/R-086-d-e-poche-borgne-a-conge-de-fond-arrete.md)** · À tester · jalon post-v1
+   Auto reconstruit un congé intérieur à deux butées, même quand ses extrémités comportent des nombres de facettes différents.
 
 ## Actions à faire
 
@@ -216,6 +218,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-083](roadmap/actions/A-083-examiner-le-diagnostic-des-faces-restantes-de.md) Examiner le diagnostic des faces restantes de Flansch (valider, R-080)
 - [ ] [A-084](roadmap/actions/A-084-essayer-le-conge-torique-partiel-dans-fabstep.md) Essayer le congé torique partiel dans FabSTEP (tester, R-085)
 - [ ] [A-085](roadmap/actions/A-085-controler-le-secteur-annulaire-dans-fusion.md) Contrôler le secteur annulaire dans Fusion (tester, R-085)
+- [ ] [A-086](roadmap/actions/A-086-inspecter-le-conge-de-la-poche-dans-fabstep-et.md) Inspecter le congé de la poche dans FabSTEP et Fusion (tester, R-086)
 
 ## Livré
 

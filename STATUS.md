@@ -5,7 +5,7 @@
 ## Version et validation courantes
 
 - `artifacts/release/1.0.0/FabSTEP.app` reste le paquet autonome signé ad hoc, accepté sur un autre Mac et dans Fusion le 9 novembre (V-1115). Pas de signature Developer ID ni notarisation revendiquée.
-- `artifacts/FabSTEP.app` est le build local de développement, dépendant du SDK installé. Qualification du paquet **V-1208** : **588 tests workspace, 50 bureau, huit worker, 121 ciblés large-stl, un transfert réel, 235 UI, douze Python et quatre SDK réussis**. Formatage, Clippy strict, Svelte et builds passent ; deux exécutables du paquet vérifiés par SHA-256.
+- `artifacts/FabSTEP.app` est le build local de développement, dépendant du SDK installé. Ce paquet contient la reconnaissance R-086 des congés à extrémités maillées différemment. La qualification de la poche et le rejeu de Flansch sont consignés dans V-1211.
 - Seize tests opt-in workspace restent ignorés par la suite ordinaire. Les essais graphiques/Fusion des extensions restent ouverts dans FabBoard ; aucun succès automatique ne vaut acceptation utilisateur. Le pilotage du dialogue d’ouverture avait été bloqué, mais l’utilisateur a confirmé l’ouverture manuelle.
 
 ## Capacités développées
@@ -27,7 +27,9 @@ Les familles mécaniques qualifiées comprennent extrusions, cylindres et cônes
 
 - **R-085** : Auto et Surfaces reconstruisent le congé extérieur d’un secteur de couronne fermé par deux plans radiaux. Famille Tore, sept faces. Essais A-084/A-085. Le volet Flansch reste en cours.
 
-Ces lots sont à tester dans FabBoard. Les détails de portée et de preuve sont dans V-1201/V-1203/V-1204/V-1205/V-1206/V-1208. Les compteurs de la v1 ne sont pas confondus avec ces extensions.
+- **R-086 / D–E** : Auto reconstruit un congé intérieur de fond de poche qui s’arrête sur deux parois perpendiculaires à son axe. Les deux extrémités peuvent avoir des nombres de segments différents. Le changement s’applique également aux congés extérieurs.
+
+Ces lots sont à tester dans FabBoard. Les détails de portée et de preuve sont dans V-1201/V-1203/V-1204/V-1205/V-1206/V-1208/V-1211. Les compteurs de la v1 ne sont pas confondus avec ces extensions.
 
 ## Limites et fichier Flansch
 
@@ -37,14 +39,14 @@ Le helper de l’application refuse Flansch à **231 608 faces**. Le laboratoi
 
 ## Reprise après cette session
 
-Le secteur annulaire de R-085 est intégré sous ADR-0040. La prochaine étape géométrique vise le raccord d’une paroi cylindrique partielle aux faces voisines. Une poche arrondie avec un congé interrompu fournirait un témoin indépendant pour les chantiers D et E. La couture des 267 facettes sur Flansch reste, à ce stade, une preuve de laboratoire. La reprise ultérieure ne nécessite pas l’historique de conversation : lire les consignes et ce document, les réponses de `fabboard action list`, puis les éléments ci-dessous. Les accords A-045 (F) et A-068 (D/G) sont acquis ; ils ne valent pas acceptation des essais manuels.
+Le secteur annulaire de R-085 est intégré sous ADR-0040. R-086 couvre le cas d’un congé droit de poche entre deux butées planes perpendiculaires. Pour poursuivre D et E, qualifier une butée oblique sur une poche indépendante et vérifier le profil de cette butée après réimport STEP. La couture des 267 facettes sur Flansch reste, à ce stade, une preuve de laboratoire. La reprise ultérieure ne nécessite pas l’historique de conversation : lire les consignes et ce document, les réponses de `fabboard action list`, puis les éléments ci-dessous. Les accords A-045 (F) et A-068 (D/G) sont acquis ; ils ne valent pas acceptation des essais manuels.
 
 | Chantier | Déjà développé | Travail restant avant généralisation |
 | --- | --- | --- |
 | C1b2 | R-078 : chaînes adjacentes et mixtes de deux à huit cônes | Extensions hors des témoins et limites actuellement prouvés ; essais A-073/A-074 |
 | C2 / R-033 | R-061/R-075/R-076 et R-084 : profils toriques composés et méridienne cubique unique | Méridiennes multisegments, pôles, retours axiaux et raccords à des familles voisines ; contrats de preuve encore nécessaires |
-| D / R-034 | R-062 et R-081 : configurations locales constantes, coin triédrique sphérique | Autres réseaux de congés, supports et coins ; ne pas extrapoler le cas orthogonal |
-| E / R-035 | R-062/R-077 : bac ouvert arrondi, fond traversé | Arrondis du fond et du rebord, autres combinaisons de cavités |
+| D / R-034 | R-062 et R-081 : configurations locales constantes, coin triédrique sphérique ; R-086 : congé à deux butées planes | Autres réseaux de congés, supports et coins ; ne pas extrapoler le cas orthogonal |
+| E / R-035 | R-062/R-077 : bac ouvert arrondi, fond traversé ; R-086 : poche borgne à un congé de fond | Arrêts obliques, plusieurs arêtes de fond arrondies, congés du rebord, autres combinaisons de cavités |
 | F / R-036 | R-063 : certificat natif ; R-083 : reconnaissance source et intégration qualifiées automatiquement | Hors F1 : axes décentrés/obliques, rapports de rayons plus larges, intersections multiples et guidage couplé |
 | G / R-037 | R-082 : un raccord convexe linéaire à limites elliptiques | Autres configurations, raccords multiples et lois de rayon non linéaires |
 

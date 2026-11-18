@@ -2024,3 +2024,37 @@ Le helper du paquet de développement V-1208 refuse de nouveau la conversion int
 Le rejeu complet depuis le STL et la suite `sh scripts/check.sh` se terminent avec le code 0. Les suites Rust cumulent **772 réussites** et 21 occurrences de tests ignorés dans les passages ordinaires. Le transfert bureau/helper a été exécuté explicitement. Les **235 tests UI** passent et Svelte rapporte zéro erreur et zéro avertissement. Formatage, Clippy strict et builds passent. Les **20 tests Python** passent avec NumPy/SciPy. Avec le Python système du poste, 12 passent et huit sont ignorés en l’absence des bibliothèques scientifiques. La sonde Rust opt-in de Flansch passe aussi sous Clippy avec la feature `large-stl`.
 
 Le rapport final détecte douze altérations d’attribution ou de frontière source. Les expériences OCCT vérifient séparément les contre-exemples géométriques à chaque assemblage. Le produit et le paquet macOS conservent la version de V-1208. Les essais manuels FabSTEP et Fusion restent suivis dans A-084 et A-085.
+
+## V-1211 — R-086, congé intérieur de poche à deux parois d’arrêt
+
+**Cas qui change.** Sur la poche publique `fixtures/pocket_fillet/staggered.stl`, les deux extrémités du même quart de cylindre sont découpées en 16 et 23 intervalles. Avant R-086, Auto conservait 50 plans. Le helper du paquet de développement produit un STEP dont FreeCAD 1.1.1 relit un solide fermé valide, 11 plans et un cylindre. Rayon relu 1,999999933 mm, longueur 16 mm, volume 5 773,734516628 mm³ pour 5 773,734517543 mm³ attendus. La découpe différente des deux arcs suffit à expliquer le changement. La poche nominale était déjà reconnue.
+
+| Épreuve | Résultat |
+| --- | --- |
+| Cinq STL positifs, dont une rotation oblique en ASCII, un remaillage et un rayon de 3 mm du côté opposé | 11 plans et un quart de cylindre concave dans chaque solide réimporté. Vérification des deux tangences, des deux parois d’arrêt, des points de matière et de vide, de l’attribution exhaustive des triangles et de la fidélité dans les deux sens. |
+| Même rotation en STL binaire f32 | Solide fidèle à 142 plans. L’arrondi des coordonnées rend les deux génératrices incompatibles avec le seuil natif de 10⁻⁷ mm aux coins. Écarts source/résultat vérifiés dans les deux sens sous 10⁻⁵ mm. |
+| Fond absent ou paroi déformée | Le fond ouvert entraîne `mesh.open`. Avec un sommet décalé de 0,16 mm à l’intérieur du congé ou sur une butée, Auto conserve le solide facettisé, respectivement à 33 et 50 plans. |
+| Arête extérieure de bloc | Le rejeu avec un seul segment supplémentaire passe de 24 plans à 6 plans et un cylindre. Le test core subdivise ensuite l’un ou l’autre des deux arcs de 16 à 32 intervalles. Il vérifie la flèche du côté le plus grossier (0,004818 mm) et le refus sous 90 % de cette borne. |
+| Autre poche, construite directement dans FreeCAD | Deux maillages de 80 et 156 triangles. Les STEP réimportés dans FreeCAD ont chacun un solide à 12 faces, un congé de rayon 2,5 mm entre les plans Y = 6 et 31 mm, et un volume de 19 583,531530 et 19 583,531532 mm³ pour 19 583,531537 mm³ attendus. |
+| Pièce privée `body 26mm.stl`, conversion Auto | 1 solide, 10 848 plans, 14 cylindres et 7 cônes. Le volume de 17 053,652458875804 mm³ et les nombres de faces reproduisent le contrôle du raccord cylindre–chanfrein. Écarts échantillonnés de 0,002619 et 0,003052 mm dans les deux sens. |
+| Flansch privé, 540 170 triangles, helper du paquet | Refus reproduit à 231 608 faces pour un plafond de 100 000, code `step.invalid_source_provenance`. Aucun document STEP produit. |
+
+### Reproduction
+
+Le corpus public et son manifeste sont régénérables avec la bibliothèque standard Python. Le contrôle indépendant de FreeCAD crée la pièce avec ses propres opérations CAO, écrit deux STL, appelle la CLI puis relit ses deux STEP. Depuis la racine du projet sur le poste macOS équipé de FreeCAD :
+
+```sh
+python3 scripts/generate-pocket-fillet-fixtures.py artifacts/r086/regenerated
+cargo test -p fabstep-app --offline --locked --test pocket_fillet
+cargo test -p fabstep-core --offline --locked independently_sampled_convex_fillet
+cargo build -p fabstep-cli --offline --locked
+PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
+  /Applications/FreeCAD.app/Contents/Resources/bin/python \
+  scripts/validate-pocket-fillet-freecad.py target/debug/fabstep artifacts/r086/freecad
+```
+
+L’essai manuel FabSTEP et Fusion est suivi dans A-086. Le cas qualifié est un congé isolé entre deux butées perpendiculaires à son axe. Une butée oblique demande une autre preuve du contour.
+
+### Non-régression et paquet
+
+Les contrôles de `scripts/check.sh` ont été exécutés en deux passages. Après les **592 tests workspace** réussis, rustdoc ne retrouvait plus la bibliothèque locale `fabstep_import` dans la cible Cargo partagée avec une autre compilation. Le rejeu séquentiel de `cargo test --workspace --doc --offline --locked`, puis des commandes restantes du script, réussit. Au total, 777 passages de tests Rust réussis (SDK, bureau, worker, gros STL et transfert réel compris) et 21 occurrences ignorées dans les suites par défaut. Les trois tests de poche repassent séparément sous les deux profils de taille. Les 235 tests UI passent, Svelte compte zéro erreur et zéro avertissement, Clippy strict, formatage et builds passent. Vite signale la taille du bundle. Les 20 tests Python passent avec l’interpréteur scientifique, dont huit sont ignorés avec le Python système. Les deux exécutables du paquet macOS de développement reconstruit ont été comparés octet par octet aux binaires compilés.

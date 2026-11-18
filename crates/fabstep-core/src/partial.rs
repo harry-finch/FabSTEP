@@ -835,7 +835,6 @@ fn prove(
     let (lower, upper) = (&candidates[pair[0]], &candidates[pair[1]]);
     let tol = o.plane_tolerance_mm.max(o.cylinder_fit_tolerance_mm);
     if lower.plane == upper.plane
-        || lower.chain.len() != upper.chain.len()
         || (lower.radius - upper.radius).abs() > o.cylinder_fit_tolerance_mm
         || dot(lower.normal, upper.normal).abs() < 1. - 1e-10
     {
@@ -872,27 +871,43 @@ fn prove(
     let upper_center = std::array::from_fn(|i| lower.center[i] + axis[i] * height);
     // Endpoints must remain the exact shared source vertices. No opportunistic
     // projection is used to force the two analytic arcs to agree.
-    let mut correspondence: f64 = 0.;
-    let mut cap: f64 = 0.;
-    let mut radial: f64 = 0.;
-    for i in 0..bottom.len() {
-        let (b, bz) = projected[bottom[i]];
-        let (t, tz) = projected[top[i]];
-        let distance = (b[0] - t[0]).hypot(b[1] - t[1]);
-        correspondence = correspondence.max(distance);
-        if distance > tol {
-            return Ok(None);
-        }
-        if (i == 0 || i + 1 == bottom.len())
-            && (distance > NATIVE_TOL || bz.abs() > NATIVE_TOL || (tz - height).abs() > NATIVE_TOL)
+    let lateral = |b: usize, t: usize| {
+        let b = projected[b].0;
+        let t = projected[t].0;
+        (b[0] - t[0]).hypot(b[1] - t[1])
+    };
+    for (&b, &t) in [bottom.first().unwrap(), bottom.last().unwrap()]
+        .into_iter()
+        .zip([top.first().unwrap(), top.last().unwrap()])
+    {
+        if lateral(b, t) > tol.min(NATIVE_TOL)
+            || projected[b].1.abs() > NATIVE_TOL
+            || (projected[t].1 - height).abs() > NATIVE_TOL
         {
             return Ok(None);
         }
-        cap = cap.max(bz.abs()).max((tz - height).abs());
-        radial = radial
-            .max((b[0].hypot(b[1]) - lower.radius).abs())
-            .max((t[0].hypot(t[1]) - lower.radius).abs());
     }
+    let mut cap: f64 = 0.;
+    let mut radial: f64 = 0.;
+    for (chain, station) in [(&bottom, 0.), (&top, height)] {
+        for &v in chain {
+            let (p, z) = projected[v];
+            cap = cap.max((z - station).abs());
+            radial = radial.max((p[0].hypot(p[1]) - lower.radius).abs());
+        }
+    }
+    // Matching cap samples can use the historical chord-prism proof. With
+    // independent subdivisions only the source corners correspond: require
+    // full rectangular UV coverage and radial witnesses on every triangle.
+    let paired_drift = (bottom.len() == top.len())
+        .then(|| {
+            bottom
+                .iter()
+                .zip(&top)
+                .map(|(&b, &t)| lateral(b, t))
+                .fold(0., f64::max)
+        })
+        .filter(|&drift| drift <= tol);
     if radial > o.cylinder_fit_tolerance_mm || cap > tol {
         return Ok(None);
     }
@@ -928,7 +943,10 @@ fn prove(
     let inner = sign < 0.;
     let mut selected = BTreeSet::new();
     let mut examined = BTreeSet::new();
-    let mut queue = VecDeque::from([first]);
+    let mut queue = VecDeque::new();
+    if paired_drift.is_some() {
+        queue.push_back(first);
+    }
     let mut wall: f64 = 0.;
     while let Some(t) = queue.pop_front() {
         if !examined.insert(t) {
@@ -980,7 +998,7 @@ fn prove(
     let mut curved_chord = 0_f64;
     // A stopped traversal may already cover the bottom ring (or both rings).
     // Check its entire boundary before deciding the prism proof was complete.
-    let mut prism_complete = true;
+    let mut prism_complete = paired_drift.is_some();
     for &t in &selected {
         work.spend(3)?;
         let tri = a.mesh.triangles[t];
@@ -1124,7 +1142,7 @@ fn prove(
         inner,
         radial: radial.max(final_fit.radial),
         chord: final_fit.chord.max(curved_chord),
-        wall: wall + cap + correspondence,
+        wall: wall + cap + paired_drift.unwrap_or(0.),
     }))
 }
 
@@ -1561,6 +1579,61 @@ pub(crate) fn cylinder_flux(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn independently_sampled_convex_fillet_uses_the_coarser_cap_chord() {
+        use crate::{analyze_mesh, analyze_stl, recognize_mixed, ReconstructionMode};
+        let options = Options {
+            reconstruction: ReconstructionMode::Cylinders,
+            ..Options::default()
+        };
+        let original = analyze_stl(
+            include_bytes!("../../../fixtures/partial_fillets/one_edge.stl"),
+            &options,
+        )
+        .unwrap();
+        let radius = 4.;
+        let coarse_chord = radius * (1. - (PI / 64.).cos());
+        for station in [0., 12.] {
+            // Split all 16 chords on just one end of this convex block. Each
+            // new sample lies on the original circle, and the two triangles
+            // incident to its edge are subdivided in their original winding.
+            let mut mesh = original.mesh.clone();
+            let on_arc = |v: usize| {
+                let [x, y, z] = original.mesh.vertices[v];
+                z == station && ((x - 16.).hypot(y + 11.) - radius).abs() < 1e-10
+            };
+            for (id, tri) in original.mesh.triangles.iter().enumerate() {
+                if let Some(k) = (0..3).find(|&k| on_arc(tri[k]) && on_arc(tri[(k + 1) % 3])) {
+                    let (u, v, w) = (tri[k], tri[(k + 1) % 3], tri[(k + 2) % 3]);
+                    let a = mesh.vertices[u];
+                    let b = mesh.vertices[v];
+                    let x = (a[0] + b[0]) / 2. - 16.;
+                    let y = (a[1] + b[1]) / 2. + 11.;
+                    let r = x.hypot(y);
+                    let sample = mesh.vertices.len();
+                    mesh.vertices
+                        .push([16. + radius * x / r, -11. + radius * y / r, station]);
+                    mesh.triangles[id] = [u, sample, w];
+                    mesh.triangles.push([sample, v, w]);
+                }
+            }
+            assert_eq!(mesh.triangles.len(), original.mesh.triangles.len() + 32);
+            let analysis = analyze_mesh(&mesh, &options).unwrap();
+            let lifted = recognize_mixed(&analysis, &options).unwrap();
+            assert_eq!(lifted.model.partial_cylinders.len(), 1);
+            assert!(!lifted.model.partial_cylinders[0].inner);
+            assert!((lifted.report.max_chord_error_mm - coarse_chord).abs() < 1e-9);
+            let tight = Options {
+                max_deviation_mm: coarse_chord * 0.9,
+                ..options.clone()
+            };
+            assert_eq!(
+                recognize_mixed(&analysis, &tight).unwrap_err().code,
+                "recognition.deviation_exceeded"
+            );
+        }
+    }
 
     #[test]
     fn native_rectangle_checks_each_corner_with_the_euclidean_tolerance() {

@@ -1,7 +1,7 @@
 ---
 id: R-034
 titre: "D — congés partiels constants"
-resume: "Coin à trois arrondis intégré ; reste la généralisation des congés partiels et de leurs combinaisons."
+resume: "Coin à trois arrondis et congé de poche à deux butées intégrés. Restent les autres arrêts et réseaux de congés."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13
@@ -35,7 +35,7 @@ Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions F
 
 ## État consolidé — 18 novembre 2026
 
-R-081 intègre le coin orthogonal à trois arrondis ; R-062 qualifie des coins verticaux de bac. Reste : généralisation des configurations de congés partiels et de leurs combinaisons. Le domaine global D n’est pas terminé.
+R-081 intègre le coin orthogonal à trois arrondis ; R-062 qualifie des coins verticaux de bac. R-086 qualifie un congé intérieur à deux butées droites et des extrémités de subdivisions différentes, y compris sur un congé extérieur. Reste : généralisation des configurations de congés partiels et de leurs combinaisons. Le domaine global D n’est pas terminé.
 
 L’utilisateur a autorisé la réalisation de l’ensemble. Le statut « en cours » représente ce chantier global partiellement intégré ; il ne signifie pas que tous ses domaines sont déjà disponibles. Les essais manuels ouverts ne bloquent pas les travaux indépendants restants.
 

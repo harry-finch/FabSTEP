@@ -1,7 +1,7 @@
 ---
 id: R-035
 titre: "E — boîtiers creux ouverts et percés"
-resume: "Bac ouvert et fond percé intégrés ; restent les congés du fond/rebord et autres combinaisons."
+resume: "Bac ouvert, fond percé et poche à un congé de fond intégrés. Restent les arrêts obliques, congés multiples et rebords."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13
@@ -35,7 +35,7 @@ Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions F
 
 ## État consolidé — 18 novembre 2026
 
-R-062 et R-077 intégrés : bac ouvert à coins verticaux arrondis, puis fond percé. Reste : congés du fond/rebord et autres combinaisons. Aucun résultat de ces extensions restantes n’est revendiqué.
+R-062 et R-077 intégrés : bac ouvert à coins verticaux arrondis, puis fond percé. R-086 qualifie un congé isolé dans le fond d’une poche borgne. Les arrêts obliques, les congés multiples, le rebord et les combinaisons de cavités restent à développer.
 
 L’utilisateur a autorisé la réalisation de l’ensemble. Le statut « en cours » représente ce chantier global partiellement intégré ; il ne signifie pas que tous ses domaines sont déjà disponibles. Les essais manuels ouverts ne bloquent pas les travaux indépendants restants.
 
