@@ -1571,6 +1571,11 @@ fn build_rounded_step_impl(
     model: &RoundedModel,
     tokens: Option<SurfaceTokens<'_>>,
 ) -> Result<ValidatedStep, FabError> {
+    if model.revolved.mixed.partial_cylinders.iter().any(|c| c.elliptic_start)
+        && (model.unequal_pocket.is_some() || model.revolved.mixed.partial_cylinders.len() != 1)
+    {
+        return Err(oblique_pocket::invalid());
+    }
     if let Some(pocket) = &model.unequal_pocket {
         return unequal_pocket::build(model, pocket, tokens);
     }
@@ -1579,7 +1584,7 @@ fn build_rounded_step_impl(
         .mixed
         .partial_cylinders
         .iter()
-        .any(|wall| wall.elliptic_end)
+        .any(|wall| wall.elliptic_end || wall.elliptic_start)
         && (!model.torus_sectors.is_empty()
             || model.smooth_revolution.is_some()
             || model.cross_drill.is_some()
@@ -2250,7 +2255,7 @@ fn build_surface_step_with_tokens(
     octants: &[MixedSphericalOctant],
     tokens: Option<SurfaceTokens<'_>>,
 ) -> Result<ValidatedStep, FabError> {
-    if model.partial_cylinders.iter().any(|wall| wall.elliptic_end) {
+    if model.partial_cylinders.iter().any(|wall| wall.elliptic_end || wall.elliptic_start) {
         if !cones.is_empty()
             || !spheres.is_empty()
             || !tori.is_empty()
@@ -2260,6 +2265,9 @@ fn build_surface_step_with_tokens(
             return Err(oblique_pocket::invalid());
         }
         if model.partial_cylinders.len() == 2 {
+            if model.partial_cylinders.iter().any(|wall| wall.elliptic_start) {
+                return Err(oblique_pocket::invalid());
+            }
             return adjacent_pocket::build(model, tokens);
         }
         return oblique_pocket::build(model, tokens);
@@ -4015,6 +4023,7 @@ mod tests {
                 },
             ],
             partial_cylinders: vec![MixedPartialCylinder {
+                elliptic_start: false,
                 elliptic_end: false,
                 arcs: [0, 1],
                 inner: false,
@@ -6301,6 +6310,7 @@ mod tests {
                 })
                 .collect(),
             partial_cylinders: vec![MixedPartialCylinder {
+                elliptic_start: false,
                 elliptic_end: false,
                 arcs: [0, 1],
                 inner: true,
@@ -6334,11 +6344,13 @@ mod tests {
             arcs,
             partial_cylinders: vec![
                 MixedPartialCylinder {
+                    elliptic_start: false,
                     elliptic_end: false,
                     arcs: [0, 1],
                     inner: false,
                 },
                 MixedPartialCylinder {
+                    elliptic_start: false,
                     elliptic_end: false,
                     arcs: [2, 3],
                     inner: false,
@@ -6413,6 +6425,7 @@ mod tests {
             model.arcs.push(second);
         }
         model.partial_cylinders.push(MixedPartialCylinder {
+            elliptic_start: false,
             elliptic_end: false,
             arcs: [2, 3],
             inner: true,
@@ -6480,6 +6493,7 @@ mod tests {
             .arcs
             .extend([third.arcs[0].clone(), third.arcs[1].clone()]);
         third.partial_cylinders.push(MixedPartialCylinder {
+            elliptic_start: false,
             elliptic_end: false,
             arcs: [4, 5],
             inner: false,
@@ -6643,11 +6657,13 @@ mod tests {
                     arcs,
                     partial_cylinders: vec![
                         MixedPartialCylinder {
+                            elliptic_start: false,
                             elliptic_end: false,
                             arcs: [0, 1],
                             inner: false,
                         },
                         MixedPartialCylinder {
+                            elliptic_start: false,
                             elliptic_end: false,
                             arcs: [2, 3],
                             inner: false,
@@ -6702,6 +6718,7 @@ mod tests {
                 });
             }
             partial_cylinders.push(MixedPartialCylinder {
+                elliptic_start: false,
                 elliptic_end: false,
                 arcs: [2 * axis, 2 * axis + 1],
                 inner: false,

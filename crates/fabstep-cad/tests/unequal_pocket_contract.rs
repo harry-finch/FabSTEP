@@ -197,6 +197,7 @@ fn incompatible_dimensions_and_forged_owners_are_refused() {
                 .push(MixedPartialCylinder {
                     arcs: [0, 0],
                     inner: true,
+                    elliptic_start: false,
                     elliptic_end: false,
                 })
         },

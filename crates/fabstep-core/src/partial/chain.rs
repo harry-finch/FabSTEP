@@ -167,6 +167,7 @@ pub(crate) fn augment(
             let owner = if b.cylindrical {
                 let index = model.partial_cylinders.len();
                 model.partial_cylinders.push(MixedPartialCylinder {
+                    elliptic_start: false,
                     elliptic_end: false,
                     arcs,
                     inner: c.inner,

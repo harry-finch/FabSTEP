@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 96** (24 %)
+**Avancement : 23 livrés sur 97** (24 %)
 
 ## Restant à faire
 
@@ -158,6 +158,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Reconstruire une paroi de révolution dont la méridienne comporte deux segments cubiques à tangente commune.
 73. **[R-096 F — perçages traversants orthogonaux à axes décentrés](roadmap/items/R-096-f-percages-traversants-orthogonaux-a-axes.md)** · À tester · jalon post-v1
    Reconstruire les deux intersections partagées lorsque le petit perçage est décentré par rapport au grand.
+74. **[R-097 D/E — Congé de poche entre deux butées obliques](roadmap/items/R-097-d-e-conge-de-poche-entre-deux-butees-obliques.md)** · À tester · jalon post-v1
+   Reconstruire une paroi cylindrique concave tangente et ses deux bords elliptiques dans une poche borgne.
 
 ## Actions à faire
 
@@ -249,6 +251,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-099](roadmap/actions/A-099-inspecter-le-conge-a-rayon-variable-dans-fusion.md) Inspecter le congé à rayon variable dans Fusion (tester, R-094)
 - [ ] [A-100](roadmap/actions/A-100-verifier-la-revolution-a-deux-segments-dans.md) Vérifier la révolution à deux segments dans Fusion (tester, R-095)
 - [ ] [A-101](roadmap/actions/A-101-verifier-les-deux-percages-decentres-dans-fusion.md) Vérifier les deux perçages décentrés dans Fusion (tester, R-096)
+- [ ] [A-102](roadmap/actions/A-102-verifier-les-deux-butees-inclinees-dans-fusion.md) Vérifier les deux butées inclinées dans Fusion (tester, R-097)
 
 ## Livré
 

@@ -266,3 +266,81 @@ fn the_two_circular_ends_of_an_existing_model_keep_their_serialized_form() {
     assert!(new.elliptic_end);
     assert_eq!(new.arcs, [3, 8]);
 }
+
+#[test]
+fn double_oblique_stops_export_two_exact_face_profiles_and_a_selectable_wall() {
+    use fabstep_cad::ResultFaceFamily;
+    use fabstep_core::{export_planar_face_dxf, ProfileSegment};
+    let cases: [(&[u8], f64); 3] = [
+        (
+            include_bytes!("../../../fixtures/double_oblique_pocket/opposed.stl"),
+            20109.552138971678,
+        ),
+        (
+            include_bytes!("../../../fixtures/double_oblique_pocket/parallel.stl"),
+            19776.849014011626,
+        ),
+        (
+            include_bytes!("../../../fixtures/double_oblique_pocket/compound.stl"),
+            20169.91463915609,
+        ),
+    ];
+    for (bytes, volume) in cases {
+        let o = Options {
+            reconstruction: ReconstructionMode::Auto,
+            ..Options::default()
+        };
+        let doc = convert_document_with_provenance(bytes, InputFormat::Stl, &o).unwrap();
+        let cad = &doc.report.cad;
+        assert_eq!(
+            (
+                cad.solids,
+                cad.faces,
+                cad.planar_faces,
+                cad.cylindrical_faces
+            ),
+            (1, 12, 11, 1)
+        );
+        assert!((cad.volume_mm3 - volume).abs() < 0.001);
+        let audit = doc.report.bodies[0].conversion.fidelity.as_ref().unwrap();
+        assert!(
+            audit.source_to_result_mm <= o.max_deviation_mm
+                && audit.result_to_source_mm <= o.max_deviation_mm
+        );
+        let faces = doc.step.result_faces().unwrap();
+        assert_eq!(faces.source_correspondence.status, "exact");
+        let wall = faces
+            .result
+            .faces
+            .iter()
+            .find(|f| f.family == ResultFaceFamily::Cylinder)
+            .unwrap();
+        assert_eq!(wall.adjacent_face_ids.len(), 4);
+        let owned = faces
+            .source_correspondence
+            .faces
+            .iter()
+            .find(|f| f.face_id == wall.id)
+            .unwrap();
+        assert!(owned.source_triangle_ids.len() >= 12);
+        let mut all: Vec<_> = faces
+            .source_correspondence
+            .faces
+            .iter()
+            .flat_map(|f| f.source_triangle_ids.iter().copied())
+            .collect();
+        all.sort_unstable();
+        assert!(all.into_iter().eq(0..((bytes.len() - 84) / 50)));
+        let mut stops = 0;
+        for &id in &wall.adjacent_face_ids {
+            let profile = doc.step.planar_face_profile(id).unwrap();
+            let ellipses=profile.loops.iter().flat_map(|l|&l.segments).filter(|s| matches!(s, ProfileSegment::Ellipse { major_axis_mm:[x,y], ratio, sweep_param_rad,.. } if
+                (x.hypot(*y)*ratio-2.5).abs()<1e-5 && (sweep_param_rad.abs()-std::f64::consts::FRAC_PI_2).abs()<1e-6)).count();
+            assert!(ellipses <= 1);
+            let dxf = String::from_utf8(export_planar_face_dxf(&profile).unwrap()).unwrap();
+            assert_eq!(dxf.matches("\n0\nELLIPSE\n").count(), ellipses);
+            stops += ellipses;
+        }
+        assert_eq!(stops, 2);
+    }
+}

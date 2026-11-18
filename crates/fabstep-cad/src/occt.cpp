@@ -1208,7 +1208,7 @@ TopoDS_Solid build_mixed_solid(
     const size_t* partial_cone_tokens = nullptr,
     const SphericalOctantData* octant = nullptr, const size_t* octant_token = nullptr,
     const LinearBlendData* blend = nullptr, const EllipticArcData* ellipses = nullptr,
-    const size_t* blend_token = nullptr, bool pocket_walls = false) {
+    const size_t* blend_token = nullptr, bool pocket_walls = false, bool double_stop = false) {
   IndexedWires wires(points, point_count);
   BRepBuilderAPI_Sewing sewing(Precision::Confusion());
   sewing.SetMaxTolerance(Precision::Confusion());
@@ -1241,8 +1241,8 @@ TopoDS_Solid build_mixed_solid(
   std::vector<TopoDS_Edge> shared_arcs(blend ? 2 : arc_count + size_t(pocket_walls));
   if (pocket_walls) {
     for (size_t i = 0; i < arc_count; ++i) {
-      const auto face = pocket::wall(arcs[i], *ellipses, points, wires, shared_arcs[i],
-                                     shared_arcs[arc_count], arc_count == 2);
+      const auto face = pocket::wall(arcs[i], ellipses[double_stop ? 1 : 0], points, wires, shared_arcs[i],
+                                     shared_arcs[arc_count], arc_count == 2, double_stop ? ellipses : nullptr);
       sewing.Add(face);
       if (labels && partial_tokens) labels->push_back({face, partial_tokens[i]});
     }
@@ -1283,7 +1283,7 @@ TopoDS_Solid build_mixed_solid(
       const bool hole = j != first_loop;
       const TopoDS_Wire wire = loop.count == 0
           ? rim_wire(plane, rims[loop.start], hole)
-          : segmented_wire(plane, segments + loop.start, loop.count, arcs, shared_arcs, wires, ellipses, pocket_walls ? arc_count : 0);
+          : segmented_wire(plane, segments + loop.start, loop.count, arcs, shared_arcs, wires, ellipses, pocket_walls && !double_stop ? arc_count : 0);
       if (hole) {
         make_face.Add(wire);
       } else {
@@ -3907,7 +3907,7 @@ static int build_pocket_step(size_t walls, const double* points, size_t point_co
     const double* normals, const size_t* plane_loops, const MixedLoopData* loops,
     const MixedSegmentData* segments, const MixedArcData* circles, const EllipticArcData* ellipse,
     const size_t* plane_tokens, const size_t* wall_tokens,
-    StepOutput* output, char* error, size_t capacity) noexcept {
+    StepOutput* output, char* error, size_t capacity, bool double_stop = false) noexcept {
   FaceLabels labels;
   auto* tracked = wall_tokens ? &labels : nullptr;
   SurfaceCounts counts{11, walls, walls};
@@ -3915,11 +3915,11 @@ static int build_pocket_step(size_t walls, const double* points, size_t point_co
   pocket::Domain expected{{}, walls};
   return validated_step([&] {
     for (size_t i = 0; i < walls; ++i)
-      expected.walls[i] = pocket::geometry(circles[i], *ellipse, points);
+      expected.walls[i] = pocket::geometry(circles[i], ellipse[double_stop ? 1 : 0], points, double_stop ? ellipse : nullptr);
     return build_mixed_solid(points, point_count, nullptr, 0, normals, 11, plane_loops, loops,
         segments, nullptr, 0, circles, walls, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0,
         plane_tokens, nullptr, tracked, nullptr, nullptr, nullptr, wall_tokens, nullptr, 0, nullptr,
-        nullptr, nullptr, nullptr, ellipse, nullptr, true);
+        nullptr, nullptr, nullptr, ellipse, nullptr, true, double_stop);
   }, counts, output, error, capacity, nullptr, tracked, nullptr, nullptr, nullptr, &expected);
 }
 
@@ -3930,6 +3930,15 @@ extern "C" int fabstep_build_oblique_pocket_step(
     StepOutput* output, char* error, size_t capacity) noexcept {
   return build_pocket_step(1, points, point_count, normals, plane_loops, loops, segments, circle,
                            ellipse, plane_tokens, wall_token, output, error, capacity);
+}
+
+extern "C" int fabstep_build_double_oblique_pocket_step(
+    const double* points, size_t point_count, const double* normals, const size_t* plane_loops,
+    const MixedLoopData* loops, const MixedSegmentData* segments, const MixedArcData* circle,
+    const EllipticArcData* ellipse, const size_t* plane_tokens, const size_t* wall_token,
+    StepOutput* output, char* error, size_t capacity) noexcept {
+  return build_pocket_step(1, points, point_count, normals, plane_loops, loops, segments, circle,
+                           ellipse, plane_tokens, wall_token, output, error, capacity, true);
 }
 
 extern "C" int fabstep_build_adjacent_pocket_step(
