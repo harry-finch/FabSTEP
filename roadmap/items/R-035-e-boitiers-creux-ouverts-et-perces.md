@@ -58,3 +58,5 @@ L’utilisateur confirme que l’objectif est de réaliser l’ensemble C1b2, C2
 ## Intégration des tranches
 
 R-077 qualifie le bac percé avec onze plans et neuf cylindres, sans nouveau moteur géométrique. V-1201 réussie ; essais A-071/A-072 ouverts. Les congés du fond/rebord restent distincts.
+
+R-098 — Qualifier un bac ouvert combinant trois perçages traversants et huit congés verticaux. Voir V-1226.

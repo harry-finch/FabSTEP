@@ -2407,3 +2407,7 @@ Les STL FreeCAD de 886 et 1 736 triangles donnent neuf faces, dont six plans et 
 ## V-1225 — Congé de poche entre deux butées inclinées
 
 Les trois dessins FreeCAD de `fixtures/double_oblique_pocket` donnent 108, 132 et 142 triangles. Sur ces essais, le nombre de faces passe de 81, 91 et 128 plans à onze plans et un cylindre. Le lecteur indépendant contrôle les deux arêtes elliptiques et huit points de matière ou de vide par pièce. Les tests couvrent les deux exports DXF, la provenance source et le budget de déviation. Une rotation de 37° autour de (1, 2, 3) conserve le repli à 142 plans.
+
+## V-1226 — Bac à deux perçages dans le fond et un perçage latéral
+
+Le générateur indépendant `scripts/qualify-multibore-tray-freecad.py` dessine et contrôle le bac à deux résolutions (1 308 et 2 004 triangles). Les deux STEP produits par Auto contiennent onze plans et onze cylindres. Les six bouches, les huit congés et dix-huit sondes de matière ou de vide sont vérifiés après relecture. L’écart au volume dessiné de 5 767,098637 mm³ est inférieur à 0,000025 mm³. Ce lot étend le corpus de validation du moteur existant.
