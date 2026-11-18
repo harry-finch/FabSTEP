@@ -66,28 +66,28 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    AUD-011 — Reproduire les cas Unicode utiles ; conserver le nom source et éviter une dépendance disproportionnée pour ce seul besoin
 28. **[R-025 Découper les gros modules et mutualiser les helpers au besoin](roadmap/items/R-025-decouper-les-gros-modules-et-mutualiser-les-helpers-au-besoin.md)** · Idée · jalon audit
    AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes
-29. **[R-026 Qualifier le garde de cocircularité des anneaux fermés](roadmap/items/R-026-qualifier-le-garde-de-cocircularite-des-anneaux-fermes.md)** · Idée · jalon audit
-   AUD-017 — Construire une reproduction du défaut supposé ; conserver la protection des anneaux peu échantillonnés. Aucun remplacement direct par `fit_circle` sans cette preuve
-30. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · En cours · jalon post-v1
-   Partiellement intégré : révolutions toriques composées ; reste la méridienne courbe générale.
-31. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · En cours · jalon post-v1
-   Coin à trois arrondis intégré ; reste la généralisation des congés partiels et de leurs combinaisons.
-32. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · En cours · jalon post-v1
-   Bac ouvert et fond percé intégrés ; restent les congés du fond/rebord et autres combinaisons.
-33. **[R-036 F — perçages sécants](roadmap/items/R-036-f-percages-secants.md)** · En cours · jalon post-v1
-   Certificat natif validé au laboratoire ; reconnaissance STL et intégration R-083 en développement.
-34. **[R-037 G — congés variables](roadmap/items/R-037-g-conges-variables.md)** · En cours · jalon post-v1
-   Premier raccord à rayon linéaire intégré ; restent les autres configurations et raccords variables multiples.
-35. **[R-038 H — surfaces libres](roadmap/items/R-038-h-surfaces-libres.md)** · Idée · jalon post-v1
-   Patch bicubique de type hauteur, quatre limites source sur un solide fermé
-36. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · Idée · jalon atelier
-   Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
-37. **[R-050 I2 — élargir les familles guidées](roadmap/items/R-050-i2-elargir-les-familles-guidees.md)** · Idée · jalon atelier
-   Après Plan (R-056), ajouter le raccord torique guidé puis étudier les sphères.
-38. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
-   Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
-39. **[R-056 I2d — fusion plane guidée](roadmap/items/R-056-i2d-fusion-plane-guidee.md)** · À tester · jalon atelier
+29. **[R-056 I2d — fusion plane guidée](roadmap/items/R-056-i2d-fusion-plane-guidee.md)** · À tester · jalon atelier
    Ajouter Plan aux familles guidées : fusionner une sélection contiguë presque plane, sans déplacer ses sommets, après contrôle du solide.
+30. **[R-026 Qualifier le garde de cocircularité des anneaux fermés](roadmap/items/R-026-qualifier-le-garde-de-cocircularite-des-anneaux-fermes.md)** · Idée · jalon audit
+   AUD-017 — Construire une reproduction du défaut supposé ; conserver la protection des anneaux peu échantillonnés. Aucun remplacement direct par `fit_circle` sans cette preuve
+31. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · En cours · jalon post-v1
+   Partiellement intégré : révolutions toriques composées ; reste la méridienne courbe générale.
+32. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · En cours · jalon post-v1
+   Coin à trois arrondis intégré ; reste la généralisation des congés partiels et de leurs combinaisons.
+33. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · En cours · jalon post-v1
+   Bac ouvert et fond percé intégrés ; restent les congés du fond/rebord et autres combinaisons.
+34. **[R-036 F — perçages sécants](roadmap/items/R-036-f-percages-secants.md)** · En cours · jalon post-v1
+   Certificat natif validé au laboratoire ; reconnaissance STL et intégration R-083 en développement.
+35. **[R-037 G — congés variables](roadmap/items/R-037-g-conges-variables.md)** · En cours · jalon post-v1
+   Premier raccord à rayon linéaire intégré ; restent les autres configurations et raccords variables multiples.
+36. **[R-038 H — surfaces libres](roadmap/items/R-038-h-surfaces-libres.md)** · Idée · jalon post-v1
+   Patch bicubique de type hauteur, quatre limites source sur un solide fermé
+37. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · Idée · jalon atelier
+   Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
+38. **[R-050 I2 — élargir les familles guidées](roadmap/items/R-050-i2-elargir-les-familles-guidees.md)** · Idée · jalon atelier
+   Après Plan (R-056), ajouter le raccord torique guidé puis étudier les sphères.
+39. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
+   Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
 40. **[R-057 UX5 — reconstruction automatique et sélection des parois](roadmap/items/R-057-ux5-reconstruction-automatique-et-selection-des.md)** · À tester · jalon atelier
    Ouvrir et obtenir le meilleur STEP prouvé, sélectionner une paroi en un geste et corriger localement sans perdre les surfaces reconnues.
 41. **[R-059 C1b2 — chaînes coniques sans portée intermédiaire](roadmap/items/R-059-c1b2-chaines-coniques-sans-portee-intermediaire.md)** · Idée · jalon post-v1
