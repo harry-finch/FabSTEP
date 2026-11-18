@@ -2385,3 +2385,9 @@ cmp fixtures/inclined_plate_hole.stl artifacts/r093/reference/main-coarse.stl
 ```
 
 **Validation du jalon.** La suite Rust du workspace en profil de test optimisé compte 641 tests réussis et 16 tests optionnels ignorés. Le test optionnel de la correction guidée sur `body 26mm.stl` passe aussi en exécution séparée. Le bureau macOS passe ses 51 tests, dont le lancement du helper embarqué. Les huit tests du helper, les 236 tests de l’interface, le formatage, Clippy strict, le contrôle Svelte et le build passent. Le contrôle interactif de la sélection et la mesure dans Fusion sont suivis dans [A-096](../roadmap/actions/A-096-verifier-le-trou-de-la-plaque-inclinee-dans.md).
+
+## V-1222 — R-094, congé à rayon variable sur une bande entre deux arrêts
+
+Sur `fixtures/local_blends/g_ruled_strip.stl`, R-093 renvoyait un solide à 176 faces planes. Le noyau peut à présent prendre deux témoins intérieurs sur une génératrice reliant les deux arrêts. Il vérifie sur cette arête source la position à un tiers et à deux tiers de sa hauteur, son faible écart angulaire, la distance au cône et la séparation du modèle à sections circulaires. Les contrôles de tangence, d’orientation, de couverture et de déviation sur les triangles entiers s’appliquent ensuite.
+
+Les essais `cargo test -p fabstep-core -p fabstep-app --test linear_blend` couvrent deux nouvelles bandes de 256 et 288 triangles de paroi, en pente croissante puis décroissante avec permutation des axes. Auto et Surfaces retrouvent un solide, six plans et un cône, deux sections elliptiques et le volume de référence de 3 165,401595 mm³. Les tests contrôlent les propriétaires source, les sondes de matière, les faces réimportées et la fidélité dans les deux sens. Le témoin à sections circulaires conserve le refus analytique.

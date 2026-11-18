@@ -17,3 +17,5 @@ Le paramètre `s` parcourt `[0,1]`. Avec `k=√[2(1+b²)]` et `D=(1−s)²+s²+k
 Pour les lois `3+0,2z` et `5−0,2z`, le volume analytique est **3 165,401595323511 mm³**. L’aire retirée par section est proportionnelle à `(a+bz)²`. Le coefficient analytique est vérifié numériquement par l’intégrale de Green de la paramétrisation rationnelle. Les variantes comprennent les deux signes de pente, un miroir, une permutation, une rotation oblique avec triangulation décalée, un empilement de quarts de cercle, une loi non linéaire, une coupe limite parabolique et un arrêt absent.
 
 Les trois sondes discriminantes de l’empilement circulaire sont dans la matière de l’enveloppe linéaire et dans le vide de l’empilement. Ces contrôles portent sur les STL du corpus. Les sources G servent à la qualification future de R-082. Les tests d’intégration D2 se trouvent dans `crates/fabstep-app/tests/local_trihedral.rs`.
+
+Les témoins `g_ruled_strip.stl` et `g_ruled_decreasing.stl` portent uniquement des génératrices reliant les deux coupes. `g_ruled_circle.stl` partage cette triangulation avec des sections circulaires. Reconstruction et contrôles dans V-1222.

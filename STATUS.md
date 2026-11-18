@@ -57,7 +57,7 @@ Le secteur annulaire de R-085 est intégré sous ADR-0040. R-086 couvre le cas d
 | D / R-034 | R-062 et R-081 : configurations locales constantes, coin triédrique sphérique ; R-086/R-087 : congé isolé à deux butées droites ou à une butée oblique. R-088 à R-090 : congés opposés ou adjacents à 90°, de rayons égaux ou distincts | Autres réseaux de congés, supports et coins ; ne pas extrapoler le cas orthogonal |
 | E / R-035 | R-062/R-077 : bac ouvert arrondi, fond traversé ; R-086/R-087 : poche borgne à un congé de fond, butée droite ou oblique. R-088 à R-090 : deux congés opposés ou adjacents, y compris de rayons distincts | Deux arrêts obliques, autres combinaisons, congés du rebord, autres combinaisons de cavités |
 | F / R-036 | R-063 : certificat natif ; R-083/R-091 : deux branches certifiées jusqu’au rapport inférieur à deux tiers avec marge. R-092 : même bloc incliné avant maillage binaire | Axes décentrés ou obliques, rayons plus proches, intersections multiples et guidage couplé |
-| G / R-037 | R-082 : un raccord convexe linéaire à limites elliptiques | Autres configurations, raccords multiples et lois de rayon non linéaires |
+| G / R-037 | R-082/R-094 : un raccord convexe linéaire à limites elliptiques, y compris sur un maillage sans rangée intermédiaire | Autres configurations, raccords multiples et lois de rayon non linéaires |
 
 Les parents C2/D/E/F/G sont **en cours** dans FabBoard : des sous-domaines sont développés, pas la généralisation entière. Les essais utilisateur restent dans leurs actions existantes, sans les dupliquer ni les marquer acceptés.
 
