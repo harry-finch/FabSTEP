@@ -15,7 +15,7 @@ import MeshPart
 import Part
 
 
-CASES = ("f_ratio", "f_ratio_mid", "f_ratio_near")
+CASES = ("f_ratio", "f_ratio_mid", "f_ratio_near", "f_off_center", "f_off_center_rotated")
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "cross_drill"
 V = App.Vector
 
@@ -42,7 +42,9 @@ def reference(case, *, local=False, subdivided=False):
     # OCCT's independent mesher samples in the interior of the cylindrical faces.
     x_stops = [-lx / 2 - 1, *([-6, 6] if subdivided else []), lx / 2 + 1]
     z_stops = [-lz / 2 - 1, *([-7, 7] if subdivided else []), lz / 2 + 1]
-    shape = block.cut(drill(V(0, 0, 1), z_stops, r)).cut(
+    narrow = drill(V(0, 0, 1), z_stops, r)
+    narrow.translate(V(*p["small_axis_offset_local_mm"]))
+    shape = block.cut(narrow).cut(
         drill(V(1, 0, 0), x_stops, big)
     )
     if not subdivided:
@@ -82,11 +84,15 @@ def inspect(path, case, *, local=False, boolean=False, to_local=None):
         or sum(isinstance(f.Surface, Part.Plane) for f in solid.Faces) != 6
     ):
         raise ValueError(f"{path}: unexpected supports")
-    for wall, radius, axis in zip(walls, (r, r, big), (z, z, x)):
+    dx, dy, _ = p["small_axis_offset_local_mm"]
+    offset = x * dx + z.cross(x) * dy
+    for wall, radius, axis, center in zip(
+        walls, (r, r, big), (z, z, x), (origin + offset, origin + offset, origin)
+    ):
         near(wall.Radius, radius, 2e-5, "bore radius in mm")
         near(abs(wall.Axis.dot(axis)), 1, 1e-8, "bore direction")
         near(
-            (wall.Center - origin).cross(axis).Length, 0, 2e-5, "bore centerline in mm"
+            (wall.Center - center).cross(axis).Length, 0, 2e-5, "bore centerline in mm"
         )
     bounds = solid.optimalBoundingBox(False)
     actual_bounds = [
@@ -143,7 +149,7 @@ def inspect(path, case, *, local=False, boolean=False, to_local=None):
             if q.dot(z) * sign <= 0:
                 raise ValueError(f"{path}: seam crosses the middle of the block")
             max_residual = max(
-                max_residual, abs(q.cross(z).Length - r), abs(q.cross(x).Length - big)
+                max_residual, abs((q - offset).cross(z).Length - r), abs(q.cross(x).Length - big)
             )
     for edges in branches.values():
         wires = [Part.Wire(curves) for curves in Part.sortEdges(edges)] if edges else []
@@ -182,15 +188,18 @@ def convert(cli, source, output):
         )
 
 
-def independent_meshes(directory, cli, case):
+def independent_meshes(directory, cli, case, *, offset_plate=False):
     results = {}
     second_pose = App.Placement(V(3, -2, 4), App.Rotation(V(1, 2, 3), 24))
-    for variant, local, subdivided, pose in [
+    variants = [
         ("plain", True, False, None),
         ("subdivided", True, True, None),
         ("rotated", False, False, None),
         ("rotated_24", True, False, second_pose),
-    ]:
+    ]
+    if offset_plate:
+        variants = [("offset", True, False, None)]
+    for variant, local, subdivided, pose in variants:
         reference_path = directory / f"freecad_{variant}.step"
         shape = reference(case, local=local, subdivided=subdivided)
         if pose is not None:
@@ -246,6 +255,9 @@ def main():
     if args.mesh:
         report["independent_meshes"] = independent_meshes(
             args.output, args.cli, manifest["f_ratio_mid"]
+        )
+        report["offset_meshes"] = independent_meshes(
+            args.output, args.cli, manifest["f_off_center"], offset_plate=True
         )
     print(json.dumps(report, indent=2, allow_nan=False))
 

@@ -30,6 +30,9 @@ fn cross_drill_rejects_invalid_supports_cycles_and_nonexclusive_models() {
             as fn(&mut RoundedModel),
         |m| m.cross_drill.as_mut().unwrap().radii[1] = 3.,
         |m| m.cross_drill.as_mut().unwrap().axes.swap(0, 1),
+        |m| m.cross_drill.as_mut().unwrap().small_offset = [0.5, -0.25],
+        |m| m.cross_drill.as_mut().unwrap().small_offset = [f64::NAN, 0.],
+        |m| m.cross_drill.as_mut().unwrap().small_offset = [0., 2.],
         |m| m.cross_drill.as_mut().unwrap().half_lengths[1] *= 2.,
         |m| m.cross_drill.as_mut().unwrap().branches[0].reverse(),
         |m| {

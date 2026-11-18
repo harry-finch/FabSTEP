@@ -123,7 +123,7 @@ fn folded_same_support_and_other_nonqualifying_geometry_never_get_the_domain() {
     for name in [
         "f_ratio_boundary",
         "f_ratio_above",
-        "f_off_center",
+        "f_offset_clearance",
         "f_fold",
     ] {
         let a = analyze_stl(&fixture(name), &o).unwrap();
@@ -327,5 +327,34 @@ fn strip_vertices_on_radius_or_a_single_sector_cannot_prove_the_wall() {
         let error = recognize_rounded(&source, &o).unwrap_err();
         assert_eq!(error.code, "recognition.surface_unproven");
         assert!(error.message.contains("sans témoin intérieur"), "{error}");
+    }
+}
+
+#[test]
+fn displaced_axes_keep_separate_centers_and_resolve_both_intersections() {
+    for name in ["f_off_center", "f_off_center_rotated"] {
+        let o = opts(ReconstructionMode::Auto);
+        let a = analyze_stl(&fixture(name), &o).unwrap();
+        let result = recognize_automatic(&a, &o).unwrap();
+        let f = result.model.cross_drill.as_ref().unwrap();
+        let [dx, dy] = f.small_offset;
+        assert!((dx.abs() - 1.125).abs() < 1e-5 && (dy.abs() - 0.625).abs() < 1e-5);
+        for cycle in &f.branches {
+            for &id in cycle {
+                let [x, y, z] = to_local(f, a.mesh.vertices[id]);
+                assert!(((x - dx).hypot(y - dy) - 3.).abs() < o.cylinder_fit_tolerance_mm);
+                assert!((y.hypot(z) - 6.5).abs() < o.cylinder_fit_tolerance_mm);
+            }
+        }
+        assert!((result.report.expected_volume_mm3 - 5301.12371).abs() < 0.0001);
+        let tight = Options {
+            max_deviation_mm: 0.001,
+            ..o.clone()
+        };
+        assert!(recognize_automatic(&a, &tight)
+            .unwrap()
+            .model
+            .cross_drill
+            .is_none());
     }
 }

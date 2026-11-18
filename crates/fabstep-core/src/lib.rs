@@ -406,6 +406,9 @@ pub struct MixedLinearBlend {
 /// the two small mouths in increasing z, then the two large mouths in x.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrossDrill {
+    /// Small bore axis position along local X/Y, measured from the block center.
+    #[serde(default)]
+    pub small_offset: [f64; 2],
     /// Achieved source-witness residual, already charged to the deviation bound.
     pub witness_tolerance_mm: f64,
     pub center: [f64; 3],

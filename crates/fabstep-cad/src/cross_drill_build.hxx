@@ -8,7 +8,7 @@ void set_junction(const CrossDrillData& d, const TopoDS_Edge& edge, const TopoDS
   const double first = curve.FirstParameter(), last = curve.LastParameter(),
                period = 2. * std::acos(-1.);
   const gp_Vec x(direction(d.axes[0])), y(direction(d.axes[1])), z(direction(d.axes[2]));
-  const auto center = point_at(d.center, 0);
+  const auto center = point_at(d.center, 0).Translated(x*d.small_offset[0]+y*d.small_offset[1]);
   auto phase = [&](double t) {
     const gp_Vec v(center, curve.Value(t));
     return std::atan2(v.Dot(y), v.Dot(x));
@@ -46,8 +46,9 @@ void set_junction(const CrossDrillData& d, const TopoDS_Edge& edge, const TopoDS
   TColStd_Array1OfInteger mults(1, n + 1);
   for (int i = 0; i <= n; ++i) {
     const double t = start + i * step, c = std::cos(t), s = std::sin(t),
-                 h = std::sqrt(R * R - r * r * s * s);
-    const double hp = -r * r * s * c / h, hpp = -r * r * (c * c - s * s) / h - hp * hp / h;
+                 world_y = d.small_offset[1] + r*s,
+                 h = std::sqrt((R-world_y)*(R+world_y));
+    const double hp = -world_y*r*c/h, hpp = (-r*r*c*c+world_y*r*s-hp*hp)/h;
     const auto p = center.Translated(x * (r * c) + y * (r * s) + z * (sign * h));
     if ((i == 0 || i == n) &&
         p.Distance(curve.Value(i == 0 ? first : last)) > Precision::Confusion())
@@ -107,7 +108,7 @@ TopoDS_Solid build_cross_drill(const CrossDrillData& data, const size_t* plane_t
   };
   // Build in a common local frame for stable cylindrical seam placement.
   const auto small =
-      BRepBuilderAPI_MakeFace(gp_Cylinder(gp_Ax3(p(0, 0, -hz), gp_Dir(ez), gp_Dir(ex)), r), 0.,
+      BRepBuilderAPI_MakeFace(gp_Cylinder(gp_Ax3(p(data.small_offset[0], data.small_offset[1], -hz), gp_Dir(ez), gp_Dir(ex)), r), 0.,
                               2. * std::acos(-1.), 0., 2. * hz)
           .Face();
   const auto large =
@@ -124,7 +125,7 @@ TopoDS_Solid build_cross_drill(const CrossDrillData& data, const size_t* plane_t
     throw invalid;
   std::array<TopoDS_Edge, 4> rings;
   std::array<TopoDS_Face, 3> walls;
-  const std::array<gp_Pnt, 4> mouths{p(0, 0, -hz), p(0, 0, hz), p(-hx, 0, 0), p(hx, 0, 0)};
+  const std::array<gp_Pnt, 4> mouths{p(data.small_offset[0], data.small_offset[1], -hz), p(data.small_offset[0], data.small_offset[1], hz), p(-hx, 0, 0), p(hx, 0, 0)};
   for (TopExp_Explorer it(split.Shape(), TopAbs_FACE); it.More(); it.Next()) {
     const auto face = TopoDS::Face(it.Current());
     const auto surface = BRepAdaptor_Surface(face);

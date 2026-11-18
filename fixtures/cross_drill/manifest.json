@@ -3675,8 +3675,8 @@
       "sha256": "5c9976c1e7924b0c0e6729e9e7941e2b4465456442a8928bd44e8bdd07413115",
       "placement": "nominal",
       "triangles": 2512,
-      "positive": false,
-      "defect": "off_center",
+      "positive": true,
+      "defect": null,
       "parameters": {
         "dimensions_mm": [
           24.0,
@@ -3705,6 +3705,718 @@
           0.625,
           0.0
         ],
+        "volume_mm3": 5301.12374938784,
+        "void_overlap_mm3": 355.6367100094366,
+        "volume_quadrature_difference_mm3": 5.684341886080802e-14,
+        "analytic_faces": {
+          "plane": 6,
+          "cylinder": 3
+        }
+      },
+      "analytic_bounds_mm": [
+        [
+          -12.0,
+          -10.0,
+          -9.0
+        ],
+        [
+          12.0,
+          10.0,
+          9.0
+        ]
+      ],
+      "topology": {
+        "euler_characteristic": -4,
+        "boundary_edges": 0,
+        "boundary_cycle_lengths": [],
+        "vertices": 1252,
+        "sampled_volume_mm3": 5305.067964115707,
+        "joined_edges": [
+          [
+            "large_bore",
+            "plane_x_negative",
+            112
+          ],
+          [
+            "large_bore",
+            "plane_x_positive",
+            112
+          ],
+          [
+            "large_bore",
+            "small_bore_negative",
+            66
+          ],
+          [
+            "large_bore",
+            "small_bore_positive",
+            66
+          ],
+          [
+            "plane_x_negative",
+            "plane_y_negative",
+            1
+          ],
+          [
+            "plane_x_negative",
+            "plane_y_positive",
+            1
+          ],
+          [
+            "plane_x_negative",
+            "plane_z_negative",
+            1
+          ],
+          [
+            "plane_x_negative",
+            "plane_z_positive",
+            1
+          ],
+          [
+            "plane_x_positive",
+            "plane_y_negative",
+            1
+          ],
+          [
+            "plane_x_positive",
+            "plane_y_positive",
+            1
+          ],
+          [
+            "plane_x_positive",
+            "plane_z_negative",
+            1
+          ],
+          [
+            "plane_x_positive",
+            "plane_z_positive",
+            1
+          ],
+          [
+            "plane_y_negative",
+            "plane_z_negative",
+            1
+          ],
+          [
+            "plane_y_negative",
+            "plane_z_positive",
+            1
+          ],
+          [
+            "plane_y_positive",
+            "plane_z_negative",
+            1
+          ],
+          [
+            "plane_y_positive",
+            "plane_z_positive",
+            1
+          ],
+          [
+            "plane_z_negative",
+            "small_bore_negative",
+            66
+          ],
+          [
+            "plane_z_positive",
+            "small_bore_positive",
+            66
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "small_bore_negative",
+          "first_source_triangle": 0,
+          "triangles": 396,
+          "boundary_cycle_lengths": [
+            66,
+            66
+          ],
+          "euler_characteristic": 0
+        },
+        {
+          "owner": "small_bore_positive",
+          "first_source_triangle": 396,
+          "triangles": 396,
+          "boundary_cycle_lengths": [
+            66,
+            66
+          ],
+          "euler_characteristic": 0
+        },
+        {
+          "owner": "large_bore",
+          "first_source_triangle": 792,
+          "triangles": 1344,
+          "boundary_cycle_lengths": [
+            66,
+            66,
+            112,
+            112
+          ],
+          "euler_characteristic": -2
+        },
+        {
+          "owner": "plane_x_negative",
+          "first_source_triangle": 2136,
+          "triangles": 116,
+          "boundary_cycle_lengths": [
+            4,
+            112
+          ],
+          "euler_characteristic": 0
+        },
+        {
+          "owner": "plane_y_negative",
+          "first_source_triangle": 2252,
+          "triangles": 2,
+          "boundary_cycle_lengths": [
+            4
+          ],
+          "euler_characteristic": 1
+        },
+        {
+          "owner": "plane_z_negative",
+          "first_source_triangle": 2254,
+          "triangles": 70,
+          "boundary_cycle_lengths": [
+            4,
+            66
+          ],
+          "euler_characteristic": 0
+        },
+        {
+          "owner": "plane_x_positive",
+          "first_source_triangle": 2324,
+          "triangles": 116,
+          "boundary_cycle_lengths": [
+            4,
+            112
+          ],
+          "euler_characteristic": 0
+        },
+        {
+          "owner": "plane_y_positive",
+          "first_source_triangle": 2440,
+          "triangles": 2,
+          "boundary_cycle_lengths": [
+            4
+          ],
+          "euler_characteristic": 1
+        },
+        {
+          "owner": "plane_z_positive",
+          "first_source_triangle": 2442,
+          "triangles": 70,
+          "boundary_cycle_lengths": [
+            4,
+            66
+          ],
+          "euler_characteristic": 0
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "material": false,
+          "purpose": "common_void"
+        },
+        {
+          "point_mm": [
+            10.2,
+            0.0,
+            0.0
+          ],
+          "material": false,
+          "purpose": "large_bore_positive"
+        },
+        {
+          "point_mm": [
+            -10.2,
+            0.0,
+            0.0
+          ],
+          "material": false,
+          "purpose": "large_bore_negative"
+        },
+        {
+          "point_mm": [
+            1.125,
+            0.625,
+            8.1
+          ],
+          "material": false,
+          "purpose": "small_bore_positive"
+        },
+        {
+          "point_mm": [
+            1.125,
+            0.625,
+            -8.1
+          ],
+          "material": false,
+          "purpose": "small_bore_negative"
+        },
+        {
+          "point_mm": [
+            9.600000000000001,
+            9.0,
+            7.2
+          ],
+          "material": true,
+          "purpose": "block_corner"
+        },
+        {
+          "point_mm": [
+            3.54049396327351,
+            2.2750000000000004,
+            -6.1788730484384375
+          ],
+          "material": false,
+          "purpose": "small_bore_at_join"
+        },
+        {
+          "point_mm": [
+            3.7204939632735097,
+            2.2750000000000004,
+            -5.998873048438438
+          ],
+          "material": false,
+          "purpose": "large_bore_at_join"
+        },
+        {
+          "point_mm": [
+            3.7204939632735097,
+            2.2750000000000004,
+            -6.1788730484384375
+          ],
+          "material": true,
+          "purpose": "material_at_join"
+        },
+        {
+          "point_mm": [
+            3.54049396327351,
+            2.2750000000000004,
+            6.1788730484384375
+          ],
+          "material": false,
+          "purpose": "small_bore_at_join"
+        },
+        {
+          "point_mm": [
+            3.7204939632735097,
+            2.2750000000000004,
+            5.998873048438438
+          ],
+          "material": false,
+          "purpose": "large_bore_at_join"
+        },
+        {
+          "point_mm": [
+            3.7204939632735097,
+            2.2750000000000004,
+            6.1788730484384375
+          ],
+          "material": true,
+          "purpose": "material_at_join"
+        }
+      ]
+    },
+    "f_off_center_rotated": {
+      "sha256": "f6a292f1cc8f19374ea1bbbcef643170ab20db974dc683296b8a4375d4b57f0e",
+      "placement": "rotated",
+      "triangles": 3128,
+      "positive": true,
+      "defect": null,
+      "parameters": {
+        "dimensions_mm": [
+          24.0,
+          20.0,
+          18.0
+        ],
+        "center_mm": [
+          9.0,
+          -5.0,
+          11.0
+        ],
+        "small_radius_mm": 3.0,
+        "large_radius_mm": 6.5,
+        "small_axis": [
+          0.4444444444444444,
+          -0.4444444444444444,
+          -0.7777777777777778
+        ],
+        "large_axis": [
+          0.1111111111111111,
+          0.8888888888888888,
+          -0.4444444444444444
+        ],
+        "small_axis_offset_local_mm": [
+          -1.125,
+          -0.625,
+          0.0
+        ],
+        "volume_mm3": 5301.12374938784,
+        "void_overlap_mm3": 355.6367100094366,
+        "volume_quadrature_difference_mm3": 5.684341886080802e-14,
+        "analytic_faces": {
+          "plane": 6,
+          "cylinder": 3
+        }
+      },
+      "analytic_bounds_mm": [
+        [
+          -5.222222222222223,
+          -20.77777777777778,
+          -5.777777777777779
+        ],
+        [
+          23.22222222222222,
+          10.777777777777777,
+          27.77777777777778
+        ]
+      ],
+      "topology": {
+        "euler_characteristic": -4,
+        "boundary_edges": 0,
+        "boundary_cycle_lengths": [],
+        "vertices": 1560,
+        "sampled_volume_mm3": 5303.622085058757,
+        "joined_edges": [
+          [
+            "large_bore",
+            "plane_x_negative",
+            140
+          ],
+          [
+            "large_bore",
+            "plane_x_positive",
+            140
+          ],
+          [
+            "large_bore",
+            "small_bore_negative",
+            82
+          ],
+          [
+            "large_bore",
+            "small_bore_positive",
+            82
+          ],
+          [
+            "plane_x_negative",
+            "plane_y_negative",
+            1
+          ],
+          [
+            "plane_x_negative",
+            "plane_y_positive",
+            1
+          ],
+          [
+            "plane_x_negative",
+            "plane_z_negative",
+            1
+          ],
+          [
+            "plane_x_negative",
+            "plane_z_positive",
+            1
+          ],
+          [
+            "plane_x_positive",
+            "plane_y_negative",
+            1
+          ],
+          [
+            "plane_x_positive",
+            "plane_y_positive",
+            1
+          ],
+          [
+            "plane_x_positive",
+            "plane_z_negative",
+            1
+          ],
+          [
+            "plane_x_positive",
+            "plane_z_positive",
+            1
+          ],
+          [
+            "plane_y_negative",
+            "plane_z_negative",
+            1
+          ],
+          [
+            "plane_y_negative",
+            "plane_z_positive",
+            1
+          ],
+          [
+            "plane_y_positive",
+            "plane_z_negative",
+            1
+          ],
+          [
+            "plane_y_positive",
+            "plane_z_positive",
+            1
+          ],
+          [
+            "plane_z_negative",
+            "small_bore_negative",
+            82
+          ],
+          [
+            "plane_z_positive",
+            "small_bore_positive",
+            82
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "small_bore_negative",
+          "first_source_triangle": 0,
+          "triangles": 492,
+          "boundary_cycle_lengths": [
+            82,
+            82
+          ],
+          "euler_characteristic": 0
+        },
+        {
+          "owner": "small_bore_positive",
+          "first_source_triangle": 492,
+          "triangles": 492,
+          "boundary_cycle_lengths": [
+            82,
+            82
+          ],
+          "euler_characteristic": 0
+        },
+        {
+          "owner": "large_bore",
+          "first_source_triangle": 984,
+          "triangles": 1680,
+          "boundary_cycle_lengths": [
+            82,
+            82,
+            140,
+            140
+          ],
+          "euler_characteristic": -2
+        },
+        {
+          "owner": "plane_x_negative",
+          "first_source_triangle": 2664,
+          "triangles": 144,
+          "boundary_cycle_lengths": [
+            4,
+            140
+          ],
+          "euler_characteristic": 0
+        },
+        {
+          "owner": "plane_y_negative",
+          "first_source_triangle": 2808,
+          "triangles": 2,
+          "boundary_cycle_lengths": [
+            4
+          ],
+          "euler_characteristic": 1
+        },
+        {
+          "owner": "plane_z_negative",
+          "first_source_triangle": 2810,
+          "triangles": 86,
+          "boundary_cycle_lengths": [
+            4,
+            82
+          ],
+          "euler_characteristic": 0
+        },
+        {
+          "owner": "plane_x_positive",
+          "first_source_triangle": 2896,
+          "triangles": 144,
+          "boundary_cycle_lengths": [
+            4,
+            140
+          ],
+          "euler_characteristic": 0
+        },
+        {
+          "owner": "plane_y_positive",
+          "first_source_triangle": 3040,
+          "triangles": 2,
+          "boundary_cycle_lengths": [
+            4
+          ],
+          "euler_characteristic": 1
+        },
+        {
+          "owner": "plane_z_positive",
+          "first_source_triangle": 3042,
+          "triangles": 86,
+          "boundary_cycle_lengths": [
+            4,
+            82
+          ],
+          "euler_characteristic": 0
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            9.0,
+            -5.0,
+            11.0
+          ],
+          "material": false,
+          "purpose": "common_void"
+        },
+        {
+          "point_mm": [
+            10.133333333333333,
+            4.066666666666665,
+            6.466666666666668
+          ],
+          "material": false,
+          "purpose": "large_bore_positive"
+        },
+        {
+          "point_mm": [
+            7.866666666666667,
+            -14.066666666666665,
+            15.533333333333331
+          ],
+          "material": false,
+          "purpose": "large_bore_negative"
+        },
+        {
+          "point_mm": [
+            11.919444444444444,
+            -9.669444444444444,
+            4.9222222222222225
+          ],
+          "material": false,
+          "purpose": "small_bore_positive"
+        },
+        {
+          "point_mm": [
+            4.719444444444445,
+            -2.469444444444445,
+            17.522222222222222
+          ],
+          "material": false,
+          "purpose": "small_bore_negative"
+        },
+        {
+          "point_mm": [
+            21.266666666666666,
+            1.3333333333333357,
+            5.133333333333332
+          ],
+          "material": true,
+          "purpose": "block_corner"
+        },
+        {
+          "point_mm": [
+            7.161755361044434,
+            -0.8462613977709239,
+            15.944304627353866
+          ],
+          "material": false,
+          "purpose": "small_bore_at_join"
+        },
+        {
+          "point_mm": [
+            7.261755361044433,
+            -0.7662613977709238,
+            15.724304627353863
+          ],
+          "material": false,
+          "purpose": "large_bore_at_join"
+        },
+        {
+          "point_mm": [
+            7.181755361044433,
+            -0.6862613977709238,
+            15.864304627353864
+          ],
+          "material": true,
+          "purpose": "material_at_join"
+        },
+        {
+          "point_mm": [
+            12.94724329746079,
+            -6.6317493341872815,
+            5.8197007386252375
+          ],
+          "material": false,
+          "purpose": "small_bore_at_join"
+        },
+        {
+          "point_mm": [
+            12.887243297460792,
+            -6.391749334187281,
+            5.879700738625238
+          ],
+          "material": false,
+          "purpose": "large_bore_at_join"
+        },
+        {
+          "point_mm": [
+            12.96724329746079,
+            -6.471749334187281,
+            5.739700738625237
+          ],
+          "material": true,
+          "purpose": "material_at_join"
+        }
+      ]
+    },
+    "f_offset_clearance": {
+      "sha256": "adb44d60760cae80239cbbe41aa8a9c222b1f4ffa772d08f56e1cba0b88d79d9",
+      "placement": "nominal",
+      "triangles": 2512,
+      "positive": false,
+      "defect": "unresolved_offset",
+      "parameters": {
+        "dimensions_mm": [
+          24.0,
+          20.0,
+          18.0
+        ],
+        "center_mm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "small_radius_mm": 3.0,
+        "large_radius_mm": 6.5,
+        "small_axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "large_axis": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "small_axis_offset_local_mm": [
+          1.0,
+          1.4,
+          0.0
+        ],
         "volume_mm3": null,
         "void_overlap_mm3": null,
         "volume_quadrature_difference_mm3": null,
@@ -3716,7 +4428,7 @@
         "boundary_edges": 0,
         "boundary_cycle_lengths": [],
         "vertices": 1252,
-        "sampled_volume_mm3": 5305.067964115707,
+        "sampled_volume_mm3": 5297.3664498568105,
         "joined_edges": [
           [
             "large_bore",

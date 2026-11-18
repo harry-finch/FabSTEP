@@ -100,13 +100,13 @@ def planar_face(mesh, half, axis, sign, hole=None, center=(0., 0.)):
         mesh.triangle(a, b, side[0], normal, label)
 
 
-def cross_drill(half, r, big_r, circumferential, steps, defect, small_steps):
+def cross_drill(half, r, big_r, circumferential, steps, defect, small_steps, offset=(0., 0.)):
     hx, _, hz = half
-    cx, cy = (1.125, .625) if defect == "off_center" else (0., 0.)
+    cx, cy = offset
     right = right_semicircle(r, circumferential // 2)
     if cy != 0.:
         # Include world y=0 exactly on both cylinders to keep the large
-        # mouth's cardinal vertices in its ring even in this negative case.
+        # mouth's cardinal vertices in its ring with an offset axis.
         right.append((math.sqrt(r*r - cy*cy), -cy))
         right.sort(key=lambda p: p[1])
     small_ring = complete_circle(right)
@@ -341,10 +341,13 @@ def verify(faces, labels, open_case):
                  joined_edges=[[*pair, len(edges)] for pair, edges in sorted(joins.items())]), patches)
 
 
-def ideal_volume(half, r, big_r):
+def ideal_volume(half, r, big_r, dy=0.):
     def integrand(angle):
         s, c = math.sin(angle), math.cos(angle)
-        return 8. * r*r * c*c * math.sqrt(big_r*big_r - r*r*s*s)
+        if dy == 0.:
+            return 8. * r*r * c*c * math.sqrt(big_r*big_r - r*r*s*s)
+        # Pair the two transverse slices around the narrow bore center.
+        return 4. * r*r*c*c * sum(math.sqrt(big_r**2-(dy+sign*r*s)**2) for sign in (-1,1))
 
     def simpson(intervals):
         dx = math.pi / (2. * intervals)
@@ -368,21 +371,24 @@ def winding(faces, point):
     return math.fsum(solid_angle(face) for face in faces) / (4. * math.pi)
 
 
-def probes(half, r, big_r):
+def probes(half, r, big_r, offset=(0., 0.)):
     hx, hy, hz = half
+    cx,cy=offset
     values = [
         ((0., 0., 0.), False, "common_void"),
         ((.85 * hx, 0., 0.), False, "large_bore_positive"),
         ((-.85 * hx, 0., 0.), False, "large_bore_negative"),
-        ((0., 0., .9 * hz), False, "small_bore_positive"),
-        ((0., 0., -.9 * hz), False, "small_bore_negative"),
+        ((cx, cy, .9 * hz), False, "small_bore_positive"),
+        ((cx, cy, -.9 * hz), False, "small_bore_negative"),
         ((.8 * hx, .9 * hy, .8 * hz), True, "block_corner"),
     ]
     # Stay clear of chord sag while probing across both support surfaces next
     # to their two branches, with |x| both inside and outside the thin bore.
     y = .55 * r
     x = math.sqrt(r*r - y*y)
-    z = math.sqrt(big_r*big_r - y*y)
+    z = math.sqrt(big_r*big_r - (y+cy)**2)
+    x += cx
+    y += cy
     gap = .03 * r
     for sign in (-1, 1):
         for point, expected, purpose in [
@@ -394,12 +400,12 @@ def probes(half, r, big_r):
     return values
 
 
-def write_case(destination, name, scale, pose, circumferential, steps, defect, large_radius=LARGE_RADIUS, small_steps=None):
+def write_case(destination, name, scale, pose, circumferential, steps, defect, large_radius=LARGE_RADIUS, small_steps=None, offset=(0., 0.)):
     half = tuple(scale * x for x in HALF_EXTENTS)
     r = scale * SMALL_RADIUS
     big_r = scale * large_radius
     mesh = cross_drill(half, r, big_r, circumferential, steps, defect,
-                       steps if small_steps is None else small_steps)
+                       steps if small_steps is None else small_steps, offset)
     axes, center, flipped = placement(pose)
     faces = [tuple(place(p, axes, center) for p in (tri[::-1] if flipped else tri))
              for tri in mesh.faces]
@@ -416,17 +422,17 @@ def write_case(destination, name, scale, pose, circumferential, steps, defect, l
         actual = [[extreme(p[i] for face in faces for p in face) for i in range(3)]
                   for extreme in (min, max)]
         assert all(abs(x - y) < 2e-6 for a, b in zip(bounds, actual) for x, y in zip(a, b))
-        volume, overlap, convergence = ideal_volume(half, r, big_r)
+        volume, overlap, convergence = ideal_volume(half, r, big_r, offset[1])
         assert abs(topology["sampled_volume_mm3"] - volume) < .003 * volume
-        for point, material, purpose in probes(half, r, big_r):
-            assert (point[0]**2 + point[1]**2 > r*r and point[1]**2 + point[2]**2 > big_r*big_r) == material
+        for point, material, purpose in probes(half, r, big_r, offset):
+            assert ((point[0]-offset[0])**2 + (point[1]-offset[1])**2 > r*r and point[1]**2 + point[2]**2 > big_r*big_r) == material
             world = place(point, axes, center)
             assert abs(winding(faces, world) - float(material)) < 1e-7, (name, world, purpose)
             references.append(dict(point_mm=world, material=material, purpose=purpose))
     parameters = dict(dimensions_mm=[2. * x for x in half], center_mm=center,
                       small_radius_mm=r, large_radius_mm=big_r,
                       small_axis=axes[2], large_axis=axes[0],
-                      small_axis_offset_local_mm=(1.125, .625, 0.) if defect == "off_center" else (0., 0., 0.),
+                      small_axis_offset_local_mm=(*offset, 0.),
                       volume_mm3=volume, void_overlap_mm3=overlap, volume_quadrature_difference_mm3=convergence,
                       analytic_faces=dict(plane=6, cylinder=3) if defect is None else None)
     return dict(sha256=hashlib.sha256(path.read_bytes()).hexdigest(), placement=pose,
@@ -446,7 +452,9 @@ CASES = (
     ("f_ratio_near", 1., "mirror", 96, 3, None, 4.51),
     ("f_ratio_boundary", 1., "nominal", 64, 3, "ratio_at_limit", 4.5),
     ("f_ratio_above", 1., "nominal", 64, 3, "ratio_above_limit", 4.49),
-    ("f_off_center", 1., "nominal", 64, 3, "off_center"),
+    ("f_off_center", 1., "nominal", 64, 3, None, LARGE_RADIUS, 3, (1.125, .625)),
+    ("f_off_center_rotated", 1., "rotated", 80, 3, None, LARGE_RADIUS, 3, (-1.125, -.625)),
+    ("f_offset_clearance", 1., "nominal", 64, 3, "unresolved_offset", LARGE_RADIUS, 3, (1., 1.4)),
     ("f_fold", 1., "nominal", 64, 3, "fold"),
     ("f_missing_mouth", 1., "nominal", 64, 3, "missing_mouth"),
 )
