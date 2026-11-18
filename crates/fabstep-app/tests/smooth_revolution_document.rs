@@ -10,18 +10,18 @@ const PHASED: &[u8] = include_bytes!("../../../fixtures/smooth_revolution/retess
 fn interleaved_stl(first: &[u8], second: &[u8], offset: [f64; 3]) -> Vec<u8> {
     let a = read_stl_mesh(first, InputUnit::Mm).unwrap();
     let b = read_stl_mesh(second, InputUnit::Mm).unwrap();
-    assert_eq!(a.triangles.len(), b.triangles.len());
     let mut stl = vec![0; 80];
     stl.extend(
         u32::try_from(a.triangles.len() + b.triangles.len())
             .unwrap()
             .to_le_bytes(),
     );
-    for (first, second) in a.triangles.iter().zip(&b.triangles) {
-        for (points, shift) in [
-            (first.map(|i| a.vertices[i]), [0.; 3]),
-            (second.map(|i| b.vertices[i]), offset),
-        ] {
+    for i in 0..a.triangles.len().max(b.triangles.len()) {
+        for (mesh, shift) in [(&a, [0.; 3]), (&b, offset)] {
+            let Some(triangle) = mesh.triangles.get(i) else {
+                continue;
+            };
+            let points = triangle.map(|i| mesh.vertices[i]);
             stl.extend([0; 12]); // Orientation comes from vertex order.
             for point in points {
                 for (coordinate, delta) in point.into_iter().zip(shift) {
@@ -131,4 +131,43 @@ fn contact_in_the_source_or_only_after_reconstruction_blocks_the_whole_document(
         .err()
         .expect("overlapping reconstructed solids accepted");
     assert_eq!(error.code, "cad.bodies_not_separated");
+}
+
+#[test]
+fn a_pole_and_a_two_disk_solid_preserve_all_five_faces_and_both_owners() {
+    let tip = include_bytes!("../../../fixtures/smooth_revolution/axial_tip.stl");
+    let bytes = interleaved_stl(tip, NECK, [32., 0., 0.]);
+    let converted = convert_document_with_provenance(&bytes, InputFormat::Stl, &options()).unwrap();
+    let r = &converted.report.cad;
+    assert_eq!(
+        (r.solids, r.faces, r.planar_faces, r.revolution_faces),
+        (2, 5, 3, 2)
+    );
+    let inspected = converted.step.result_faces().unwrap();
+    let correspondence = inspected.source_correspondence;
+    assert_eq!(correspondence.status, "exact");
+    assert_eq!(correspondence.faces.len(), 5);
+    let mut used = BTreeSet::new();
+    for row in &correspondence.faces {
+        let face = &inspected.result.faces[row.face_id];
+        let body = converted
+            .report
+            .bodies
+            .iter()
+            .find(|b| b.id == row.analysis_body_id)
+            .unwrap();
+        let is_tip = body.conversion.cad.planar_faces == 1;
+        assert!(face
+            .adjacent_face_ids
+            .iter()
+            .all(|&i| inspected.result.faces[i].solid_id == face.solid_id));
+        if face.family == ResultFaceFamily::Revolution {
+            assert_eq!(face.adjacent_face_ids.len(), if is_tip { 1 } else { 2 });
+        }
+        for &id in &row.source_triangle_ids {
+            assert!(used.insert(id));
+            assert_eq!(id < 8192 && id % 2 == 0, is_tip);
+        }
+    }
+    assert_eq!(used.len(), 4096 + 4224);
 }

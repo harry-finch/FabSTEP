@@ -1,8 +1,10 @@
 //! One or two cubic Bernstein spans over a strictly increasing axial coordinate.
+//! A one-span meridian may start at a witnessed axial pole. Its oriented
+//! triangle fan covers the first disk, meeting the annulus on its first ring.
 //! Recognition already checked a connected, oriented, closed two-manifold
 //! (including vertex links). The segmentation gives the actual boundary of
-//! each cap as one simple cycle. Removing their triangles leaves exactly
-//! those two boundary cycles, with opposite uses. Each lateral triangle has
+//! each cap as one simple cycle. Removing both end disks (or a disk and
+//! the first fan) gives two boundary cycles. Each remaining lateral triangle has
 //! positive degree in the periodic chart and each end cycle maps once around
 //! it. Hence the sum of local degrees at any regular interior point is one.
 //! A hole would have degree zero, a second sheet degree at least two. Shared
@@ -52,7 +54,10 @@ fn fit(nodes: &[Node], o: &Options) -> Option<[f64; 4]> {
     let slope = (rhs(&nodes[b]) - rhs(&nodes[a])) / (v - u);
     let b1 = rhs(&nodes[a]) - u * slope;
     let poles = [first.radius, b1, b1 + slope, last.radius];
-    if poles.iter().any(|&r| !r.is_finite() || r <= 8. * tol)
+    if poles
+        .iter()
+        .skip(usize::from(first.radius == 0.))
+        .any(|&r| !r.is_finite() || r <= 8. * tol)
         || !nodes
             .iter()
             .any(|n| [0., u, v, 1.].iter().all(|&q| (t(n) - q).abs() > 1. / 64.))
@@ -138,6 +143,9 @@ fn fit_profile(nodes: &[Node], o: &Options, work: &mut Work) -> Result<Option<Pr
             first,
             second: None,
         }));
+    }
+    if nodes[0].radius == 0. {
+        return Ok(None);
     }
     // At least seven complete rings per span, including the measured joint.
     // Trying every eligible source ring also detects non-unique partitions.
@@ -265,6 +273,19 @@ fn ring_points(
             .find(|(_, hi, _)| t <= *hi)
             .ok_or_else(|| unproven("niveau hors profil"))?;
         let r = radius(&controls, (t - lo) / (hi - lo));
+        if n.radius == 0. {
+            if level != 0 || n.vertices.len() != 1 || r != 0. {
+                return Err(unproven("pôle de révolution ambigu"));
+            }
+            let v = n.vertices[0];
+            let [x, y, z] = frame.project(a.mesh.vertices[v]);
+            bound.charge_projection(x.hypot(y).hypot(z - n.z), tol)?;
+            points[v] = Point {
+                level: Some(0),
+                ..Point::default()
+            };
+            continue;
+        }
         for &v in &n.vertices {
             let [x, y, z] = frame.project(a.mesh.vertices[v]);
             let rho = x.hypot(y);
@@ -401,17 +422,18 @@ pub(super) fn candidate(
     o: &Options,
     work: &mut Work,
 ) -> Result<Option<RoundedRecognition>, FabError> {
+    let pole = nodes.first().is_some_and(|n| n.radius == 0.);
     if a.mesh.triangles.len() > MAX_TRIANGLES
         || s.model.faces.len() > MAX_REGIONS
         || !(5..=128).contains(&nodes.len())
-        || rims.len() != 2
+        || rims.len() != if pole { 1 } else { 2 }
     {
         return Ok(None);
     }
     work.spend(nodes.len() * 8 + rims.iter().map(|r| r.vertices.len()).sum::<usize>())?;
     let last = nodes.len() - 1;
     let mut cap_regions = [usize::MAX; 2];
-    for (end, level) in [0, last].into_iter().enumerate() {
+    for (end, level) in [0, last].into_iter().enumerate().skip(usize::from(pole)) {
         let Some(rim) = rims.iter().find(|r| r.vertices == nodes[level].vertices) else {
             return Ok(None);
         };
@@ -471,7 +493,8 @@ pub(super) fn candidate(
         height_mm: height,
         radii_mm: b,
         second_span: profile.second.map(|(_, s)| s),
-        rings: [0, 1],
+        pole_vertex: pole.then(|| nodes[0].vertices[0]),
+        rings: if pole { [0, 0] } else { [0, 1] },
         witness_tolerance_mm: 0.,
     };
     work.spend(a.mesh.vertices.len() * 4 + a.mesh.triangles.len() * 8)?;
@@ -491,6 +514,10 @@ pub(super) fn candidate(
         derivatives.first = derivatives.first.max(local.first / width);
         derivatives.second = derivatives.second.max(local.second / width.powi(2));
     }
+    // A genuine source fan has one triangle per edge of the next circle.
+    // Its boundary is checked without assuming that triangle IDs or ring
+    // vertices start at the meridian seam.
+    let mut fan_edges = BTreeSet::new();
     let mut owners = Vec::with_capacity(a.mesh.triangles.len());
     for (&ids, &region) in a.mesh.triangles.iter().zip(&s.triangle_regions) {
         let mapped = ids.map(|i| points[i]);
@@ -505,13 +532,38 @@ pub(super) fn candidate(
                 o.plane_tolerance_mm,
                 &mut bound,
             )?;
-            owners.push(RoundedFaceRef::Plane { index: end });
+            owners.push(RoundedFaceRef::Plane {
+                index: end - usize::from(pole),
+            });
+        } else if let Some(i) = f
+            .pole_vertex
+            .and_then(|v| ids.iter().position(|&id| id == v))
+        {
+            let (b, c) = ((i + 1) % 3, (i + 2) % 3);
+            let w = delta(mapped[b].theta, mapped[c].theta);
+            if mapped[b].level != Some(1)
+                || mapped[c].level != Some(1)
+                || !(-PI / 4. - 1e-12..-1e-10).contains(&w)
+                || !fan_edges.insert(edge(ids[b], ids[c]))
+            {
+                return Err(unproven("éventail du pôle incomplet ou replié"));
+            }
+            // Pair a point of the first band with the same axial fraction
+            // of the flat source fan. Radial interpolation contributes at
+            // most |r''| dt²/8; the angular chord adds r(first ring)*w²/8.
+            let dt = (nodes[1].z - nodes[0].z) / height;
+            let chord = (derivatives.second * dt * dt + radius(&f.radii_mm, dt) * w * w) / 8.;
+            bound.curvature = bound.curvature.max(chord);
+            owners.push(RoundedFaceRef::SmoothRevolution { index: 0 });
         } else {
             bound.curvature = bound
                 .curvature
                 .max(derivatives.triangle(mapped, nodes, height)?);
             owners.push(RoundedFaceRef::SmoothRevolution { index: 0 });
         }
+    }
+    if pole && fan_edges != boundary(&nodes[1].vertices) {
+        return Err(unproven("le pôle ne couvre pas le premier anneau"));
     }
     f.witness_tolerance_mm = bound.residual + roundoff;
     let wall = roundoff + NATIVE_RESERVE_MM;
@@ -525,16 +577,19 @@ pub(super) fn candidate(
     let v = volume(&f)?;
     let rings = [0, last]
         .into_iter()
+        .skip(usize::from(pole))
         .map(|i| CircularRing {
             center: frame.lift([0., 0., nodes[i].z]),
             axis: frame.axis,
             radius_mm: nodes[i].radius,
         })
         .collect();
-    let planes = (0..2)
+    let planes = (usize::from(pole)..2)
         .map(|i| MixedPlane {
             normal: scale(frame.axis, if i == 0 { -1. } else { 1. }),
-            loops: vec![MixedLoop::Circle { ring: i }],
+            loops: vec![MixedLoop::Circle {
+                ring: i - usize::from(pole),
+            }],
         })
         .collect();
     Ok(Some(RoundedRecognition {
@@ -547,7 +602,7 @@ pub(super) fn candidate(
             cylinders:0,cones:0,spheres:0,tori:0,toroidal_fillets:0,revolutions:1,
             max_radial_residual_mm:bound.residual,max_wall_residual_mm:wall,max_chord_error_mm:bound.curvature,max_deviation_bound_mm:deviation,expected_volume_mm3:v,
             diagnostics:vec![Diagnostic{code:"reconstruction.fitted_revolution".into(),severity:Severity::Warning,count:1,message:"Une méridienne cubique ajustée aux anneaux mesurés représente la paroi de révolution.".into()},
-                Diagnostic{code:"recognition.bound_scope".into(),severity:Severity::Info,count:1,message:"La borne couvre les disques et chaque triangle de la paroi, avec soudage, interpolation angle–hauteur et réserve native.".into()}],
+                Diagnostic{code:"recognition.bound_scope".into(),severity:Severity::Info,count:1,message:"La borne couvre les extrémités et chaque triangle de la paroi, avec soudage, interpolation angle–hauteur et réserve native.".into()}],
         }
     }))
 }

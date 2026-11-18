@@ -1400,6 +1400,15 @@ std::optional<gp_Pnt> surface_pole(const TopoDS_Face& face, const TopoDS_Edge& e
       point.Distance(surface.Cone().Apex()) <= Precision::Confusion()) {
     return point;
   }
+  if (surface.GetType() == GeomAbs_SurfaceOfRevolution) {
+    // The full body certificate verifies the cubic and its unique collapsed
+    // coedge separately. This local gate admits only its physical axis point.
+    const auto axis = surface.AxeOfRevolution();
+    if (gp_Vec(axis.Location(),point).Crossed(gp_Vec(axis.Direction())).Magnitude() <= 5e-8 &&
+        std::min(point.Distance(surface.Value(surface.FirstUParameter(),surface.FirstVParameter())),
+                 point.Distance(surface.Value(surface.FirstUParameter(),surface.LastVParameter()))) <= 5e-8)
+      return point;
+  }
   if (surface.GetType() == GeomAbs_Sphere) {
     const auto sphere = surface.Sphere();
     const auto polar_radius = gp_Vec(sphere.Position().Direction()) * sphere.Radius();
@@ -2804,9 +2813,15 @@ void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output
                 std::vector<ResultFaceData>* faces = nullptr) {
   const auto grids = check_meshing_resolution(shape, deflection);
   TopTools_IndexedMapOfShape grid_faces;
-  for (const auto& grid : grids) {
-    for (const auto& face : {grid.proof.wall,grid.proof.caps[0],grid.proof.caps[1]})
-      grid_faces.Add(face);
+  std::vector<size_t> grid_owners;
+  for (size_t i=0; i<grids.size(); ++i) {
+    const auto& p = grids[i].proof;
+    for (const auto& face : {p.wall,p.caps[0],p.caps[1]}) {
+      if (face.IsNull()) continue;
+      if (grid_faces.Add(face) != static_cast<int>(grid_owners.size()+1))
+        throw CadFailure{mesh_failed,"Face de révolution attribuée à plusieurs solides."};
+      grid_owners.push_back(i);
+    }
   }
   TopoDS_Shape ordinary_shape = shape;
   if (!grids.empty()) {
@@ -2859,7 +2874,7 @@ void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output
     TopLoc_Location location;
     const int grid_face = grid_faces.FindIndex(face);
     const Handle(Poly_Triangulation) triangulation = grid_face > 0
-        ? revolution_face_mesh(grids[(grid_face-1)/3],face)
+        ? revolution_face_mesh(grids[grid_owners[grid_face-1]],face)
         : BRep_Tool::Triangulation(face, location);
     if (triangulation.IsNull() || triangulation->NbTriangles() <= 0 ||
         triangulation->NbNodes() <= 0) {
@@ -3878,7 +3893,7 @@ extern "C" int fabstep_build_smooth_revolution_step(const SmoothRevolutionData* 
     const size_t* cap_tokens, const size_t* wall_token, StepOutput* output, char* error, size_t capacity) noexcept {
   FaceLabels labels;
   auto* tracked = wall_token ? &labels : nullptr;
-  SurfaceCounts expected{2,0};
+  SurfaceCounts expected{domain->radii[0] == 0. ? 1u : 2u,0};
   expected.revolutions = 1;
   return validated_step([&]{return build_smooth_revolution(*domain,cap_tokens,wall_token,tracked);},
                         expected,output,error,capacity,nullptr,tracked,nullptr,domain);

@@ -200,6 +200,8 @@ fn inflected_and_mirrored_walls_keep_the_requested_chart_tessellation_accuracy()
     for raw in [
         include_bytes!("../../../fixtures/smooth_revolution/inflection.stl").as_slice(),
         include_bytes!("../../../fixtures/smooth_revolution/mirrored.stl").as_slice(),
+        include_bytes!("../../../fixtures/smooth_revolution/axial_tip.stl").as_slice(),
+        include_bytes!("../../../fixtures/smooth_revolution/mirrored_tip.stl").as_slice(),
         include_bytes!("../../../fixtures/smooth_revolution/two_span.stl").as_slice(),
         include_bytes!("../../../fixtures/smooth_revolution/two_span_mirror.stl").as_slice(),
     ] {
@@ -303,6 +305,49 @@ fn second_span_refuses_inconsistent_knot_tangent_and_cap() {
         );
         assert_eq!(
             build_rounded_step(&model).unwrap_err().code,
+            "cad.invalid_model"
+        );
+    }
+}
+
+#[test]
+fn axial_pole_requires_a_matching_source_vertex_and_exactly_one_disk() {
+    let options = Options {
+        reconstruction: ReconstructionMode::Surfaces,
+        ..Options::default()
+    };
+    let a = analyze_stl(
+        include_bytes!("../../../fixtures/smooth_revolution/axial_tip.stl"),
+        &options,
+    )
+    .unwrap();
+    let base = recognize_rounded(&a, &options).unwrap().model;
+    for mutate in [
+        (|m: &mut RoundedModel| m.smooth_revolution.as_mut().unwrap().pole_vertex = None)
+            as fn(&mut RoundedModel),
+        |m| m.smooth_revolution.as_mut().unwrap().pole_vertex = Some(usize::MAX),
+        |m| {
+            let f = m.smooth_revolution.as_mut().unwrap();
+            f.pole_vertex = Some((f.pole_vertex.unwrap() + 1) % m.revolved.mixed.vertices.len());
+        },
+        |m| m.smooth_revolution.as_mut().unwrap().radii_mm[0] = 0.01,
+        |m| {
+            m.revolved
+                .mixed
+                .planes
+                .push(m.revolved.mixed.planes[0].clone())
+        },
+        |m| {
+            m.revolved
+                .mixed
+                .rings
+                .push(m.revolved.mixed.rings[0].clone())
+        },
+    ] {
+        let mut wrong = base.clone();
+        mutate(&mut wrong);
+        assert_eq!(
+            build_rounded_step(&wrong).unwrap_err().code,
             "cad.invalid_model"
         );
     }

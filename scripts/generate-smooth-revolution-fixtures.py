@@ -148,7 +148,7 @@ def analytic_bounds(radii, height, axis, translation):
 
 
 def generate(name, radii, height, *, divisions=32, angles=64, axes=IDENTITY,
-             translation=(0., 0., 0.), scale=1., phase=0., defect=None, second_span=None):
+             translation=(0., 0., 0.), scale=1., phase=0., defect=None, second_span=None, pole=False):
     radii = tuple(r * scale for r in radii)
     height *= scale
     if second_span:
@@ -168,6 +168,8 @@ def generate(name, radii, height, *, divisions=32, angles=64, axes=IDENTITY,
     def vertex(t, column):
         angle = math.tau * column / angles + phase
         r = radius(t)
+        if pole and t == 0. and defect == "off_axis_pole":
+            return (0.02, 0., 0.)
         return (r * math.cos(angle), r * math.sin(angle), height * t)
 
     t_stations = [i / divisions for i in range(divisions + 1)]
@@ -199,7 +201,7 @@ def generate(name, radii, height, *, divisions=32, angles=64, axes=IDENTITY,
             for j in range(angles):
                 k = (j + 1) % angles
                 a, b, c, d = lower[j], lower[k], upper[k], upper[j]
-                if defect == "axial_tip" and i == 0:
+                if pole and i == 0:
                     yield a, c, d
                 elif (i + j) % 2:
                     yield a, b, d
@@ -208,7 +210,7 @@ def generate(name, radii, height, *, divisions=32, angles=64, axes=IDENTITY,
                     yield a, b, c
                     yield a, c, d
 
-    if defect != "axial_tip":
+    if not pole:
         patch("lower_cap", (((0., 0., 0.), rows[0][(j+1) % angles], rows[0][j]) for j in range(angles)))
     patch("wall", wall())
     missing_cap = defect == "missing_cap"
@@ -220,6 +222,8 @@ def generate(name, radii, height, *, divisions=32, angles=64, axes=IDENTITY,
     assert topology["boundary_edges"] == (angles if missing_cap else 0)
     case = {"triangles": len(faces), "axial_divisions": divisions, "azimuths": angles,
             "patches": patches, "topology": topology}
+    if pole:
+        case["pole"] = True
     if defect is not None:
         case["defect"] = defect
         return case
@@ -263,6 +267,11 @@ def main():
     cases["two_span"] = generate("two_span", controls, 24., divisions=48, second_span=span)
     cases["two_span_mirror"] = generate("two_span_mirror", controls, 24., divisions=40, angles=72,
         axes=MIRROR, translation=(2., -4., 5.), phase=.024, second_span=span)
+    pole_cases = {
+        "axial_tip": generate("axial_tip", (0., 4., 2., 8.), 20., pole=True),
+        "mirrored_tip": generate("mirrored_tip", (0., 2., 5., 4.5), 16., pole=True,
+            axes=MIRROR, translation=(3.,1.,-2.), divisions=36, angles=64, phase=0.017),
+    }
     negative_cases = {
         "kinked_span": generate("kinked_span", controls, 24., divisions=48,
             second_span=(.375, (7., 4., 6.)), defect="kinked_span"),
@@ -271,9 +280,9 @@ def main():
         "incomplete_level": generate("incomplete_level", BULGE, 20., defect="incomplete_level"),
         "sparse": generate("sparse", BULGE, 20., divisions=3, defect="sparse"),
         "quartic": generate("quartic", BULGE, 20., defect="quartic"),
-        "axial_tip": generate("axial_tip", (0., 4., 2., 8.), 20., defect="axial_tip"),
+        "off_axis_pole": generate("off_axis_pole", (0., 4., 2., 8.), 20., pole=True, defect="off_axis_pole"),
     }
-    (ROOT / "manifest.json").write_text(json.dumps({"cases": cases, "negative_cases": negative_cases},
+    (ROOT / "manifest.json").write_text(json.dumps({"cases": cases, "negative_cases": negative_cases, "pole_cases": pole_cases},
                                                  indent=2, allow_nan=False) + "\n", encoding="ascii")
 
 
