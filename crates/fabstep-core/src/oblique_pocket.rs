@@ -1,0 +1,490 @@
+//! One concave quarter cylinder stopped by a perpendicular plane and an oblique plane.
+//! The eleven planar neighbors are seeded from the largest source triangles. Only
+//! the fully certified partition (including the pocket opening) is returned.
+use crate::math::{cross, dot, norm, scale, sub, Sum, V};
+use crate::recognition::Work;
+use crate::{
+    Analysis, CircularArc, Diagnostic, EllipticArc, FabError, Mesh, MixedLoop, MixedModel,
+    MixedPartialCylinder, MixedPlane, MixedSegment, Options, RecognitionReport, RevolvedModel,
+    RoundedFaceRef, RoundedModel, RoundedRecognition, Severity,
+};
+use std::collections::{BTreeMap, BTreeSet};
+use std::f64::consts::FRAC_PI_2;
+
+mod wall;
+const WALL: usize = 11;
+type Edge = (usize, usize);
+type Cuts = BTreeMap<Edge, Vec<usize>>;
+
+fn pair(a: usize, b: usize) -> Edge {
+    (a.min(b), a.max(b))
+}
+fn add(a: V, b: V) -> V {
+    std::array::from_fn(|i| a[i] + b[i])
+}
+fn unit(v: V) -> Option<V> {
+    let length = norm(v);
+    (length > 0. && length.is_finite()).then(|| scale(v, 1. / length))
+}
+fn unsupported() -> FabError {
+    FabError::new(
+        "recognition.oblique_pocket_unproven",
+        "Les contours du congé de poche oblique ne sont pas démontrés.",
+    )
+}
+fn checked(condition: bool) -> Result<(), FabError> {
+    if condition {
+        Ok(())
+    } else {
+        Err(unsupported())
+    }
+}
+#[derive(Clone, Copy)]
+struct Plane {
+    origin: V,
+    normal: V,
+}
+impl Plane {
+    fn distance(self, p: V) -> f64 {
+        dot(sub(p, self.origin), self.normal)
+    }
+}
+struct Patch {
+    support: Plane,
+    triangles: BTreeSet<usize>,
+    area: f64,
+}
+struct Partition {
+    planes: Vec<Patch>,
+    owners: Vec<usize>,
+    cuts: Cuts,
+    // Boundary edges with directed orientation as in the source triangle.
+    neighbor: BTreeMap<(usize, usize), usize>,
+}
+
+fn partition(
+    mesh: &Mesh,
+    adjacency: &[Vec<usize>],
+    o: &Options,
+    work: &mut Work,
+) -> Result<Partition, FabError> {
+    let triangles = &mesh.triangles;
+    let count = triangles.len();
+    work.spend(count * 32)?;
+    let mut normals = Vec::with_capacity(count);
+    let mut areas = Vec::with_capacity(count);
+    for indices in triangles {
+        let [p, q, r] = indices.map(|v| mesh.vertices[v]);
+        let n = cross(sub(q, p), sub(r, p));
+        areas.push(norm(n));
+        normals.push(unit(n).ok_or_else(unsupported)?);
+    }
+    let mut seeds: Vec<_> = (0..count).collect();
+    seeds.sort_unstable_by(|&i, &j| areas[j].total_cmp(&areas[i]).then_with(|| i.cmp(&j)));
+    let mut assigned = vec![false; count];
+    let mut patches = Vec::new();
+    for seed in seeds {
+        if assigned[seed] {
+            continue;
+        }
+        let support = Plane {
+            origin: mesh.vertices[triangles[seed][0]],
+            normal: normals[seed],
+        };
+        let mut stack = vec![seed];
+        assigned[seed] = true;
+        let mut region = BTreeSet::new();
+        let mut area = Sum::default();
+        while let Some(t) = stack.pop() {
+            area.add(areas[t]);
+            region.insert(t);
+            work.spend(16)?;
+            for &next in &adjacency[t] {
+                if !assigned[next]
+                    && dot(normals[next], support.normal) > 0.
+                    && triangles[next].iter().all(|&v| {
+                        support.distance(mesh.vertices[v]).abs() <= o.plane_tolerance_mm.min(1e-5)
+                    })
+                {
+                    assigned[next] = true;
+                    stack.push(next);
+                }
+            }
+        }
+        patches.push(Patch {
+            support,
+            triangles: region,
+            area: area.get(),
+        });
+    }
+    patches.sort_by(|a, b| b.area.total_cmp(&a.area));
+    checked(patches.len() > WALL && patches[WALL - 1].area > 2. * patches[WALL].area)?;
+    patches.truncate(WALL);
+    let mut owners = vec![WALL; count];
+    for (i, patch) in patches.iter().enumerate() {
+        for &t in &patch.triangles {
+            owners[t] = i;
+        }
+    }
+    let first = owners
+        .iter()
+        .position(|&i| i == WALL)
+        .ok_or_else(unsupported)?;
+    let mut wall = BTreeSet::from([first]);
+    let mut stack = vec![first];
+    while let Some(t) = stack.pop() {
+        for &other in &adjacency[t] {
+            if owners[other] == WALL && wall.insert(other) {
+                stack.push(other);
+            }
+        }
+    }
+    checked(wall.len() == owners.iter().filter(|&&v| v == WALL).count())?;
+    let wall_loops = crate::planar::boundaries(mesh, &wall)?;
+    checked(wall_loops.len() == 1)?;
+    let vertices: BTreeSet<_> = wall.iter().flat_map(|&t| triangles[t]).collect();
+    checked(2 * vertices.len() + 2 * wall.len() == 2 + 3 * wall.len() + wall_loops[0].len())?;
+    let mut directed = BTreeMap::new();
+    for (t, &owner) in owners.iter().enumerate() {
+        let [a, b, c] = triangles[t];
+        for (p, q) in [(a, b), (b, c), (c, a)] {
+            checked(directed.insert((p, q), owner).is_none())?;
+        }
+    }
+    let mut by_pair = BTreeMap::<Edge, Vec<Edge>>::new();
+    let mut neighbor = BTreeMap::new();
+    for (&(p, q), &owner) in &directed {
+        let &other = directed.get(&(q, p)).ok_or_else(unsupported)?;
+        if owner != other {
+            neighbor.insert((p, q), other);
+            if owner < other {
+                by_pair.entry((owner, other)).or_default().push((p, q));
+            }
+        }
+    }
+    let mut cuts = Cuts::new();
+    for (key, edges) in by_pair {
+        let chain = crate::rounded::block::ordered_chain(&edges).map_err(|_| unsupported())?;
+        cuts.insert(key, chain);
+    }
+    Ok(Partition {
+        planes: patches,
+        owners,
+        cuts,
+        neighbor,
+    })
+}
+
+fn intersection(planes: [Plane; 3], near: V) -> Option<V> {
+    let [a, b, c] = planes.map(|p| p.normal);
+    let reciprocal = [cross(b, c), cross(c, a), cross(a, b)];
+    let det = dot(a, reciprocal[0]);
+    if det.abs() < 0.01 {
+        return None;
+    }
+    let rhs = planes.map(|p| -p.distance(near) / det);
+    Some((0..3).fold(near, |p, i| add(p, scale(reciprocal[i], rhs[i]))))
+}
+
+fn straight(chain: &[usize], raw: &[V], projected: &[V], tol: f64) -> Option<f64> {
+    let a = projected[chain[0]];
+    let b = projected[*chain.last()?];
+    let d = sub(b, a);
+    let length = norm(d);
+    let dir = unit(d)?;
+    let mut previous = f64::NEG_INFINITY;
+    let mut residual: f64 = 0.;
+    for (i, &v) in chain.iter().enumerate() {
+        let h = if i == 0 {
+            0.
+        } else if i + 1 == chain.len() {
+            length
+        } else {
+            dot(sub(raw[v], a), dir)
+        };
+        if h <= previous || h > length {
+            return None;
+        }
+        previous = h;
+        residual = residual.max(norm(sub(raw[v], add(a, scale(dir, h)))));
+    }
+    (residual <= tol).then_some(residual)
+}
+
+fn plane_loops(
+    mesh: &Mesh,
+    part: &Partition,
+    geom: &wall::Geometry,
+    projected: &[V],
+    work: &mut Work,
+    o: &Options,
+) -> Result<(Vec<MixedPlane>, f64), FabError> {
+    let mut faces = Vec::new();
+    let mut checks = 0;
+    let mut residual = 0_f64;
+    for (i, patch) in part.planes.iter().enumerate() {
+        let p = patch.support;
+        // A consistent positive projected Jacobian and simple oriented contours
+        // give degree one on the planar domain, also for the top face with a hole.
+        for &t in &patch.triangles {
+            let [a, b, c] = mesh.triangles[t].map(|v| mesh.vertices[v]);
+            checked(dot(cross(sub(b, a), sub(c, a)), p.normal) > 0.)?;
+            for v in [a, b, c] {
+                residual = residual.max(p.distance(v).abs());
+            }
+        }
+        checked(residual <= o.plane_tolerance_mm)?;
+        let previous_checks = checks;
+        let loops = crate::planar::validate_loops(
+            mesh,
+            crate::planar::boundaries(mesh, &patch.triangles)?,
+            p.origin,
+            p.normal,
+            &mut checks,
+        )?;
+        work.spend(checks - previous_checks)?;
+        let mut result = Vec::new();
+        for vertices in loops {
+            work.spend(4 * vertices.len())?;
+            let ns: Vec<_> = (0..vertices.len())
+                .map(|k| part.neighbor[&(vertices[k], vertices[(k + 1) % vertices.len()])])
+                .collect();
+            let breaks: Vec<_> = (0..ns.len())
+                .filter(|&k| ns[k] != ns[(k + ns.len() - 1) % ns.len()])
+                .collect();
+            checked(breaks.len() >= 3)?;
+            let mut segments = Vec::new();
+            for (idx, &k) in breaks.iter().enumerate() {
+                let j = breaks[(idx + 1) % breaks.len()];
+                let ids = [vertices[k], vertices[j]];
+                let other = ns[k];
+                let cut = &part.cuts[&pair(i, other)];
+                let ordered = [cut[0], *cut.last().unwrap()];
+                checked(
+                    (ids == ordered || ids == [ordered[1], ordered[0]])
+                        && (j + ns.len() - k) % ns.len() + 1 == cut.len(),
+                )?;
+                if other == WALL && i == geom.circle_plane {
+                    segments.push(MixedSegment::Arc {
+                        arc: 0,
+                        reversed: ids[0] != geom.circle.vertices[0],
+                    });
+                } else if other == WALL && i == geom.ellipse_plane {
+                    segments.push(MixedSegment::EllipticArc {
+                        arc: 0,
+                        reversed: ids[0] != geom.ellipse.vertices[0],
+                    });
+                } else {
+                    checked(
+                        p.distance(projected[ids[0]]).abs() < 1e-8
+                            && p.distance(projected[ids[1]]).abs() < 1e-8,
+                    )?;
+                    segments.push(MixedSegment::Line { vertices: ids });
+                }
+            }
+            result.push(MixedLoop::Segments { segments });
+        }
+        faces.push(MixedPlane {
+            normal: p.normal,
+            loops: result,
+        });
+    }
+    checked(
+        faces.iter().filter(|f| f.loops.len() == 2).count() == 1
+            && faces.iter().all(|f| f.loops.len() <= 2),
+    )?;
+    Ok((faces, residual))
+}
+
+struct Projected {
+    vertices: Vec<V>,
+    displaced: usize,
+    max_corner: f64,
+    line_residual: f64,
+}
+fn project(
+    mesh: &Mesh,
+    p: &Partition,
+    g: &wall::Geometry,
+    o: &Options,
+) -> Result<Projected, FabError> {
+    let mut corners = BTreeMap::<usize, BTreeSet<usize>>::new();
+    for (&(i, j), cut) in &p.cuts {
+        for &id in [cut.first().unwrap(), cut.last().unwrap()] {
+            let planes = corners.entry(id).or_default();
+            planes.insert(i);
+            if j != WALL {
+                planes.insert(j);
+            }
+        }
+    }
+    let mut vertices = mesh.vertices.clone();
+    let mut max_corner = 0_f64;
+    let mut displaced = 0;
+    for (v, faces) in corners {
+        let point = if let Some(corner) = g.corner(v) {
+            checked(faces.len() == 2)?;
+            corner
+        } else {
+            let supports: Vec<_> = faces.iter().map(|&i| p.planes[i].support).collect();
+            intersection(supports.try_into().map_err(|_| unsupported())?, vertices[v])
+                .ok_or_else(unsupported)?
+        };
+        checked(
+            faces
+                .iter()
+                .all(|&i| p.planes[i].support.distance(point).abs() < 1e-8),
+        )?;
+        let distance = norm(sub(vertices[v], point));
+        checked(distance <= o.cylinder_fit_tolerance_mm.min(1e-5))?;
+        max_corner = max_corner.max(distance);
+        if point != vertices[v] {
+            displaced += 1;
+        }
+        vertices[v] = point;
+    }
+    let mut line_residual = 0_f64;
+    for (&(i, j), cut) in &p.cuts {
+        if j == WALL && (i == g.circle_plane || i == g.ellipse_plane) {
+            continue;
+        }
+        let error = straight(
+            cut,
+            &mesh.vertices,
+            &vertices,
+            o.cylinder_fit_tolerance_mm.min(1e-5),
+        )
+        .ok_or_else(unsupported)?;
+        line_residual = line_residual.max(error);
+    }
+    Ok(Projected {
+        vertices,
+        displaced,
+        max_corner,
+        line_residual,
+    })
+}
+
+fn candidate(
+    a: &Analysis,
+    o: &Options,
+    adjacency: &[Vec<usize>],
+    work: &mut Work,
+) -> Result<RoundedRecognition, FabError> {
+    let mesh = &a.mesh;
+    let mut part = partition(mesh, adjacency, o, work)?;
+    let geom = wall::fit(mesh, &mut part, o)?;
+    let error = wall::prove(mesh, &part, &geom, o, work)?;
+    let points = project(mesh, &part, &geom, o)?;
+    let (planes, plane_error) = plane_loops(mesh, &part, &geom, &points.vertices, work, o)?;
+    // Winding bounds the difference of each planar trimmed domain by the
+    // boundary homotopy, including its circular/elliptical chordal intervals.
+    let rounding = mesh
+        .vertices
+        .iter()
+        .flatten()
+        .copied()
+        .map(f64::abs)
+        .fold(1., f64::max)
+        * 128.
+        * f64::EPSILON;
+    checked(rounding < 1e-8)?;
+    let trim = points.max_corner.max(points.line_residual) + 2. * plane_error + rounding + 1e-5;
+    let bound = o.weld_tolerance_mm + error.residual + error.chord + trim;
+    if bound > o.max_deviation_mm {
+        return Err(FabError::new(
+            "recognition.deviation_exceeded",
+            "La paroi cylindrique et son contour elliptique dépassent la borne d’écart.",
+        ));
+    }
+    let mut diagnostics=vec![Diagnostic{
+        code:"recognition.oblique_pocket_fitted".into(),severity:Severity::Warning,count:1,
+        message:"Le congé de fond de poche est interprété comme un quart de cylindre arrêté par un plan oblique.".into(),
+    }];
+    if points.displaced > 0 {
+        diagnostics.push(Diagnostic{
+            code:"recognition.oblique_pocket_adjusted".into(),severity:Severity::Info,count:points.displaced,
+            message:"Les sommets de jonction ont été ajustés aux supports mesurés dans la borne d’écart.".into(),
+        });
+    }
+    let mixed = MixedModel {
+        vertices: points.vertices,
+        planes,
+        rings: vec![],
+        cylinders: vec![],
+        arcs: vec![geom.circle],
+        elliptic_arcs: vec![geom.ellipse],
+        partial_cylinders: vec![MixedPartialCylinder {
+            arcs: [0, 0],
+            inner: true,
+            elliptic_end: true,
+        }],
+    };
+    let model = RoundedModel {
+        revolved: RevolvedModel {
+            mixed,
+            cones: vec![],
+        },
+        spheres: vec![],
+        tori: vec![],
+        partial_cones: vec![],
+        torus_sectors: vec![],
+        smooth_revolution: None,
+        cross_drill: None,
+        linear_blend: None,
+        octants: vec![],
+    };
+    let volume = crate::rounded::volume(&model)?;
+    let triangle_faces = part
+        .owners
+        .into_iter()
+        .map(|i| {
+            if i == WALL {
+                RoundedFaceRef::PartialCylinder { index: 0 }
+            } else {
+                RoundedFaceRef::Plane { index: i }
+            }
+        })
+        .collect();
+    Ok(RoundedRecognition {
+        model,
+        triangle_faces,
+        report: RecognitionReport {
+            revolutions: 0,
+            cylinders: 1,
+            cones: 0,
+            spheres: 0,
+            tori: 0,
+            toroidal_fillets: 0,
+            max_radial_residual_mm: error.residual,
+            max_chord_error_mm: error.chord,
+            max_wall_residual_mm: trim,
+            max_deviation_bound_mm: bound,
+            expected_volume_mm3: volume,
+            diagnostics,
+        },
+    })
+}
+
+pub(crate) fn recognize(
+    a: &Analysis,
+    o: &Options,
+    adjacency: &[Vec<usize>],
+    work: &mut Work,
+) -> Result<Option<RoundedRecognition>, FabError> {
+    if !(24..=4096).contains(&a.mesh.triangles.len()) {
+        return Ok(None);
+    }
+    match candidate(a, o, adjacency, work) {
+        Ok(value) => Ok(Some(value)),
+        Err(error)
+            if matches!(
+                error.code.as_str(),
+                "recognition.oblique_pocket_unproven" | "planar.invalid_contour"
+            ) =>
+        {
+            Ok(None)
+        }
+        Err(error) => Err(error),
+    }
+}

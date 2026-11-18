@@ -5,7 +5,7 @@ export type RecognitionReport = { cylinders: number; cones: number; spheres: num
 export type MixedSegment = { kind: 'line'; vertices: [number, number] } | { kind: 'arc' | 'elliptic_arc'; arc: number; reversed: boolean };
 export type MixedLoop = { kind: 'polygon'; vertices: number[] } | { kind: 'circle'; ring: number } | { kind: 'segments'; segments: MixedSegment[] };
 export type EllipticArc = { center:number[]; axis:number[]; major_direction:number[]; major_mm:number; minor_mm:number; start_rad:number; sweep_rad:number; vertices:[number,number] };
-export type MixedModel = { elliptic_arcs?: EllipticArc[]; vertices: number[][]; rings: { center: number[]; axis: number[]; radius_mm: number }[]; planes: { normal: number[]; loops: MixedLoop[] }[]; cylinders: { rings: [number, number]; inner: boolean }[]; arcs: { center: number[]; axis: number[]; radius_mm: number; sweep_rad: number; vertices: [number, number] }[]; partial_cylinders: { arcs: [number, number]; inner: boolean }[] };
+export type MixedModel = { elliptic_arcs?: EllipticArc[]; vertices: number[][]; rings: { center: number[]; axis: number[]; radius_mm: number }[]; planes: { normal: number[]; loops: MixedLoop[] }[]; cylinders: { rings: [number, number]; inner: boolean }[]; arcs: { center: number[]; axis: number[]; radius_mm: number; sweep_rad: number; vertices: [number, number] }[]; partial_cylinders: { arcs: [number, number]; inner: boolean; elliptic_end?: boolean }[] };
 export type RevolvedModel = { mixed: MixedModel; cones: { rings: [number, number]; inner: boolean }[] };
 export type TorusSector = {
   center:number[]; axis:number[]; start_direction:number[]; major_radius_mm:number; minor_radius_mm:number;

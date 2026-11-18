@@ -176,7 +176,10 @@ pub(crate) fn guided_face(
     Ok(PlanarFace { loops, normal })
 }
 
-fn boundaries(mesh: &Mesh, region: &BTreeSet<usize>) -> Result<Vec<Vec<usize>>, FabError> {
+pub(crate) fn boundaries(
+    mesh: &Mesh,
+    region: &BTreeSet<usize>,
+) -> Result<Vec<Vec<usize>>, FabError> {
     let mut edges = BTreeSet::new();
     for &f in region {
         let [a, b, c] = mesh.triangles[f];
@@ -217,7 +220,7 @@ fn boundaries(mesh: &Mesh, region: &BTreeSet<usize>) -> Result<Vec<Vec<usize>>, 
     Ok(loops)
 }
 
-fn validate_loops(
+pub(crate) fn validate_loops(
     mesh: &Mesh,
     mut loops: Vec<Vec<usize>>,
     origin: V,

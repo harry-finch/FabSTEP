@@ -67,7 +67,7 @@ pub(super) fn candidate(
     }
 }
 
-pub(super) fn ordered_chain(edges: &[Edge]) -> Result<Vec<usize>, FabError> {
+pub(crate) fn ordered_chain(edges: &[Edge]) -> Result<Vec<usize>, FabError> {
     let mut next = BTreeMap::<usize, Vec<usize>>::new();
     for &(a, b) in edges {
         next.entry(a).or_default().push(b);

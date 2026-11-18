@@ -604,6 +604,7 @@ pub(super) fn candidate(
                 elliptic_arcs: vec![],
                 partial_cylinders: (0..3)
                     .map(|i| MixedPartialCylinder {
+                        elliptic_end: false,
                         arcs: [2 * i, 2 * i + 1],
                         inner: false,
                     })

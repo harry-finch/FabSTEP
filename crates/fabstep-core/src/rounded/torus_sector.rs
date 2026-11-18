@@ -566,10 +566,12 @@ fn assemble(
         elliptic_arcs: vec![],
         partial_cylinders: vec![
             MixedPartialCylinder {
+                elliptic_end: false,
                 arcs: [1, 2],
                 inner: false,
             },
             MixedPartialCylinder {
+                elliptic_end: false,
                 arcs: [0, 4],
                 inner: true,
             },

@@ -2105,3 +2105,34 @@ PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
 L’option `--baseline` mesure le résultat initial. Sans cette option, le script exige de chaque conversion une poche analytique équivalente à la référence. Les essais natifs et DXF ci-dessus portent sur le STEP généré par FreeCAD. L’intégration du nouveau contour dans Auto relève d’ADR-0041.
 
 Contrôles du lot préparatoire : les cinq tests Rust ciblés passent (profil natif, repli sur déformation et non-régression R-086), ainsi que les 23 tests Python avec NumPy. Le manifeste et les six STL sont reproductibles octet par octet. Formatage Rust et Python, Ruff, Clippy strict sur les cibles app et CAD et validation FabBoard passent. La suite globale et les essais manuels dans Fusion n’ont pas été rejoués pour ce lot de qualification. Le paquet de développement reste celui de R-086.
+
+## V-1213 — R-087 intégré, STEP de la poche à butée oblique
+
+Auto et Surfaces reconstruisent les cinq STL publics de V-1212 en **un solide à 11 plans et un cylindre concave**. Le contrôle applicatif compare le volume et les dimensions de chaque solide réimporté au manifeste indépendant. En Auto, chaque groupe de triangles est attribué à sa face native. Le cylindre a quatre voisins : le fond, la paroi tangente, la butée droite et la butée oblique. Le profil de la première butée contient un arc circulaire et celui de la seconde une ellipse. Les tests comparent son centre, ses demi-axes et son point milieu aux valeurs attendues, puis vérifient l’entité ELLIPSE dans le DXF de la face.
+
+| Essai | Résultat après réimport |
+| --- | --- |
+| Poche nominale R2, pente 0,5 | 46 plans avant R-087. FreeCAD relit le STEP du helper de développement avec 11 plans et un cylindre, pour un volume de 5 771,780239857 mm³. La borne composée du core vaut 0,002706 mm. Les écarts échantillonnés sont de 0,001908 mm du STL vers le résultat et 0,002320 mm en sens inverse. |
+| Seconde poche dessinée dans FreeCAD, R2,5, pente 0,75 | Avant R-087, 53 plans et 116 plans sur les maillages de 82 et 164 triangles. Après R-087, chaque STEP restitue les demi-axes 3,125 et 2,5 mm et le volume 20 109,552139011 mm³. Les quatre arêtes et les huit points de matière/vide sont contrôlés en mode strict. L’écart entre l’arête elliptique 3D et sa courbe sur le cylindre, échantillonné à 257 paramètres, atteint 1,78 × 10⁻⁹ mm. |
+| Sommet déformé sur la butée | Auto restitue un solide à 76 plans. La source reste intégralement attribuée et les écarts dans les deux sens restent sous 10⁻⁵ mm. |
+| Deux poches, triangles entrelacés et décalage de 16 mm en Z | 2 solides, 22 plans, 2 cylindres. Chacun conserve ses quatre voisins et l’attribution à ses propres triangles du fichier. Le contrôle natif refuse deux corps superposés. |
+| Contrat natif | Une troisième poche construite directement en Rust vérifie le volume et les identités des quatre voisins. Treize mutations invalides des courbes, des coins et de la topologie sont refusées. Les anciens modèles à deux arcs circulaires conservent leur représentation JSON. |
+| Pièces privées | `body 26mm.stl` retrouve 14 cylindres, 7 cônes et 10 869 faces au total, avec un volume de 17 053,652458875804 mm³. Le helper refuse Flansch à 231 608 faces pour un plafond de 100 000, sans produire de STEP. |
+
+**Limites observées.** La preuve porte sur un corps comportant onze régions planes dominantes, un congé de fond concave à 90° et une butée de chaque type. Une translation peut modifier les coordonnées effectivement encodées dans un STL binaire. Sur le témoin nominal translaté de 40 mm selon X puis réencodé en f32, l’écart minimal de la butée à un plan dépasse la tolérance de planéité de 10⁻⁶ mm. Auto conserve les 46 plans. Un budget de déviation de 0,0001 mm sur le témoin nominal entraîne `recognition.deviation_exceeded`.
+
+### Reproduction
+
+```sh
+cargo test --offline --locked -p fabstep-core --test oblique_pocket
+cargo test --offline --locked -p fabstep-cad --test oblique_pocket_contract
+cargo test --offline --locked -p fabstep-app --test oblique_pocket
+cargo build -p fabstep-cli --offline --locked
+PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
+  /Applications/FreeCAD.app/Contents/Resources/bin/python \
+  scripts/validate-oblique-pocket-freecad.py artifacts/r087-integrated/freecad --cli target/debug/fabstep
+```
+
+Le contrôle indépendant doit être lancé sans `--baseline` pour exiger les surfaces analytiques. Le helper embarqué dans `artifacts/FabSTEP.app` a aussi converti le témoin nominal, le maillage FreeCAD fin et le témoin déformé. Les deux exécutables de l’application locale ont été comparés octet par octet aux binaires de développement.
+
+Le 18 novembre 2026, `sh scripts/check.sh` a terminé avec succès. Sur l’ensemble des profils, 795 exécutions de tests Rust ont réussi et 21 ont été ignorées. Le passage du bureau au helper réel sur macOS a réussi. Les 235 tests d’interface passent, Svelte signale zéro erreur et zéro avertissement, et les builds aboutissent. Les 23 tests Python passent avec NumPy. L’interpréteur sans NumPy en ignore 11. Le test ciblé de sélection du congé passe aussi dans le profil ordinaire. L’essai manuel dans FabSTEP et Fusion reste suivi par A-088.

@@ -777,6 +777,7 @@ fn augment_policy(
         }
         model.arcs.extend(patch.arcs);
         model.partial_cylinders.push(MixedPartialCylinder {
+            elliptic_end: false,
             arcs: [arc0, arc0 + 1],
             inner: patch.inner,
         });
@@ -1560,14 +1561,33 @@ pub(crate) fn cylinder_flux(
     reference: V,
 ) -> f64 {
     let a = &model.arcs[cylinder.arcs[0]];
-    let b = &model.arcs[cylinder.arcs[1]];
-    let height = dot(sub(b.center, a.center), a.axis);
+
     let x = scale(
         sub(model.vertices[a.vertices[0]], a.center),
         1. / a.radius_mm,
     );
     let y = cross(a.axis, x);
     let theta = a.sweep_rad;
+    if cylinder.elliptic_end {
+        // H(u) = h + hc cos(u) + hs sin(u) is the axial height of the
+        // cutting plane. Integrate (p - reference) · n over the trimmed wall.
+        let end = &model.elliptic_arcs[cylinder.arcs[1]];
+        let h = dot(sub(end.center, a.center), a.axis);
+        let slope = -a.radius_mm / dot(end.axis, a.axis);
+        let hc = slope * dot(end.axis, x);
+        let hs = slope * dot(end.axis, y);
+        let (sin, cos) = theta.sin_cos();
+        let cos2 = (theta + sin * cos) / 2.;
+        let sin2 = (theta - sin * cos) / 2.;
+        let sincos = sin * sin / 2.;
+        let offset = sub(a.center, reference);
+        let integrated = a.radius_mm * (h * theta + hc * sin + hs * (1. - cos))
+            + dot(offset, x) * (h * sin + hc * cos2 + hs * sincos)
+            + dot(offset, y) * (h * (1. - cos) + hc * sincos + hs * sin2);
+        return (if cylinder.inner { -1. } else { 1. }) * a.radius_mm * integrated / 3.;
+    }
+    let b = &model.arcs[cylinder.arcs[1]];
+    let height = dot(sub(b.center, a.center), a.axis);
     let integral: V = std::array::from_fn(|i| x[i] * theta.sin() + y[i] * (1. - theta.cos()));
     (if cylinder.inner { -1. } else { 1. })
         * a.radius_mm

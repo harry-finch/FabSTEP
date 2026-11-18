@@ -10,7 +10,7 @@ use crate::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::{PI, TAU};
-mod block;
+pub(crate) mod block;
 mod linear_blend;
 mod octant;
 mod smooth_revolution;
@@ -413,6 +413,23 @@ fn recognize_policy_with_proofs(
                 ));
             }
             return Ok(result);
+        }
+    }
+    if rims.is_empty()
+        && segmentation
+            .model
+            .faces
+            .iter()
+            .any(|face| face.loops.len() == 2)
+    {
+        if let Some(pocket) = crate::oblique_pocket::recognize(a, o, &adjacency, &mut work)? {
+            if scope.is_some() {
+                return Err(FabError::new(
+                    "guidance.family_unproven",
+                    "La poche à butée oblique nécessite la reconstruction du corps complet.",
+                ));
+            }
+            return Ok(pocket);
         }
     }
     if rims.is_empty() && !automatic {

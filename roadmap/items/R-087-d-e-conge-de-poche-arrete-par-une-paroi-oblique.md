@@ -1,8 +1,8 @@
 ---
 id: R-087
 titre: "D/E — congé de poche arrêté par une paroi oblique"
-resume: "Reconstruire le congé cylindrique entre une butée droite et une butée inclinée et vérifier son arc elliptique."
-statut: en-cours
+resume: "Auto reconstruit le congé cylindrique entre une butée droite et une paroi oblique. Les profils de face conservent le cercle et l’ellipse."
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-18
 maj: 2026-11-18
@@ -22,7 +22,7 @@ Deux butées obliques, intersections de plusieurs congés, rayon variable et con
 
 ## Dépendances
 
-R-086 pour les congés de fond et R-082 pour la représentation des arcs elliptiques. Le cylindre partiel actuel se termine par deux arcs de cercle. La prise en charge d’une terminaison elliptique dans le contrat core/CAO est soumise à arbitrage.
+R-086 pour les congés de fond et R-082 pour la représentation des arcs elliptiques. L’extension additive du cylindre partiel à une terminaison elliptique est approuvée dans A-087 (ADR-0041).
 
 ## Critères d'acceptation
 
@@ -34,4 +34,4 @@ Vérifier un solide fermé après réimport, son volume, ses douze faces dont un
 
 ## État de la qualification
 
-Auto produit 46 plans sur le témoin nominal. Le STEP de référence construit séparément dans FreeCAD comporte un cylindre joint à ses deux butées, dont les profils DXF passent dans le noyau de FabSTEP. Les mesures et le corpus indépendant sont dans [V-1212](../../docs/VALIDATION.md#v-1212--r-087-cylindre-de-poche-avec-une-butée-oblique). A-087 porte sur l’extension du contrat nécessaire à la reconstruction depuis le STL, décrite dans [ADR-0041](../../docs/adr/0041-oblique-cylinder-pocket.md).
+L’accord A-087 autorise l’extension décrite dans [ADR-0041](../../docs/adr/0041-oblique-cylinder-pocket.md). Auto réimporte un solide à onze plans et un cylindre sur les cinq STL publics et sur deux maillages indépendants issus de FreeCAD. Le témoin nominal donnait 46 faces planes avant ce changement. La butée inclinée s’exporte avec un arc elliptique en DXF. Les preuves de conversion, les refus et les limites sont dans [V-1213](../../docs/VALIDATION.md#v-1213--r-087-intégré-step-de-la-poche-à-butée-oblique).

@@ -7,6 +7,7 @@ const technicalRemarks = new Set([
   'recognition.circular_intent_assumed',
   'recognition.conic_intent_assumed',
   'recognition.rounded_intent_assumed',
+  'recognition.oblique_pocket_fitted',
   'recognition.rounded_box_intent_assumed',
 ]);
 const routineInfo = new Set([

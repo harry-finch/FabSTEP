@@ -472,3 +472,7 @@ La poche nominale était déjà reconnue. Avec 16 segments à une extrémité et
 ## 2026-11-18 — R-087, qualification d’un congé arrêté en biais
 
 Les STL témoins montrent deux difficultés distinctes : l’arrêt elliptique du cylindre et la fragmentation de son plan sous l’effet de l’encodage binaire. La référence CAO indépendante confirme les quatre bords partagés et le volume. Les profils de ses deux butées s’exportent en DXF exact. La proposition de représentation et les conditions de passage dans Auto sont consignées dans ADR-0041, les essais reproductibles dans V-1212.
+
+## 2026-11-18 — R-087, reconnaissance de la butée oblique dans Auto
+
+Après accord A-087, la reconnaissance Rust et la construction OCCT utilisent le même cercle, la même ellipse et les mêmes génératrices que les quatre voisins du congé. L’essai porte sur les cinq STL publics, une seconde poche maillée par FreeCAD, les profils DXF natifs et un document à deux corps. La comparaison avec le résultat facettisé de V-1212 et les limites mesurées sont consignées dans V-1213.

@@ -1,7 +1,7 @@
 ---
 id: R-034
 titre: "D — congés partiels constants"
-resume: "Coin à trois arrondis et congé de poche à deux butées intégrés. Restent les autres arrêts et réseaux de congés."
+resume: "Coin à trois arrondis et congé de poche à deux butées droites ou une butée oblique intégrés. Restent les autres arrêts et réseaux de congés."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13

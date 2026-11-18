@@ -6,6 +6,7 @@
 #include <BRepAlgoAPI_Section.hxx>
 #include <BRepAlgoAPI_Splitter.hxx>
 #include <Geom_BSplineCurve.hxx>
+#include <Geom_CylindricalSurface.hxx>
 #include <Geom_BezierCurve.hxx>
 #include <BRepPrimAPI_MakeRevol.hxx>
 #include "cross_drill.hxx"
@@ -309,6 +310,7 @@ struct SurfaceCounts {
   size_t linear_blends = 0;
   size_t cross_drills = 0;
   size_t revolutions = 0;
+  size_t oblique_pockets = 0;
 };
 
 constexpr SurfaceCounts trihedral_surfaces{6, 3, 3, 0, 1, 0, 1};
@@ -896,25 +898,23 @@ gp_Pnt ellipse_at(const EllipticArcData& arc, double parameter) {
                   minor * (arc.minor * std::sin(parameter)));
 }
 
-// Keep the exact 3D ellipse. The analytic (u,v) evaluation on the cone fixes
+// Keep the exact 3D ellipse. Its analytic coordinates on the support fix
 // its parameter correspondence; piecewise cubic Hermite interpolation stores
 // the STEP pcurve. OCCT estimates its maximum 3D deviation numerically.
-void set_elliptic_pcurve(const TopoDS_Face& face, const TopoDS_Edge& edge) {
+void set_elliptic_pcurve(const TopoDS_Face& face, const TopoDS_Edge& edge,
+                         const gp_Ax3& frame, double axial_scale, double reference,
+                         double cylinder_amplitude = 0.) {
   const CadFailure invalid{
-      invalid_model, "La paramétrisation de l’ellipse sur le cône dépasse la précision native."};
-  const auto cone = BRepAdaptor_Surface(face).Cone();
-  const gp_Vec x(cone.Position().XDirection()), y(cone.Position().YDirection()),
-      z(cone.Axis().Direction());
+      invalid_model, "La paramétrisation de l’ellipse de révolution dépasse la précision native."};
+  const gp_Vec x(frame.XDirection()), y(frame.YDirection()), z(frame.Direction());
   const BRepAdaptor_Curve curve(edge);
   const double start = curve.FirstParameter(), end = curve.LastParameter(),
                period = 2. * std::acos(-1.);
-  double previous_first, previous_last;
-  const auto original = BRep_Tool::CurveOnSurface(edge, face, previous_first, previous_last);
-  if (original.IsNull())
-    throw invalid;
-  const double reference = original->Value((previous_first + previous_last) / 2.).X();
   for (int intervals = 8; intervals <= 128; intervals *= 2) {
     const double step = (end - start) / intervals;
+    // On a cylinder u is affine and v is a sinusoid with fourth derivative
+    // bounded by cylinder_amplitude. Enforce the cubic Hermite remainder.
+    if (cylinder_amplitude * std::pow(step, 4) / 384. > Precision::Confusion() / 16.) continue;
     TColgp_Array1OfPnt2d poles(1, 3 * intervals + 1);
     TColStd_Array1OfReal knots(1, intervals + 1);
     TColStd_Array1OfInteger mults(1, intervals + 1);
@@ -923,12 +923,12 @@ void set_elliptic_pcurve(const TopoDS_Face& face, const TopoDS_Edge& edge) {
       gp_Pnt p;
       gp_Vec tangent;
       curve.D1(t, p, tangent);
-      const gp_Vec v(cone.Location(), p);
+      const gp_Vec v(frame.Location(), p);
       const double vx = v.Dot(x), vy = v.Dot(y), u = std::atan2(vy, vx);
       const gp_Pnt2d uv(u + period * std::round((reference - u) / period),
-                        v.Dot(z) / std::cos(cone.SemiAngle()));
+                        v.Dot(z) / axial_scale);
       const gp_Vec2d derivative((vx * tangent.Dot(y) - vy * tangent.Dot(x)) / (vx * vx + vy * vy),
-                                tangent.Dot(z) / std::cos(cone.SemiAngle()));
+                                tangent.Dot(z) / axial_scale);
       knots(i + 1) = t;
       mults(i + 1) = i == 0 || i == intervals ? 4 : 3;
       poles(3 * i + 1) = uv;
@@ -1047,7 +1047,12 @@ TopoDS_Face linear_blend_face(const LinearBlendData& blend, const EllipticArcDat
                 tol ||
             (edge.Orientation() == use.Orientation()) != (i == 0))
           throw invalid;
-        set_elliptic_pcurve(face, edge);
+        double lo, hi;
+        const auto original = BRep_Tool::CurveOnSurface(edge, face, lo, hi);
+        if (original.IsNull()) throw invalid;
+        const auto native_cone = BRepAdaptor_Surface(face).Cone();
+        set_elliptic_pcurve(face, edge, native_cone.Position(), std::cos(native_cone.SemiAngle()),
+                            original->Value((lo + hi) / 2.).X());
         shared[slot] = use;
         wires.bind_vertices(ids[0], ids[1], use);
       } else {
@@ -1066,9 +1071,11 @@ TopoDS_Face linear_blend_face(const LinearBlendData& blend, const EllipticArcDat
   return face;
 }
 
+#include "oblique_pocket.hxx"
+
 TopoDS_Wire segmented_wire(const gp_Pln& plane, const MixedSegmentData* segments, size_t count,
                            const MixedArcData* arcs, const std::vector<TopoDS_Edge>& shared_arcs,
-                           IndexedWires& wires, const EllipticArcData* ellipses = nullptr) {
+                           IndexedWires& wires, const EllipticArcData* ellipses = nullptr, size_t ellipse_start = 0) {
   BRepBuilderAPI_MakeWire wire;
   for (size_t i = 0; i < count; ++i) {
     const auto& segment = segments[i];
@@ -1079,12 +1086,12 @@ TopoDS_Wire segmented_wire(const gp_Pln& plane, const MixedSegmentData* segments
     } else {
       const auto& edge = shared_arcs[segment.arc];
       size_t start;
-      if (ellipses) {
+      if (ellipses && segment.arc >= ellipse_start) {
         const auto ellipse = BRepAdaptor_Curve(edge).Ellipse();
         if (!plane.Axis().Direction().IsParallel(ellipse.Axis().Direction(), 1.e-8) ||
             plane.Distance(ellipse.Location()) > Precision::Confusion())
           throw CadFailure{invalid_model, "L’ellipse sort de son plan terminal."};
-        start = ellipses[segment.arc].vertices[0];
+        start = ellipses[segment.arc - ellipse_start].vertices[0];
       } else {
         require_circle_in_plane(plane, BRepAdaptor_Curve(edge).Circle());
         start = arcs[segment.arc].vertices[0];
@@ -1196,7 +1203,7 @@ TopoDS_Solid build_mixed_solid(
     const size_t* partial_cone_tokens = nullptr,
     const SphericalOctantData* octant = nullptr, const size_t* octant_token = nullptr,
     const LinearBlendData* blend = nullptr, const EllipticArcData* ellipses = nullptr,
-    const size_t* blend_token = nullptr) {
+    const size_t* blend_token = nullptr, bool oblique_pocket = false) {
   IndexedWires wires(points, point_count);
   BRepBuilderAPI_Sewing sewing(Precision::Confusion());
   sewing.SetMaxTolerance(Precision::Confusion());
@@ -1226,7 +1233,12 @@ TopoDS_Solid build_mixed_solid(
     sewing.Add(face);
     if (torus_tokens && labels) labels->push_back({face, torus_tokens[i]});
   }
-  std::vector<TopoDS_Edge> shared_arcs(blend ? 2 : arc_count);
+  std::vector<TopoDS_Edge> shared_arcs(blend || oblique_pocket ? 2 : arc_count);
+  if (oblique_pocket) {
+    const auto face = pocket::wall(*arcs, *ellipses, points, wires, shared_arcs);
+    sewing.Add(face);
+    if (labels && partial_tokens) labels->push_back({face, *partial_tokens});
+  }
   if (blend) {
     const auto face = linear_blend_face(*blend, ellipses, points, wires, shared_arcs);
     sewing.Add(face);
@@ -1263,7 +1275,7 @@ TopoDS_Solid build_mixed_solid(
       const bool hole = j != first_loop;
       const TopoDS_Wire wire = loop.count == 0
           ? rim_wire(plane, rims[loop.start], hole)
-          : segmented_wire(plane, segments + loop.start, loop.count, arcs, shared_arcs, wires, ellipses);
+          : segmented_wire(plane, segments + loop.start, loop.count, arcs, shared_arcs, wires, ellipses, oblique_pocket ? 1 : 0);
       if (hole) {
         make_face.Add(wire);
       } else {
@@ -1456,6 +1468,7 @@ struct SolidMeasurement {
   std::optional<CrossDrillData> cross_drill;
   std::optional<SmoothRevolutionData> revolution;
   std::optional<TorusSectorSolidData> sector;
+  std::optional<pocket::Geometry> pocket;
 };
 
 bool quarter_turn(double span) {
@@ -1942,7 +1955,8 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
                               const RoundedBoxFrame* expected_box = nullptr,
                               const CrossDrillData* expected_drill = nullptr,
                               const SmoothRevolutionData* expected_revolution = nullptr,
-                              const TorusSectorSolidData* expected_sector = nullptr) {
+                              const TorusSectorSolidData* expected_sector = nullptr,
+                              const pocket::Geometry* expected_pocket = nullptr) {
   TopTools_IndexedMapOfShape shells;
   TopExp::MapShapes(shape, TopAbs_SHELL, shells);
   if (shells.Extent() != 1 || !BRep_Tool::IsClosed(shells(1))) {
@@ -1975,6 +1989,14 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
         }
         if (surface.LastUParameter() - surface.FirstUParameter() < 2.0 * std::acos(-1.0) - 1.0e-9) {
           ++found.partial;
+          if ((!expected || expected->oblique_pockets) && faces.Extent() == 12) {
+            for (TopExp_Explorer it(faces(i), TopAbs_EDGE); it.More(); it.Next()) {
+              if (BRepAdaptor_Curve(TopoDS::Edge(it.Current())).GetType() == GeomAbs_Ellipse) {
+                ++found.oblique_pockets;
+                break;
+              }
+            }
+          }
           quarter_cylinders += quarter_turn(surface.LastUParameter() - surface.FirstUParameter());
         }
         break;
@@ -2030,6 +2052,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
                    found.spherical_octants != expected->spherical_octants ||
                    found.partial_conical != expected->partial_conical ||
                    found.linear_blends != expected->linear_blends ||
+                   found.oblique_pockets != expected->oblique_pockets ||
                    found.revolutions != expected->revolutions || found.cross_drills != expected->cross_drills)) {
     throw CadFailure{status, "Les types de surfaces diffèrent de la reconstruction."};
   }
@@ -2038,6 +2061,9 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   std::optional<TorusSectorSolidData> sector;
   if (partial_torus || expected_sector)
     sector = torus_sector::verify(shape,expected_sector,status).domain;
+  std::optional<pocket::Geometry> pocket_geometry;
+  if (found.oblique_pockets || expected_pocket)
+    pocket_geometry = pocket::verify(shape, faces, expected_pocket, status);
   check_edge_incidence(shape, faces, status);
   if (!BRepCheck_Analyzer(shape, true, false, true).IsValid()) {
     throw CadFailure{status, "Le contrôle géométrique du solide a échoué."};
@@ -2059,7 +2085,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     const double expected_volume = torus_sector::Geometry(*sector).volume();
     torus_sector::require(std::isfinite(expected_volume) &&
       std::abs(expected_volume-properties.Mass()) < expected_volume*1e-8,status);
-  } else if (found.linear_blends || found.cross_drills)
+  } else if (found.linear_blends || found.cross_drills || found.oblique_pockets)
     BRepGProp::VolumeProperties(shape, properties, 1.e-11, true);
   else
     BRepGProp::VolumeProperties(shape, properties, true);
@@ -2097,14 +2123,14 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     rounded_box = expected_box ? *expected_box : infer_rounded_box_frame(faces, status);
     check_rounded_box_geometry(shape, faces, result, *rounded_box, status);
   }
-  return {result, found, rounded_box, drill, revolution, sector};
+  return {result, found, rounded_box, drill, revolution, sector, pocket_geometry};
 }
 
 CadMetrics measure(const TopoDS_Shape& shape, SurfaceCounts expected, Status status,
                    const RoundedBoxFrame* expected_box = nullptr,const CrossDrillData* expected_drill=nullptr,
                    const SmoothRevolutionData* expected_revolution=nullptr,
-                   const TorusSectorSolidData* expected_sector=nullptr) {
-  return measure_solid(shape, status, &expected, expected_box,expected_drill,expected_revolution,expected_sector).metrics;
+                   const TorusSectorSolidData* expected_sector=nullptr, const pocket::Geometry* expected_pocket=nullptr) {
+  return measure_solid(shape, status, &expected, expected_box,expected_drill,expected_revolution,expected_sector,expected_pocket).metrics;
 }
 
 bool same_measurement(const CadMetrics& before, const CadMetrics& after) {
@@ -2475,7 +2501,8 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
                                 expected_box ? &*expected_box : nullptr,
                                 before[i].report.cross_drill ? &*before[i].report.cross_drill : nullptr,
                                 before[i].report.revolution ? &*before[i].report.revolution : nullptr,
-                                before[i].report.sector ? &*before[i].report.sector : nullptr);
+                                before[i].report.sector ? &*before[i].report.sector : nullptr,
+                                before[i].report.pocket ? &*before[i].report.pocket : nullptr);
     if (!same_measurement(before[i].report.metrics, report.metrics)) {
       throw CadFailure{mismatch, "Les dimensions, la position ou le volume d'un corps changent au réimport."};
     }
@@ -3687,7 +3714,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
                    const RoundedBoxFrame* expected_box = nullptr,
                    FaceLabels* labels = nullptr,const CrossDrillData* expected_drill=nullptr,
                    const SmoothRevolutionData* expected_revolution=nullptr,
-                   const TorusSectorSolidData* expected_sector=nullptr) noexcept {
+                   const TorusSectorSolidData* expected_sector=nullptr, const pocket::Geometry* expected_pocket=nullptr) noexcept {
   *output = {};
   return with_occt(invalid_model, error, error_capacity, [&](Status& stage) {
     size_t face_count = 0;
@@ -3700,7 +3727,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     }
     const TopoDS_Solid solid = build();
     stage = invalid_solid;
-    const CadMetrics before = measure(solid, expected, stage, expected_box,expected_drill,expected_revolution,expected_sector);
+    const CadMetrics before = measure(solid, expected, stage, expected_box,expected_drill,expected_revolution,expected_sector,expected_pocket);
 
     stage = write_failed;
     DESTEP_Parameters parameters;
@@ -3711,12 +3738,12 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     // The default STEP healing stage rewrites some swept profile faces. The
     // sector was already checked above; transfer those exact TShapes so its
     // face tokens reach the corresponding ADVANCED_FACE entities.
-    if (expected_sector) writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
+    if (expected_sector || expected_pocket) writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
     if (writer.Transfer(solid, STEPControl_ManifoldSolidBrep, parameters) != IFSelect_RetDone) {
       throw CadFailure{stage, "Impossible de traduire le solide en STEP."};
     }
-    if (labels && !write_face_labels(writer, *labels) && expected_sector)
-      throw CadFailure{write_failed,"Les sept identités de faces du secteur torique ne sont pas transférables."};
+    if (labels && !write_face_labels(writer, *labels) && (expected_sector || expected_pocket))
+      throw CadFailure{write_failed,"Les identités de faces analytiques ne sont pas transférables."};
     std::stringstream stream;
     if (writer.WriteStream(stream) != IFSelect_RetDone || !stream.good()) {
       throw CadFailure{stage, "Impossible de sérialiser le fichier STEP."};
@@ -3724,7 +3751,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
 
     stage = read_failed;
     stream.seekg(0);
-    const CadMetrics after = measure(read_step(stream), expected, stage, expected_box,expected_drill,expected_revolution,expected_sector);
+    const CadMetrics after = measure(read_step(stream), expected, stage, expected_box,expected_drill,expected_revolution,expected_sector,expected_pocket);
     if (!same_measurement(before, after)) {
       throw CadFailure{mismatch, "Les dimensions ou le volume changent après réimport du STEP."};
     }
@@ -3836,6 +3863,26 @@ extern "C" int fabstep_build_cross_drill_step(const CrossDrillData* domain,
   auto* tracked=wall_tokens?&labels:nullptr;
   return validated_step([&]{return build_cross_drill(*domain,plane_tokens,wall_tokens,tracked);},
     {6,3,0,0,0,0,0,0,0,1},output,error,capacity,nullptr,tracked,domain);
+}
+
+// Slots 0 and 1 denote the shared circle and ellipse respectively.
+extern "C" int fabstep_build_oblique_pocket_step(
+    const double* points, size_t point_count, const double* normals, const size_t* plane_loops,
+    const MixedLoopData* loops, const MixedSegmentData* segments, const MixedArcData* circle,
+    const EllipticArcData* ellipse, const size_t* plane_tokens, const size_t* wall_token,
+    StepOutput* output, char* error, size_t capacity) noexcept {
+  FaceLabels labels;
+  auto* tracked = wall_token ? &labels : nullptr;
+  SurfaceCounts counts{11, 1, 1};
+  counts.oblique_pockets = 1;
+  pocket::Geometry expected;
+  return validated_step([&] {
+    expected = pocket::geometry(*circle, *ellipse, points);
+    return build_mixed_solid(points, point_count, nullptr, 0, normals, 11, plane_loops, loops,
+        segments, nullptr, 0, circle, 1, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0,
+        plane_tokens, nullptr, tracked, nullptr, nullptr, nullptr, wall_token, nullptr, 0, nullptr,
+        nullptr, nullptr, nullptr, ellipse, nullptr, true);
+  }, counts, output, error, capacity, nullptr, tracked, nullptr, nullptr, nullptr, &expected);
 }
 
 extern "C" int fabstep_build_linear_blend_step(

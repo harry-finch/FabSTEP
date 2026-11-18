@@ -65,7 +65,16 @@ fn recognize(
         }
         Err(e) => return Err(e),
     };
-    if result.model.smooth_revolution.is_some() || !result.model.torus_sectors.is_empty() {
+    if result.model.smooth_revolution.is_some()
+        || !result.model.torus_sectors.is_empty()
+        || result
+            .model
+            .revolved
+            .mixed
+            .partial_cylinders
+            .iter()
+            .any(|c| c.elliptic_end)
+    {
         return Ok(result);
     }
     if result.report.cylinders + result.report.cones + result.report.spheres + result.report.tori
@@ -379,7 +388,11 @@ fn partial_chain_group(
 ) -> Option<Vec<RoundedFaceRef>> {
     let mixed = &r.model.revolved.mixed;
     let arcs = |face| match face {
-        RoundedFaceRef::PartialCylinder { index } => Some(mixed.partial_cylinders[index].arcs),
+        RoundedFaceRef::PartialCylinder { index }
+            if !mixed.partial_cylinders[index].elliptic_end =>
+        {
+            Some(mixed.partial_cylinders[index].arcs)
+        }
         RoundedFaceRef::PartialCone { index } => Some(r.model.partial_cones[index].arcs),
         _ => None,
     };
@@ -538,7 +551,14 @@ pub fn recognize_automatic_guided(
             || result.model.linear_blend.is_some()
             || result.model.cross_drill.is_some()
             || result.model.smooth_revolution.is_some()
-            || !result.model.torus_sectors.is_empty())
+            || !result.model.torus_sectors.is_empty()
+            || result
+                .model
+                .revolved
+                .mixed
+                .partial_cylinders
+                .iter()
+                .any(|c| c.elliptic_end))
     {
         return Err(unproven());
     }

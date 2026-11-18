@@ -276,3 +276,7 @@ Le wrapper CAO vérifie les champs scalaires exclusifs et les supports avant l�
 ### Secteur torique à quatre arcs (R-085)
 
 Le champ additif `RoundedModel.torus_sectors` conserve les quatre arcs orientés de chaque secteur. Le premier domaine est un secteur de couronne fermé de sept faces. Le core contrôle la couverture et l’écart de chaque triangle, puis la CAO vérifie les courbes de bord, leur partage et le volume après réimport. L’inspection associe les triangles source par un douzième groupe de propriétaires. Le détail du contrat et des voisins pris en charge figure dans [ADR-0040](docs/adr/0040-bounded-torus-sectors.md).
+
+### Poche à butée oblique (R-087)
+
+Le chemin Auto/Surfaces identifie onze régions planes et une bande cylindrique concave. Les deux rails et les deux arcs doivent être partagés avec quatre voisins distincts. Chaque triangle de la bande est vérifié dans le repère angle–hauteur du cylindre. Le calcul de volume intègre la hauteur variable imposée par la butée oblique. Dans `MixedPartialCylinder`, le champ optionnel `elliptic_end` indique que le deuxième indice désigne une entrée de `elliptic_arcs`. Le groupe de provenance reste celui des cylindres partiels. L’arête 3D elliptique est partagée par les deux faces. Sa représentation sur le cylindre utilise une interpolation d’Hermite bornée puis vérifiée par OCCT. Les contrôles portent également sur le réimport multicorps. Voir [ADR-0041](docs/adr/0041-oblique-cylinder-pocket.md).

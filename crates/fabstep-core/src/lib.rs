@@ -258,6 +258,10 @@ pub enum MixedSegment {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MixedPartialCylinder {
+    /// The near index addresses a circular arc. The far index addresses an
+    /// elliptic arc when this flag is set, and a circular arc otherwise.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub elliptic_end: bool,
     pub arcs: [usize; 2],
     pub inner: bool,
 }
@@ -553,6 +557,7 @@ mod complete_torus;
 mod cross_drill;
 mod math;
 mod mesh_section;
+mod oblique_pocket;
 pub use mesh_section::{section_meshes, section_meshes_controlled};
 mod mixed;
 mod partial;
