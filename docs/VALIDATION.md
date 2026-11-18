@@ -2159,3 +2159,29 @@ PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
   /Applications/FreeCAD.app/Contents/Resources/bin/python \
   scripts/validate-opposed-pocket-freecad.py artifacts/r088/freecad --cli target/debug/fabstep
 ```
+
+## V-1215 — Mesure initiale de la jonction de deux congés adjacents (R-089)
+
+La pièce indépendante comporte une poche borgne dont deux arêtes de fond perpendiculaires portent un congé de rayon 2,5 mm. Dans le STEP de référence FreeCAD 1.1.1, les onze plans et les deux cylindres forment un seul solide fermé, d’un volume théorique de 21 005,152485090 mm³. Chaque cylindre rejoint un plan de fond, une paroi latérale, une butée droite et l’autre cylindre. Une même arête en quart d’ellipse de demi-axes 3,535534 et 2,5 mm appartient aux deux cylindres. Sa longueur est de 4,775247 mm.
+
+Après réimport de la référence, les deux tracés paramétriques ont été inspectés sur 257 points chacun. L’écart échantillonné atteint 0,000002593 mm sur chaque face. Cette mesure est supérieure à la tolérance déclarée de l’arête (0,0000001 mm). L’implémentation devra borner et contrôler le tracé sur chaque support pendant et après le transfert STEP. Le cas R-087 vérifiait une arête sur un cylindre et un plan.
+
+| Source | Référence | Auto à la qualification |
+| --- | --- | --- |
+| STL public nominal, 320 triangles | Deux congés de rayon 2 mm, volume 5 781,551628288 mm³ | 43 plans |
+| STL public tourné, 648 triangles | Deux congés de rayon 3 mm, volume 5 311,353996706 mm³ | 57 plans |
+| Témoin fermé avec un sommet de la jonction déplacé | Cette jonction ne suit plus les deux cylindres nominaux | 51 plans |
+| STL maillé indépendamment par FreeCAD, 114 triangles | Deux congés de rayon 2,5 mm | 71 plans, écart de volume +0,303779 mm³ |
+| Même pièce FreeCAD, 240 triangles | Même géométrie analytique | 159 plans, écart de volume +0,049864 mm³ |
+
+Les deux conversions du maillage FreeCAD passent les contrôles de fermeture, de dimensions et les 16 sondes matière/vide. Le mode strict du script exige l’ellipse commune dans les deux résultats et échoue sur le premier résultat facettisé. La reconnaissance analytique reste à développer. Voir [ADR-0042](adr/0042-adjacent-pocket-fillets.md).
+
+```sh
+python3 scripts/generate-adjacent-pocket-fixtures.py artifacts/r089/corpus
+diff -r -x README.md fixtures/adjacent_pocket artifacts/r089/corpus
+PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
+  /Applications/FreeCAD.app/Contents/Resources/bin/python \
+  scripts/qualify-adjacent-pocket-freecad.py artifacts/r089/freecad --cli target/debug/fabstep
+```
+
+Ajouter `--require-analytic` à la dernière commande pour vérifier une future implémentation.

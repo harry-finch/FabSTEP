@@ -1,0 +1,17 @@
+# ADR-0042 — Arête commune de deux congés de fond adjacents
+
+**Acceptée le 18 novembre 2026.** L’accord A-089 autorise l’extension du contrat entre le moteur de reconnaissance et la CAO. Le domaine de R-089 couvre deux quarts de cylindre intérieurs de même rayon, d’axes perpendiculaires, sur deux côtés adjacents d’une poche à fond plan.
+
+## Géométrie observée
+
+La pièce de référence a onze plans et deux cylindres. Les cylindres s’arrêtent l’un sur l’autre le long d’un quart d’ellipse dans le plan bissecteur. Pour le rayon `r`, les demi-axes valent `r × √2` et `r`. Chaque cylindre rejoint aussi le fond, une paroi latérale et une butée droite. Leurs deux arcs d’arrêt circulaires se trouvent sur des faces planes distinctes. Les pièces, les mesures et les limites du contrôle FreeCAD figurent dans V-1215.
+
+## Décision
+
+Autoriser une même arête elliptique en trois dimensions à border deux cylindres partiels. Chaque face devra en porter un tracé paramétrique compatible avec son propre axe et sa propre orientation. Le contrat actuel (ADR-0041) valide une ellipse partagée par un cylindre et un plan. Réutiliser les types de courbes existants et garder les anciens modèles lisibles. L’alternative est de conserver le solide facettisé actuel dans ce coin.
+
+## Conditions d’intégration
+
+- Prouver sur les triangles les deux axes, le rayon commun, les arcs d’arrêt, les quatre rails et une chaîne partagée de sommets sur la branche attendue. Chaque triangle appartient à une seule face. Un rayon différent, une discontinuité ou un coin déformé doit empêcher cette interprétation.
+- Vérifier la même arête dans les deux paramétrisations sur tout l’intervalle. Vérifier que le solide réimporté conserve la courbe commune, les deux cercles d’arrêt, la concavité et les voisins. Conserver les plafonds de travail et les tolérances du projet.
+- Comparer la matière et le vide des deux côtés de la jonction, le volume et les dimensions au modèle attendu. Couvrir des tessellations indépendantes, une pièce tournée et les cas négatifs. Avant intégration, vérifier l’attribution source en Auto et le réimport de plusieurs corps distincts.

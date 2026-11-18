@@ -480,3 +480,7 @@ Après accord A-087, la reconnaissance Rust et la construction OCCT utilisent le
 ## 2026-11-18 — R-088, deux congés parallèles au fond d’une poche
 
 Le parcours existant d’Auto et de Surfaces retrouve les deux bandes cylindriques même lorsque les rayons et les nombres de triangles diffèrent. Les essais de régression couvrent l’identité des faces sélectionnables, les arcs de la butée en DXF et la conservation du côté intact sur une pièce déformée. Une seconde poche dessinée dans FreeCAD vérifie la géométrie et la matière sur deux maillages. Voir V-1214.
+
+## 2026-11-18 — R-089, référence du coin à deux congés adjacents
+
+Sur deux maillages indépendants d’une même poche, Auto donne 71 et 159 plans. La pièce CAO a onze plans et deux cylindres reliés par un quart d’ellipse. Les mesures initiales et la commande de contrôle de cette arête sur les deux faces figurent dans V-1215. L’extension correspondante du contrat core/CAO est acceptée dans A-089 et décrite dans ADR-0042.

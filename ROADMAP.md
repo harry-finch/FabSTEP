@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 88** (26 %)
+**Avancement : 23 livrés sur 89** (26 %)
 
 ## Restant à faire
 
@@ -142,6 +142,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Auto reconstruit le congé cylindrique entre une butée droite et une paroi oblique. Les profils de face conservent le cercle et l’ellipse.
 65. **[R-088 D/E — poche à deux congés de fond opposés](roadmap/items/R-088-d-e-poche-a-deux-conges-de-fond-opposes.md)** · À tester · jalon post-v1
    Reconstruire et mesurer séparément les deux arrondis parallèles d’une poche borgne, y compris lorsque leurs rayons diffèrent.
+66. **[R-089 D/E — jonction de deux congés adjacents de même rayon](roadmap/items/R-089-d-e-jonction-de-deux-conges-adjacents-de-meme.md)** · En cours · jalon post-v1
+   Deux congés perpendiculaires se rejoignent le long d’un arc d’ellipse. Le témoin FreeCAD possède deux cylindres, encore facettisés dans Auto.
 
 ## Actions à faire
 

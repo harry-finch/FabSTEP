@@ -1,0 +1,384 @@
+{
+  "unit": "mm",
+  "positives": [
+    "nominal",
+    "rotated"
+  ],
+  "negatives": [
+    "warped_seam"
+  ],
+  "planes": 11,
+  "cylinders": 2,
+  "cases": {
+    "nominal": {
+      "triangles": 320,
+      "groups": {
+        "outer_bottom": [
+          0,
+          8
+        ],
+        "outer_y_min": [
+          8,
+          12
+        ],
+        "rim": [
+          12,
+          28
+        ],
+        "outer_x_max": [
+          28,
+          32
+        ],
+        "outer_y_max": [
+          32,
+          36
+        ],
+        "outer_x_min": [
+          36,
+          40
+        ],
+        "fillet_x": [
+          40,
+          104
+        ],
+        "stop_x_max": [
+          104,
+          172
+        ],
+        "stop_y_max": [
+          172,
+          240
+        ],
+        "fillet_y": [
+          240,
+          304
+        ],
+        "wall_y_min": [
+          304,
+          308
+        ],
+        "wall_x_min": [
+          308,
+          312
+        ],
+        "floor": [
+          312,
+          320
+        ]
+      },
+      "seam_segments": 16,
+      "mesh_volume_mm3": 5781.6754388117615,
+      "sha256": "a989669c6e2ef4d4600f9c5b4d7598044ef403f49267901f62910e8244415888",
+      "radius_mm": 2,
+      "volume_mm3": 5781.551628287691,
+      "bounds_mm": [
+        [
+          -15.0,
+          -10.0,
+          0
+        ],
+        [
+          15.0,
+          10.0,
+          12
+        ]
+      ],
+      "seam_center_mm": [
+        -6.0,
+        -3.0,
+        5
+      ],
+      "seam_major_radius_mm": 2.8284271247461903,
+      "seam_minor_radius_mm": 2,
+      "seam_endpoints_mm": [
+        [
+          -8.0,
+          -5.0,
+          5
+        ],
+        [
+          -6.0,
+          -3.0,
+          3
+        ]
+      ],
+      "seam_midpoint_mm": [
+        -7.414213562373095,
+        -4.414213562373095,
+        3.585786437626905
+      ],
+      "stop_circles": {
+        "x": {
+          "center_mm": [
+            8.0,
+            -3.0,
+            5
+          ],
+          "radius_mm": 2,
+          "endpoints_mm": [
+            [
+              8.0,
+              -5.0,
+              5
+            ],
+            [
+              8.0,
+              -3.0,
+              3
+            ]
+          ]
+        },
+        "y": {
+          "center_mm": [
+            -6.0,
+            5.0,
+            5
+          ],
+          "radius_mm": 2,
+          "endpoints_mm": [
+            [
+              -8.0,
+              5.0,
+              5
+            ],
+            [
+              -6.0,
+              5.0,
+              3
+            ]
+          ]
+        }
+      },
+      "inside_void_mm": [
+        0,
+        0,
+        7.5
+      ],
+      "inside_material_mm": [
+        -7.7,
+        -4.7,
+        3.3
+      ]
+    },
+    "rotated": {
+      "triangles": 648,
+      "groups": {
+        "outer_bottom": [
+          0,
+          12
+        ],
+        "outer_y_min": [
+          12,
+          18
+        ],
+        "rim": [
+          18,
+          42
+        ],
+        "outer_x_max": [
+          42,
+          48
+        ],
+        "outer_y_max": [
+          48,
+          54
+        ],
+        "outer_x_min": [
+          54,
+          60
+        ],
+        "fillet_x": [
+          60,
+          198
+        ],
+        "stop_x_max": [
+          198,
+          342
+        ],
+        "stop_y_max": [
+          342,
+          486
+        ],
+        "fillet_y": [
+          486,
+          624
+        ],
+        "wall_y_min": [
+          624,
+          630
+        ],
+        "wall_x_min": [
+          630,
+          636
+        ],
+        "floor": [
+          636,
+          648
+        ]
+      },
+      "seam_segments": 23,
+      "mesh_volume_mm3": 5311.506826128924,
+      "sha256": "02c4fe802f3e1f8e0a3794010f7efa4491fad3a36e904c32c6a8b821f2ba6982",
+      "radius_mm": 3,
+      "volume_mm3": 5311.3539967061515,
+      "bounds_mm": [
+        [
+          6,
+          -19.0,
+          -8.0
+        ],
+        [
+          18,
+          11.0,
+          12.0
+        ]
+      ],
+      "seam_center_mm": [
+        12,
+        -10.0,
+        -1.0
+      ],
+      "seam_major_radius_mm": 4.242640687119286,
+      "seam_minor_radius_mm": 3,
+      "seam_endpoints_mm": [
+        [
+          12,
+          -13.0,
+          -4.0
+        ],
+        [
+          9,
+          -10.0,
+          -1.0
+        ]
+      ],
+      "seam_midpoint_mm": [
+        9.878679656440358,
+        -12.121320343559642,
+        -3.121320343559642
+      ],
+      "stop_circles": {
+        "x": {
+          "center_mm": [
+            12,
+            5.0,
+            -1.0
+          ],
+          "radius_mm": 3,
+          "endpoints_mm": [
+            [
+              12,
+              5.0,
+              -4.0
+            ],
+            [
+              9,
+              5.0,
+              -1.0
+            ]
+          ]
+        },
+        "y": {
+          "center_mm": [
+            12,
+            -10.0,
+            8.0
+          ],
+          "radius_mm": 3,
+          "endpoints_mm": [
+            [
+              12,
+              -13.0,
+              8.0
+            ],
+            [
+              9,
+              -10.0,
+              8.0
+            ]
+          ]
+        }
+      },
+      "inside_void_mm": [
+        13.5,
+        -4,
+        2
+      ],
+      "inside_material_mm": [
+        9.45,
+        -12.55,
+        -3.55
+      ]
+    },
+    "warped_seam": {
+      "triangles": 320,
+      "groups": {
+        "outer_bottom": [
+          0,
+          8
+        ],
+        "outer_y_min": [
+          8,
+          12
+        ],
+        "rim": [
+          12,
+          28
+        ],
+        "outer_x_max": [
+          28,
+          32
+        ],
+        "outer_y_max": [
+          32,
+          36
+        ],
+        "outer_x_min": [
+          36,
+          40
+        ],
+        "fillet_x": [
+          40,
+          104
+        ],
+        "stop_x_max": [
+          104,
+          172
+        ],
+        "stop_y_max": [
+          172,
+          240
+        ],
+        "fillet_y": [
+          240,
+          304
+        ],
+        "wall_y_min": [
+          304,
+          308
+        ],
+        "wall_x_min": [
+          308,
+          312
+        ],
+        "floor": [
+          312,
+          320
+        ]
+      },
+      "seam_segments": 16,
+      "mesh_volume_mm3": 5781.836048806651,
+      "sha256": "1bf5da53ab6801eb47ccf67b3051d37434fbbbf18422d72c401c98ff01f23403",
+      "warped_knot_mm": [
+        -7.414213562373095,
+        -4.414213562373095,
+        3.585786437626905
+      ],
+      "displaced_knot_mm": [
+        -7.274213562373095,
+        -4.274213562373095,
+        3.585786437626905
+      ]
+    }
+  }
+}

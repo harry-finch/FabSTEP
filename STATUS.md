@@ -43,7 +43,7 @@ Le helper de l’application refuse Flansch à **231 608 faces**. Le laboratoi
 
 ## Reprise après cette session
 
-Le secteur annulaire de R-085 est intégré sous ADR-0040. R-086 couvre le cas d’un congé droit de poche entre deux butées planes perpendiculaires. R-087 ajoute une butée oblique (accord A-087). R-088 qualifie deux congés opposés partageant le fond plan. Le cas suivant porte sur deux congés adjacents qui se rejoignent dans un coin. La couture des 267 facettes sur Flansch reste, à ce stade, une preuve de laboratoire. La reprise ultérieure ne nécessite pas l’historique de conversation : lire les consignes et ce document, les réponses de `fabboard action list`, puis les éléments ci-dessous. Les accords A-045 (F) et A-068 (D/G) sont acquis ; ils ne valent pas acceptation des essais manuels.
+Le secteur annulaire de R-085 est intégré sous ADR-0040. R-086 couvre le cas d’un congé droit de poche entre deux butées planes perpendiculaires. R-087 ajoute une butée oblique (accord A-087). R-088 qualifie deux congés opposés partageant le fond plan. R-089 porte sur deux congés adjacents qui se rejoignent dans un coin. L’accord A-089 autorise leur arête commune (ADR-0042). La couture des 267 facettes sur Flansch reste, à ce stade, une preuve de laboratoire. La reprise ultérieure ne nécessite pas l’historique de conversation : lire les consignes et ce document, les réponses de `fabboard action list`, puis les éléments ci-dessous. Les accords A-045 (F) et A-068 (D/G) sont acquis ; ils ne valent pas acceptation des essais manuels.
 
 | Chantier | Déjà développé | Travail restant avant généralisation |
 | --- | --- | --- |
