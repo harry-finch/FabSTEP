@@ -24,6 +24,7 @@ const en: Shape<typeof fr> = {
   parameterSearch: {analyticRequired:"Choose curved shape recognition to search for a setting.",guidanceActive:"Parameter search is unavailable during guided reconstruction.","button": "Find a setting", "hint": "Compares up to 7 radial tolerances, keeping the deviation budget and other settings unchanged. Each trial validates the whole document.", "ranking": "Among validated trials: fewer faces, then the strictest tolerance. This ranking does not guarantee the best geometry.", "apply": "Apply and reconvert", "none": "No validated trial. Settings are unchanged.", "same": "The current setting is retained.", "proposal": "Proposed tolerance: {value} mm", "summary": "{faces} faces, including {curved} curved faces", "trials": "Trial details", "rejected": "Rejected", "bound": "Composed bound: {value} mm", "sampled": "Maximum sampled deviation: {value} mm"},
 
   engine: {
+    linear_blend_endpoints_projected: 'Blend endpoints are adjusted to the reconstructed geometry; their displacement is included in the deviation bound.',
     workerBusy: "An isolated job is still finishing. Try again shortly.",
     workerMemory: "Processing stopped above 4 GiB of memory; the source is retained.",
     workerMonitor: "Memory monitoring for the isolated engine is unavailable; processing has stopped.",

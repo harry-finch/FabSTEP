@@ -1,6 +1,8 @@
 //! Convex box with one rounded trihedral corner. Every surface and trim is
 //! established from a partition of one closed source component.
+use super::block::{disks, ordered_chain};
 use super::*;
+
 use crate::{CircularArc, MixedPartialCylinder, MixedSegment, MixedSphericalOctant};
 use std::f64::consts::FRAC_PI_2;
 
@@ -32,61 +34,12 @@ impl Frame {
 fn seed(
     a: &Analysis,
     s: &crate::planar::Segmentation,
-    adj: &[Vec<usize>],
+    top: &[(f64, usize)],
+    neighbors: [u8; 6],
     o: &Options,
     work: &mut Work,
 ) -> Result<Option<Frame>, FabError> {
     let p = &a.mesh.vertices;
-    // Fixed upper bounds apply only to attempting this additional hypothesis.
-    if !(10..=8192).contains(&s.model.faces.len()) || a.mesh.triangles.len() > 32_000 {
-        return Ok(None);
-    }
-    let mut top = Vec::<(f64, usize)>::new();
-    for (i, plane) in s.model.faces.iter().enumerate() {
-        if plane.loops.len() != 1 {
-            continue;
-        }
-        let cycle = &plane.loops[0];
-        work.spend(cycle.len() + 1)?;
-        let base = p[cycle[0]];
-        let area = (0..cycle.len())
-            .map(|j| {
-                dot(
-                    cross(
-                        sub(p[cycle[j]], base),
-                        sub(p[cycle[(j + 1) % cycle.len()]], base),
-                    ),
-                    plane.normal,
-                )
-            })
-            .sum::<f64>()
-            .abs()
-            / 2.;
-        top.push((area, i));
-        top.sort_by(|x, y| y.0.total_cmp(&x.0).then_with(|| x.1.cmp(&y.1)));
-        top.truncate(7);
-    }
-    if top.len() < 7 || top[5].0 <= 4. * top[6].0 || !top[0].0.is_finite() {
-        return Ok(None);
-    }
-    let mut map = vec![None; s.model.faces.len()];
-    for (i, &(_, r)) in top[..6].iter().enumerate() {
-        map[r] = Some(i);
-    }
-    let mut neighbors = [0u8; 6];
-    for (t, list) in adj.iter().enumerate() {
-        work.spend(1)?;
-        let Some(i) = map[s.triangle_regions[t]] else {
-            continue;
-        };
-        for &other in list {
-            if let Some(j) = map[s.triangle_regions[other]] {
-                if i != j {
-                    neighbors[i] |= 1 << j;
-                }
-            }
-        }
-    }
     let near: Vec<_> = (0..6).filter(|&i| neighbors[i].count_ones() == 2).collect();
     let far: Vec<_> = (0..6).filter(|&i| neighbors[i].count_ones() == 4).collect();
     if near.len() != 3
@@ -202,39 +155,6 @@ fn arc_index(a: usize, b: usize) -> Option<usize> {
         }
     }
     None
-}
-
-fn ordered_chain(edges: &[Edge]) -> Result<Vec<usize>, FabError> {
-    let mut next = BTreeMap::<usize, Vec<usize>>::new();
-    for &(a, b) in edges {
-        next.entry(a).or_default().push(b);
-        next.entry(b).or_default().push(a);
-    }
-    let ends: Vec<_> = next
-        .iter()
-        .filter(|(_, v)| v.len() == 1)
-        .map(|(&k, _)| k)
-        .collect();
-    if ends.len() != 2 || next.values().any(|v| v.len() > 2) {
-        return Err(unproven("frontière ouverte, fermée ou ramifiée du raccord"));
-    }
-    let mut chain = vec![ends[0]];
-    let mut previous = usize::MAX;
-    loop {
-        let current = *chain.last().unwrap();
-        let Some(&neighbor) = next[&current].iter().find(|&&v| v != previous) else {
-            break;
-        };
-        chain.push(neighbor);
-        previous = current;
-        if chain.len() > next.len() {
-            return Err(unproven("contour de raccord multiple"));
-        }
-    }
-    if chain.len() != edges.len() + 1 || chain.last() != Some(&ends[1]) {
-        return Err(unproven("contour de raccord disjoint"));
-    }
-    Ok(chain)
 }
 
 fn cylinder_uv(f: &Frame, p: V, i: usize) -> [f64; 2] {
@@ -447,93 +367,6 @@ fn det2(a: [f64; 2], b: [f64; 2], c: [f64; 2]) -> f64 {
     (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
 }
 
-// Check that each face really is a single source disk with one simple
-// boundary cycle. Closed source incidence has already been validated. This
-// prevents isolated extra islands or pinched seams from contributing chart area.
-fn disks(
-    a: &Analysis,
-    owners: &[usize],
-    adj: &[Vec<usize>],
-    cuts: &Cuts,
-    work: &mut Work,
-) -> Result<(), FabError> {
-    let mut tags = vec![false; owners.len()];
-    let mut seen = [false; 10];
-    let mut degrees: [BTreeMap<usize, Vec<usize>>; 10] = std::array::from_fn(|_| BTreeMap::new());
-    for (&(a, b), edges) in cuts {
-        for &face in &[a, b] {
-            work.spend(edges.len() * 2)?;
-            for &(x, y) in edges {
-                degrees[face].entry(x).or_default().push(y);
-                degrees[face].entry(y).or_default().push(x);
-            }
-        }
-    }
-    for t in 0..owners.len() {
-        if tags[t] {
-            continue;
-        }
-        let face = owners[t];
-        if std::mem::replace(&mut seen[face], true) {
-            return Err(unproven("face source en plusieurs composantes"));
-        }
-        let boundary = &degrees[face];
-        let Some((&start, _)) = boundary.first_key_value() else {
-            return Err(unproven("face du raccord sans contour"));
-        };
-        work.spend(boundary.len() * 2)?;
-        if boundary.values().any(|n| n.len() != 2) {
-            return Err(unproven("contour source pincé"));
-        }
-        let mut previous = usize::MAX;
-        let mut vertex = start;
-        let mut n = 0;
-        loop {
-            let pair = &boundary[&vertex];
-            let next = if pair[0] == previous {
-                pair[1]
-            } else {
-                pair[0]
-            };
-            previous = vertex;
-            vertex = next;
-            n += 1;
-            if vertex == start {
-                break;
-            }
-            if n >= boundary.len() {
-                return Err(unproven("contour source non simple"));
-            }
-        }
-        if n != boundary.len() {
-            return Err(unproven("plusieurs contours de face"));
-        }
-        let mut vertices = BTreeSet::new();
-        let mut stack = vec![t];
-        tags[t] = true;
-        let mut triangles = 0isize;
-        while let Some(t) = stack.pop() {
-            work.spend(7)?;
-            triangles += 1;
-            vertices.extend(a.mesh.triangles[t]);
-            for &neighbor in &adj[t] {
-                if owners[neighbor] == face && !tags[neighbor] {
-                    tags[neighbor] = true;
-                    stack.push(neighbor);
-                }
-            }
-        }
-        let twice_edges = 3 * triangles + n as isize;
-        if 2 * vertices.len() as isize - twice_edges + 2 * triangles != 2 {
-            return Err(unproven("topologie de face différente d’un disque"));
-        }
-    }
-    if seen.contains(&false) {
-        return Err(unproven("face du raccord absente"));
-    }
-    Ok(())
-}
-
 // Keep the source, measured frame, topology, and shared budget explicit.
 #[allow(clippy::too_many_arguments)]
 fn prove_triangles(
@@ -670,43 +503,28 @@ fn planes(
     let mut result = Vec::with_capacity(6);
     for (i, &rid) in f.regions.iter().enumerate() {
         let lp = &s.model.faces[rid].loops[0];
-        work.spend(lp.len() * 3)?;
-        let adjacent: Vec<_> = (0..lp.len())
-            .map(|k| {
-                edges
-                    .get(&edge(lp[k], lp[(k + 1) % lp.len()]))
-                    .and_then(|incidence| {
-                        incidence
-                            .iter()
-                            .map(|&t| owners[t])
-                            .find(|&other| other != i)
-                    })
-                    .ok_or_else(|| unproven("bord plan sans face incidente"))
-            })
-            .collect::<Result<_, _>>()?;
-        let breaks: Vec<_> = (0..lp.len())
-            .filter(|&k| adjacent[k] != adjacent[(k + lp.len() - 1) % lp.len()])
-            .collect();
-        if breaks.len() != if i < 3 { 4 } else { 5 } {
-            return Err(unproven("extrémité plane sans le contour attendu"));
-        }
-        let mut segments = Vec::new();
-        for (k, &from) in breaks.iter().enumerate() {
-            let to = breaks[(k + 1) % breaks.len()];
-            let ids = [lp[from], lp[to]];
-            let t = bound
-                .trim
-                .get(&pair(i, adjacent[from]))
-                .ok_or_else(|| unproven("frontière du plan absente"))?;
-            let reversed = ids == [t.ids[1], t.ids[0]];
-            if !reversed && ids != t.ids {
-                return Err(unproven("extrémités du contour plan incompatibles"));
-            }
-            segments.push(match t.arc {
-                Some(arc) => MixedSegment::Arc { arc, reversed },
-                None => MixedSegment::Line { vertices: ids },
-            });
-        }
+        let segments = super::block::plane_segments(
+            lp,
+            i,
+            if i < 3 { 4 } else { 5 },
+            edges,
+            owners,
+            work,
+            |ids, other| {
+                let t = bound
+                    .trim
+                    .get(&pair(i, other))
+                    .ok_or_else(|| unproven("frontière du plan absente"))?;
+                let reversed = ids == [t.ids[1], t.ids[0]];
+                if !reversed && ids != t.ids {
+                    return Err(unproven("extrémités du contour plan incompatibles"));
+                }
+                Ok(match t.arc {
+                    Some(arc) => MixedSegment::Arc { arc, reversed },
+                    None => MixedSegment::Line { vertices: ids },
+                })
+            },
+        )?;
         result.push(MixedPlane {
             normal: scale(f.directions[i % 3], if i < 3 { 1. } else { -1. }),
             loops: vec![MixedLoop::Segments { segments }],
@@ -715,7 +533,10 @@ fn planes(
     Ok(result)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn candidate(
+    top: &[(f64, usize)],
+    neighbors: [u8; 6],
     a: &Analysis,
     s: &crate::planar::Segmentation,
     adj: &[Vec<usize>],
@@ -723,7 +544,7 @@ pub(super) fn candidate(
     o: &Options,
     work: &mut Work,
 ) -> Result<Option<RoundedRecognition>, FabError> {
-    let Some(f) = seed(a, s, adj, o, work)? else {
+    let Some(f) = seed(a, s, top, neighbors, o, work)? else {
         return Ok(None);
     };
     work.spend(a.mesh.vertices.len() + a.mesh.triangles.len().saturating_mul(13))?;
@@ -755,7 +576,7 @@ pub(super) fn candidate(
             cuts.entry(pair(a, b)).or_default().push(edge);
         }
     }
-    disks(a, &owners, adj, &cuts, work)?;
+    disks::<10>(a, &owners, adj, &cuts, work)?;
     let mut proof = Proof {
         endpoint: 0.,
         plane: 0.,
@@ -780,6 +601,7 @@ pub(super) fn candidate(
                 rings: vec![],
                 cylinders: vec![],
                 arcs: bound.arcs,
+                elliptic_arcs: vec![],
                 partial_cylinders: (0..3)
                     .map(|i| MixedPartialCylinder {
                         arcs: [2 * i, 2 * i + 1],
@@ -792,6 +614,7 @@ pub(super) fn candidate(
         spheres: vec![],
         tori: vec![],
         partial_cones: vec![],
+        linear_blend: None,
         octants: vec![MixedSphericalOctant {
             center: f.world([f.radius; 3]),
             radius_mm: f.radius,

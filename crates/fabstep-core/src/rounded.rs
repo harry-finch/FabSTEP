@@ -10,6 +10,8 @@ use crate::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::{PI, TAU};
+mod block;
+mod linear_blend;
 mod octant;
 mod torus_cone;
 mod zone;
@@ -353,11 +355,11 @@ fn recognize_policy_with_proofs(
         }
     }
     if rims.is_empty() {
-        match octant::candidate(a, &segmentation, &adjacency, &edges, o, &mut work) {
+        match block::candidate(a, &segmentation, &adjacency, &edges, o, &mut work) {
             Ok(Some(_)) if scope.is_some() => {
                 return Err(FabError::new(
                     "guidance.family_unproven",
-                    "Le coin à trois raccords ne permet pas de correction locale.",
+                    "Ce raccord local ne permet pas de correction guidée.",
                 ))
             }
             Ok(Some(result)) => return Ok(result),
@@ -517,6 +519,7 @@ fn recognize_policy_with_proofs(
         }
     }
     let mut model = RoundedModel {
+        linear_blend: None,
         octants: vec![],
         partial_cones: vec![],
         revolved: RevolvedModel {
@@ -526,6 +529,7 @@ fn recognize_policy_with_proofs(
                 planes: Vec::new(),
                 cylinders: Vec::new(),
                 arcs: Vec::new(),
+                elliptic_arcs: vec![],
                 partial_cylinders: Vec::new(),
             },
             cones: Vec::new(),
@@ -2224,8 +2228,15 @@ fn compact_rings(m: &mut RoundedModel) -> Result<(), FabError> {
 }
 pub(crate) fn volume(m: &RoundedModel) -> Result<f64, FabError> {
     let mixed = &m.revolved.mixed;
-    let bbox = bounds(&mixed.vertices);
-    let reference = std::array::from_fn(|i| bbox[0][i] + (bbox[1][i] - bbox[0][i]) * 0.5);
+    // A cone normal is perpendicular to p - apex over the whole face.
+    // Using its apex for the divergence integral makes its flux exactly zero.
+    let reference = m.linear_blend.as_ref().map_or_else(
+        || {
+            let bbox = bounds(&mixed.vertices);
+            std::array::from_fn(|i| bbox[0][i] + (bbox[1][i] - bbox[0][i]) * 0.5)
+        },
+        |g| g.apex,
+    );
     let mut sum = Sum::default();
     for plane in &mixed.planes {
         let normal = scale(plane.normal, 1. / norm(plane.normal));

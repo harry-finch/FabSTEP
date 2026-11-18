@@ -1,6 +1,7 @@
 #include <BRepAdaptor_Curve.hxx>
 #include <BRepAdaptor_Surface.hxx>
 #include <BRepAlgoAPI_Check.hxx>
+#include <BRepAlgoAPI_Common.hxx>
 #include <BRepAlgoAPI_Section.hxx>
 #include <BRepClass_FaceClassifier.hxx>
 #include <BRepLProp_SLProps.hxx>
@@ -19,6 +20,7 @@
 #include <BRepFilletAPI_MakeFillet.hxx>
 #include <BRepGProp.hxx>
 #include <BRepLib.hxx>
+#include <BRepLib_CheckCurveOnSurface.hxx>
 #include <BRepMesh_IncrementalMesh.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <BRepPrimAPI_MakePrism.hxx>
@@ -30,6 +32,7 @@
 #include <DESTEP_Parameters.hxx>
 #include <GProp_GProps.hxx>
 #include <Geom2d_Curve.hxx>
+#include <Geom2d_BSplineCurve.hxx>
 #include <Geom2d_Line.hxx>
 #include <IMeshData_Status.hxx>
 #include <Message.hxx>
@@ -241,6 +244,16 @@ struct MixedArcData {
   size_t vertices[2];
 };
 
+struct EllipticArcData {
+  double center[3], axis[3], major_direction[3], major, minor, start, sweep;
+  size_t vertices[2];
+};
+
+struct LinearBlendData {
+  double apex[3], axis[3], angle;
+  size_t arcs[2], rails[2][2];
+};
+
 struct MixedSegmentData {
   size_t vertices[2];
   size_t arc; // SIZE_MAX identifies a line.
@@ -278,6 +291,7 @@ struct SurfaceCounts {
   size_t toroidal = 0;
   size_t spherical_octants = 0;
   size_t partial_conical = 0;
+  size_t linear_blends = 0;
 };
 
 constexpr SurfaceCounts trihedral_surfaces{6, 3, 3, 0, 1, 0, 1};
@@ -857,9 +871,187 @@ TopoDS_Face partial_revolved_face(
   return cylinder.inner ? TopoDS::Face(face.Reversed()) : face;
 }
 
+gp_Pnt ellipse_at(const EllipticArcData& arc, double parameter) {
+  const gp_Vec major(direction(arc.major_direction));
+  const gp_Vec minor = gp_Vec(direction(arc.axis)).Crossed(major);
+  return point_at(arc.center, 0)
+      .Translated(major * (arc.major * std::cos(parameter)) +
+                  minor * (arc.minor * std::sin(parameter)));
+}
+
+// Keep the exact 3D ellipse. The analytic (u,v) evaluation on the cone fixes
+// its parameter correspondence; piecewise cubic Hermite interpolation stores
+// the STEP pcurve. OCCT estimates its maximum 3D deviation numerically.
+void set_elliptic_pcurve(const TopoDS_Face& face, const TopoDS_Edge& edge) {
+  const CadFailure invalid{
+      invalid_model, "La paramétrisation de l’ellipse sur le cône dépasse la précision native."};
+  const auto cone = BRepAdaptor_Surface(face).Cone();
+  const gp_Vec x(cone.Position().XDirection()), y(cone.Position().YDirection()),
+      z(cone.Axis().Direction());
+  const BRepAdaptor_Curve curve(edge);
+  const double start = curve.FirstParameter(), end = curve.LastParameter(),
+               period = 2. * std::acos(-1.);
+  double previous_first, previous_last;
+  const auto original = BRep_Tool::CurveOnSurface(edge, face, previous_first, previous_last);
+  if (original.IsNull())
+    throw invalid;
+  const double reference = original->Value((previous_first + previous_last) / 2.).X();
+  for (int intervals = 8; intervals <= 128; intervals *= 2) {
+    const double step = (end - start) / intervals;
+    TColgp_Array1OfPnt2d poles(1, 3 * intervals + 1);
+    TColStd_Array1OfReal knots(1, intervals + 1);
+    TColStd_Array1OfInteger mults(1, intervals + 1);
+    for (int i = 0; i <= intervals; ++i) {
+      const double t = i == intervals ? end : start + step * i;
+      gp_Pnt p;
+      gp_Vec tangent;
+      curve.D1(t, p, tangent);
+      const gp_Vec v(cone.Location(), p);
+      const double vx = v.Dot(x), vy = v.Dot(y), u = std::atan2(vy, vx);
+      const gp_Pnt2d uv(u + period * std::round((reference - u) / period),
+                        v.Dot(z) / std::cos(cone.SemiAngle()));
+      const gp_Vec2d derivative((vx * tangent.Dot(y) - vy * tangent.Dot(x)) / (vx * vx + vy * vy),
+                                tangent.Dot(z) / std::cos(cone.SemiAngle()));
+      knots(i + 1) = t;
+      mults(i + 1) = i == 0 || i == intervals ? 4 : 3;
+      poles(3 * i + 1) = uv;
+      if (i > 0)
+        poles(3 * i) = uv.Translated(-derivative * (step / 3.));
+      if (i < intervals)
+        poles(3 * i + 2) = uv.Translated(derivative * (step / 3.));
+    }
+    Handle(Geom2d_BSplineCurve) pcurve = new Geom2d_BSplineCurve(poles, knots, mults, 3);
+    BRep_Builder builder;
+    builder.UpdateEdge(edge, pcurve, face, 0.); // Only replaces the UV curve.
+    builder.Range(edge, face, start, end);
+    BRepLib_CheckCurveOnSurface check(edge, face);
+    check.Perform();
+    if (check.IsDone() && check.MaxDistance() < Precision::Confusion() / 8.)
+      return;
+  }
+  throw invalid;
+}
+
+// The two proven generators fix the cone's azimuthal interval. Clip only this
+// bounded face by the measured terminal planes, then reuse its four edges.
+TopoDS_Face linear_blend_face(const LinearBlendData& blend, const EllipticArcData* arcs,
+                              const double* points, IndexedWires& wires,
+                              std::vector<TopoDS_Edge>& shared) {
+  const CadFailure invalid{
+      invalid_model,
+      "Le secteur conique ne rejoint pas ses limites elliptiques et ses génératrices."};
+  const double tol = Precision::Confusion();
+  const auto apex = point_at(blend.apex, 0);
+  const gp_Vec axis(direction(blend.axis));
+  const auto& lower = arcs[blend.arcs[0]];
+  const auto& upper = arcs[blend.arcs[1]];
+  for (const auto slot : blend.arcs) {
+    const auto& arc = arcs[slot];
+    if (ellipse_at(arc, arc.start).Distance(point_at(points, arc.vertices[0])) > tol ||
+        ellipse_at(arc, arc.start + arc.sweep).Distance(point_at(points, arc.vertices[1])) > tol)
+      throw invalid;
+  }
+  const gp_Vec z(direction(lower.axis));
+  const auto origin = point_at(lower.center, 0);
+  const gp_Vec offset(origin, point_at(upper.center, 0));
+  const double height = offset.Dot(z);
+  if (height <= tol || !direction(upper.axis).IsEqual(direction(lower.axis), 1.e-8))
+    throw invalid;
+
+  std::array<gp_Vec, 2> radials;
+  for (int i = 0; i < 2; ++i) {
+    for (auto id : blend.rails[i]) {
+      const gp_Vec v(apex, point_at(points, id));
+      const double axial = v.Dot(axis);
+      if (axial <= tol ||
+          std::abs((v - axis * axial).Magnitude() - axial * std::tan(blend.angle)) > tol)
+        throw invalid;
+    }
+    const gp_Vec v(apex, point_at(points, blend.rails[i][0]));
+    radials[i] = (v - axis * v.Dot(axis)).Normalized();
+  }
+  const gp_Vec bisector = (radials[0] + radials[1]).Normalized();
+  const double half = radials[0].Angle(radials[1]) / 2.;
+  const gp_Cone cone(gp_Ax3(apex, gp_Dir(axis), gp_Dir(bisector)), blend.angle, 0.);
+  const double low = std::min(std::abs(gp_Vec(apex, origin).Dot(z)),
+                              std::abs(gp_Vec(apex, point_at(upper.center, 0)).Dot(z)));
+  const double high = std::max(apex.Distance(origin) + lower.major,
+                               apex.Distance(point_at(upper.center, 0)) + upper.major);
+  if (!(low > tol && std::isfinite(high)))
+    throw invalid;
+  const auto sector =
+      BRepBuilderAPI_MakeFace(cone, -half, half, low / 2., high + std::max(high / 8., tol)).Face();
+  // Radius bound about the first cap centre encloses both complete ellipses.
+  const double span = std::max(lower.major, offset.Magnitude() + upper.major) + 1.;
+  const gp_Ax2 slab_axes(origin, gp_Dir(z), direction(lower.major_direction));
+  const gp_Pnt corner =
+      origin.Translated(-(gp_Vec(slab_axes.XDirection()) + gp_Vec(slab_axes.YDirection())) * span);
+  const auto slab =
+      BRepPrimAPI_MakeBox(gp_Ax2(corner, slab_axes.Direction(), slab_axes.XDirection()), 2. * span,
+                          2. * span, height)
+          .Shape();
+  BRepAlgoAPI_Common clipped(sector, slab);
+  TopTools_IndexedMapOfShape faces;
+  if (!clipped.IsDone())
+    throw invalid;
+  TopExp::MapShapes(clipped.Shape(), TopAbs_FACE, faces);
+  if (faces.Extent() != 1)
+    throw invalid;
+  const auto face = TopoDS::Face(faces(1));
+  TopTools_IndexedMapOfShape loops;
+  TopExp::MapShapes(face, TopAbs_WIRE, loops);
+  if (loops.Extent() != 1)
+    throw invalid;
+  std::array<bool, 2> seen_rails{};
+  for (TopExp_Explorer it(face, TopAbs_EDGE); it.More(); it.Next()) {
+    const auto edge = TopoDS::Edge(it.Current());
+    BRepAdaptor_Curve curve(edge);
+    bool matched = false;
+    for (size_t i = 0; i < 2 && !matched; ++i) {
+      const size_t slot = blend.arcs[i];
+      const auto& arc = arcs[slot];
+      const bool ellipse = curve.GetType() == GeomAbs_Ellipse;
+      if (!ellipse && curve.GetType() != GeomAbs_Line)
+        throw invalid;
+      const auto* ids = ellipse ? arc.vertices : blend.rails[i];
+      const auto use = oriented_between(edge, point_at(points, ids[0]), point_at(points, ids[1]));
+      if (use.IsNull())
+        continue;
+      if (ellipse) {
+        const auto c = curve.Ellipse();
+        const double first = curve.FirstParameter(), last = curve.LastParameter();
+        if (!shared[slot].IsNull() || c.Location().Distance(point_at(arc.center, 0)) > tol ||
+            !c.Axis().Direction().IsParallel(direction(arc.axis), 1.e-8) ||
+            !c.XAxis().Direction().IsParallel(direction(arc.major_direction), 1.e-8) ||
+            std::abs(c.MajorRadius() - arc.major) > tol ||
+            std::abs(c.MinorRadius() - arc.minor) > tol ||
+            std::abs(last - first - arc.sweep) > 1.e-8 ||
+            curve.Value((first + last) / 2.).Distance(ellipse_at(arc, arc.start + arc.sweep / 2.)) >
+                tol ||
+            (edge.Orientation() == use.Orientation()) != (i == 0))
+          throw invalid;
+        set_elliptic_pcurve(face, edge);
+        shared[slot] = use;
+        wires.bind_vertices(ids[0], ids[1], use);
+      } else {
+        if (seen_rails[i] || edge.Orientation() != use.Orientation())
+          throw invalid;
+        wires.bind_line(ids[0], ids[1], use, true);
+        seen_rails[i] = true;
+      }
+      matched = true;
+    }
+    if (!matched)
+      throw invalid;
+  }
+  if (shared[0].IsNull() || shared[1].IsNull() || !seen_rails[0] || !seen_rails[1])
+    throw invalid;
+  return face;
+}
+
 TopoDS_Wire segmented_wire(const gp_Pln& plane, const MixedSegmentData* segments, size_t count,
                            const MixedArcData* arcs, const std::vector<TopoDS_Edge>& shared_arcs,
-                           IndexedWires& wires) {
+                           IndexedWires& wires, const EllipticArcData* ellipses = nullptr) {
   BRepBuilderAPI_MakeWire wire;
   for (size_t i = 0; i < count; ++i) {
     const auto& segment = segments[i];
@@ -869,8 +1061,18 @@ TopoDS_Wire segmented_wire(const gp_Pln& plane, const MixedSegmentData* segments
       wire.Add(wires.line(plane, from, to));
     } else {
       const auto& edge = shared_arcs[segment.arc];
-      require_circle_in_plane(plane, BRepAdaptor_Curve(edge).Circle());
-      wire.Add(from == arcs[segment.arc].vertices[0] ? edge : TopoDS::Edge(edge.Reversed()));
+      size_t start;
+      if (ellipses) {
+        const auto ellipse = BRepAdaptor_Curve(edge).Ellipse();
+        if (!plane.Axis().Direction().IsParallel(ellipse.Axis().Direction(), 1.e-8) ||
+            plane.Distance(ellipse.Location()) > Precision::Confusion())
+          throw CadFailure{invalid_model, "L’ellipse sort de son plan terminal."};
+        start = ellipses[segment.arc].vertices[0];
+      } else {
+        require_circle_in_plane(plane, BRepAdaptor_Curve(edge).Circle());
+        start = arcs[segment.arc].vertices[0];
+      }
+      wire.Add(from == start ? edge : TopoDS::Edge(edge.Reversed()));
     }
   }
   if (!wire.IsDone() || !BRep_Tool::IsClosed(wire.Wire())) {
@@ -973,7 +1175,9 @@ TopoDS_Solid build_mixed_solid(
     const size_t* partial_tokens = nullptr,
     const MixedCylinderData* partial_cones = nullptr, size_t partial_cone_count = 0,
     const size_t* partial_cone_tokens = nullptr,
-    const SphericalOctantData* octant = nullptr, const size_t* octant_token = nullptr) {
+    const SphericalOctantData* octant = nullptr, const size_t* octant_token = nullptr,
+    const LinearBlendData* blend = nullptr, const EllipticArcData* ellipses = nullptr,
+    const size_t* blend_token = nullptr) {
   IndexedWires wires(points, point_count);
   BRepBuilderAPI_Sewing sewing(Precision::Confusion());
   sewing.SetMaxTolerance(Precision::Confusion());
@@ -1003,7 +1207,12 @@ TopoDS_Solid build_mixed_solid(
     sewing.Add(face);
     if (torus_tokens && labels) labels->push_back({face, torus_tokens[i]});
   }
-  std::vector<TopoDS_Edge> shared_arcs(arc_count);
+  std::vector<TopoDS_Edge> shared_arcs(blend ? 2 : arc_count);
+  if (blend) {
+    const auto face = linear_blend_face(*blend, ellipses, points, wires, shared_arcs);
+    sewing.Add(face);
+    if (labels && blend_token) labels->push_back({face,*blend_token});
+  }
   for (size_t i = 0; i < partial_count; ++i) {
     const auto face = partial_revolved_face(partial[i], arcs, points, shared_arcs, wires);
     sewing.Add(face);
@@ -1035,7 +1244,7 @@ TopoDS_Solid build_mixed_solid(
       const bool hole = j != first_loop;
       const TopoDS_Wire wire = loop.count == 0
           ? rim_wire(plane, rims[loop.start], hole)
-          : segmented_wire(plane, segments + loop.start, loop.count, arcs, shared_arcs, wires);
+          : segmented_wire(plane, segments + loop.start, loop.count, arcs, shared_arcs, wires, ellipses);
       if (hole) {
         make_face.Add(wire);
       } else {
@@ -1555,6 +1764,154 @@ void check_trihedral_geometry(const TopoDS_Shape& solid, const TopTools_IndexedM
   if (!std::isfinite(ideal) || std::abs(ideal-volume)>std::max(1.e-8,1.e-8*ideal)) throw invalid;
 }
 
+// Reconstruct the local block frame from the actual edge owners, including on
+// a multi-root STEP read where no scalar construction model is available.
+void check_linear_blend_geometry(const TopoDS_Shape& shape, const TopTools_IndexedMapOfShape& faces,
+                                 double volume, Status status) {
+  const CadFailure invalid{
+      status,
+      "Le cône incliné, ses supports ou son volume ne correspondent pas au raccord linéaire."};
+  const double tol = 4. * Precision::Confusion();
+  if (faces.Extent() != 7)
+    throw invalid;
+  TopoDS_Face wall;
+  for (int i = 1; i <= faces.Extent(); ++i) {
+    const BRepAdaptor_Surface surface(TopoDS::Face(faces(i)));
+    if (surface.GetType() == GeomAbs_Cone && wall.IsNull())
+      wall = TopoDS::Face(faces(i));
+    else if (surface.GetType() != GeomAbs_Plane)
+      throw invalid;
+  }
+  if (wall.IsNull())
+    throw invalid;
+  const auto cone = BRepAdaptor_Surface(wall).Cone();
+  const auto apex = cone.Apex();
+  TopTools_IndexedDataMapOfShapeListOfShape incidence;
+  TopExp::MapShapesAndUniqueAncestors(shape, TopAbs_EDGE, TopAbs_FACE, incidence);
+  std::array<TopoDS_Edge, 2> ends, rails;
+  std::array<gp_Pln, 2> caps, sides;
+  std::array<gp_Dir, 2> inward;
+  TopTools_IndexedMapOfShape adjacent;
+  int ncap = 0, nrail = 0;
+  for (int i = 1; i <= incidence.Extent(); ++i) {
+    const auto edge = TopoDS::Edge(incidence.FindKey(i));
+    const auto& owners = incidence.FindFromIndex(i);
+    if (owners.Extent() != 2 || BRep_Tool::Degenerated(edge))
+      throw invalid;
+    const BRepAdaptor_Curve curve(edge);
+    if (!owners.First().IsSame(wall) && !owners.Last().IsSame(wall)) {
+      if (curve.GetType() != GeomAbs_Line)
+        throw invalid;
+      continue;
+    }
+    const auto plane_face =
+        TopoDS::Face(owners.First().IsSame(wall) ? owners.Last() : owners.First());
+    if (adjacent.Contains(plane_face))
+      throw invalid;
+    adjacent.Add(plane_face);
+    const auto plane = BRepAdaptor_Surface(plane_face).Plane();
+    if (curve.GetType() == GeomAbs_Ellipse && ncap < 2) {
+      ends[ncap] = edge;
+      caps[ncap++] = plane;
+    } else if (curve.GetType() == GeomAbs_Line && nrail < 2) {
+      rails[nrail] = edge;
+      sides[nrail] = plane;
+      inward[nrail] = plane.Axis().Direction();
+      if (plane_face.Orientation() == TopAbs_FORWARD)
+        inward[nrail].Reverse();
+      if (plane.Distance(apex) > tol || curve.Line().Distance(apex) > tol)
+        throw invalid;
+      ++nrail;
+    } else
+      throw invalid;
+  }
+  if (ncap != 2 || nrail != 2 || !inward[0].IsNormal(inward[1], box_angle_tolerance) ||
+      !caps[0].Axis().Direction().IsParallel(caps[1].Axis().Direction(), box_angle_tolerance))
+    throw invalid;
+  gp_Dir z = caps[0].Axis().Direction();
+  for (const auto& n : inward)
+    if (!n.IsNormal(z, box_angle_tolerance))
+      throw invalid;
+  const auto corner = [&](const gp_Pln& plane) {
+    return apex.Translated(gp_Vec(z) * gp_Vec(apex, plane.Location()).Dot(gp_Vec(z)));
+  };
+  const std::array<gp_Pnt, 2> corners{corner(caps[0]), corner(caps[1])};
+  const double height = corners[0].Distance(corners[1]);
+  if (height <= tol)
+    throw invalid;
+  z = gp_Dir(gp_Vec(corners[0], corners[1]));
+  std::array<double, 2> radius{}, lengths{};
+  std::array<std::array<gp_Pnt, 2>, 2> contacts;
+  for (size_t k = 0; k < 2; ++k) {
+    const BRepAdaptor_Curve curve(ends[k]);
+    const std::array<gp_Pnt, 2> endpoints{curve.Value(curve.FirstParameter()),
+                                          curve.Value(curve.LastParameter())};
+    for (size_t j = 0; j < 2; ++j) {
+      const bool first = sides[j].Distance(endpoints[0]) <= tol;
+      if (first == (sides[j].Distance(endpoints[1]) <= tol))
+        throw invalid;
+      contacts[k][j] = endpoints[first ? 0 : 1];
+      const double r = gp_Vec(corners[k], contacts[k][j]).Dot(gp_Vec(inward[1 - j]));
+      if (r <= tol || (j && std::abs(r - radius[k]) > tol))
+        throw invalid;
+      radius[k] = r;
+    }
+  }
+  for (size_t j = 0; j < 2; ++j)
+    if (oriented_between(rails[j], contacts[0][j], contacts[1][j]).IsNull())
+      throw invalid;
+  for (int i = 1; i <= faces.Extent(); ++i) {
+    if (faces(i).IsSame(wall) || adjacent.Contains(faces(i)))
+      continue;
+    const auto plane = BRepAdaptor_Surface(TopoDS::Face(faces(i))).Plane();
+    const size_t axis = plane.Axis().Direction().IsParallel(inward[0], box_angle_tolerance) ? 0 : 1;
+    if (!plane.Axis().Direction().IsParallel(inward[axis], box_angle_tolerance) ||
+        lengths[axis] != 0.)
+      throw invalid;
+    lengths[axis] = gp_Vec(corners[0], plane.Location()).Dot(gp_Vec(inward[axis]));
+  }
+  if (std::min(lengths[0], lengths[1]) <= std::max(radius[0], radius[1]) + tol)
+    throw invalid;
+  const double b = (radius[1] - radius[0]) / height, b2 = b * b;
+  if (!(b2 > 0. && b2 < 1.))
+    throw invalid;
+  const gp_Vec diagonal = gp_Vec(inward[0]) + gp_Vec(inward[1]);
+  const auto expect_axis = gp_Dir((diagonal * b + gp_Vec(z)) * std::copysign(1., b));
+  auto actual_axis = cone.Axis().Direction();
+  if (cone.SemiAngle() < 0.)
+    actual_axis.Reverse();
+  if (apex.Distance(corners[0].Translated(gp_Vec(z) * (-radius[0] / b))) > tol ||
+      !actual_axis.IsEqual(expect_axis, box_angle_tolerance) ||
+      std::abs(std::abs(std::sin(cone.SemiAngle())) - std::abs(b) / std::sqrt(1. + 2. * b2)) >
+          1.e-8)
+    throw invalid;
+  const double denom = 1. - b2, A = std::sqrt(1. + b2) / denom, B = 1. / std::sqrt(denom);
+  const double sweep = 2. * std::asin(std::sqrt(denom / 2.));
+  for (size_t k = 0; k < 2; ++k) {
+    const auto center = corners[k].Translated(diagonal * (radius[k] / denom));
+    const BRepAdaptor_Curve curve(ends[k]);
+    const auto ellipse = curve.Ellipse();
+    if (ellipse.Location().Distance(center) > tol ||
+        !ellipse.Axis().Direction().IsParallel(z, box_angle_tolerance) ||
+        !ellipse.XAxis().Direction().IsParallel(gp_Dir(diagonal), box_angle_tolerance) ||
+        std::abs(ellipse.MajorRadius() - radius[k] * A) > tol ||
+        std::abs(ellipse.MinorRadius() - radius[k] * B) > tol ||
+        std::abs(curve.LastParameter() - curve.FirstParameter() - sweep) > box_angle_tolerance ||
+        curve.Value((curve.FirstParameter() + curve.LastParameter()) / 2.)
+                .Distance(center.Translated(-diagonal.Normalized() * (radius[k] * A))) > tol)
+      throw invalid;
+  }
+  const double d2 = sweep * sweep;
+  const double segment = sweep < .01 ? sweep * d2 * (1. / 6. - d2 * (1. / 120. - d2 / 5040.))
+                                     : sweep - std::sin(sweep);
+  const double cut = (1. - A * B * segment) / 2.;
+  const double ideal =
+      height * (lengths[0] * lengths[1] -
+                cut * (radius[0] * radius[0] + radius[0] * radius[1] + radius[1] * radius[1]) / 3.);
+  if (!std::isfinite(ideal) || std::abs(ideal - volume) > std::max(1.e-8, ideal * 1.e-8))
+    throw invalid;
+}
+
 SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
                               const SurfaceCounts* expected = nullptr,
                               const RoundedBoxFrame* expected_box = nullptr) {
@@ -1586,6 +1943,14 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
         ++found.conical;
         if (surface.LastUParameter() - surface.FirstUParameter() < 2.0 * std::acos(-1.0) - 1.0e-9) {
           ++found.partial_conical;
+          for (TopExp_Explorer it(faces(i), TopAbs_EDGE); it.More(); it.Next()) {
+            const auto edge = TopoDS::Edge(it.Current());
+            if (!BRep_Tool::Degenerated(edge) &&
+                BRepAdaptor_Curve(edge).GetType() == GeomAbs_Ellipse) {
+              ++found.linear_blends;
+              break;
+            }
+          }
         }
         break;
       case GeomAbs_Sphere:
@@ -1624,7 +1989,8 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
                    found.partial != expected->partial || found.conical != expected->conical ||
                    found.spherical != expected->spherical || found.toroidal != expected->toroidal ||
                    found.spherical_octants != expected->spherical_octants ||
-                   found.partial_conical != expected->partial_conical)) {
+                   found.partial_conical != expected->partial_conical ||
+                   found.linear_blends != expected->linear_blends)) {
     throw CadFailure{status, "Les types de surfaces diffèrent de la reconstruction."};
   }
   check_edge_incidence(shape, faces, status);
@@ -1637,7 +2003,10 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   }
 
   GProp_GProps properties;
-  BRepGProp::VolumeProperties(shape, properties, true);
+  if (found.linear_blends)
+    BRepGProp::VolumeProperties(shape, properties, 1.e-11, true);
+  else
+    BRepGProp::VolumeProperties(shape, properties, true);
   CadMetrics result{1, static_cast<size_t>(faces.Extent()), found.planar, found.cylindrical,
                     found.conical, found.spherical, found.toroidal, properties.Mass(), {}};
   if (!std::isfinite(result.volume) || result.volume <= 0.0) {
@@ -1655,7 +2024,9 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     }
   }
   std::optional<RoundedBoxFrame> rounded_box;
-  if (trihedron) {
+  if (found.linear_blends) {
+    check_linear_blend_geometry(shape, faces, result.volume, status);
+  } else if (trihedron) {
     check_trihedral_geometry(shape, faces, result.volume, status);
   } else if (found.spherical_octants != 0) {
     rounded_box = expected_box ? *expected_box : infer_rounded_box_frame(faces, status);
@@ -2091,8 +2462,16 @@ void check_meshing_resolution(const TopoDS_Shape& shape, double deflection) {
     if (curve.GetType() == GeomAbs_Circle) {
       segments = std::ceil(std::abs(curve.LastParameter() - curve.FirstParameter()) /
                            mesh_angular_step(curve.Circle().Radius(), deflection));
+    } else if (curve.GetType() == GeomAbs_Ellipse) {
+      const auto ellipse = curve.Ellipse();
+      // The affine image of the unit circle bounds chord sag by the major radius.
+      // The tangent turns at most major/minor radians per unit parameter.
+      const double step = std::min(mesh_angular_step(ellipse.MajorRadius(), deflection),
+                                   mesh_angle * ellipse.MinorRadius() / ellipse.MajorRadius());
+      segments = std::ceil(std::abs(curve.LastParameter() - curve.FirstParameter()) / step);
     } else if (curve.GetType() != GeomAbs_Line) {
-      throw CadFailure{mesh_failed, "La tessellation attend uniquement des arêtes linéaires ou circulaires."};
+      throw CadFailure{mesh_failed,
+                       "La tessellation attend des arêtes droites, circulaires ou elliptiques."};
     }
     // Preliminary admission guard; OCCT may refine further. Extracted
     // triangles are counted separately and subject to the same hard limit.
@@ -3221,6 +3600,25 @@ extern "C" int fabstep_build_mixed_step(
       {plane_count, cylinder_count + partial_count, partial_count, cone_count + partial_cone_count,
        sphere_count, torus_count, 0, partial_cone_count},
       output, error, error_capacity);
+}
+
+// Rust validates every index, both complete oriented uses and the model bounds.
+extern "C" int fabstep_build_linear_blend_step(
+    const double* points, size_t point_count, const double* normals, const size_t* plane_loops,
+    const MixedLoopData* loops, const MixedSegmentData* segments, const EllipticArcData* ellipses,
+    const LinearBlendData* blend, const size_t* plane_tokens, const size_t* blend_token,
+    StepOutput* output, char* error, size_t error_capacity) noexcept {
+  FaceLabels labels;
+  auto* tracked = blend_token ? &labels : nullptr;
+  return validated_step(
+      [&] {
+        return build_mixed_solid(points, point_count, nullptr, 0, normals, 6, plane_loops, loops,
+                                 segments, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0, nullptr,
+                                 0, nullptr, 0, plane_tokens, nullptr, tracked, nullptr, nullptr,
+                                 nullptr, nullptr, nullptr, 0, nullptr, nullptr, nullptr, blend,
+                                 ellipses, blend_token);
+      },
+      {6, 0, 0, 1, 0, 0, 0, 1, 1}, output, error, error_capacity, nullptr, tracked);
 }
 
 // Fixed D2 model. Rust validates every index and the exact face/arc counts.

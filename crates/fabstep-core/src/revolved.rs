@@ -374,6 +374,7 @@ pub fn recognize_revolved(a: &Analysis, o: &Options) -> Result<RevolvedRecogniti
             planes: Vec::new(),
             cylinders: Vec::new(),
             arcs: Vec::new(),
+            elliptic_arcs: vec![],
             partial_cylinders: Vec::new(),
         },
         cones: Vec::new(),

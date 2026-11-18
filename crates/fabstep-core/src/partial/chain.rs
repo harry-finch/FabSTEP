@@ -665,6 +665,10 @@ fn prove(
                                 .iter()
                                 .map(|&v| dot(sub(model.vertices[v], origin), normal).abs())
                                 .fold(0_f64, f64::max),
+                            MixedSegment::EllipticArc { arc, .. } => {
+                                let arc = &model.elliptic_arcs[*arc];
+                                circle_residual(arc.center, arc.axis, arc.major_mm)
+                            }
                             MixedSegment::Arc { arc, .. } => {
                                 let arc = &model.arcs[*arc];
                                 circle_residual(arc.center, arc.axis, arc.radius_mm)

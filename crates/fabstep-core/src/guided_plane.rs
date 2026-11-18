@@ -92,6 +92,7 @@ pub(crate) fn recognize(
                     rings: vec![],
                     cylinders: vec![],
                     arcs: vec![],
+                    elliptic_arcs: vec![],
                     partial_cylinders: vec![],
                 },
                 cones: vec![],

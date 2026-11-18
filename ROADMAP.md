@@ -126,7 +126,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Après les quatre grandes zones reconstruites, Flansch conserve 231 584 faces planes et 24 surfaces analytiques. Identifier les zones encore facettisées et leurs familles possibles avant toute nouvelle extension ou proposition de plafond ; la validation native dense reste un obstacle séparé.
 58. **[R-081 D2 — reconstruire un coin local à trois arrondis](roadmap/items/R-081-d2-reconstruire-un-coin-local-a-trois-arrondis.md)** · À tester · jalon post-v1
    Intégrer l’octant sphérique et ses trois raccords cylindriques à partir des frontières STL, avec preuve continue et STEP validé.
-59. **[R-082 G1 — reconstruire un raccord à rayon linéaire](roadmap/items/R-082-g1-reconstruire-un-raccord-a-rayon-lineaire.md)** · En cours · jalon post-v1
+59. **[R-082 G1 — reconstruire un raccord à rayon linéaire](roadmap/items/R-082-g1-reconstruire-un-raccord-a-rayon-lineaire.md)** · À tester · jalon post-v1
    Reconnaître l’enveloppe conique inclinée à extrémités elliptiques d’un arrondi linéaire, sans la confondre avec des sections circulaires empilées.
 
 ## Actions à faire
@@ -199,6 +199,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-074](roadmap/actions/A-074-verifier-les-chaines-adjacentes-dans-fusion.md) Vérifier les chaînes adjacentes dans Fusion (tester, R-078)
 - [ ] [A-075](roadmap/actions/A-075-examiner-le-coin-local-a-trois-arrondis.md) Examiner le coin local à trois arrondis (tester, R-081)
 - [ ] [A-076](roadmap/actions/A-076-verifier-le-coin-a-trois-arrondis-dans-fusion.md) Vérifier le coin à trois arrondis dans Fusion (tester, R-081)
+- [ ] [A-077](roadmap/actions/A-077-examiner-le-raccord-a-rayon-lineaire-dans.md) Examiner le raccord à rayon linéaire dans FabSTEP (tester, R-082)
+- [ ] [A-078](roadmap/actions/A-078-verifier-les-raccords-elliptiques-dans-fusion.md) Vérifier les raccords elliptiques dans Fusion (tester, R-082)
 
 ## Livré
 

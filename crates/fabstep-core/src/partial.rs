@@ -1382,6 +1382,10 @@ fn reversed(segment: &MixedSegment) -> MixedSegment {
         MixedSegment::Line { vertices } => MixedSegment::Line {
             vertices: [vertices[1], vertices[0]],
         },
+        MixedSegment::EllipticArc { arc, reversed } => MixedSegment::EllipticArc {
+            arc: *arc,
+            reversed: !*reversed,
+        },
         MixedSegment::Arc { arc, reversed } => MixedSegment::Arc {
             arc: *arc,
             reversed: !*reversed,
@@ -1467,6 +1471,9 @@ pub(crate) fn loop_origin(model: &MixedModel, lp: &MixedLoop) -> V {
         MixedLoop::Circle { ring } => model.rings[*ring].center,
         MixedLoop::Segments { segments } => match &segments[0] {
             MixedSegment::Line { vertices } => model.vertices[vertices[0]],
+            MixedSegment::EllipticArc { arc, reversed } => {
+                model.vertices[model.elliptic_arcs[*arc].vertices[usize::from(*reversed)]]
+            }
             MixedSegment::Arc { arc, reversed } => {
                 model.vertices[model.arcs[*arc].vertices[usize::from(*reversed)]]
             }
@@ -1484,6 +1491,25 @@ pub(crate) fn segmented_area(model: &MixedModel, segments: &[MixedSegment], norm
     for segment in segments {
         let (ids, correction) = match segment {
             MixedSegment::Line { vertices } => (*vertices, 0.),
+            MixedSegment::EllipticArc { arc, reversed } => {
+                let a = &model.elliptic_arcs[*arc];
+                let sweep = a.sweep_rad;
+                // Stable value of t - sin(t) in a shallow ellipse segment.
+                let difference = if sweep.abs() < 1e-2 {
+                    sweep.powi(3) * (1. / 6. - sweep.powi(2) / 120. + sweep.powi(4) / 5040.)
+                } else {
+                    sweep - sweep.sin()
+                };
+                let sign = if *reversed { -1. } else { 1. };
+                (
+                    if *reversed {
+                        [a.vertices[1], a.vertices[0]]
+                    } else {
+                        a.vertices
+                    },
+                    sign * dot(a.axis, normal) * a.major_mm * a.minor_mm * difference / 2.,
+                )
+            }
             MixedSegment::Arc { arc, reversed } => {
                 let a = &model.arcs[*arc];
                 let signed = (if *reversed { -1. } else { 1. }) * dot(a.axis, normal).signum();
@@ -1591,6 +1617,7 @@ mod tests {
                 rings: vec![],
                 cylinders: vec![],
                 arcs: vec![],
+                elliptic_arcs: vec![],
                 partial_cylinders: vec![],
             };
             let found = candidates(&model, &Options::default(), &mut Work::default()).unwrap();
@@ -1636,6 +1663,7 @@ mod tests {
             rings: vec![],
             cylinders: vec![],
             arcs: vec![],
+            elliptic_arcs: vec![],
             partial_cylinders: vec![],
         }
     }

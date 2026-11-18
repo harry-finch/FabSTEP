@@ -154,3 +154,28 @@ test('spherical octants keep source inspection complete and require a valid addi
   body.rounded_recognition!.triangle_faces[0]={kind:'plane',index:0};
   assert.deepEqual(attributions([body])[0].families,['plane','partial_cylinder','plane']);
 });
+
+
+test('linear blends retain their conical owner and reject missing or invalid model references', () => {
+  const body = {
+    id:'stl/component/0',analysis:{mesh:{triangles:[[0,1,2],[2,3,0],[3,4,5]]}},
+    rounded_recognition:{
+      model:{revolved:{mixed:{planes:[{}],cylinders:[],partial_cylinders:[]},cones:[]},
+        spheres:[],tori:[],linear_blend:{}},
+      triangle_faces:[{kind:'linear_blend',index:0},{kind:'plane',index:0},{kind:'linear_blend',index:0}]
+    }
+  } as unknown as BodyResult;
+  const items=attributions([body]);
+  assert.deepEqual(items[0].families,['linear_blend','plane','linear_blend']);
+  const g=graph();g.interpret(items);
+  assert.deepEqual(g.inspect('stl',[4,0,2]),{
+    families:{linear_blend:2,plane:1},unavailable:0,analysisBodyIds:['stl/component/0']
+  });
+  body.rounded_recognition!.triangle_faces[0].index=1;
+  assert.equal(attributions([body])[0].families,null);
+  body.rounded_recognition!.triangle_faces[0].index=0;
+  delete body.rounded_recognition!.model.linear_blend;
+  assert.equal(attributions([body])[0].families,null);
+  body.rounded_recognition!.triangle_faces=Array.from({length:3},()=>({kind:'plane' as const,index:0}));
+  assert.deepEqual(attributions([body])[0].families,['plane','plane','plane']);
+});

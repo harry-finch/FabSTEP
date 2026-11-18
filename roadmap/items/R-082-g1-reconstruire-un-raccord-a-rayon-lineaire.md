@@ -2,7 +2,7 @@
 id: R-082
 titre: "G1 — reconstruire un raccord à rayon linéaire"
 resume: "Reconnaître l’enveloppe conique inclinée à extrémités elliptiques d’un arrondi linéaire, sans la confondre avec des sections circulaires empilées."
-statut: en-cours
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-17
 maj: 2026-11-18
@@ -40,3 +40,10 @@ R-079, ADR-0036 et A-068 approuvés ; intégrer les changements de frontière co
 
 - Examiner les variantes de rayon linéaire dans FabSTEP et leurs faces terminales.
 - Réimporter leurs STEP dans Fusion et vérifier solide, volume et raccords elliptiques.
+
+
+## Intégration et portée vérifiée
+
+Le contrat additif, la reconnaissance source, la CAO, le suivi de faces et les exports des profils elliptiques sont intégrés. Les cinq STL positifs indépendants sont convertis en Auto et Surfaces ; les deux corps intercalés gardent leurs 14 faces et placements. La preuve source et les contrôles ciblés sont détaillés dans V-1204. Les sommets source ne sont pas modifiés ; les quatre extrémités projetées dans le résultat sont comptées et bornées. La limite locale reste 32 000 triangles et 8 192 régions avec six plans dominants.
+
+La représentation paramétrique native du contour conique est contrôlée numériquement par OCCT ; les ellipses 3D restent exactes. Le suivi natif conserve son refus de correspondance en cas de perte d’étiquettes, distinct de l’attribution source obligatoire. Les lois générales et les raccords multiples restent dans R-037.

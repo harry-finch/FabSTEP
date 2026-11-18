@@ -234,11 +234,25 @@ pub struct CircularArc {
     pub sweep_rad: f64,
     pub vertices: [usize; 2],
 }
+/// A trimmed planar ellipse, oriented by increasing parameter. Its minor
+/// direction is axis × major_direction. Both endpoint ids refer to the mesh.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EllipticArc {
+    pub center: [f64; 3],
+    pub axis: [f64; 3],
+    pub major_direction: [f64; 3],
+    pub major_mm: f64,
+    pub minor_mm: f64,
+    pub start_rad: f64,
+    pub sweep_rad: f64,
+    pub vertices: [usize; 2],
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum MixedSegment {
     Line { vertices: [usize; 2] },
     Arc { arc: usize, reversed: bool },
+    EllipticArc { arc: usize, reversed: bool },
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MixedPartialCylinder {
@@ -265,6 +279,8 @@ pub struct MixedModel {
     pub cylinders: Vec<MixedCylinder>,
     #[serde(default)]
     pub arcs: Vec<CircularArc>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub elliptic_arcs: Vec<EllipticArc>,
     #[serde(default)]
     pub partial_cylinders: Vec<MixedPartialCylinder>,
 }
@@ -367,6 +383,17 @@ pub struct MixedSphericalOctant {
     pub inner: bool,
 }
 
+/// One exterior linear rolling blend. The two planar cap ellipse uses
+/// are opposed by the cone, and rails run along its outward boundary.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MixedLinearBlend {
+    pub apex: [f64; 3],
+    pub axis: [f64; 3],
+    pub semi_angle_rad: f64,
+    pub arcs: [usize; 2],
+    pub rails: [[usize; 2]; 2],
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoundedModel {
     pub revolved: RevolvedModel,
@@ -376,11 +403,14 @@ pub struct RoundedModel {
     pub partial_cones: Vec<MixedPartialCone>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub octants: Vec<MixedSphericalOctant>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linear_blend: Option<Box<MixedLinearBlend>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RoundedFaceRef {
+    LinearBlend { index: usize },
     SphericalOctant { index: usize },
     PartialCone { index: usize },
     Plane { index: usize },

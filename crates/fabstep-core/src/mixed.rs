@@ -425,6 +425,7 @@ fn recognize_scoped(
         planes: Vec::new(),
         cylinders: Vec::new(),
         arcs: Vec::new(),
+        elliptic_arcs: vec![],
         partial_cylinders: Vec::new(),
     };
     let mut cones = Vec::new();

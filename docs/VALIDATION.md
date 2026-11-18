@@ -1703,3 +1703,36 @@ L’interface reconnaît `spherical_octant` et vérifie son indice dans la liste
 `sh scripts/check.sh` termine avec le code 0 : **540 tests workspace, 50 bureau, huit worker, 93 ciblés large-stl, un transfert réel, 230 UI, douze Python et quatre SDK**. Formatage, Clippy strict, Svelte (zéro erreur/avertissement), build UI et contrôle bureau passent. Seize tests opt-in workspace et quatre opt-in du sous-ensemble large-stl restent ignorés ; le transfert réel bureau est rejoué explicitement. Le précontrôle Clippy a signalé une expression unité inutile et les huit arguments de la preuve : expression retirée, exception locale documentée pour garder les contextes de preuve explicites. Aucun contrôle géométrique assoupli.
 
 Le paquet `artifacts/FabSTEP.app` est reconstruit et ses exécutables correspondent aux builds : SHA-256 bureau `1f6ea78fee7fb2d7caf5ce553db36e35718356fd6bcbc99e4a8ea96b76ed3eea`, worker `4643c2ba88e1d2092fe98ce34411d5ad88ef888ceb5ee14a85a11b935158e7c0`. Journaux et empreintes dans `artifacts/dg-next/`. Aucun nouvel essai graphique natif ou Fusion, release 1.0.0 inchangée. R-081 à tester via A-075/A-076. La qualification G reste séparée et n’est pas activée dans ce build.
+
+
+## V-1204 — G1 : raccord conique à rayon linéaire (18 novembre 2026)
+
+### Domaine et preuves
+
+R-082 implémente le second contrat approuvé d’ADR-0036/A-068. La reconnaissance porte sur un bloc à six supports plans dominants et une arête convexe à rayon linéaire positif ; les limites locales de 32 000 triangles et 8 192 régions restent celles de D2. `fixtures/local_blends/` fournit cinq sources positives indépendantes (croissance, décroissance, miroir, permutation et placement oblique retessellisé) et les faux empilements circulaires, loi non linéaire, coupe parabolique et capot absent.
+
+La preuve core exige sept disques, les chaînes de frontière, la couverture orientée en coordonnées du cône, des témoins intérieurs et une borne de Taylor par triangle. Les quatre extrémités peuvent être projetées sur leurs raccords exacts : le nombre est signalé par `recognition.linear_blend_endpoints_projected`, le déplacement entre dans la borne et les sommets de l’analyse source restent inchangés. Le test perturbé vérifie une projection supérieure à 0,5 µm. Le volume utilise le flux des six plans avec correction d’aire elliptique ; le cône a une contribution nulle depuis son sommet.
+
+La représentation native conserve les deux ellipses 3D exactes. Une première construction échouait au contrôle d’orientation de la face conique après STEP pour certaines pentes : un écart paramétrique de 2,838e−7 mm dépassait de peu la tolérance d’arête de 2,837e−7 mm. La représentation sur le cône est désormais interpolée par Hermite, avec 8 à 128 intervalles et estimation OCCT inférieure à `Precision::Confusion()/8`. Il s’agit d’un contrôle numérique de cette représentation, pas d’un certificat continu. Aucune tolérance d’export n’a été relâchée. Le laboratoire natif couvre seize variantes de pente/placement (±0,12, ±0,2, ±0,4, ±0,67 et placements obliques), leurs réimports et sept refus de contrat.
+
+### Contrôles ciblés exécutés
+
+- Six tests core : priorité des arcs cylindriques constants, sources positives dans Auto/Surfaces, volume indépendant, propriétaire unique, refus des familles hors domaine, repli Auto, carte repliée, permutation des triangles et projection comptée.
+- Deux tests CAO : cône, deux trims elliptiques et sept étiquettes réimportés ; valeurs scalaires, références, usages exclusifs et orientations invalides refusés.
+- Trois tests application : cinq conversions positives dans les deux modes, types/volume/dimensions, provenance et sondes de matière, export DXF ELLIPSE des deux faces terminales ; cas négatifs et compatibilité JSON.
+- Deux tests document : deux corps aux triangles source entrelacés gardent 14 faces natives distinctes, placements et quatre arcs elliptiques ; contact plan refusé par `cad.bodies_not_separated`.
+- Quinze tests UI ciblés sélection/diagnostics : propriétaire `linear_blend` reconnu comme Cône, indices invalides/champ absent refusés, anciens modèles conservés ; déplacement géométrique visible. Svelte : zéro erreur et avertissement.
+
+Les revues croisées core/CAO ont été distinctes des auteurs. La revue core a fait ajouter la charge des copies finales au budget et déplacer le calcul des bornes dans la branche qui en a besoin. Un contrôle numérique indépendant sur 9 600 interpolations donne un rapport erreur/borne maximal de 0,929 ; il complète la revue de la formule sans remplacer la preuve. Le suivi natif conserve la politique tout-ou-rien d’ADR-0018 ; l’attribution source est obligatoire et exhaustive, les étiquettes natives sont exactes sur les cas testés mais leur disponibilité n’est pas garantie pour tout transfert.
+
+Le précontrôle Clippy a fait simplifier une expression booléenne et allouer séparément le champ optionnel G, sans changer sa représentation JSON. Aucun ancien modèle ni plafond n’est modifié. Journaux ciblés et suite complète : `artifacts/g-next/`.
+
+
+La première suite globale a détecté une régression sur `m2c_open_arc.stl` : la signature de six plans d’une extrusion constante était interceptée par G avant le parcours cylindrique historique. La recherche exige désormais une variation mesurable dans le même sens des deux retraits de tangence, avant de donner priorité à sa preuve. Quatre variantes d’arc constant (source, subdivision, rotation et coin à rayon constant) sont couvertes par une régression core ; les erreurs de preuve et de budget après identification du candidat restent bloquantes. Le journal du premier échec est conservé dans `artifacts/g-next/check.log`.
+
+
+### Validation finale
+
+Après correction, `sh scripts/check.sh` termine avec le code 0 : **553 tests workspace, 50 bureau, huit worker, 101 ciblés large-stl, un transfert réel, 231 UI, douze Python et quatre SDK**. Formatage, Clippy strict, Svelte sans erreur/avertissement, build UI et contrôles bureau/helper passent. Seize opt-in workspace et quatre du sous-ensemble large-stl restent ignorés ; le test de transfert réel initialement ignoré au bureau est exécuté explicitement. Le build UI conserve son avertissement de taille de chunk, sans échec. Journaux : `artifacts/g-next/check-final.log` et `build-app.log`.
+
+`artifacts/FabSTEP.app` est reconstruit ; les deux exécutables correspondent à leurs builds par SHA-256 : bureau `f03743f468fb87a2b7213f8c5b8230b122c8a8d63be01d320f578c5b32bd6036`, worker `1e76a88a5f96dfa1529ff77ca9967ed9980ff02814410f8ae23f67831e380a60`. Le paquet de développement dépend toujours du SDK local, la release 1.0.0 reste inchangée. Aucun nouvel essai graphique/Fusion ni mesure de performance avant/après n’est revendiqué. R-082 à tester via A-077/A-078. Flansch n’a pas été rejoué pour G : son dernier refus V-1201 reste la référence.

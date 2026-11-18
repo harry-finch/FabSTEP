@@ -239,6 +239,27 @@ struct NativeSphere {
 }
 
 #[repr(C)]
+struct NativeEllipse {
+    center: [f64; 3],
+    axis: [f64; 3],
+    major_direction: [f64; 3],
+    major: f64,
+    minor: f64,
+    start: f64,
+    sweep: f64,
+    vertices: [usize; 2],
+}
+
+#[repr(C)]
+struct NativeLinearBlend {
+    apex: [f64; 3],
+    axis: [f64; 3],
+    angle: f64,
+    arcs: [usize; 2],
+    rails: [[usize; 2]; 2],
+}
+
+#[repr(C)]
 struct NativeOctant {
     center: [f64; 3],
     radius: f64,
@@ -338,6 +359,21 @@ unsafe extern "C" {
         points: *const f64,
         loops: *const NativeProfileLoop,
         loop_count: usize,
+        output: *mut NativeStep,
+        error: *mut c_char,
+        error_capacity: usize,
+    ) -> i32;
+    fn fabstep_build_linear_blend_step(
+        points: *const f64,
+        point_count: usize,
+        normals: *const f64,
+        plane_loops: *const usize,
+        loops: *const NativeMixedLoop,
+        segments: *const NativeMixedSegment,
+        ellipses: *const NativeEllipse,
+        blend: *const NativeLinearBlend,
+        plane_tokens: *const usize,
+        blend_token: *const usize,
         output: *mut NativeStep,
         error: *mut c_char,
         error_capacity: usize,
@@ -1163,6 +1199,7 @@ fn has_no_boundary_surfaces(model: &RevolvedModel) -> bool {
         && mixed.planes.is_empty()
         && mixed.cylinders.is_empty()
         && mixed.arcs.is_empty()
+        && mixed.elliptic_arcs.is_empty()
         && mixed.partial_cylinders.is_empty()
         && model.cones.is_empty()
 }
@@ -1221,6 +1258,7 @@ struct SurfaceTokens<'a> {
     tori: &'a [usize],
     partial_cones: &'a [usize],
     octants: &'a [usize],
+    linear_blends: &'a [usize],
 }
 
 /// Tracks construction identities for all complete rounded surface families.
@@ -1306,6 +1344,34 @@ pub fn build_rounded_step_with_octant_provenance(
     partial_cone_tokens: &[usize],
     octant_tokens: &[usize],
 ) -> Result<ValidatedStep, FabError> {
+    build_rounded_step_with_linear_blend_provenance(
+        model,
+        plane_tokens,
+        cylinder_tokens,
+        partial_cylinder_tokens,
+        cone_tokens,
+        sphere_tokens,
+        torus_tokens,
+        partial_cone_tokens,
+        octant_tokens,
+        &[],
+    )
+}
+
+/// Includes the inclined cone of a bounded linear-radius blend as the ninth group.
+#[allow(clippy::too_many_arguments)]
+pub fn build_rounded_step_with_linear_blend_provenance(
+    model: &RoundedModel,
+    plane_tokens: &[usize],
+    cylinder_tokens: &[usize],
+    partial_cylinder_tokens: &[usize],
+    cone_tokens: &[usize],
+    sphere_tokens: &[usize],
+    torus_tokens: &[usize],
+    partial_cone_tokens: &[usize],
+    octant_tokens: &[usize],
+    linear_blend_tokens: &[usize],
+) -> Result<ValidatedStep, FabError> {
     let arrays = [
         plane_tokens,
         cylinder_tokens,
@@ -1315,6 +1381,7 @@ pub fn build_rounded_step_with_octant_provenance(
         torus_tokens,
         partial_cone_tokens,
         octant_tokens,
+        linear_blend_tokens,
     ];
     let counts = [
         model.revolved.mixed.planes.len(),
@@ -1325,6 +1392,7 @@ pub fn build_rounded_step_with_octant_provenance(
         model.tori.len(),
         model.partial_cones.len(),
         model.octants.len(),
+        usize::from(model.linear_blend.is_some()),
     ];
     let invalid = || {
         FabError::new(
@@ -1357,6 +1425,7 @@ pub fn build_rounded_step_with_octant_provenance(
             tori: torus_tokens,
             partial_cones: partial_cone_tokens,
             octants: octant_tokens,
+            linear_blends: linear_blend_tokens,
         }),
     )
 }
@@ -1365,6 +1434,9 @@ fn build_rounded_step_impl(
     model: &RoundedModel,
     tokens: Option<SurfaceTokens<'_>>,
 ) -> Result<ValidatedStep, FabError> {
+    if let Some(blend) = &model.linear_blend {
+        return build_linear_blend(model, blend, tokens);
+    }
     if model.spheres.iter().any(|sphere| sphere.rings.is_none()) {
         let invalid = || {
             FabError::new(
@@ -1467,6 +1539,206 @@ fn build_rounded_step_impl(
     )
 }
 
+/// Validate the complete scalar boundary before passing six paths and exactly
+/// two ellipse slots to OCCT. Each line has two distinct, opposite uses.
+fn build_linear_blend(
+    model: &RoundedModel,
+    blend: &fabstep_core::MixedLinearBlend,
+    tokens: Option<SurfaceTokens<'_>>,
+) -> Result<ValidatedStep, FabError> {
+    let mixed = &model.revolved.mixed;
+    let invalid = || {
+        FabError::new(
+            "cad.invalid_model",
+            "Les supports et les limites du raccord linéaire sont incohérents.",
+        )
+    };
+    let finite = |p: &[f64; 3]| p.iter().all(|v| v.is_finite());
+    let dot = |a: [f64; 3], b: [f64; 3]| a.into_iter().zip(b).map(|(v, w)| v * w).sum::<f64>();
+    if mixed.planes.len() != 6
+        || mixed.elliptic_arcs.len() != 2
+        || mixed.vertices.len() > MAX_SOURCE_VERTICES
+        || !mixed.vertices.iter().all(finite)
+        || !mixed.rings.is_empty()
+        || !mixed.arcs.is_empty()
+        || !mixed.cylinders.is_empty()
+        || !mixed.partial_cylinders.is_empty()
+        || !model.revolved.cones.is_empty()
+        || !model.octants.is_empty()
+        || !model.partial_cones.is_empty()
+        || !model.spheres.is_empty()
+        || !model.tori.is_empty()
+        || !finite(&blend.apex)
+        || !unit_direction(&blend.axis)
+        || !(0.0 < blend.semi_angle_rad && blend.semi_angle_rad < std::f64::consts::FRAC_PI_2)
+        || !matches!(blend.arcs, [0, 1] | [1, 0])
+    {
+        return Err(invalid());
+    }
+    let mut ellipses = Vec::with_capacity(2);
+    for arc in &mixed.elliptic_arcs {
+        if !(finite(&arc.center)
+            && unit_direction(&arc.axis)
+            && unit_direction(&arc.major_direction)
+            && dot(arc.axis, arc.major_direction).abs() <= 1e-8
+            && arc.major_mm.is_finite()
+            && arc.major_mm > arc.minor_mm
+            && arc.minor_mm > 0.)
+            || !arc.start_rad.is_finite()
+            || !(0. < arc.sweep_rad && arc.sweep_rad < std::f64::consts::PI)
+            || arc.vertices[0] == arc.vertices[1]
+            || arc.vertices.iter().any(|&v| v >= mixed.vertices.len())
+        {
+            return Err(invalid());
+        }
+        ellipses.push(NativeEllipse {
+            center: arc.center,
+            axis: arc.axis,
+            major_direction: arc.major_direction,
+            major: arc.major_mm,
+            minor: arc.minor_mm,
+            start: arc.start_rad,
+            sweep: arc.sweep_rad,
+            vertices: arc.vertices,
+        });
+    }
+    let [bottom, top] = blend.arcs.map(|i| &ellipses[i]);
+    let [lo_y, lo_x] = bottom.vertices;
+    let [hi_y, hi_x] = top.vertices;
+    let expected_rails = [[lo_x, hi_x], [hi_y, lo_y]];
+    if bottom.vertices.iter().any(|v| top.vertices.contains(v))
+        || !(blend.rails == expected_rails || blend.rails == [expected_rails[1], expected_rails[0]])
+    {
+        return Err(invalid());
+    }
+    let native = NativeLinearBlend {
+        apex: blend.apex,
+        axis: blend.axis,
+        angle: blend.semi_angle_rad,
+        arcs: blend.arcs,
+        rails: blend.rails,
+    };
+    let mut used = [false; 2];
+    let mut lines = BTreeMap::<(usize, usize), (usize, usize)>::new();
+    for &[from, to] in &blend.rails {
+        let entry = lines.entry(edge_key([from, to])).or_default();
+        if from < to {
+            entry.0 += 1;
+        } else {
+            entry.1 += 1;
+        }
+    }
+    let mut segments = Vec::new();
+    let mut normals = Vec::with_capacity(6);
+    let mut loops = Vec::with_capacity(6);
+    for plane in &mixed.planes {
+        let [path] = plane.loops.as_slice() else {
+            return Err(invalid());
+        };
+        if !unit_direction(&plane.normal) {
+            return Err(invalid());
+        }
+        let count = match path {
+            MixedLoop::Polygon { vertices } => vertices.len(),
+            MixedLoop::Segments { segments } => segments.len(),
+            MixedLoop::Circle { .. } => return Err(invalid()),
+        };
+        let start = segments.len();
+        if count < 3 || count > MAX_SOURCE_VERTICES - start {
+            return Err(invalid());
+        }
+        let mut area_adjustment = 0.;
+        let mut contains_ellipse = false;
+        for i in 0..count {
+            let segment = match path {
+                MixedLoop::Polygon { vertices } => MixedSegment::Line {
+                    vertices: [vertices[i], vertices[(i + 1) % count]],
+                },
+                MixedLoop::Segments { segments } => segments[i].clone(),
+                MixedLoop::Circle { .. } => unreachable!(),
+            };
+            match segment {
+                MixedSegment::Line { vertices } => {
+                    if vertices[0] == vertices[1]
+                        || vertices.iter().any(|&id| id >= mixed.vertices.len())
+                    {
+                        return Err(invalid());
+                    }
+                    let entry = lines.entry(edge_key(vertices)).or_default();
+                    let uses = if vertices[0] < vertices[1] {
+                        &mut entry.0
+                    } else {
+                        &mut entry.1
+                    };
+                    if *uses != 0 {
+                        return Err(invalid());
+                    }
+                    *uses = 1;
+                    segments.push(NativeMixedSegment {
+                        vertices,
+                        arc: usize::MAX,
+                    });
+                }
+                MixedSegment::EllipticArc { arc, reversed } => {
+                    let curve = ellipses.get(arc).ok_or_else(invalid)?;
+                    if used[arc] || contains_ellipse || reversed != (arc == blend.arcs[0]) {
+                        return Err(invalid());
+                    }
+                    used[arc] = true;
+                    contains_ellipse = true;
+                    let [a, b] = curve.vertices;
+                    let sense = if reversed { -1. } else { 1. };
+                    area_adjustment += sense
+                        * dot(plane.normal, curve.axis)
+                        * curve.major
+                        * curve.minor
+                        * (curve.sweep - curve.sweep.sin());
+                    segments.push(NativeMixedSegment {
+                        vertices: if reversed { [b, a] } else { [a, b] },
+                        arc,
+                    });
+                }
+                MixedSegment::Arc { .. } => return Err(invalid()),
+            }
+        }
+        let path = &segments[start..];
+        let ids: Vec<_> = path.iter().map(|s| s.vertices[0]).collect();
+        let area = signed_area(&ids, &mixed.vertices, plane.normal) + area_adjustment;
+        if !area.is_finite()
+            || area <= 0.
+            || path
+                .iter()
+                .zip(path.iter().cycle().skip(1))
+                .any(|(a, b)| a.vertices[1] != b.vertices[0])
+        {
+            return Err(invalid());
+        }
+        normals.push(plane.normal);
+        loops.push(NativeMixedLoop { start, count });
+    }
+    if used != [true, true] || lines.values().any(|&uses| uses != (1, 1)) {
+        return Err(invalid());
+    }
+    let plane_loops = [0usize, 1, 2, 3, 4, 5, 6];
+    native_step(|output, error, capacity| unsafe {
+        fabstep_build_linear_blend_step(
+            mixed.vertices.as_ptr().cast(),
+            mixed.vertices.len(),
+            normals.as_ptr().cast(),
+            plane_loops.as_ptr(),
+            loops.as_ptr(),
+            segments.as_ptr(),
+            ellipses.as_ptr(),
+            &native,
+            tokens.map_or(std::ptr::null(), |t| t.planes.as_ptr()),
+            tokens.map_or(std::ptr::null(), |t| t.linear_blends.as_ptr()),
+            output,
+            error,
+            capacity,
+        )
+    })
+}
+
 fn build_surface_step(
     model: &MixedModel,
     cones: &[MixedCone],
@@ -1509,7 +1781,8 @@ fn build_surface_step_with_tokens(
     let invalid = |message| FabError::new("cad.invalid_model", message);
     let legacy =
         cones.is_empty() && spheres.is_empty() && tori.is_empty() && partial_cones.is_empty();
-    if model.planes.is_empty()
+    if !model.elliptic_arcs.is_empty()
+        || model.planes.is_empty()
         || (model.cylinders.is_empty() && model.partial_cylinders.is_empty() && legacy)
         || model
             .vertices
@@ -1836,6 +2109,11 @@ fn build_surface_step_with_tokens(
                                     vertices,
                                     arc: usize::MAX,
                                 });
+                            }
+                            MixedSegment::EllipticArc { .. } => {
+                                return Err(invalid(
+                                    "Un arc elliptique exige son raccord conique.",
+                                ));
                             }
                             MixedSegment::Arc { arc, reversed } => {
                                 let used = arc_planes.get_mut(arc).ok_or_else(|| {
@@ -3207,6 +3485,7 @@ mod tests {
     #[test]
     fn planar_profile_retains_long_arc_sweep_without_shortening() {
         let model = MixedModel {
+            elliptic_arcs: vec![],
             vertices: vec![[2., 0., 0.], [0., -2., 0.], [2., 0., 5.], [0., -2., 5.]],
             rings: vec![],
             cylinders: vec![],
@@ -3959,6 +4238,7 @@ mod tests {
     fn mixed_box() -> MixedModel {
         let base = box_model();
         MixedModel {
+            elliptic_arcs: vec![],
             vertices: base.vertices,
             rings: vec![],
             planes: base
@@ -4246,6 +4526,7 @@ mod tests {
             .collect();
         RevolvedModel {
             mixed: MixedModel {
+                elliptic_arcs: vec![],
                 vertices: vec![],
                 rings: rings
                     .map(|(radius_mm, z)| CircularRing {
@@ -4443,6 +4724,7 @@ mod tests {
         revolved.cones.clear();
         revolved.mixed.rings[1].center[2] = height;
         RoundedModel {
+            linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
             revolved,
@@ -4462,10 +4744,12 @@ mod tests {
 
     fn complete_sphere_model(center: [f64; 3], radius_mm: f64) -> RoundedModel {
         RoundedModel {
+            linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
             revolved: RevolvedModel {
                 mixed: MixedModel {
+                    elliptic_arcs: vec![],
                     vertices: vec![],
                     rings: vec![],
                     planes: vec![],
@@ -4824,6 +5108,7 @@ mod tests {
     #[test]
     fn rounded_provenance_tracks_all_surface_families_and_partial_cylinders() {
         let partial = RoundedModel {
+            linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
             revolved: RevolvedModel {
@@ -4915,6 +5200,7 @@ mod tests {
             );
         }
         let partial = RoundedModel {
+            linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
             revolved: RevolvedModel {
@@ -4976,6 +5262,7 @@ mod tests {
         let mut model = RoundedModel {
             revolved,
             spheres: vec![],
+            linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
             tori: vec![MixedTorus {
@@ -5079,6 +5366,7 @@ mod tests {
             inner: false,
         });
         RoundedModel {
+            linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
             revolved,
@@ -5463,6 +5751,7 @@ mod tests {
             });
         }
         MixedModel {
+            elliptic_arcs: vec![],
             vertices,
             rings: vec![],
             planes,
@@ -5503,6 +5792,7 @@ mod tests {
         })
         .collect();
         MixedModel {
+            elliptic_arcs: vec![],
             vertices: vec![[0., -y, 0.], [0., y, 0.], [0., -y, 7.], [0., y, 7.]],
             rings: vec![],
             cylinders: vec![],
@@ -5803,6 +6093,7 @@ mod tests {
         RoundedModel {
             revolved: RevolvedModel {
                 mixed: MixedModel {
+                    elliptic_arcs: vec![],
                     vertices,
                     rings: vec![],
                     planes,
@@ -5823,6 +6114,7 @@ mod tests {
             },
             spheres: vec![],
             tori: vec![],
+            linear_blend: None,
             octants: vec![],
             partial_cones: vec![MixedPartialCone {
                 arcs: [1, 2],
@@ -5902,6 +6194,7 @@ mod tests {
         RoundedModel {
             revolved: RevolvedModel {
                 mixed: MixedModel {
+                    elliptic_arcs: vec![],
                     vertices,
                     rings: vec![],
                     planes,
@@ -5914,6 +6207,7 @@ mod tests {
             spheres: vec![],
             tori: vec![],
             partial_cones: vec![],
+            linear_blend: None,
             octants: vec![MixedSphericalOctant {
                 center: [0.; 3],
                 radius_mm: radius,
@@ -5921,6 +6215,218 @@ mod tests {
                 arc_uses: [(5, false), (1, false), (3, false)],
                 inner: false,
             }],
+        }
+    }
+
+    // Independently construct this scalar block; the mesh recognizer is not
+    // involved in testing the data admitted by the native boundary.
+    fn linear_blend_model(bottom: f64, slope: f64) -> RoundedModel {
+        let denominator = 1. - slope * slope;
+        let theta = (denominator / 2.).sqrt().asin();
+        let mut vertices = Vec::new();
+        let mut arcs = Vec::new();
+        for (k, z) in [0., 10.].into_iter().enumerate() {
+            let r = bottom + slope * z;
+            vertices.extend([
+                [0., r, z],
+                [r, 0., z],
+                [20., 0., z],
+                [20., 16., z],
+                [0., 16., z],
+            ]);
+            arcs.push(fabstep_core::EllipticArc {
+                center: [r / denominator, r / denominator, z],
+                axis: [0., 0., 1.],
+                major_direction: [-0.5_f64.sqrt(), -0.5_f64.sqrt(), 0.],
+                major_mm: r * (1. + slope * slope).sqrt() / denominator,
+                minor_mm: r / denominator.sqrt(),
+                start_rad: -theta,
+                sweep_rad: 2. * theta,
+                vertices: [5 * k, 5 * k + 1],
+            });
+        }
+        let faces: [(&[usize], [f64; 3]); 6] = [
+            (&[1, 0, 4, 3, 2], [0., 0., -1.]),
+            (&[5, 6, 7, 8, 9], [0., 0., 1.]),
+            (&[1, 2, 7, 6], [0., -1., 0.]),
+            (&[2, 3, 8, 7], [1., 0., 0.]),
+            (&[3, 4, 9, 8], [0., 1., 0.]),
+            (&[4, 0, 5, 9], [-1., 0., 0.]),
+        ];
+        let planes = faces
+            .into_iter()
+            .enumerate()
+            .map(|(face, (ids, normal))| {
+                let boundary = if face < 2 {
+                    let segments = ids
+                        .iter()
+                        .enumerate()
+                        .map(|(j, &from)| {
+                            if j == 0 {
+                                MixedSegment::EllipticArc {
+                                    arc: face,
+                                    reversed: face == 0,
+                                }
+                            } else {
+                                MixedSegment::Line {
+                                    vertices: [from, ids[(j + 1) % ids.len()]],
+                                }
+                            }
+                        })
+                        .collect();
+                    MixedLoop::Segments { segments }
+                } else {
+                    MixedLoop::Polygon {
+                        vertices: ids.to_vec(),
+                    }
+                };
+                MixedPlane {
+                    normal,
+                    loops: vec![boundary],
+                }
+            })
+            .collect();
+        let q = (1. + 2. * slope * slope).sqrt();
+        RoundedModel {
+            revolved: RevolvedModel {
+                mixed: MixedModel {
+                    vertices,
+                    planes,
+                    elliptic_arcs: arcs,
+                    rings: vec![],
+                    arcs: vec![],
+                    cylinders: vec![],
+                    partial_cylinders: vec![],
+                },
+                cones: vec![],
+            },
+            spheres: vec![],
+            tori: vec![],
+            partial_cones: vec![],
+            octants: vec![],
+            linear_blend: Some(Box::new(fabstep_core::MixedLinearBlend {
+                apex: [0., 0., -bottom / slope],
+                axis: [slope.abs() / q, slope.abs() / q, slope.signum() / q],
+                semi_angle_rad: (slope.abs() / q).asin(),
+                arcs: [0, 1],
+                rails: [[1, 6], [5, 0]],
+            })),
+        }
+    }
+
+    #[test]
+    fn linear_blend_reimports_each_trim_and_label_for_both_slopes() {
+        let labels = [12, 31, 7, 64, 17, 91];
+        for (bottom, slope) in [(3., 0.2), (5., -0.2), (3.5, 0.12), (9., -0.67)] {
+            let model = linear_blend_model(bottom, slope);
+            let step = build_rounded_step_with_linear_blend_provenance(
+                &model,
+                &labels,
+                &[],
+                &[],
+                &[],
+                &[],
+                &[],
+                &[],
+                &[],
+                &[93],
+            )
+            .unwrap();
+            assert_eq!(
+                (step.report.planar_faces, step.report.conical_faces),
+                (6, 1)
+            );
+            let result = result_faces(&step.bytes).unwrap();
+            assert_eq!(result.faces.len(), 7);
+            let mut ids = std::collections::BTreeSet::new();
+            for f in result.faces {
+                let label = f.source_face_token.unwrap();
+                assert!(ids.insert(label));
+                if label == 93 {
+                    assert_eq!(f.family, ResultFaceFamily::Cone);
+                    assert_eq!(f.adjacent_face_ids.len(), 4);
+                    continue;
+                }
+                let idx = labels.iter().position(|&t| t == label).unwrap();
+                let p = planar_face_profile(&step.bytes, f.id).unwrap();
+                for (a, b) in p
+                    .frame
+                    .normal
+                    .into_iter()
+                    .zip(model.revolved.mixed.planes[idx].normal)
+                {
+                    assert!((a - b).abs() < 1e-8);
+                }
+                let arcs = p.loops[0]
+                    .segments
+                    .iter()
+                    .filter(|s| matches!(s, ProfileSegment::Ellipse { .. }))
+                    .count();
+                assert_eq!(arcs, usize::from(idx < 2));
+                fabstep_core::export_planar_face_dxf(&p).unwrap();
+            }
+            assert_eq!(ids.len(), 7);
+            let plain = build_rounded_step(&model).unwrap();
+            assert!((plain.report.volume_mm3 - step.report.volume_mm3).abs() < 1e-8);
+        }
+    }
+
+    #[test]
+    fn linear_blend_validates_scalar_references_and_exclusive_ownership() {
+        let model = linear_blend_model(3., 0.2);
+        for corrupt in [
+            (|m: &mut RoundedModel| m.linear_blend.as_mut().unwrap().arcs = [1, 1])
+                as fn(&mut RoundedModel),
+            |m| m.linear_blend.as_mut().unwrap().rails[0].reverse(),
+            |m| m.linear_blend.as_mut().unwrap().axis[0] = f64::NAN,
+            |m| m.linear_blend.as_mut().unwrap().apex[0] += 0.02,
+            |m| m.revolved.mixed.elliptic_arcs[0].minor_mm += 0.1,
+            |m| m.revolved.mixed.elliptic_arcs[1].start_rad += 0.02,
+            |m| m.revolved.mixed.elliptic_arcs[0].vertices[0] = usize::MAX,
+        ] {
+            let mut bad = model.clone();
+            corrupt(&mut bad);
+            assert!(build_rounded_step(&bad).is_err());
+        }
+        let mut bad = model.clone();
+        let MixedLoop::Segments { segments } = &mut bad.revolved.mixed.planes[0].loops[0] else {
+            unreachable!()
+        };
+        segments[0] = MixedSegment::EllipticArc {
+            arc: 1,
+            reversed: true,
+        };
+        assert_eq!(
+            build_rounded_step(&bad).unwrap_err().code,
+            "cad.invalid_model"
+        );
+        assert!(build_mixed_step(&model.revolved.mixed).is_err());
+        assert!(build_rounded_step_with_octant_provenance(
+            &model,
+            &[1, 2, 3, 4, 5, 6],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[]
+        )
+        .is_err());
+        for tokens in [&[][..], &[4][..], &[100_001][..]] {
+            assert!(build_rounded_step_with_linear_blend_provenance(
+                &model,
+                &[1, 2, 3, 4, 5, 6],
+                &[],
+                &[],
+                &[],
+                &[],
+                &[],
+                &[],
+                &[],
+                tokens
+            )
+            .is_err());
         }
     }
 

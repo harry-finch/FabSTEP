@@ -182,9 +182,10 @@ pub fn recognize_complete_torus(a: &Analysis, o: &Options) -> Result<RoundedReco
     }
     Ok(RoundedRecognition {
         model: RoundedModel {
+            linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
-            revolved: RevolvedModel { mixed: MixedModel { vertices: a.mesh.vertices.clone(), rings: vec![], planes: vec![], cylinders: vec![], arcs: vec![], partial_cylinders: vec![] }, cones: vec![] },
+            revolved: RevolvedModel { mixed: MixedModel { vertices: a.mesh.vertices.clone(), rings: vec![], planes: vec![], cylinders: vec![], arcs: vec![], elliptic_arcs: vec![], partial_cylinders: vec![] }, cones: vec![] },
             spheres: vec![],
             tori: vec![MixedTorus { rings: None, axis: Some(torus.axis), center: torus.center, major_radius_mm: torus.major, minor_radius_mm: torus.minor, meridian_rad: [0., TAU], inner: false }],
         },

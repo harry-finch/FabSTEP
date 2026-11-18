@@ -16,7 +16,7 @@ test('explicit routine settings and recognition intent stay in technical details
 });
 
 test('geometry changes, discarded source metadata and unknown codes remain visible', () => {
-  for (const code of ['guidance.plane_residual','mesh.vertices_moved','mesh.orientation_reversed','planar.approximate','threemf.metadata_ignored','future.geometry_changed','recognition.future_intent_assumed']) {
+  for (const code of ['recognition.linear_blend_endpoints_projected','guidance.plane_residual','mesh.vertices_moved','mesh.orientation_reversed','planar.approximate','threemf.metadata_ignored','future.geometry_changed','recognition.future_intent_assumed']) {
     for (const severity of ['info','warning'] as const) assert.equal(visibleDiagnostic(notice(code,severity)),true,`${code}: ${severity}`);
   }
 });

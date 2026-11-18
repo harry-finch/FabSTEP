@@ -89,9 +89,9 @@ fn recognize(
             }
         }
     }
-    // The three cylinders and the corner share three native edges. Their
-    // fully proved partition must remain intact during automatic routing.
-    if !result.model.octants.is_empty() {
+    // Local D/G blocks already own their entire source partition, including
+    // the shared analytic boundaries that adjoining planes must preserve.
+    if !result.model.octants.is_empty() || result.model.linear_blend.is_some() {
         refresh(a, o, &mut result)?;
         return Ok(result);
     }
@@ -105,6 +105,7 @@ fn planar(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
     let s = crate::planar::build_with_provenance(&a.mesh, &adj, o.plane_tolerance_mm)?;
     Ok(RoundedRecognition {
         model: RoundedModel {
+            linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
             revolved: RevolvedModel {
@@ -126,6 +127,7 @@ fn planar(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
                         .collect(),
                     cylinders: vec![],
                     arcs: vec![],
+                    elliptic_arcs: vec![],
                     partial_cylinders: vec![],
                 },
                 cones: vec![],
@@ -521,7 +523,9 @@ pub fn recognize_automatic_guided(
             (o.reconstruction != ReconstructionMode::Auto).then_some(&scope),
         )?
     };
-    if !requests.is_empty() && !result.model.octants.is_empty() {
+    if !requests.is_empty()
+        && (!result.model.octants.is_empty() || result.model.linear_blend.is_some())
+    {
         return Err(unproven());
     }
     let mut planes: Vec<_> = requests
