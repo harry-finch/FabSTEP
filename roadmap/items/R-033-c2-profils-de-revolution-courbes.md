@@ -5,7 +5,7 @@ resume: "Lignes et arcs circulaires, puis méridienne lisse de complexité born�
 statut: "idee"
 jalon: "post-v1"
 cree: "2026-11-13"
-maj: "2026-11-13"
+maj: 2026-11-18
 ---
 
 | C2 — profils de révolution courbes | Lignes et arcs circulaires, puis méridienne lisse de complexité bornée | Profil simple, axe et couverture prouvés, borne continue et volume contrôlé ; trims source | Étude ; méridienne libre soumise à contrat et décision d’interprétation |
@@ -27,3 +27,8 @@ R-074 mesure quatre chaînes composées et confirme nativement la représentatio
 L’utilisateur confirme que l’objectif est de réaliser l’ensemble C1b2, C2, D, E, F et G et autorise la poursuite du chantier. Les tranches déjà développées restent à tester ; cet accord ne remplace pas leur acceptation ni les preuves géométriques. Les travaux sont décomposés en extensions bornées, corpus indépendants et vérifications natives. Les changements structurants encore indéfinis seront présentés lorsqu’un contrat concret est établi ; l’accord sur les perçages sécants A-045 reste acquis.
 
 Priorité immédiate : prolonger les raccords de R-075 vers les chaînes à deux cônes et les arcs de 100° identifiés dans R-074. Mesurer les attributions et les limites restantes sur Flansch après chaque tranche, sans relèvement implicite des plafonds. Les méridiennes libres restent un contrat ultérieur à qualifier.
+
+
+## Intégration des tranches
+
+R-076 ajoute les deux profils toriques composés et obtus mesurés sur Flansch ; validation automatique V-1201 réussie, essais utilisateur A-069/A-070 ouverts. La méridienne libre reste à qualifier.

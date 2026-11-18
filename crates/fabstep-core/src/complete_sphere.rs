@@ -147,6 +147,7 @@ pub fn recognize_complete_sphere(
     }
     Ok(RoundedRecognition {
         model: RoundedModel {
+            octants: vec![],
             partial_cones: vec![],
             revolved: RevolvedModel {
                 mixed: MixedModel { vertices: a.mesh.vertices.clone(), rings: vec![], planes: vec![], cylinders: vec![], arcs: vec![], partial_cylinders: vec![] },

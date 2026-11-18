@@ -355,6 +355,18 @@ pub struct MixedPartialCone {
     pub inner: bool,
 }
 
+/// An exterior spherical octant bounded by three positively oriented
+/// great-circle arcs. Directions form a direct orthonormal basis; arc i
+/// joins endpoint i to endpoint (i+1)%3. True reverses the stored arc.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MixedSphericalOctant {
+    pub center: [f64; 3],
+    pub radius_mm: f64,
+    pub directions: [[f64; 3]; 3],
+    pub arc_uses: [(usize, bool); 3],
+    pub inner: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoundedModel {
     pub revolved: RevolvedModel,
@@ -362,11 +374,14 @@ pub struct RoundedModel {
     pub tori: Vec<MixedTorus>,
     #[serde(default)]
     pub partial_cones: Vec<MixedPartialCone>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub octants: Vec<MixedSphericalOctant>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RoundedFaceRef {
+    SphericalOctant { index: usize },
     PartialCone { index: usize },
     Plane { index: usize },
     Cylinder { index: usize },

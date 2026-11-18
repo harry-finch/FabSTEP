@@ -2,8 +2,9 @@
 
 use fabstep_core::{
     AnalyticExtrusion, FabError, Mesh, MixedCone, MixedLoop, MixedModel, MixedPartialCone,
-    MixedSegment, MixedSphere, MixedTorus, PlanarFaceProfile, PlanarModel, PlanarProfileLoop,
-    ProfileFrame, ProfileLoop, ProfileSegment, RevolvedModel, RoundedBoxModel, RoundedModel,
+    MixedSegment, MixedSphere, MixedSphericalOctant, MixedTorus, PlanarFaceProfile, PlanarModel,
+    PlanarProfileLoop, ProfileFrame, ProfileLoop, ProfileSegment, RevolvedModel, RoundedBoxModel,
+    RoundedModel,
 };
 
 const MAX_RESULT_FACES: usize = 100_000;
@@ -238,6 +239,15 @@ struct NativeSphere {
 }
 
 #[repr(C)]
+struct NativeOctant {
+    center: [f64; 3],
+    radius: f64,
+    directions: [[f64; 3]; 3],
+    arcs: [usize; 3],
+    reversed: [i32; 3],
+}
+
+#[repr(C)]
 struct NativeTorus {
     rings: [usize; 2],
     center: [f64; 3],
@@ -328,6 +338,23 @@ unsafe extern "C" {
         points: *const f64,
         loops: *const NativeProfileLoop,
         loop_count: usize,
+        output: *mut NativeStep,
+        error: *mut c_char,
+        error_capacity: usize,
+    ) -> i32;
+    fn fabstep_build_trihedral_step(
+        points: *const f64,
+        point_count: usize,
+        normals: *const f64,
+        plane_loops: *const usize,
+        loops: *const NativeMixedLoop,
+        segments: *const NativeMixedSegment,
+        arcs: *const NativeMixedArc,
+        partial: *const NativeMixedCylinder,
+        octant: *const NativeOctant,
+        plane_tokens: *const usize,
+        partial_tokens: *const usize,
+        octant_tokens: *const usize,
         output: *mut NativeStep,
         error: *mut c_char,
         error_capacity: usize,
@@ -1056,6 +1083,7 @@ pub fn build_mixed_step_with_provenance(
         &[],
         &[],
         &[],
+        &[],
         Some(SurfaceTokens {
             planes: plane_tokens,
             cylinders: cylinder_tokens,
@@ -1115,6 +1143,7 @@ pub fn build_revolved_step_with_provenance(
     build_surface_step_with_tokens(
         &model.mixed,
         &model.cones,
+        &[],
         &[],
         &[],
         &[],
@@ -1191,6 +1220,7 @@ struct SurfaceTokens<'a> {
     spheres: &'a [usize],
     tori: &'a [usize],
     partial_cones: &'a [usize],
+    octants: &'a [usize],
 }
 
 /// Tracks construction identities for all complete rounded surface families.
@@ -1250,6 +1280,32 @@ pub fn build_rounded_step_with_chain_provenance(
     torus_tokens: &[usize],
     partial_cone_tokens: &[usize],
 ) -> Result<ValidatedStep, FabError> {
+    build_rounded_step_with_octant_provenance(
+        model,
+        plane_tokens,
+        cylinder_tokens,
+        partial_cylinder_tokens,
+        cone_tokens,
+        sphere_tokens,
+        torus_tokens,
+        partial_cone_tokens,
+        &[],
+    )
+}
+
+/// The last slice labels the bounded spherical octants, in model order.
+#[allow(clippy::too_many_arguments)]
+pub fn build_rounded_step_with_octant_provenance(
+    model: &RoundedModel,
+    plane_tokens: &[usize],
+    cylinder_tokens: &[usize],
+    partial_cylinder_tokens: &[usize],
+    cone_tokens: &[usize],
+    sphere_tokens: &[usize],
+    torus_tokens: &[usize],
+    partial_cone_tokens: &[usize],
+    octant_tokens: &[usize],
+) -> Result<ValidatedStep, FabError> {
     let arrays = [
         plane_tokens,
         cylinder_tokens,
@@ -1258,6 +1314,7 @@ pub fn build_rounded_step_with_chain_provenance(
         sphere_tokens,
         torus_tokens,
         partial_cone_tokens,
+        octant_tokens,
     ];
     let counts = [
         model.revolved.mixed.planes.len(),
@@ -1267,6 +1324,7 @@ pub fn build_rounded_step_with_chain_provenance(
         model.spheres.len(),
         model.tori.len(),
         model.partial_cones.len(),
+        model.octants.len(),
     ];
     let invalid = || {
         FabError::new(
@@ -1298,6 +1356,7 @@ pub fn build_rounded_step_with_chain_provenance(
             spheres: sphere_tokens,
             tori: torus_tokens,
             partial_cones: partial_cone_tokens,
+            octants: octant_tokens,
         }),
     )
 }
@@ -1320,6 +1379,7 @@ fn build_rounded_step_impl(
             || !sphere.radius_mm.is_finite()
             || sphere.radius_mm <= 0.0
             || sphere.center.iter().any(|v| !v.is_finite())
+            || !model.octants.is_empty()
             || !model.partial_cones.is_empty()
             || !has_no_boundary_surfaces(&model.revolved)
             || !model.tori.is_empty()
@@ -1365,6 +1425,7 @@ fn build_rounded_step_impl(
             || !torus.minor_radius_mm.is_finite()
             || torus.minor_radius_mm <= 0.0
             || torus.major_radius_mm <= torus.minor_radius_mm
+            || !model.octants.is_empty()
             || !model.partial_cones.is_empty()
             || !has_no_boundary_surfaces(&model.revolved)
             || !model.spheres.is_empty()
@@ -1401,6 +1462,7 @@ fn build_rounded_step_impl(
         &model.spheres,
         &model.tori,
         &model.partial_cones,
+        &model.octants,
         tokens,
     )
 }
@@ -1411,7 +1473,7 @@ fn build_surface_step(
     spheres: &[MixedSphere],
     tori: &[MixedTorus],
 ) -> Result<ValidatedStep, FabError> {
-    build_surface_step_with_tokens(model, cones, spheres, tori, &[], None)
+    build_surface_step_with_tokens(model, cones, spheres, tori, &[], &[], None)
 }
 
 fn build_surface_step_with_tokens(
@@ -1420,6 +1482,7 @@ fn build_surface_step_with_tokens(
     spheres: &[MixedSphere],
     tori: &[MixedTorus],
     partial_cones: &[MixedPartialCone],
+    octants: &[MixedSphericalOctant],
     tokens: Option<SurfaceTokens<'_>>,
 ) -> Result<ValidatedStep, FabError> {
     let counts = [
@@ -1430,6 +1493,7 @@ fn build_surface_step_with_tokens(
         spheres.len(),
         tori.len(),
         partial_cones.len(),
+        octants.len(),
     ];
     if counts
         .into_iter()
@@ -1647,6 +1711,66 @@ fn build_surface_step_with_tokens(
         }
     }
 
+    // The first local-octant contract is one full orthogonal trihedron.
+    // Each of its three curves already belongs to exactly one different
+    // exterior partial cylinder. The other arc of that cylinder must then
+    // have a planar owner, checked by the ordinary incidence accounting.
+    let native_octant = match octants {
+        [] => None,
+        [o] if model.planes.len() == 6
+            && partial.len() == 3
+            && arcs.len() == 6
+            && rings.is_empty()
+            && cylinders.is_empty()
+            && cones.is_empty()
+            && spheres.is_empty()
+            && tori.is_empty()
+            && partial_cones.is_empty()
+            && !o.inner
+            && partial.iter().all(|c| c.inner == 0) =>
+        {
+            if !o.radius_mm.is_finite()
+                || o.radius_mm <= 0.
+                || o.center.iter().any(|c| !c.is_finite())
+                || !o.directions.iter().all(unit_direction)
+            {
+                return Err(invalid(
+                    "Le centre, le rayon ou les directions de l’octant sont invalides.",
+                ));
+            }
+            let ids = o.arc_uses.map(|(id, _)| id);
+            for &id in &ids {
+                if arc_walls.get(id) != Some(&1) {
+                    return Err(invalid(
+                        "Chaque arc de l’octant doit appartenir à un seul cylindre.",
+                    ));
+                }
+                arc_walls[id] += 1;
+            }
+            if partial
+                .iter()
+                .any(|c| c.rings.iter().filter(|i| ids.contains(i)).count() != 1)
+                || model.planes.iter().any(|p| p.loops.len() != 1)
+            {
+                return Err(invalid(
+                    "L’octant doit rejoindre trois cylindres distincts du même coin.",
+                ));
+            }
+            Some(NativeOctant {
+                center: o.center,
+                radius: o.radius_mm,
+                directions: o.directions,
+                arcs: ids,
+                reversed: o.arc_uses.map(|(_, reversed)| i32::from(reversed)),
+            })
+        }
+        _ => {
+            return Err(invalid(
+                "L’octant exige trois congés cylindriques extérieurs et six plans.",
+            ))
+        }
+    };
+
     let mut ring_planes = vec![false; rings.len()];
     let mut arc_planes = vec![false; arcs.len()];
     let mut normals = Vec::with_capacity(model.planes.len());
@@ -1802,6 +1926,25 @@ fn build_surface_step_with_tokens(
     // La validation des indices précède l'appel. Aucun pointeur de ces
     // tableaux à plat ne survit à l'appel natif.
     native_step(|output, error, capacity| unsafe {
+        if let Some(o) = &native_octant {
+            return fabstep_build_trihedral_step(
+                model.vertices.as_ptr().cast(),
+                model.vertices.len(),
+                normals.as_ptr().cast(),
+                plane_loops.as_ptr(),
+                loops.as_ptr(),
+                segments.as_ptr(),
+                arcs.as_ptr(),
+                partial.as_ptr(),
+                o,
+                tokens.map_or(std::ptr::null(), |t| t.planes.as_ptr()),
+                tokens.map_or(std::ptr::null(), |t| t.partial.as_ptr()),
+                tokens.map_or(std::ptr::null(), |t| t.octants.as_ptr()),
+                output,
+                error,
+                capacity,
+            );
+        }
         if let Some(tokens) = tokens {
             if spheres.is_empty()
                 && tori.is_empty()
@@ -4300,6 +4443,7 @@ mod tests {
         revolved.cones.clear();
         revolved.mixed.rings[1].center[2] = height;
         RoundedModel {
+            octants: vec![],
             partial_cones: vec![],
             revolved,
             spheres: vec![MixedSphere {
@@ -4318,6 +4462,7 @@ mod tests {
 
     fn complete_sphere_model(center: [f64; 3], radius_mm: f64) -> RoundedModel {
         RoundedModel {
+            octants: vec![],
             partial_cones: vec![],
             revolved: RevolvedModel {
                 mixed: MixedModel {
@@ -4679,6 +4824,7 @@ mod tests {
     #[test]
     fn rounded_provenance_tracks_all_surface_families_and_partial_cylinders() {
         let partial = RoundedModel {
+            octants: vec![],
             partial_cones: vec![],
             revolved: RevolvedModel {
                 mixed: notched_box(),
@@ -4769,6 +4915,7 @@ mod tests {
             );
         }
         let partial = RoundedModel {
+            octants: vec![],
             partial_cones: vec![],
             revolved: RevolvedModel {
                 mixed: notched_box(),
@@ -4829,6 +4976,7 @@ mod tests {
         let mut model = RoundedModel {
             revolved,
             spheres: vec![],
+            octants: vec![],
             partial_cones: vec![],
             tori: vec![MixedTorus {
                 rings: Some([2, 0]),
@@ -4931,6 +5079,7 @@ mod tests {
             inner: false,
         });
         RoundedModel {
+            octants: vec![],
             partial_cones: vec![],
             revolved,
             spheres: vec![],
@@ -5674,11 +5823,194 @@ mod tests {
             },
             spheres: vec![],
             tori: vec![],
+            octants: vec![],
             partial_cones: vec![MixedPartialCone {
                 arcs: [1, 2],
                 inner: false,
             }],
         }
+    }
+
+    // Exterior rays are the positive coordinate axes. On each cylinder
+    // the lower arc closes on the remote plane and the upper one on the
+    // spherical octant. Vertex ids are shared by every facial boundary.
+    fn trihedral_model() -> RoundedModel {
+        let directions = [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]];
+        let far = [18., 14., 8.];
+        let radius = 2.;
+        let mut vertices = directions.map(|ray| ray.map(|c| c * radius)).to_vec();
+        let mut arcs = Vec::new();
+        let mut partial_cylinders = Vec::new();
+        let remote = |axis: usize, ray: usize| 3 + 2 * axis + usize::from(ray == (axis + 2) % 3);
+        for axis in 0..3 {
+            let j = (axis + 1) % 3;
+            let k = (axis + 2) % 3;
+            let mut center = [0.; 3];
+            center[axis] = -far[axis];
+            for ray in [j, k] {
+                let mut p = vertices[ray];
+                p[axis] = -far[axis];
+                vertices.push(p);
+            }
+            for (center, ends) in [
+                (center, [remote(axis, j), remote(axis, k)]),
+                ([0.; 3], [j, k]),
+            ] {
+                arcs.push(CircularArc {
+                    center,
+                    axis: directions[axis],
+                    radius_mm: radius,
+                    sweep_rad: std::f64::consts::FRAC_PI_2,
+                    vertices: ends,
+                });
+            }
+            partial_cylinders.push(MixedPartialCylinder {
+                arcs: [2 * axis, 2 * axis + 1],
+                inner: false,
+            });
+        }
+        let back = far.map(|v| -v);
+        for axis in 0..3 {
+            let mut p = back;
+            p[axis] = radius;
+            vertices.push(p);
+        }
+        vertices.push(back);
+        let mut planes = Vec::new();
+        for (i, dir) in directions.iter().enumerate() {
+            let j = (i + 1) % 3;
+            let k = (i + 2) % 3;
+            planes.push(MixedPlane {
+                normal: *dir,
+                loops: vec![MixedLoop::Polygon {
+                    vertices: vec![i, remote(j, i), 9 + i, remote(k, i)],
+                }],
+            });
+            let path = [remote(i, j), 9 + j, 12, 9 + k, remote(i, k)];
+            let mut segments = vec![MixedSegment::Arc {
+                arc: 2 * i,
+                reversed: true,
+            }];
+            segments.extend(path.windows(2).map(|v| MixedSegment::Line {
+                vertices: [v[0], v[1]],
+            }));
+            planes.push(MixedPlane {
+                normal: dir.map(|v| -v),
+                loops: vec![MixedLoop::Segments { segments }],
+            });
+        }
+        RoundedModel {
+            revolved: RevolvedModel {
+                mixed: MixedModel {
+                    vertices,
+                    rings: vec![],
+                    planes,
+                    cylinders: vec![],
+                    arcs,
+                    partial_cylinders,
+                },
+                cones: vec![],
+            },
+            spheres: vec![],
+            tori: vec![],
+            partial_cones: vec![],
+            octants: vec![MixedSphericalOctant {
+                center: [0.; 3],
+                radius_mm: radius,
+                directions,
+                arc_uses: [(5, false), (1, false), (3, false)],
+                inner: false,
+            }],
+        }
+    }
+
+    #[test]
+    fn trihedral_octant_reimports_with_all_ten_source_tokens() {
+        let mut model = trihedral_model();
+        for reverse in [false, true] {
+            if reverse {
+                // Same cylinder with its axis and arc parameters reversed.
+                let mixed = &mut model.revolved.mixed;
+                mixed.partial_cylinders[0].arcs.reverse();
+                for arc in &mut mixed.arcs[..2] {
+                    arc.vertices.reverse();
+                    arc.axis = arc.axis.map(|v| -v);
+                }
+                let MixedLoop::Segments { segments } = &mut mixed.planes[1].loops[0] else {
+                    unreachable!()
+                };
+                segments[0] = MixedSegment::Arc {
+                    arc: 0,
+                    reversed: false,
+                };
+                model.octants[0].arc_uses[1].1 = true;
+            }
+            let step = build_rounded_step_with_octant_provenance(
+                &model,
+                &[1, 2, 3, 4, 5, 6],
+                &[],
+                &[7, 8, 9],
+                &[],
+                &[],
+                &[],
+                &[],
+                &[10],
+            )
+            .unwrap();
+            assert_eq!(step.report.faces, 10);
+            assert!((step.report.volume_mm3 - 3161.8524963483783).abs() < 1e-7);
+            let result = result_faces(&step.bytes).unwrap();
+            let labels: std::collections::BTreeSet<_> = result
+                .faces
+                .iter()
+                .map(|f| f.source_face_token.unwrap())
+                .collect();
+            assert_eq!(labels, (1..=10).collect());
+            assert!(result
+                .faces
+                .iter()
+                .any(|f| f.source_face_token == Some(10) && f.family == ResultFaceFamily::Sphere));
+            assert!(
+                (build_rounded_step(&model).unwrap().report.volume_mm3 - step.report.volume_mm3)
+                    .abs()
+                    < 1e-8
+            );
+        }
+    }
+
+    #[test]
+    fn trihedral_octant_rejects_bad_owners_or_geometry_before_export() {
+        let base = trihedral_model();
+        for mutate in [
+            (|s: &mut MixedSphericalOctant| s.arc_uses[0] = s.arc_uses[1])
+                as fn(&mut MixedSphericalOctant),
+            |s| s.arc_uses[0] = (0, false),
+            |s| s.arc_uses[0].1 = true,
+            |s| s.arc_uses[0].0 = usize::MAX,
+            |s| s.directions.swap(0, 1),
+            |s| s.directions[1] = s.directions[0],
+            |s| s.center[0] += 0.01,
+            |s| s.radius_mm += 0.01,
+            |s| s.inner = true,
+        ] {
+            let mut wrong = base.clone();
+            mutate(&mut wrong.octants[0]);
+            assert_eq!(
+                build_rounded_step(&wrong).unwrap_err().code,
+                "cad.invalid_model"
+            );
+        }
+        assert!(build_rounded_step_with_chain_provenance(
+            &base,
+            &[1, 2, 3, 4, 5, 6],
+            &[],
+            &[7, 8, 9],
+            &[],
+            &[],
+            &[],
+            &[]
+        )
+        .is_err());
     }
 
     #[test]

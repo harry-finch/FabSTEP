@@ -2,10 +2,10 @@
 id: R-082
 titre: "G1 — reconstruire un raccord à rayon linéaire"
 resume: "Reconnaître l’enveloppe conique inclinée à extrémités elliptiques d’un arrondi linéaire, sans la confondre avec des sections circulaires empilées."
-statut: specifiee
+statut: en-cours
 jalon: post-v1
 cree: 2026-11-17
-maj: 2026-11-17
+maj: 2026-11-18
 livree:
 ---
 ## But

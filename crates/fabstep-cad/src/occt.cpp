@@ -213,6 +213,12 @@ struct SphericalPatchData {
   int inner;
 };
 
+struct SphericalOctantData {
+  double center[3], radius, directions[3][3];
+  size_t arcs[3];
+  int reversed[3];
+};
+
 struct ToroidalPatchData {
   size_t rings[2];
   double center[3];
@@ -274,6 +280,7 @@ struct SurfaceCounts {
   size_t partial_conical = 0;
 };
 
+constexpr SurfaceCounts trihedral_surfaces{6, 3, 3, 0, 1, 0, 1};
 constexpr SurfaceCounts rounded_box_surfaces{6, 12, 12, 0, 8, 0, 8};
 
 // STEP uses process-wide OCCT configuration and a default stdout messenger.
@@ -872,6 +879,86 @@ TopoDS_Wire segmented_wire(const gp_Pln& plane, const MixedSegmentData* segments
   return wire.Wire();
 }
 
+TopoDS_Face spherical_octant(const SphericalOctantData& patch, const MixedArcData* arcs,
+                            const double* points, const std::vector<TopoDS_Edge>& shared,
+                            IndexedWires& wires) {
+  const double tol = Precision::Confusion(), quarter = std::acos(-1.0) / 2.;
+  const auto center = point_at(patch.center, 0);
+  const CadFailure invalid{invalid_model, "Les trois arcs ne délimitent pas un octant sphérique tangent."};
+  if (!std::isfinite(patch.radius) || patch.radius <= tol) throw invalid;
+  std::array<gp_Dir,3> rays;
+  std::array<gp_Pnt,3> ends;
+  std::array<size_t,3> vertices;
+  for (size_t i=0; i<3; ++i) {
+    rays[i] = direction(patch.directions[i]);
+    ends[i] = center.Translated(gp_Vec(rays[i]) * patch.radius);
+    if (patch.arcs[i] >= shared.size() || shared[patch.arcs[i]].IsNull()) throw invalid;
+    vertices[i] = arcs[patch.arcs[i]].vertices[patch.reversed[i] ? 1 : 0];
+  }
+  const double angle_tol = std::min(1.e-8, tol / patch.radius);
+  if (!rays[0].Crossed(rays[1]).IsEqual(rays[2], angle_tol) ||
+      !rays[0].IsNormal(rays[1], angle_tol)) throw invalid;
+  const gp_Sphere sphere(gp_Ax3(center, rays[2], rays[0]), patch.radius);
+  auto face = BRepBuilderAPI_MakeFace(sphere, 0., quarter, 0., quarter).Face();
+  BRepTools_ReShape canonical;
+  for (TopExp_Explorer it(face, TopAbs_VERTEX); it.More(); it.Next()) {
+    const auto vertex = TopoDS::Vertex(it.Current());
+    bool found = false;
+    for (size_t i=0; i<3; ++i) {
+      if (BRep_Tool::Pnt(vertex).Distance(ends[i]) > tol) continue;
+      if (found || ends[i].Distance(point_at(points, vertices[i])) > tol) throw invalid;
+      const auto common = wires.canonical_vertex(vertices[i], vertex);
+      canonical.Replace(vertex.Oriented(TopAbs_FORWARD), common.Oriented(TopAbs_FORWARD));
+      found = true;
+    }
+    if (!found) throw invalid;
+  }
+  face = TopoDS::Face(canonical.Apply(face));
+  BRepTools_ReShape replacements;
+  std::array<bool,3> seen{};
+  for (TopExp_Explorer it(face, TopAbs_EDGE); it.More(); it.Next()) {
+    const auto edge = TopoDS::Edge(it.Current());
+    if (BRep_Tool::Degenerated(edge)) continue; // Parametric collapse at the sphere pole.
+    bool matched = false;
+    for (size_t i=0; i<3; ++i) {
+      const size_t j=(i+1)%3;
+      const auto use = oriented_between(edge, ends[i], ends[j]);
+      if (use.IsNull()) continue;
+      if (seen[i] || matched) throw invalid;
+      const auto id = patch.arcs[i];
+      if (arcs[id].vertices[patch.reversed[i] ? 0 : 1] != vertices[j]) throw invalid;
+      const auto common = patch.reversed[i] ? TopoDS::Edge(shared[id].Reversed()) : shared[id];
+      const auto oriented = oriented_between(common, ends[i], ends[j]);
+      if (oriented.IsNull() || common.Orientation()!=oriented.Orientation()) throw invalid;
+      const BRepAdaptor_Curve curve(common);
+      if (curve.GetType()!=GeomAbs_Circle || curve.Circle().Location().Distance(center)>tol ||
+          std::abs(curve.Circle().Radius()-patch.radius)>tol ||
+          !curve.Circle().Axis().Direction().IsParallel(rays[i].Crossed(rays[j]), angle_tol)) throw invalid;
+      const auto middle = center.Translated(gp_Vec(gp_Dir(gp_Vec(rays[i])+gp_Vec(rays[j]))) * patch.radius);
+      const double first=curve.FirstParameter(), last=curve.LastParameter();
+      if (std::abs(last-first-quarter)*patch.radius>tol ||
+          middle.Distance(curve.Value((first+last)*.5))>tol) throw invalid;
+      // Equator (increasing u), then the two meridians (increasing and
+      // decreasing v). Parameterize the stored 3D edge in its forward sense.
+      const std::array<gp_Pnt2d,3> start{gp_Pnt2d(0.,0.),{quarter,0.},{0.,quarter}};
+      const std::array<gp_Dir2d,3> tangent{gp_Dir2d(1.,0.),{0.,1.},{0.,-1.}};
+      const bool forward=common.Orientation()==TopAbs_FORWARD;
+      const auto delta=gp_Vec2d(tangent[i]);
+      const auto base=start[i].Translated(delta*(forward?-first:last));
+      BRep_Builder builder;
+      builder.UpdateEdge(common,new Geom2d_Line(base,forward?tangent[i]:tangent[i].Reversed()),face,tol);
+      builder.Range(common,face,first,last);
+      const auto replace=use.Orientation()==TopAbs_FORWARD?common:TopoDS::Edge(common.Reversed());
+      replacements.Replace(edge.Oriented(TopAbs_FORWARD),replace);
+      seen[i]=matched=true;
+    }
+    if (!matched) throw invalid;
+  }
+  face=TopoDS::Face(replacements.Apply(face));
+  if (seen!=std::array<bool,3>{true,true,true} || !BRepCheck_Analyzer(face,true,false,true).IsValid()) throw invalid;
+  return face;
+}
+
 TopoDS_Solid build_mixed_solid(
     const double* points, size_t point_count, const MixedRingData* rings, size_t ring_count,
     const double* normals, size_t plane_count, const size_t* plane_loops, const MixedLoopData* loops,
@@ -885,7 +972,8 @@ TopoDS_Solid build_mixed_solid(
     const size_t* sphere_tokens = nullptr, const size_t* torus_tokens = nullptr,
     const size_t* partial_tokens = nullptr,
     const MixedCylinderData* partial_cones = nullptr, size_t partial_cone_count = 0,
-    const size_t* partial_cone_tokens = nullptr) {
+    const size_t* partial_cone_tokens = nullptr,
+    const SphericalOctantData* octant = nullptr, const size_t* octant_token = nullptr) {
   IndexedWires wires(points, point_count);
   BRepBuilderAPI_Sewing sewing(Precision::Confusion());
   sewing.SetMaxTolerance(Precision::Confusion());
@@ -926,6 +1014,12 @@ TopoDS_Solid build_mixed_solid(
     const auto face = partial_revolved_face(partial_cones[i], arcs, points, shared_arcs, wires, true);
     sewing.Add(face);
     if (partial_cone_tokens && labels) labels->push_back({face, partial_cone_tokens[i]});
+  }
+
+  if (octant) {
+    const auto face = spherical_octant(*octant, arcs, points, shared_arcs, wires);
+    sewing.Add(face);
+    if (labels && octant_token) labels->push_back({face, *octant_token});
   }
 
   for (size_t i = 0; i < plane_count; ++i) {
@@ -1366,6 +1460,101 @@ void check_rounded_box_geometry(const TopoDS_Shape& shape, const TopTools_Indexe
   check_rounded_box_connections(shape, status);
 }
 
+// Re-establish the bounded ten-face contract after every STEP import, also
+// when assembling separate roots without the original model. The sphere's
+// three actual vertices anchor its octant independently of the UV seam.
+void check_trihedral_geometry(const TopoDS_Shape& solid, const TopTools_IndexedMapOfShape& faces,
+                              double volume, Status status) {
+  const CadFailure invalid{status, "Les supports, limites ou tangences du coin à trois congés sont incohérents."};
+  const double tol=4.*Precision::Confusion();
+  gp_Pnt center;
+  double r=0.;
+  std::array<gp_Pnt,3> ends;
+  std::array<gp_Dir,3> rays;
+  for (int i=1; i<=faces.Extent(); ++i) {
+    const BRepAdaptor_Surface s(TopoDS::Face(faces(i)));
+    if (s.GetType()!=GeomAbs_Sphere) continue;
+    center=s.Sphere().Location(); r=s.Sphere().Radius();
+    TopTools_IndexedMapOfShape vertices; TopExp::MapShapes(faces(i), TopAbs_VERTEX, vertices);
+    if (vertices.Extent()!=3 || r<=tol) throw invalid;
+    for (size_t j=0; j<3; ++j) {
+      ends[j]=BRep_Tool::Pnt(TopoDS::Vertex(vertices(j+1)));
+      if (std::abs(ends[j].Distance(center)-r)>tol) throw invalid;
+      rays[j]=gp_Dir(gp_Vec(center,ends[j]));
+    }
+  }
+  for (size_t j=0; j<3; ++j)
+    if (!rays[j].IsNormal(rays[(j+1)%3],std::min(box_angle_tolerance,tol/r))) throw invalid;
+  const auto axis_of=[&](const gp_Dir& axis) -> size_t {
+    for (size_t j=0; j<3; ++j) if (rays[j].IsParallel(axis,box_angle_tolerance)) return j;
+    throw invalid;
+  };
+  std::array<bool,3> near{}, cylinders{};
+  std::array<double,3> far{};
+  for (int i=1; i<=faces.Extent(); ++i) {
+    const BRepAdaptor_Surface s(TopoDS::Face(faces(i)));
+    if (s.GetType()==GeomAbs_Plane) {
+      const auto p=s.Plane(); const size_t axis=axis_of(p.Axis().Direction());
+      const double at=gp_Vec(center,p.Location()).Dot(gp_Vec(rays[axis]));
+      if (std::abs(at-r)<=tol && !near[axis]) near[axis]=true;
+      else if (at < -tol && far[axis]==0.) far[axis]=-at;
+      else throw invalid;
+    } else if (s.GetType()==GeomAbs_Cylinder) {
+      const auto c=s.Cylinder(); const size_t axis=axis_of(c.Axis().Direction());
+      if (cylinders[axis] || std::abs(c.Radius()-r)>tol || gp_Lin(c.Axis()).Distance(center)>tol)
+        throw invalid;
+      cylinders[axis]=true;
+    }
+  }
+  for (size_t i=0;i<3;++i) if (!near[i] || !cylinders[i] || far[i]<=0.) throw invalid;
+  TopTools_IndexedDataMapOfShapeListOfShape incidence;
+  TopExp::MapShapesAndUniqueAncestors(solid,TopAbs_EDGE,TopAbs_FACE,incidence);
+  std::set<std::pair<size_t,size_t>> rails;
+  std::array<bool,3> joins{}, caps{};
+  for (int i=1; i<=incidence.Extent(); ++i) {
+    const auto edge=TopoDS::Edge(incidence.FindKey(i)); if (BRep_Tool::Degenerated(edge)) continue;
+    const auto& owners=incidence.FindFromIndex(i); if (owners.Extent()!=2) throw invalid;
+    BRepAdaptor_Surface first(TopoDS::Face(owners.First())),last(TopoDS::Face(owners.Last()));
+    const BRepAdaptor_Curve curve(edge);
+    if (first.GetType()==GeomAbs_Plane && last.GetType()==GeomAbs_Plane) {
+      if (curve.GetType()!=GeomAbs_Line) throw invalid;
+      continue;
+    }
+    const bool cFirst=first.GetType()==GeomAbs_Cylinder;
+    const auto& cyl=cFirst?first:last;
+    const auto& other=cFirst?last:first;
+    if (cyl.GetType()!=GeomAbs_Cylinder) throw invalid;
+    const size_t axis=axis_of(cyl.Cylinder().Axis().Direction());
+    const gp_Vec offset=gp_Vec(rays[axis])*(-far[axis]);
+    gp_Pnt a,b;
+    if (curve.GetType()==GeomAbs_Circle) {
+      const bool atSphere=other.GetType()==GeomAbs_Sphere;
+      if (!atSphere && (other.GetType()!=GeomAbs_Plane ||
+          axis_of(other.Plane().Axis().Direction())!=axis)) throw invalid;
+      auto& seen=atSphere?joins:caps;
+      const auto shift=atSphere?gp_Vec(0.,0.,0.):offset;
+      if (seen[axis] || !quarter_turn(curve.LastParameter()-curve.FirstParameter()) ||
+          axis_of(curve.Circle().Axis().Direction())!=axis ||
+          std::abs(curve.Circle().Radius()-r)>tol ||
+          curve.Circle().Location().Distance(center.Translated(shift))>tol) throw invalid;
+      seen[axis]=true;
+      a=ends[(axis+1)%3].Translated(shift);
+      b=ends[(axis+2)%3].Translated(shift);
+    } else {
+      if (curve.GetType()!=GeomAbs_Line || other.GetType()!=GeomAbs_Plane) throw invalid;
+      const size_t n=axis_of(other.Plane().Axis().Direction());
+      if (n==axis || !rails.emplace(axis,n).second) throw invalid;
+      a=ends[n]; b=a.Translated(offset);
+    }
+    if (oriented_between(edge,a,b).IsNull()) throw invalid;
+  }
+  if (rails.size()!=6 || joins!=near || caps!=near) throw invalid;
+  const double pi=std::acos(-1.);
+  const double ideal=(far[0]+r)*(far[1]+r)*(far[2]+r)
+                    -r*r*(1.-pi/4.)*(far[0]+far[1]+far[2])-r*r*r*(1.-pi/6.);
+  if (!std::isfinite(ideal) || std::abs(ideal-volume)>std::max(1.e-8,1.e-8*ideal)) throw invalid;
+}
+
 SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
                               const SurfaceCounts* expected = nullptr,
                               const RoundedBoxFrame* expected_box = nullptr) {
@@ -1420,13 +1609,16 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
       default: throw CadFailure{status, "Une face du solide présente un type de surface hors périmètre."};
     }
   }
-  if (found.spherical_octants != 0 &&
+  const bool trihedron=found.spherical_octants==1 && found.spherical==1 &&
+      found.planar==6 && found.cylindrical==3 && quarter_cylinders==3 &&
+      found.conical==0 && found.toroidal==0;
+  if (found.spherical_octants != 0 && !trihedron &&
       (found.spherical_octants != rounded_box_surfaces.spherical_octants ||
        found.spherical != rounded_box_surfaces.spherical ||
        found.planar != rounded_box_surfaces.planar ||
        found.cylindrical != rounded_box_surfaces.cylindrical ||
        quarter_cylinders != rounded_box_surfaces.partial || found.conical != 0 || found.toroidal != 0)) {
-    throw CadFailure{status, "Les octants sphériques exigent le boîtier arrondi complet à 26 faces."};
+    throw CadFailure{status, "Les octants sphériques exigent un coin à trois congés ou le boîtier arrondi complet."};
   }
   if (expected && (found.planar != expected->planar || found.cylindrical != expected->cylindrical ||
                    found.partial != expected->partial || found.conical != expected->conical ||
@@ -1463,7 +1655,9 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     }
   }
   std::optional<RoundedBoxFrame> rounded_box;
-  if (found.spherical_octants != 0) {
+  if (trihedron) {
+    check_trihedral_geometry(shape, faces, result.volume, status);
+  } else if (found.spherical_octants != 0) {
     rounded_box = expected_box ? *expected_box : infer_rounded_box_frame(faces, status);
     check_rounded_box_geometry(shape, faces, result, *rounded_box, status);
   }
@@ -3027,6 +3221,23 @@ extern "C" int fabstep_build_mixed_step(
       {plane_count, cylinder_count + partial_count, partial_count, cone_count + partial_cone_count,
        sphere_count, torus_count, 0, partial_cone_count},
       output, error, error_capacity);
+}
+
+// Fixed D2 model. Rust validates every index and the exact face/arc counts.
+extern "C" int fabstep_build_trihedral_step(
+    const double* points, size_t point_count, const double* normals, const size_t* plane_loops,
+    const MixedLoopData* loops, const MixedSegmentData* segments, const MixedArcData* arcs,
+    const MixedCylinderData* partial, const SphericalOctantData* octant, const size_t* plane_tokens,
+    const size_t* partial_tokens, const size_t* octant_token,
+    StepOutput* output, char* error, size_t error_capacity) noexcept {
+  FaceLabels labels;
+  auto* tracked = octant_token ? &labels : nullptr;
+  return validated_step([&] {
+    return build_mixed_solid(points, point_count, nullptr, 0, normals, 6, plane_loops, loops,
+        segments, nullptr, 0, arcs, 6, partial, 3, nullptr, 0, nullptr, 0, nullptr, 0,
+        plane_tokens, nullptr, tracked, nullptr, nullptr, nullptr, partial_tokens,
+        nullptr, 0, nullptr, octant, octant_token);
+  }, trihedral_surfaces, output, error, error_capacity, nullptr, tracked);
 }
 
 extern "C" int fabstep_build_mixed_step_with_provenance(

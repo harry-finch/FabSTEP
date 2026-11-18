@@ -1,0 +1,3698 @@
+{
+  "units": "mm",
+  "cases": {
+    "d_corner": {
+      "sha256": "0de10fe4aef85f156133effe2f36242550f2db41ac84c288ed3f309ff99abe84",
+      "placement": "plain",
+      "triangles": 628,
+      "positive": true,
+      "defect": null,
+      "parameters": {
+        "family": "trihedral",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "radius_mm": 2.0,
+        "arc_intervals": 16,
+        "axial_steps": 3,
+        "volume_mm3": 3161.8524963483783,
+        "analytic_faces": {
+          "plane": 6,
+          "cylinder": 3,
+          "sphere": 1
+        },
+        "circle_joins": 3,
+        "line_tangencies": 6,
+        "circle_ends": 3,
+        "shape": {
+          "sphere_center_mm": [
+            2.0,
+            2.0,
+            2.0
+          ],
+          "cylinder_center_segments_mm": [
+            [
+              [
+                2.0,
+                2.0,
+                2.0
+              ],
+              [
+                20.0,
+                2.0,
+                2.0
+              ]
+            ],
+            [
+              [
+                2.0,
+                2.0,
+                2.0
+              ],
+              [
+                2.0,
+                16.0,
+                2.0
+              ]
+            ],
+            [
+              [
+                2.0,
+                2.0,
+                2.0
+              ],
+              [
+                2.0,
+                2.0,
+                10.0
+              ]
+            ]
+          ]
+        }
+      },
+      "analytic_bounds_mm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          20.0,
+          16.0,
+          10.0
+        ]
+      ],
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3161.601286405988,
+        "joined_edges": [
+          [
+            "cylinder_0",
+            "plane_0_far",
+            16
+          ],
+          [
+            "cylinder_0",
+            "plane_1_near",
+            3
+          ],
+          [
+            "cylinder_0",
+            "plane_2_near",
+            3
+          ],
+          [
+            "cylinder_0",
+            "sphere_octant",
+            16
+          ],
+          [
+            "cylinder_1",
+            "plane_0_near",
+            3
+          ],
+          [
+            "cylinder_1",
+            "plane_1_far",
+            16
+          ],
+          [
+            "cylinder_1",
+            "plane_2_near",
+            3
+          ],
+          [
+            "cylinder_1",
+            "sphere_octant",
+            16
+          ],
+          [
+            "cylinder_2",
+            "plane_0_near",
+            3
+          ],
+          [
+            "cylinder_2",
+            "plane_1_near",
+            3
+          ],
+          [
+            "cylinder_2",
+            "plane_2_far",
+            16
+          ],
+          [
+            "cylinder_2",
+            "sphere_octant",
+            16
+          ],
+          [
+            "plane_0_far",
+            "plane_1_far",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_1_near",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_2_near",
+            1
+          ],
+          [
+            "plane_0_near",
+            "plane_1_far",
+            1
+          ],
+          [
+            "plane_0_near",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_1_far",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_1_far",
+            "plane_2_near",
+            1
+          ],
+          [
+            "plane_1_near",
+            "plane_2_far",
+            1
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "sphere_octant",
+          "first_source_triangle": 0,
+          "triangles": 256
+        },
+        {
+          "owner": "cylinder_0",
+          "first_source_triangle": 256,
+          "triangles": 96
+        },
+        {
+          "owner": "cylinder_1",
+          "first_source_triangle": 352,
+          "triangles": 96
+        },
+        {
+          "owner": "cylinder_2",
+          "first_source_triangle": 448,
+          "triangles": 96
+        },
+        {
+          "owner": "plane_0_far",
+          "first_source_triangle": 544,
+          "triangles": 20
+        },
+        {
+          "owner": "plane_0_near",
+          "first_source_triangle": 564,
+          "triangles": 8
+        },
+        {
+          "owner": "plane_1_far",
+          "first_source_triangle": 572,
+          "triangles": 20
+        },
+        {
+          "owner": "plane_1_near",
+          "first_source_triangle": 592,
+          "triangles": 8
+        },
+        {
+          "owner": "plane_2_far",
+          "first_source_triangle": 600,
+          "triangles": 20
+        },
+        {
+          "owner": "plane_2_near",
+          "first_source_triangle": 620,
+          "triangles": 8
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            1.3,
+            1.3,
+            1.3
+          ],
+          "material": true,
+          "purpose": "octant"
+        },
+        {
+          "point_mm": [
+            12.0,
+            1.3,
+            1.3
+          ],
+          "material": true,
+          "purpose": "cylinder_0"
+        },
+        {
+          "point_mm": [
+            1.3,
+            9.6,
+            1.3
+          ],
+          "material": true,
+          "purpose": "cylinder_1"
+        },
+        {
+          "point_mm": [
+            1.3,
+            1.3,
+            6.0
+          ],
+          "material": true,
+          "purpose": "cylinder_2"
+        },
+        {
+          "point_mm": [
+            0.30000000000000004,
+            0.30000000000000004,
+            0.30000000000000004
+          ],
+          "material": false,
+          "purpose": "octant"
+        },
+        {
+          "point_mm": [
+            12.0,
+            0.30000000000000004,
+            0.30000000000000004
+          ],
+          "material": false,
+          "purpose": "cylinder_0"
+        },
+        {
+          "point_mm": [
+            0.30000000000000004,
+            9.6,
+            0.30000000000000004
+          ],
+          "material": false,
+          "purpose": "cylinder_1"
+        },
+        {
+          "point_mm": [
+            0.30000000000000004,
+            0.30000000000000004,
+            6.0
+          ],
+          "material": false,
+          "purpose": "cylinder_2"
+        }
+      ]
+    },
+    "d_corner_mirror": {
+      "sha256": "d0a58433d2c3179c487d4caabcc039a5621d81190fe5dc6e7eb3cafa7fc91160",
+      "placement": "mirrored",
+      "triangles": 628,
+      "positive": true,
+      "defect": null,
+      "parameters": {
+        "family": "trihedral",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "radius_mm": 2.0,
+        "arc_intervals": 16,
+        "axial_steps": 3,
+        "volume_mm3": 3161.8524963483783,
+        "analytic_faces": {
+          "plane": 6,
+          "cylinder": 3,
+          "sphere": 1
+        },
+        "circle_joins": 3,
+        "line_tangencies": 6,
+        "circle_ends": 3,
+        "shape": {
+          "sphere_center_mm": [
+            18.0,
+            2.0,
+            2.0
+          ],
+          "cylinder_center_segments_mm": [
+            [
+              [
+                18.0,
+                2.0,
+                2.0
+              ],
+              [
+                0.0,
+                2.0,
+                2.0
+              ]
+            ],
+            [
+              [
+                18.0,
+                2.0,
+                2.0
+              ],
+              [
+                18.0,
+                16.0,
+                2.0
+              ]
+            ],
+            [
+              [
+                18.0,
+                2.0,
+                2.0
+              ],
+              [
+                18.0,
+                2.0,
+                10.0
+              ]
+            ]
+          ]
+        }
+      },
+      "analytic_bounds_mm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          20.0,
+          16.0,
+          10.0
+        ]
+      ],
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3161.6012877333587,
+        "joined_edges": [
+          [
+            "cylinder_0",
+            "plane_0_far",
+            16
+          ],
+          [
+            "cylinder_0",
+            "plane_1_near",
+            3
+          ],
+          [
+            "cylinder_0",
+            "plane_2_near",
+            3
+          ],
+          [
+            "cylinder_0",
+            "sphere_octant",
+            16
+          ],
+          [
+            "cylinder_1",
+            "plane_0_near",
+            3
+          ],
+          [
+            "cylinder_1",
+            "plane_1_far",
+            16
+          ],
+          [
+            "cylinder_1",
+            "plane_2_near",
+            3
+          ],
+          [
+            "cylinder_1",
+            "sphere_octant",
+            16
+          ],
+          [
+            "cylinder_2",
+            "plane_0_near",
+            3
+          ],
+          [
+            "cylinder_2",
+            "plane_1_near",
+            3
+          ],
+          [
+            "cylinder_2",
+            "plane_2_far",
+            16
+          ],
+          [
+            "cylinder_2",
+            "sphere_octant",
+            16
+          ],
+          [
+            "plane_0_far",
+            "plane_1_far",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_1_near",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_2_near",
+            1
+          ],
+          [
+            "plane_0_near",
+            "plane_1_far",
+            1
+          ],
+          [
+            "plane_0_near",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_1_far",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_1_far",
+            "plane_2_near",
+            1
+          ],
+          [
+            "plane_1_near",
+            "plane_2_far",
+            1
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "sphere_octant",
+          "first_source_triangle": 0,
+          "triangles": 256
+        },
+        {
+          "owner": "cylinder_0",
+          "first_source_triangle": 256,
+          "triangles": 96
+        },
+        {
+          "owner": "cylinder_1",
+          "first_source_triangle": 352,
+          "triangles": 96
+        },
+        {
+          "owner": "cylinder_2",
+          "first_source_triangle": 448,
+          "triangles": 96
+        },
+        {
+          "owner": "plane_0_far",
+          "first_source_triangle": 544,
+          "triangles": 20
+        },
+        {
+          "owner": "plane_0_near",
+          "first_source_triangle": 564,
+          "triangles": 8
+        },
+        {
+          "owner": "plane_1_far",
+          "first_source_triangle": 572,
+          "triangles": 20
+        },
+        {
+          "owner": "plane_1_near",
+          "first_source_triangle": 592,
+          "triangles": 8
+        },
+        {
+          "owner": "plane_2_far",
+          "first_source_triangle": 600,
+          "triangles": 20
+        },
+        {
+          "owner": "plane_2_near",
+          "first_source_triangle": 620,
+          "triangles": 8
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            18.7,
+            1.3,
+            1.3
+          ],
+          "material": true,
+          "purpose": "octant"
+        },
+        {
+          "point_mm": [
+            8.0,
+            1.3,
+            1.3
+          ],
+          "material": true,
+          "purpose": "cylinder_0"
+        },
+        {
+          "point_mm": [
+            18.7,
+            9.6,
+            1.3
+          ],
+          "material": true,
+          "purpose": "cylinder_1"
+        },
+        {
+          "point_mm": [
+            18.7,
+            1.3,
+            6.0
+          ],
+          "material": true,
+          "purpose": "cylinder_2"
+        },
+        {
+          "point_mm": [
+            19.7,
+            0.30000000000000004,
+            0.30000000000000004
+          ],
+          "material": false,
+          "purpose": "octant"
+        },
+        {
+          "point_mm": [
+            8.0,
+            0.30000000000000004,
+            0.30000000000000004
+          ],
+          "material": false,
+          "purpose": "cylinder_0"
+        },
+        {
+          "point_mm": [
+            19.7,
+            9.6,
+            0.30000000000000004
+          ],
+          "material": false,
+          "purpose": "cylinder_1"
+        },
+        {
+          "point_mm": [
+            19.7,
+            0.30000000000000004,
+            6.0
+          ],
+          "material": false,
+          "purpose": "cylinder_2"
+        }
+      ]
+    },
+    "d_corner_permuted": {
+      "sha256": "bd1a5e19bc4f1f36bc9e2a00df0ca840dd443527ed3408d8eaa2ca38b798216a",
+      "placement": "permuted",
+      "triangles": 982,
+      "positive": true,
+      "defect": null,
+      "parameters": {
+        "family": "trihedral",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "radius_mm": 2.0,
+        "arc_intervals": 20,
+        "axial_steps": 4,
+        "volume_mm3": 3161.8524963483783,
+        "analytic_faces": {
+          "plane": 6,
+          "cylinder": 3,
+          "sphere": 1
+        },
+        "circle_joins": 3,
+        "line_tangencies": 6,
+        "circle_ends": 3,
+        "shape": {
+          "sphere_center_mm": [
+            5.0,
+            -6.0,
+            7.0
+          ],
+          "cylinder_center_segments_mm": [
+            [
+              [
+                5.0,
+                -6.0,
+                7.0
+              ],
+              [
+                5.0,
+                12.0,
+                7.0
+              ]
+            ],
+            [
+              [
+                5.0,
+                -6.0,
+                7.0
+              ],
+              [
+                5.0,
+                -6.0,
+                21.0
+              ]
+            ],
+            [
+              [
+                5.0,
+                -6.0,
+                7.0
+              ],
+              [
+                13.0,
+                -6.0,
+                7.0
+              ]
+            ]
+          ]
+        }
+      },
+      "analytic_bounds_mm": [
+        [
+          3.0,
+          -8.0,
+          5.0
+        ],
+        [
+          13.0,
+          12.0,
+          21.0
+        ]
+      ],
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3161.6915880494626,
+        "joined_edges": [
+          [
+            "cylinder_0",
+            "plane_0_far",
+            20
+          ],
+          [
+            "cylinder_0",
+            "plane_1_near",
+            4
+          ],
+          [
+            "cylinder_0",
+            "plane_2_near",
+            4
+          ],
+          [
+            "cylinder_0",
+            "sphere_octant",
+            20
+          ],
+          [
+            "cylinder_1",
+            "plane_0_near",
+            4
+          ],
+          [
+            "cylinder_1",
+            "plane_1_far",
+            20
+          ],
+          [
+            "cylinder_1",
+            "plane_2_near",
+            4
+          ],
+          [
+            "cylinder_1",
+            "sphere_octant",
+            20
+          ],
+          [
+            "cylinder_2",
+            "plane_0_near",
+            4
+          ],
+          [
+            "cylinder_2",
+            "plane_1_near",
+            4
+          ],
+          [
+            "cylinder_2",
+            "plane_2_far",
+            20
+          ],
+          [
+            "cylinder_2",
+            "sphere_octant",
+            20
+          ],
+          [
+            "plane_0_far",
+            "plane_1_far",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_1_near",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_2_near",
+            1
+          ],
+          [
+            "plane_0_near",
+            "plane_1_far",
+            1
+          ],
+          [
+            "plane_0_near",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_1_far",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_1_far",
+            "plane_2_near",
+            1
+          ],
+          [
+            "plane_1_near",
+            "plane_2_far",
+            1
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "sphere_octant",
+          "first_source_triangle": 0,
+          "triangles": 400
+        },
+        {
+          "owner": "cylinder_0",
+          "first_source_triangle": 400,
+          "triangles": 160
+        },
+        {
+          "owner": "cylinder_1",
+          "first_source_triangle": 560,
+          "triangles": 160
+        },
+        {
+          "owner": "cylinder_2",
+          "first_source_triangle": 720,
+          "triangles": 160
+        },
+        {
+          "owner": "plane_0_far",
+          "first_source_triangle": 880,
+          "triangles": 24
+        },
+        {
+          "owner": "plane_0_near",
+          "first_source_triangle": 904,
+          "triangles": 10
+        },
+        {
+          "owner": "plane_1_far",
+          "first_source_triangle": 914,
+          "triangles": 24
+        },
+        {
+          "owner": "plane_1_near",
+          "first_source_triangle": 938,
+          "triangles": 10
+        },
+        {
+          "owner": "plane_2_far",
+          "first_source_triangle": 948,
+          "triangles": 24
+        },
+        {
+          "owner": "plane_2_near",
+          "first_source_triangle": 972,
+          "triangles": 10
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            4.3,
+            -6.7,
+            6.3
+          ],
+          "material": true,
+          "purpose": "octant"
+        },
+        {
+          "point_mm": [
+            4.3,
+            4.0,
+            6.3
+          ],
+          "material": true,
+          "purpose": "cylinder_0"
+        },
+        {
+          "point_mm": [
+            4.3,
+            -6.7,
+            14.6
+          ],
+          "material": true,
+          "purpose": "cylinder_1"
+        },
+        {
+          "point_mm": [
+            9.0,
+            -6.7,
+            6.3
+          ],
+          "material": true,
+          "purpose": "cylinder_2"
+        },
+        {
+          "point_mm": [
+            3.3,
+            -7.7,
+            5.3
+          ],
+          "material": false,
+          "purpose": "octant"
+        },
+        {
+          "point_mm": [
+            3.3,
+            4.0,
+            5.3
+          ],
+          "material": false,
+          "purpose": "cylinder_0"
+        },
+        {
+          "point_mm": [
+            3.3,
+            -7.7,
+            14.6
+          ],
+          "material": false,
+          "purpose": "cylinder_1"
+        },
+        {
+          "point_mm": [
+            9.0,
+            -7.7,
+            5.3
+          ],
+          "material": false,
+          "purpose": "cylinder_2"
+        }
+      ]
+    },
+    "d_corner_oblique": {
+      "sha256": "5776c88c60aabd4e3fff847fe8d44e9103ce57f88ba4c197691bd64d6c8b6015",
+      "placement": "oblique",
+      "triangles": 1416,
+      "positive": true,
+      "defect": null,
+      "parameters": {
+        "family": "trihedral",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "radius_mm": 2.0,
+        "arc_intervals": 24,
+        "axial_steps": 5,
+        "volume_mm3": 3161.8524963483783,
+        "analytic_faces": {
+          "plane": 6,
+          "cylinder": 3,
+          "sphere": 1
+        },
+        "circle_joins": 3,
+        "line_tangencies": 6,
+        "circle_ends": 3,
+        "shape": {
+          "sphere_center_mm": [
+            13.4,
+            -4.2,
+            13.0
+          ],
+          "cylinder_center_segments_mm": [
+            [
+              [
+                13.4,
+                -4.2,
+                13.0
+              ],
+              [
+                27.8,
+                6.6,
+                13.0
+              ]
+            ],
+            [
+              [
+                13.4,
+                -4.2,
+                13.0
+              ],
+              [
+                5.0,
+                7.0,
+                13.0
+              ]
+            ],
+            [
+              [
+                13.4,
+                -4.2,
+                13.0
+              ],
+              [
+                13.4,
+                -4.2,
+                21.0
+              ]
+            ]
+          ]
+        }
+      },
+      "analytic_bounds_mm": [
+        [
+          3.4000000000000004,
+          -6.2,
+          11.0
+        ],
+        [
+          29.0,
+          17.8,
+          21.0
+        ]
+      ],
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3161.7407002424698,
+        "joined_edges": [
+          [
+            "cylinder_0",
+            "plane_0_far",
+            24
+          ],
+          [
+            "cylinder_0",
+            "plane_1_near",
+            5
+          ],
+          [
+            "cylinder_0",
+            "plane_2_near",
+            5
+          ],
+          [
+            "cylinder_0",
+            "sphere_octant",
+            24
+          ],
+          [
+            "cylinder_1",
+            "plane_0_near",
+            5
+          ],
+          [
+            "cylinder_1",
+            "plane_1_far",
+            24
+          ],
+          [
+            "cylinder_1",
+            "plane_2_near",
+            5
+          ],
+          [
+            "cylinder_1",
+            "sphere_octant",
+            24
+          ],
+          [
+            "cylinder_2",
+            "plane_0_near",
+            5
+          ],
+          [
+            "cylinder_2",
+            "plane_1_near",
+            5
+          ],
+          [
+            "cylinder_2",
+            "plane_2_far",
+            24
+          ],
+          [
+            "cylinder_2",
+            "sphere_octant",
+            24
+          ],
+          [
+            "plane_0_far",
+            "plane_1_far",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_1_near",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_2_near",
+            1
+          ],
+          [
+            "plane_0_near",
+            "plane_1_far",
+            1
+          ],
+          [
+            "plane_0_near",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_1_far",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_1_far",
+            "plane_2_near",
+            1
+          ],
+          [
+            "plane_1_near",
+            "plane_2_far",
+            1
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "sphere_octant",
+          "first_source_triangle": 0,
+          "triangles": 576
+        },
+        {
+          "owner": "cylinder_0",
+          "first_source_triangle": 576,
+          "triangles": 240
+        },
+        {
+          "owner": "cylinder_1",
+          "first_source_triangle": 816,
+          "triangles": 240
+        },
+        {
+          "owner": "cylinder_2",
+          "first_source_triangle": 1056,
+          "triangles": 240
+        },
+        {
+          "owner": "plane_0_far",
+          "first_source_triangle": 1296,
+          "triangles": 28
+        },
+        {
+          "owner": "plane_0_near",
+          "first_source_triangle": 1324,
+          "triangles": 12
+        },
+        {
+          "owner": "plane_1_far",
+          "first_source_triangle": 1336,
+          "triangles": 28
+        },
+        {
+          "owner": "plane_1_near",
+          "first_source_triangle": 1364,
+          "triangles": 12
+        },
+        {
+          "owner": "plane_2_far",
+          "first_source_triangle": 1376,
+          "triangles": 28
+        },
+        {
+          "owner": "plane_2_near",
+          "first_source_triangle": 1404,
+          "triangles": 12
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            13.26,
+            -5.18,
+            12.3
+          ],
+          "material": true,
+          "purpose": "octant"
+        },
+        {
+          "point_mm": [
+            21.82,
+            1.2400000000000002,
+            12.3
+          ],
+          "material": true,
+          "purpose": "cylinder_0"
+        },
+        {
+          "point_mm": [
+            8.280000000000001,
+            1.459999999999999,
+            12.3
+          ],
+          "material": true,
+          "purpose": "cylinder_1"
+        },
+        {
+          "point_mm": [
+            13.26,
+            -5.18,
+            17.0
+          ],
+          "material": true,
+          "purpose": "cylinder_2"
+        },
+        {
+          "point_mm": [
+            13.06,
+            -6.58,
+            11.3
+          ],
+          "material": false,
+          "purpose": "octant"
+        },
+        {
+          "point_mm": [
+            22.42,
+            0.4400000000000004,
+            11.3
+          ],
+          "material": false,
+          "purpose": "cylinder_0"
+        },
+        {
+          "point_mm": [
+            7.48,
+            0.8599999999999994,
+            11.3
+          ],
+          "material": false,
+          "purpose": "cylinder_1"
+        },
+        {
+          "point_mm": [
+            13.06,
+            -6.58,
+            17.0
+          ],
+          "material": false,
+          "purpose": "cylinder_2"
+        }
+      ]
+    },
+    "d_corner_dent": {
+      "sha256": "875035cf13d1a677378986b7f930f41dc1c510ba393e5f94bfe55566ecec1a56",
+      "placement": "plain",
+      "triangles": 628,
+      "positive": false,
+      "defect": "sphere_dent",
+      "parameters": {
+        "family": "trihedral",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "radius_mm": 2.0,
+        "arc_intervals": 16,
+        "axial_steps": 3
+      },
+      "analytic_bounds_mm": null,
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3161.5981485105526,
+        "joined_edges": [
+          [
+            "cylinder_0",
+            "plane_0_far",
+            16
+          ],
+          [
+            "cylinder_0",
+            "plane_1_near",
+            3
+          ],
+          [
+            "cylinder_0",
+            "plane_2_near",
+            3
+          ],
+          [
+            "cylinder_0",
+            "sphere_octant",
+            16
+          ],
+          [
+            "cylinder_1",
+            "plane_0_near",
+            3
+          ],
+          [
+            "cylinder_1",
+            "plane_1_far",
+            16
+          ],
+          [
+            "cylinder_1",
+            "plane_2_near",
+            3
+          ],
+          [
+            "cylinder_1",
+            "sphere_octant",
+            16
+          ],
+          [
+            "cylinder_2",
+            "plane_0_near",
+            3
+          ],
+          [
+            "cylinder_2",
+            "plane_1_near",
+            3
+          ],
+          [
+            "cylinder_2",
+            "plane_2_far",
+            16
+          ],
+          [
+            "cylinder_2",
+            "sphere_octant",
+            16
+          ],
+          [
+            "plane_0_far",
+            "plane_1_far",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_1_near",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_2_near",
+            1
+          ],
+          [
+            "plane_0_near",
+            "plane_1_far",
+            1
+          ],
+          [
+            "plane_0_near",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_1_far",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_1_far",
+            "plane_2_near",
+            1
+          ],
+          [
+            "plane_1_near",
+            "plane_2_far",
+            1
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "sphere_octant",
+          "first_source_triangle": 0,
+          "triangles": 256
+        },
+        {
+          "owner": "cylinder_0",
+          "first_source_triangle": 256,
+          "triangles": 96
+        },
+        {
+          "owner": "cylinder_1",
+          "first_source_triangle": 352,
+          "triangles": 96
+        },
+        {
+          "owner": "cylinder_2",
+          "first_source_triangle": 448,
+          "triangles": 96
+        },
+        {
+          "owner": "plane_0_far",
+          "first_source_triangle": 544,
+          "triangles": 20
+        },
+        {
+          "owner": "plane_0_near",
+          "first_source_triangle": 564,
+          "triangles": 8
+        },
+        {
+          "owner": "plane_1_far",
+          "first_source_triangle": 572,
+          "triangles": 20
+        },
+        {
+          "owner": "plane_1_near",
+          "first_source_triangle": 592,
+          "triangles": 8
+        },
+        {
+          "owner": "plane_2_far",
+          "first_source_triangle": 600,
+          "triangles": 20
+        },
+        {
+          "owner": "plane_2_near",
+          "first_source_triangle": 620,
+          "triangles": 8
+        }
+      ],
+      "material_probes": []
+    },
+    "d_corner_missing_plane": {
+      "sha256": "da227c95105c76e530458c97b0aa97c8f07bb2a58b33d3b05831451d79b0125c",
+      "placement": "plain",
+      "triangles": 620,
+      "positive": false,
+      "defect": "missing_plane",
+      "parameters": {
+        "family": "trihedral",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "radius_mm": 2.0,
+        "arc_intervals": 16,
+        "axial_steps": 3
+      },
+      "analytic_bounds_mm": null,
+      "topology": {
+        "euler_characteristic": 1,
+        "boundary_edges": 8,
+        "sampled_volume_mm3": 3161.601286405988,
+        "joined_edges": [
+          [
+            "cylinder_0",
+            "plane_0_far",
+            16
+          ],
+          [
+            "cylinder_0",
+            "plane_1_near",
+            3
+          ],
+          [
+            "cylinder_0",
+            "sphere_octant",
+            16
+          ],
+          [
+            "cylinder_1",
+            "plane_0_near",
+            3
+          ],
+          [
+            "cylinder_1",
+            "plane_1_far",
+            16
+          ],
+          [
+            "cylinder_1",
+            "sphere_octant",
+            16
+          ],
+          [
+            "cylinder_2",
+            "plane_0_near",
+            3
+          ],
+          [
+            "cylinder_2",
+            "plane_1_near",
+            3
+          ],
+          [
+            "cylinder_2",
+            "plane_2_far",
+            16
+          ],
+          [
+            "cylinder_2",
+            "sphere_octant",
+            16
+          ],
+          [
+            "plane_0_far",
+            "plane_1_far",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_1_near",
+            1
+          ],
+          [
+            "plane_0_far",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_0_near",
+            "plane_1_far",
+            1
+          ],
+          [
+            "plane_0_near",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_1_far",
+            "plane_2_far",
+            1
+          ],
+          [
+            "plane_1_near",
+            "plane_2_far",
+            1
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "sphere_octant",
+          "first_source_triangle": 0,
+          "triangles": 256
+        },
+        {
+          "owner": "cylinder_0",
+          "first_source_triangle": 256,
+          "triangles": 96
+        },
+        {
+          "owner": "cylinder_1",
+          "first_source_triangle": 352,
+          "triangles": 96
+        },
+        {
+          "owner": "cylinder_2",
+          "first_source_triangle": 448,
+          "triangles": 96
+        },
+        {
+          "owner": "plane_0_far",
+          "first_source_triangle": 544,
+          "triangles": 20
+        },
+        {
+          "owner": "plane_0_near",
+          "first_source_triangle": 564,
+          "triangles": 8
+        },
+        {
+          "owner": "plane_1_far",
+          "first_source_triangle": 572,
+          "triangles": 20
+        },
+        {
+          "owner": "plane_1_near",
+          "first_source_triangle": 592,
+          "triangles": 8
+        },
+        {
+          "owner": "plane_2_far",
+          "first_source_triangle": 600,
+          "triangles": 20
+        }
+      ],
+      "material_probes": []
+    },
+    "g_increasing": {
+      "sha256": "625102721d64e373e540ecd83f5a0a55e999ba1a916e096aa443e76a0fbd53d6",
+      "placement": "plain",
+      "triangles": 336,
+      "positive": true,
+      "defect": null,
+      "parameters": {
+        "family": "rolling_envelope",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "intercept_mm": 3.0,
+        "slope": 0.2,
+        "ellipse_intervals": 24,
+        "axial_steps": 5,
+        "staggered": false,
+        "volume_mm3": 3165.4015953235107,
+        "analytic_faces": {
+          "plane": 6,
+          "cone": 1
+        },
+        "ellipse_ends": 2,
+        "line_tangencies": 2,
+        "shape": {
+          "cone_apex_mm": [
+            0.0,
+            0.0,
+            -15.0
+          ],
+          "cone_axis": [
+            0.19245008972987523,
+            0.19245008972987523,
+            0.9622504486493761
+          ],
+          "cone_semi_angle_rad": 0.19365830044432664,
+          "ellipse_caps": [
+            {
+              "center_mm": [
+                3.125,
+                3.125,
+                0.0
+              ],
+              "semimajor_mm": 3.1868871959954905,
+              "semiminor_mm": 3.0618621784789726,
+              "sweep_rad": 1.5307856524409078,
+              "endpoints_mm": [
+                [
+                  3.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  3.0,
+                  0.0
+                ]
+              ]
+            },
+            {
+              "center_mm": [
+                5.208333333333334,
+                5.208333333333334,
+                10.0
+              ],
+              "semimajor_mm": 5.311478659992485,
+              "semiminor_mm": 5.103103630798288,
+              "sweep_rad": 1.5307856524409078,
+              "endpoints_mm": [
+                [
+                  5.0,
+                  0.0,
+                  10.0
+                ],
+                [
+                  0.0,
+                  5.0,
+                  10.0
+                ]
+              ]
+            }
+          ]
+        }
+      },
+      "analytic_bounds_mm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          20.0,
+          16.0,
+          10.0
+        ]
+      ],
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3165.3091719265144,
+        "joined_edges": [
+          [
+            "cap_bottom",
+            "far_x",
+            1
+          ],
+          [
+            "cap_bottom",
+            "far_y",
+            1
+          ],
+          [
+            "cap_bottom",
+            "inclined_cone",
+            24
+          ],
+          [
+            "cap_bottom",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_bottom",
+            "tangent_y0",
+            1
+          ],
+          [
+            "cap_top",
+            "far_x",
+            1
+          ],
+          [
+            "cap_top",
+            "far_y",
+            1
+          ],
+          [
+            "cap_top",
+            "inclined_cone",
+            24
+          ],
+          [
+            "cap_top",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_top",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_x",
+            "far_y",
+            1
+          ],
+          [
+            "far_x",
+            "tangent_y0",
+            5
+          ],
+          [
+            "far_y",
+            "tangent_x0",
+            5
+          ],
+          [
+            "inclined_cone",
+            "tangent_x0",
+            5
+          ],
+          [
+            "inclined_cone",
+            "tangent_y0",
+            5
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "inclined_cone",
+          "first_source_triangle": 0,
+          "triangles": 240
+        },
+        {
+          "owner": "cap_bottom",
+          "first_source_triangle": 240,
+          "triangles": 28
+        },
+        {
+          "owner": "cap_top",
+          "first_source_triangle": 268,
+          "triangles": 28
+        },
+        {
+          "owner": "tangent_y0",
+          "first_source_triangle": 296,
+          "triangles": 12
+        },
+        {
+          "owner": "tangent_x0",
+          "first_source_triangle": 308,
+          "triangles": 12
+        },
+        {
+          "owner": "far_x",
+          "first_source_triangle": 320,
+          "triangles": 8
+        },
+        {
+          "owner": "far_y",
+          "first_source_triangle": 328,
+          "triangles": 8
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            0.9146324830240071,
+            0.9146324830240071,
+            1.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            0.9446324830240072,
+            0.9446324830240072,
+            1.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            0.9334453916135276,
+            0.9334453916135276,
+            1.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            1.147040603780009,
+            1.147040603780009,
+            5.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            1.1770406037800087,
+            1.1770406037800087,
+            5.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            1.1668067395169093,
+            1.1668067395169093,
+            5.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            1.3794487245360108,
+            1.3794487245360108,
+            9.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            1.4094487245360106,
+            1.4094487245360106,
+            9.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            1.4001680874202913,
+            1.4001680874202913,
+            9.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        }
+      ]
+    },
+    "g_decreasing": {
+      "sha256": "2511d32c24f67d81a010ff2cd61f7a5cde28a36b8458a224bbcc11637f0d9318",
+      "placement": "plain",
+      "triangles": 336,
+      "positive": true,
+      "defect": null,
+      "parameters": {
+        "family": "rolling_envelope",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "intercept_mm": 5.0,
+        "slope": -0.2,
+        "ellipse_intervals": 24,
+        "axial_steps": 5,
+        "staggered": false,
+        "volume_mm3": 3165.4015953235107,
+        "analytic_faces": {
+          "plane": 6,
+          "cone": 1
+        },
+        "ellipse_ends": 2,
+        "line_tangencies": 2,
+        "shape": {
+          "cone_apex_mm": [
+            0.0,
+            0.0,
+            25.0
+          ],
+          "cone_axis": [
+            0.19245008972987523,
+            0.19245008972987523,
+            -0.9622504486493761
+          ],
+          "cone_semi_angle_rad": 0.19365830044432664,
+          "ellipse_caps": [
+            {
+              "center_mm": [
+                5.208333333333334,
+                5.208333333333334,
+                0.0
+              ],
+              "semimajor_mm": 5.311478659992485,
+              "semiminor_mm": 5.103103630798288,
+              "sweep_rad": 1.5307856524409078,
+              "endpoints_mm": [
+                [
+                  5.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  5.0,
+                  0.0
+                ]
+              ]
+            },
+            {
+              "center_mm": [
+                3.125,
+                3.125,
+                10.0
+              ],
+              "semimajor_mm": 3.1868871959954905,
+              "semiminor_mm": 3.0618621784789726,
+              "sweep_rad": 1.5307856524409078,
+              "endpoints_mm": [
+                [
+                  3.0,
+                  0.0,
+                  10.0
+                ],
+                [
+                  0.0,
+                  3.0,
+                  10.0
+                ]
+              ]
+            }
+          ]
+        }
+      },
+      "analytic_bounds_mm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          20.0,
+          16.0,
+          10.0
+        ]
+      ],
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3165.3091719265144,
+        "joined_edges": [
+          [
+            "cap_bottom",
+            "far_x",
+            1
+          ],
+          [
+            "cap_bottom",
+            "far_y",
+            1
+          ],
+          [
+            "cap_bottom",
+            "inclined_cone",
+            24
+          ],
+          [
+            "cap_bottom",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_bottom",
+            "tangent_y0",
+            1
+          ],
+          [
+            "cap_top",
+            "far_x",
+            1
+          ],
+          [
+            "cap_top",
+            "far_y",
+            1
+          ],
+          [
+            "cap_top",
+            "inclined_cone",
+            24
+          ],
+          [
+            "cap_top",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_top",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_x",
+            "far_y",
+            1
+          ],
+          [
+            "far_x",
+            "tangent_y0",
+            5
+          ],
+          [
+            "far_y",
+            "tangent_x0",
+            5
+          ],
+          [
+            "inclined_cone",
+            "tangent_x0",
+            5
+          ],
+          [
+            "inclined_cone",
+            "tangent_y0",
+            5
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "inclined_cone",
+          "first_source_triangle": 0,
+          "triangles": 240
+        },
+        {
+          "owner": "cap_bottom",
+          "first_source_triangle": 240,
+          "triangles": 28
+        },
+        {
+          "owner": "cap_top",
+          "first_source_triangle": 268,
+          "triangles": 28
+        },
+        {
+          "owner": "tangent_y0",
+          "first_source_triangle": 296,
+          "triangles": 12
+        },
+        {
+          "owner": "tangent_x0",
+          "first_source_triangle": 308,
+          "triangles": 12
+        },
+        {
+          "owner": "far_x",
+          "first_source_triangle": 320,
+          "triangles": 8
+        },
+        {
+          "owner": "far_y",
+          "first_source_triangle": 328,
+          "triangles": 8
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            1.3794487245360108,
+            1.3794487245360108,
+            1.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            1.4094487245360106,
+            1.4094487245360106,
+            1.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            1.4001680874202913,
+            1.4001680874202913,
+            1.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            1.147040603780009,
+            1.147040603780009,
+            5.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            1.1770406037800087,
+            1.1770406037800087,
+            5.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            1.1668067395169093,
+            1.1668067395169093,
+            5.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            0.9146324830240071,
+            0.9146324830240071,
+            9.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            0.9446324830240072,
+            0.9446324830240072,
+            9.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            0.9334453916135276,
+            0.9334453916135276,
+            9.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        }
+      ]
+    },
+    "g_mirror": {
+      "sha256": "6781026802826480a294816e8354d571dd55d9cc82c75dc8af82413e16726eee",
+      "placement": "mirrored",
+      "triangles": 336,
+      "positive": true,
+      "defect": null,
+      "parameters": {
+        "family": "rolling_envelope",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "intercept_mm": 3.0,
+        "slope": 0.2,
+        "ellipse_intervals": 24,
+        "axial_steps": 5,
+        "staggered": false,
+        "volume_mm3": 3165.4015953235107,
+        "analytic_faces": {
+          "plane": 6,
+          "cone": 1
+        },
+        "ellipse_ends": 2,
+        "line_tangencies": 2,
+        "shape": {
+          "cone_apex_mm": [
+            20.0,
+            0.0,
+            -15.0
+          ],
+          "cone_axis": [
+            -0.1924500897298742,
+            0.19245008972987523,
+            0.9622504486493761
+          ],
+          "cone_semi_angle_rad": 0.19365830044432664,
+          "ellipse_caps": [
+            {
+              "center_mm": [
+                16.875,
+                3.125,
+                0.0
+              ],
+              "semimajor_mm": 3.1868871959954905,
+              "semiminor_mm": 3.0618621784789726,
+              "sweep_rad": 1.5307856524409078,
+              "endpoints_mm": [
+                [
+                  17.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  20.0,
+                  3.0,
+                  0.0
+                ]
+              ]
+            },
+            {
+              "center_mm": [
+                14.791666666666666,
+                5.208333333333334,
+                10.0
+              ],
+              "semimajor_mm": 5.311478659992485,
+              "semiminor_mm": 5.103103630798288,
+              "sweep_rad": 1.5307856524409078,
+              "endpoints_mm": [
+                [
+                  15.0,
+                  0.0,
+                  10.0
+                ],
+                [
+                  20.0,
+                  5.0,
+                  10.0
+                ]
+              ]
+            }
+          ]
+        }
+      },
+      "analytic_bounds_mm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          20.0,
+          16.0,
+          10.0
+        ]
+      ],
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3165.309168940134,
+        "joined_edges": [
+          [
+            "cap_bottom",
+            "far_x",
+            1
+          ],
+          [
+            "cap_bottom",
+            "far_y",
+            1
+          ],
+          [
+            "cap_bottom",
+            "inclined_cone",
+            24
+          ],
+          [
+            "cap_bottom",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_bottom",
+            "tangent_y0",
+            1
+          ],
+          [
+            "cap_top",
+            "far_x",
+            1
+          ],
+          [
+            "cap_top",
+            "far_y",
+            1
+          ],
+          [
+            "cap_top",
+            "inclined_cone",
+            24
+          ],
+          [
+            "cap_top",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_top",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_x",
+            "far_y",
+            1
+          ],
+          [
+            "far_x",
+            "tangent_y0",
+            5
+          ],
+          [
+            "far_y",
+            "tangent_x0",
+            5
+          ],
+          [
+            "inclined_cone",
+            "tangent_x0",
+            5
+          ],
+          [
+            "inclined_cone",
+            "tangent_y0",
+            5
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "inclined_cone",
+          "first_source_triangle": 0,
+          "triangles": 240
+        },
+        {
+          "owner": "cap_bottom",
+          "first_source_triangle": 240,
+          "triangles": 28
+        },
+        {
+          "owner": "cap_top",
+          "first_source_triangle": 268,
+          "triangles": 28
+        },
+        {
+          "owner": "tangent_y0",
+          "first_source_triangle": 296,
+          "triangles": 12
+        },
+        {
+          "owner": "tangent_x0",
+          "first_source_triangle": 308,
+          "triangles": 12
+        },
+        {
+          "owner": "far_x",
+          "first_source_triangle": 320,
+          "triangles": 8
+        },
+        {
+          "owner": "far_y",
+          "first_source_triangle": 328,
+          "triangles": 8
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            19.085367516975992,
+            0.9146324830240071,
+            1.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            19.05536751697599,
+            0.9446324830240072,
+            1.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            19.066554608386472,
+            0.9334453916135276,
+            1.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            18.85295939621999,
+            1.147040603780009,
+            5.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            18.822959396219993,
+            1.1770406037800087,
+            5.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            18.833193260483093,
+            1.1668067395169093,
+            5.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            18.62055127546399,
+            1.3794487245360108,
+            9.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            18.59055127546399,
+            1.4094487245360106,
+            9.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            18.59983191257971,
+            1.4001680874202913,
+            9.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        }
+      ]
+    },
+    "g_permuted": {
+      "sha256": "696c10fe58fe0008409eb5186e58165b3df2d76c9e58f4c03b785d92953bd927",
+      "placement": "permuted",
+      "triangles": 508,
+      "positive": true,
+      "defect": null,
+      "parameters": {
+        "family": "rolling_envelope",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "intercept_mm": 3.0,
+        "slope": 0.2,
+        "ellipse_intervals": 28,
+        "axial_steps": 7,
+        "staggered": false,
+        "volume_mm3": 3165.4015953235107,
+        "analytic_faces": {
+          "plane": 6,
+          "cone": 1
+        },
+        "ellipse_ends": 2,
+        "line_tangencies": 2,
+        "shape": {
+          "cone_apex_mm": [
+            -12.0,
+            -8.0,
+            5.0
+          ],
+          "cone_axis": [
+            0.9622504486493764,
+            0.1924500897298751,
+            0.1924500897298751
+          ],
+          "cone_semi_angle_rad": 0.19365830044432664,
+          "ellipse_caps": [
+            {
+              "center_mm": [
+                3.0,
+                -4.875,
+                8.125
+              ],
+              "semimajor_mm": 3.1868871959954905,
+              "semiminor_mm": 3.0618621784789726,
+              "sweep_rad": 1.5307856524409078,
+              "endpoints_mm": [
+                [
+                  3.0,
+                  -5.0,
+                  5.0
+                ],
+                [
+                  3.0,
+                  -8.0,
+                  8.0
+                ]
+              ]
+            },
+            {
+              "center_mm": [
+                13.0,
+                -2.791666666666666,
+                10.208333333333334
+              ],
+              "semimajor_mm": 5.311478659992485,
+              "semiminor_mm": 5.103103630798288,
+              "sweep_rad": 1.5307856524409078,
+              "endpoints_mm": [
+                [
+                  13.0,
+                  -3.0,
+                  5.0
+                ],
+                [
+                  13.0,
+                  -8.0,
+                  10.0
+                ]
+              ]
+            }
+          ]
+        }
+      },
+      "analytic_bounds_mm": [
+        [
+          3.0,
+          -8.0,
+          5.0
+        ],
+        [
+          13.0,
+          12.0,
+          21.0
+        ]
+      ],
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3165.333688627161,
+        "joined_edges": [
+          [
+            "cap_bottom",
+            "far_x",
+            1
+          ],
+          [
+            "cap_bottom",
+            "far_y",
+            1
+          ],
+          [
+            "cap_bottom",
+            "inclined_cone",
+            28
+          ],
+          [
+            "cap_bottom",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_bottom",
+            "tangent_y0",
+            1
+          ],
+          [
+            "cap_top",
+            "far_x",
+            1
+          ],
+          [
+            "cap_top",
+            "far_y",
+            1
+          ],
+          [
+            "cap_top",
+            "inclined_cone",
+            28
+          ],
+          [
+            "cap_top",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_top",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_x",
+            "far_y",
+            1
+          ],
+          [
+            "far_x",
+            "tangent_y0",
+            7
+          ],
+          [
+            "far_y",
+            "tangent_x0",
+            7
+          ],
+          [
+            "inclined_cone",
+            "tangent_x0",
+            7
+          ],
+          [
+            "inclined_cone",
+            "tangent_y0",
+            7
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "inclined_cone",
+          "first_source_triangle": 0,
+          "triangles": 392
+        },
+        {
+          "owner": "cap_bottom",
+          "first_source_triangle": 392,
+          "triangles": 32
+        },
+        {
+          "owner": "cap_top",
+          "first_source_triangle": 424,
+          "triangles": 32
+        },
+        {
+          "owner": "tangent_y0",
+          "first_source_triangle": 456,
+          "triangles": 16
+        },
+        {
+          "owner": "tangent_x0",
+          "first_source_triangle": 472,
+          "triangles": 16
+        },
+        {
+          "owner": "far_x",
+          "first_source_triangle": 488,
+          "triangles": 10
+        },
+        {
+          "owner": "far_y",
+          "first_source_triangle": 498,
+          "triangles": 10
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            4.0,
+            -7.085367516975992,
+            5.914632483024008
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            4.0,
+            -7.055367516975993,
+            5.944632483024007
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            4.0,
+            -7.066554608386473,
+            5.933445391613527
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            8.0,
+            -6.852959396219991,
+            6.147040603780009
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            8.0,
+            -6.822959396219991,
+            6.177040603780009
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            8.0,
+            -6.833193260483091,
+            6.166806739516909
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            12.0,
+            -6.620551275463989,
+            6.379448724536011
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            12.0,
+            -6.590551275463989,
+            6.409448724536011
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            12.0,
+            -6.599831912579709,
+            6.400168087420291
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        }
+      ]
+    },
+    "g_oblique_staggered": {
+      "sha256": "2b9cd9aa5f469828ed4ee6476be6e4c633fd4b01781eee8341b78636bba481dd",
+      "placement": "oblique",
+      "triangles": 642,
+      "positive": true,
+      "defect": null,
+      "parameters": {
+        "family": "rolling_envelope",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "intercept_mm": 3.0,
+        "slope": 0.2,
+        "ellipse_intervals": 32,
+        "axial_steps": 8,
+        "staggered": true,
+        "volume_mm3": 3165.4015953235107,
+        "analytic_faces": {
+          "plane": 6,
+          "cone": 1
+        },
+        "ellipse_ends": 2,
+        "line_tangencies": 2,
+        "shape": {
+          "cone_apex_mm": [
+            13.0,
+            -7.0,
+            -4.0
+          ],
+          "cone_axis": [
+            0.03849001794597484,
+            0.26943012562182567,
+            0.9622504486493764
+          ],
+          "cone_semi_angle_rad": 0.19365830044432664,
+          "ellipse_caps": [
+            {
+              "center_mm": [
+                13.625,
+                -2.625,
+                11.0
+              ],
+              "semimajor_mm": 3.1868871959954905,
+              "semiminor_mm": 3.0618621784789726,
+              "sweep_rad": 1.5307856524409078,
+              "endpoints_mm": [
+                [
+                  15.4,
+                  -5.2,
+                  11.0
+                ],
+                [
+                  11.2,
+                  -4.6,
+                  11.0
+                ]
+              ]
+            },
+            {
+              "center_mm": [
+                14.041666666666666,
+                0.29166666666666696,
+                21.0
+              ],
+              "semimajor_mm": 5.311478659992485,
+              "semiminor_mm": 5.103103630798288,
+              "sweep_rad": 1.5307856524409078,
+              "endpoints_mm": [
+                [
+                  17.0,
+                  -4.0,
+                  21.0
+                ],
+                [
+                  10.0,
+                  -3.0,
+                  21.0
+                ]
+              ]
+            }
+          ]
+        }
+      },
+      "analytic_bounds_mm": [
+        [
+          3.4000000000000004,
+          -5.809434800714248,
+          11.0
+        ],
+        [
+          29.0,
+          17.8,
+          21.0
+        ]
+      ],
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3165.342267207297,
+        "joined_edges": [
+          [
+            "cap_bottom",
+            "far_x",
+            1
+          ],
+          [
+            "cap_bottom",
+            "far_y",
+            1
+          ],
+          [
+            "cap_bottom",
+            "inclined_cone",
+            32
+          ],
+          [
+            "cap_bottom",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_bottom",
+            "tangent_y0",
+            1
+          ],
+          [
+            "cap_top",
+            "far_x",
+            1
+          ],
+          [
+            "cap_top",
+            "far_y",
+            1
+          ],
+          [
+            "cap_top",
+            "inclined_cone",
+            32
+          ],
+          [
+            "cap_top",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_top",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_x",
+            "far_y",
+            1
+          ],
+          [
+            "far_x",
+            "tangent_y0",
+            8
+          ],
+          [
+            "far_y",
+            "tangent_x0",
+            8
+          ],
+          [
+            "inclined_cone",
+            "tangent_x0",
+            8
+          ],
+          [
+            "inclined_cone",
+            "tangent_y0",
+            8
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "inclined_cone",
+          "first_source_triangle": 0,
+          "triangles": 512
+        },
+        {
+          "owner": "cap_bottom",
+          "first_source_triangle": 512,
+          "triangles": 36
+        },
+        {
+          "owner": "cap_top",
+          "first_source_triangle": 548,
+          "triangles": 36
+        },
+        {
+          "owner": "tangent_y0",
+          "first_source_triangle": 584,
+          "triangles": 18
+        },
+        {
+          "owner": "tangent_x0",
+          "first_source_triangle": 602,
+          "triangles": 18
+        },
+        {
+          "owner": "far_x",
+          "first_source_triangle": 620,
+          "triangles": 11
+        },
+        {
+          "owner": "far_y",
+          "first_source_triangle": 631,
+          "triangles": 11
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            13.182926496604802,
+            -5.7195145237663905,
+            12.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            13.188926496604802,
+            -5.67751452376639,
+            12.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            13.186689078322706,
+            -5.693176451741062,
+            12.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            13.229408120756002,
+            -5.394143154707987,
+            16.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            13.235408120756002,
+            -5.352143154707988,
+            16.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            13.233361347903381,
+            -5.366470564676327,
+            16.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            13.275889744907202,
+            -5.068771785649585,
+            20.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            13.281889744907202,
+            -5.0267717856495855,
+            20.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            13.280033617484058,
+            -5.039764677611592,
+            20.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        }
+      ]
+    },
+    "g_circular_stack": {
+      "sha256": "7c951e157ffa4d4fd054ffafadd4ac56919ff7106ffbb686239cab03bdd5b49c",
+      "placement": "plain",
+      "triangles": 336,
+      "positive": false,
+      "defect": "circular_stack",
+      "parameters": {
+        "family": "rolling_envelope",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "intercept_mm": 3.0,
+        "slope": 0.2,
+        "ellipse_intervals": 24,
+        "axial_steps": 5,
+        "staggered": false
+      },
+      "analytic_bounds_mm": null,
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3164.8562016200676,
+        "joined_edges": [
+          [
+            "cap_bottom",
+            "far_x",
+            1
+          ],
+          [
+            "cap_bottom",
+            "far_y",
+            1
+          ],
+          [
+            "cap_bottom",
+            "inclined_cone",
+            24
+          ],
+          [
+            "cap_bottom",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_bottom",
+            "tangent_y0",
+            1
+          ],
+          [
+            "cap_top",
+            "far_x",
+            1
+          ],
+          [
+            "cap_top",
+            "far_y",
+            1
+          ],
+          [
+            "cap_top",
+            "inclined_cone",
+            24
+          ],
+          [
+            "cap_top",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_top",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_x",
+            "far_y",
+            1
+          ],
+          [
+            "far_x",
+            "tangent_y0",
+            5
+          ],
+          [
+            "far_y",
+            "tangent_x0",
+            5
+          ],
+          [
+            "inclined_cone",
+            "tangent_x0",
+            5
+          ],
+          [
+            "inclined_cone",
+            "tangent_y0",
+            5
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "inclined_cone",
+          "first_source_triangle": 0,
+          "triangles": 240
+        },
+        {
+          "owner": "cap_bottom",
+          "first_source_triangle": 240,
+          "triangles": 28
+        },
+        {
+          "owner": "cap_top",
+          "first_source_triangle": 268,
+          "triangles": 28
+        },
+        {
+          "owner": "tangent_y0",
+          "first_source_triangle": 296,
+          "triangles": 12
+        },
+        {
+          "owner": "tangent_x0",
+          "first_source_triangle": 308,
+          "triangles": 12
+        },
+        {
+          "owner": "far_x",
+          "first_source_triangle": 320,
+          "triangles": 8
+        },
+        {
+          "owner": "far_y",
+          "first_source_triangle": 328,
+          "triangles": 8
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            0.9334453916135276,
+            0.9334453916135276,
+            1.0
+          ],
+          "material": false,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            1.1668067395169093,
+            1.1668067395169093,
+            5.0
+          ],
+          "material": false,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            1.4001680874202913,
+            1.4001680874202913,
+            9.0
+          ],
+          "material": false,
+          "purpose": "discriminates_circular_stack"
+        }
+      ]
+    },
+    "g_nonlinear": {
+      "sha256": "9de512571e0587b1e6225a1b5fd68d3c4c2823d8646a8d91e3c41e88bf6b2709",
+      "placement": "plain",
+      "triangles": 336,
+      "positive": false,
+      "defect": "nonlinear",
+      "parameters": {
+        "family": "rolling_envelope",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "intercept_mm": 3.0,
+        "slope": 0.2,
+        "ellipse_intervals": 24,
+        "axial_steps": 5,
+        "staggered": false
+      },
+      "analytic_bounds_mm": null,
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3163.1776284024727,
+        "joined_edges": [
+          [
+            "cap_bottom",
+            "far_x",
+            1
+          ],
+          [
+            "cap_bottom",
+            "far_y",
+            1
+          ],
+          [
+            "cap_bottom",
+            "inclined_cone",
+            24
+          ],
+          [
+            "cap_bottom",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_bottom",
+            "tangent_y0",
+            1
+          ],
+          [
+            "cap_top",
+            "far_x",
+            1
+          ],
+          [
+            "cap_top",
+            "far_y",
+            1
+          ],
+          [
+            "cap_top",
+            "inclined_cone",
+            24
+          ],
+          [
+            "cap_top",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_top",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_x",
+            "far_y",
+            1
+          ],
+          [
+            "far_x",
+            "tangent_y0",
+            5
+          ],
+          [
+            "far_y",
+            "tangent_x0",
+            5
+          ],
+          [
+            "inclined_cone",
+            "tangent_x0",
+            5
+          ],
+          [
+            "inclined_cone",
+            "tangent_y0",
+            5
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "inclined_cone",
+          "first_source_triangle": 0,
+          "triangles": 240
+        },
+        {
+          "owner": "cap_bottom",
+          "first_source_triangle": 240,
+          "triangles": 28
+        },
+        {
+          "owner": "cap_top",
+          "first_source_triangle": 268,
+          "triangles": 28
+        },
+        {
+          "owner": "tangent_y0",
+          "first_source_triangle": 296,
+          "triangles": 12
+        },
+        {
+          "owner": "tangent_x0",
+          "first_source_triangle": 308,
+          "triangles": 12
+        },
+        {
+          "owner": "far_x",
+          "first_source_triangle": 320,
+          "triangles": 8
+        },
+        {
+          "owner": "far_y",
+          "first_source_triangle": 328,
+          "triangles": 8
+        }
+      ],
+      "material_probes": []
+    },
+    "g_parabolic_cap": {
+      "sha256": "627cd8813adf939dcab826ec62772e85811b606b9324b85881c6044cf88224d9",
+      "placement": "plain",
+      "triangles": 336,
+      "positive": false,
+      "defect": "parabolic_cap",
+      "parameters": {
+        "family": "rolling_envelope",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "intercept_mm": 3.0,
+        "slope": 1.0,
+        "ellipse_intervals": 24,
+        "axial_steps": 5,
+        "staggered": false
+      },
+      "analytic_bounds_mm": null,
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3079.02584881918,
+        "joined_edges": [
+          [
+            "cap_bottom",
+            "far_x",
+            1
+          ],
+          [
+            "cap_bottom",
+            "far_y",
+            1
+          ],
+          [
+            "cap_bottom",
+            "inclined_cone",
+            24
+          ],
+          [
+            "cap_bottom",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_bottom",
+            "tangent_y0",
+            1
+          ],
+          [
+            "cap_top",
+            "far_x",
+            1
+          ],
+          [
+            "cap_top",
+            "far_y",
+            1
+          ],
+          [
+            "cap_top",
+            "inclined_cone",
+            24
+          ],
+          [
+            "cap_top",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_top",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_x",
+            "far_y",
+            1
+          ],
+          [
+            "far_x",
+            "tangent_y0",
+            5
+          ],
+          [
+            "far_y",
+            "tangent_x0",
+            5
+          ],
+          [
+            "inclined_cone",
+            "tangent_x0",
+            5
+          ],
+          [
+            "inclined_cone",
+            "tangent_y0",
+            5
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "inclined_cone",
+          "first_source_triangle": 0,
+          "triangles": 240
+        },
+        {
+          "owner": "cap_bottom",
+          "first_source_triangle": 240,
+          "triangles": 28
+        },
+        {
+          "owner": "cap_top",
+          "first_source_triangle": 268,
+          "triangles": 28
+        },
+        {
+          "owner": "tangent_y0",
+          "first_source_triangle": 296,
+          "triangles": 12
+        },
+        {
+          "owner": "tangent_x0",
+          "first_source_triangle": 308,
+          "triangles": 12
+        },
+        {
+          "owner": "far_x",
+          "first_source_triangle": 320,
+          "triangles": 8
+        },
+        {
+          "owner": "far_y",
+          "first_source_triangle": 328,
+          "triangles": 8
+        }
+      ],
+      "material_probes": []
+    },
+    "g_missing_cap": {
+      "sha256": "c0035291df71663f7e5f574d63715273ca9aaaa3460425f980191fc6ed2953e3",
+      "placement": "plain",
+      "triangles": 308,
+      "positive": false,
+      "defect": "missing_cap",
+      "parameters": {
+        "family": "rolling_envelope",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "intercept_mm": 3.0,
+        "slope": 0.2,
+        "ellipse_intervals": 24,
+        "axial_steps": 5,
+        "staggered": false
+      },
+      "analytic_bounds_mm": null,
+      "topology": {
+        "euler_characteristic": 1,
+        "boundary_edges": 28,
+        "sampled_volume_mm3": 2116.341907025951,
+        "joined_edges": [
+          [
+            "cap_bottom",
+            "far_x",
+            1
+          ],
+          [
+            "cap_bottom",
+            "far_y",
+            1
+          ],
+          [
+            "cap_bottom",
+            "inclined_cone",
+            24
+          ],
+          [
+            "cap_bottom",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_bottom",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_x",
+            "far_y",
+            1
+          ],
+          [
+            "far_x",
+            "tangent_y0",
+            5
+          ],
+          [
+            "far_y",
+            "tangent_x0",
+            5
+          ],
+          [
+            "inclined_cone",
+            "tangent_x0",
+            5
+          ],
+          [
+            "inclined_cone",
+            "tangent_y0",
+            5
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "inclined_cone",
+          "first_source_triangle": 0,
+          "triangles": 240
+        },
+        {
+          "owner": "cap_bottom",
+          "first_source_triangle": 240,
+          "triangles": 28
+        },
+        {
+          "owner": "tangent_y0",
+          "first_source_triangle": 268,
+          "triangles": 12
+        },
+        {
+          "owner": "tangent_x0",
+          "first_source_triangle": 280,
+          "triangles": 12
+        },
+        {
+          "owner": "far_x",
+          "first_source_triangle": 292,
+          "triangles": 8
+        },
+        {
+          "owner": "far_y",
+          "first_source_triangle": 300,
+          "triangles": 8
+        }
+      ],
+      "material_probes": []
+    }
+  }
+}

@@ -1245,6 +1245,7 @@ fn rounded_source_faces(
         recognized.model.spheres.len(),
         recognized.model.tori.len(),
         recognized.model.partial_cones.len(),
+        recognized.model.octants.len(),
     ];
     let count = counts.iter().sum::<usize>();
     let invalid = || {
@@ -1284,6 +1285,7 @@ fn rounded_source_faces(
             F::Sphere { index } => (4, index),
             F::Torus { index } => (5, index),
             F::PartialCone { index } => (6, index),
+            F::SphericalOctant { index } => (7, index),
         };
         if index >= counts[kind] {
             return Err(invalid());

@@ -89,6 +89,12 @@ fn recognize(
             }
         }
     }
+    // The three cylinders and the corner share three native edges. Their
+    // fully proved partition must remain intact during automatic routing.
+    if !result.model.octants.is_empty() {
+        refresh(a, o, &mut result)?;
+        return Ok(result);
+    }
     crate::partial::chain::augment(a, &mut result, o, scope)?;
     safe_planes(a, &mut result)?;
     refresh(a, o, &mut result)?;
@@ -99,6 +105,7 @@ fn planar(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
     let s = crate::planar::build_with_provenance(&a.mesh, &adj, o.plane_tolerance_mm)?;
     Ok(RoundedRecognition {
         model: RoundedModel {
+            octants: vec![],
             partial_cones: vec![],
             revolved: RevolvedModel {
                 mixed: MixedModel {
@@ -514,6 +521,9 @@ pub fn recognize_automatic_guided(
             (o.reconstruction != ReconstructionMode::Auto).then_some(&scope),
         )?
     };
+    if !requests.is_empty() && !result.model.octants.is_empty() {
+        return Err(unproven());
+    }
     let mut planes: Vec<_> = requests
         .iter()
         .filter(|(f, _)| *f == GuidanceFamily::Plane)

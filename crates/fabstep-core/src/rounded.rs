@@ -10,6 +10,7 @@ use crate::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::{PI, TAU};
+mod octant;
 mod torus_cone;
 mod zone;
 
@@ -351,6 +352,25 @@ fn recognize_policy_with_proofs(
             });
         }
     }
+    if rims.is_empty() {
+        match octant::candidate(a, &segmentation, &adjacency, &edges, o, &mut work) {
+            Ok(Some(_)) if scope.is_some() => {
+                return Err(FabError::new(
+                    "guidance.family_unproven",
+                    "Le coin à trois raccords ne permet pas de correction locale.",
+                ))
+            }
+            Ok(Some(result)) => return Ok(result),
+            Ok(None) => (),
+            Err(e)
+                if automatic
+                    && matches!(
+                        e.code.as_str(),
+                        "recognition.surface_unproven" | "recognition.deviation_exceeded"
+                    ) => {}
+            Err(e) => return Err(e),
+        }
+    }
     if rims.is_empty() && !automatic {
         return Err(unsupported());
     }
@@ -497,6 +517,7 @@ fn recognize_policy_with_proofs(
         }
     }
     let mut model = RoundedModel {
+        octants: vec![],
         partial_cones: vec![],
         revolved: RevolvedModel {
             mixed: MixedModel {
@@ -2269,6 +2290,14 @@ pub(crate) fn volume(m: &RoundedModel) -> Result<f64, FabError> {
         let flux =
             TAU / 3. * (r.powi(3) * (high - low) + z * r * r * 0.5 * (high * high - low * low));
         sum.add(flux * if s.inner { -1. } else { 1. });
+    }
+    for octant in &m.octants {
+        let r = octant.radius_mm;
+        let center = sub(octant.center, reference);
+        let d: V = std::array::from_fn(|i| octant.directions.iter().map(|v| v[i]).sum());
+        // Over a unit octant, integral(n dΩ)=π/4 Σd_i and Ω=π/2.
+        let flux = PI * r * r / 12. * dot(center, d) + PI * r * r * r / 6.;
+        sum.add(if octant.inner { -flux } else { flux });
     }
     for t in &m.tori {
         let Some(rings) = t.rings else {

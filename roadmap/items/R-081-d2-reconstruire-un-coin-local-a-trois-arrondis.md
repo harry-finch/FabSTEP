@@ -2,10 +2,10 @@
 id: R-081
 titre: "D2 — reconstruire un coin local à trois arrondis"
 resume: "Intégrer l’octant sphérique et ses trois raccords cylindriques à partir des frontières STL, avec preuve continue et STEP validé."
-statut: en-cours
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-17
-maj: 2026-11-17
+maj: 2026-11-18
 livree:
 ---
 ## But

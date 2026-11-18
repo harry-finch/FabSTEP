@@ -128,3 +128,29 @@ test('partial conical bands retain exact source attribution and reject absent or
   body.rounded_recognition!.triangle_faces=Array.from({length:3},()=>({kind:'partial_cylinder' as const,index:0}));
   assert.deepEqual(attributions([body])[0].families,['partial_cylinder','partial_cylinder','partial_cylinder']);
 });
+
+
+test('spherical octants keep source inspection complete and require a valid additive reference', () => {
+  const body = {
+    id:'stl/component/0', analysis:{mesh:{triangles:[[0,1,2],[2,3,0],[3,4,5]]}},
+    rounded_recognition:{
+      model:{revolved:{mixed:{planes:[{}],cylinders:[],partial_cylinders:[{}]},cones:[]},
+        spheres:[],tori:[],octants:[{}]},
+      triangle_faces:[{kind:'spherical_octant',index:0},{kind:'partial_cylinder',index:0},{kind:'plane',index:0}]
+    }
+  } as unknown as BodyResult;
+  const items = attributions([body]);
+  assert.deepEqual(items[0].families,['spherical_octant','partial_cylinder','plane']);
+  const g = graph();
+  g.interpret(items);
+  assert.deepEqual(g.inspect('stl',[4,0,2]),{
+    families:{spherical_octant:1,partial_cylinder:1,plane:1},unavailable:0,analysisBodyIds:['stl/component/0']
+  });
+  body.rounded_recognition!.triangle_faces[0].index=1;
+  assert.equal(attributions([body])[0].families,null);
+  body.rounded_recognition!.triangle_faces[0].index=0;
+  delete body.rounded_recognition!.model.octants;
+  assert.equal(attributions([body])[0].families,null);
+  body.rounded_recognition!.triangle_faces[0]={kind:'plane',index:0};
+  assert.deepEqual(attributions([body])[0].families,['plane','partial_cylinder','plane']);
+});
