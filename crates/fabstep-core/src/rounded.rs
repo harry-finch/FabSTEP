@@ -2527,6 +2527,39 @@ pub(crate) fn volume(m: &RoundedModel) -> Result<f64, FabError> {
         }
         sum.add(dot(sub(origin, reference), normal) * area.get() / 3.);
     }
+    if let Some(second) = m.linear_blend.as_ref().and_then(|b| b.second.as_ref()) {
+        // Only the first cone has zero flux relative to the reference apex.
+        // On the second cone (p - apex₂)·n=0. Its oriented area vector is
+        // ½ ∮ p×dp over the two rails and the two oriented ellipse arcs.
+        let mut area = [0.; 3];
+        let chord = |[a, b]: [usize; 2]| {
+            cross(
+                sub(mixed.vertices[a], second.apex),
+                sub(mixed.vertices[b], second.apex),
+            )
+        };
+        for ids in second.rails {
+            let v = chord(ids);
+            for i in 0..3 {
+                area[i] += v[i];
+            }
+        }
+        for (i, slot) in second.arcs.into_iter().enumerate() {
+            let arc = &mixed.elliptic_arcs[slot];
+            let sweep = arc.sweep_rad;
+            let d = if sweep < 0.01 {
+                sweep.powi(3) * (1. / 6. - sweep.powi(2) * (1. / 120. - sweep.powi(2) / 5040.))
+            } else {
+                sweep - sweep.sin()
+            };
+            let v = chord(arc.vertices);
+            let sign = if i == 0 { 1. } else { -1. };
+            for k in 0..3 {
+                area[k] += sign * (v[k] + arc.axis[k] * arc.major_mm * arc.minor_mm * d);
+            }
+        }
+        sum.add(dot(sub(second.apex, reference), area) / 6.);
+    }
     for (rings, inner) in mixed
         .cylinders
         .iter()

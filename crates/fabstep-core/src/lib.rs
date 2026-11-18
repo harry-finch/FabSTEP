@@ -407,6 +407,35 @@ pub struct MixedLinearBlend {
     pub rails: [[usize; 2]; 2],
 }
 
+/// One independently trimmed rolling cone, optionally paired with a second
+/// one at the opposite corner. Old one-cone documents retain their shape.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LinearBlends {
+    #[serde(flatten)]
+    pub first: MixedLinearBlend,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub second: Option<MixedLinearBlend>,
+}
+
+impl LinearBlends {
+    pub fn iter(&self) -> impl Iterator<Item = &MixedLinearBlend> {
+        std::iter::once(&self.first).chain(self.second.iter())
+    }
+}
+
+impl std::ops::Deref for LinearBlends {
+    type Target = MixedLinearBlend;
+    fn deref(&self) -> &Self::Target {
+        &self.first
+    }
+}
+
+impl std::ops::DerefMut for LinearBlends {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.first
+    }
+}
+
 /// Centered orthogonal through bores. The right-handed frame uses the large
 /// bore axis x and the small bore axis z. Radii are [small, large]. Rims are
 /// the two small mouths in increasing z, then the two large mouths in x.
@@ -501,7 +530,7 @@ pub struct RoundedModel {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub octants: Vec<MixedSphericalOctant>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub linear_blend: Option<Box<MixedLinearBlend>>,
+    pub linear_blend: Option<Box<LinearBlends>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cross_drill: Option<Box<CrossDrill>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

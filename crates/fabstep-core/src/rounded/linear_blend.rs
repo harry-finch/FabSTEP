@@ -5,6 +5,8 @@ use super::*;
 use crate::{EllipticArc, MixedLinearBlend, MixedSegment};
 use std::f64::consts::FRAC_1_SQRT_2;
 
+pub(super) mod pair;
+
 const CONE: usize = 6;
 const NATIVE: f64 = 5e-8;
 type Chains = BTreeMap<Edge, Vec<usize>>;
@@ -414,6 +416,38 @@ fn boundaries(
     Ok(c)
 }
 
+fn prove_plane_triangle(
+    ids: [usize; 3],
+    owner: usize,
+    f: &Block,
+    local: &[V],
+    c: &Chart,
+    o: &Options,
+    proof: &mut ErrorBound,
+) -> Result<(), FabError> {
+    let i = owner % 3;
+    let mut pp = [[0.; 3]; 3];
+    for (j, v) in ids.into_iter().enumerate() {
+        let mut p = local[v];
+        let height = f.height(owner);
+        let e = (p[i] - height).abs();
+        if !e.is_finite() || e > o.plane_tolerance_mm {
+            return Err(unproven("sommet hors du support plan"));
+        }
+        proof.plane = proof.plane.max(e);
+        p[i] = height;
+        pp[j] = c.boundary[v].unwrap_or(p);
+    }
+    let [p, q, r] = pp;
+    let u = sub(q, p);
+    let v = sub(r, p);
+    if cross(u, v)[i] * if owner < 3 { -1. } else { 1. } <= 128. * f64::EPSILON * norm(u) * norm(v)
+    {
+        return Err(unproven("triangle plan replié sur le bloc"));
+    }
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 fn triangles(
     a: &Analysis,
@@ -422,6 +456,7 @@ fn triangles(
     owners: &[usize],
     local: &[V],
     c: &Chart,
+    radius_weighted_angle: bool,
     o: &Options,
     proof: &mut ErrorBound,
     work: &mut Work,
@@ -434,28 +469,11 @@ fn triangles(
         .max(o.weld_tolerance_mm);
     for (&ids, &owner) in a.mesh.triangles.iter().zip(owners) {
         work.spend(16)?;
+        if owner == usize::MAX {
+            continue;
+        }
         if owner < CONE {
-            let i = owner % 3;
-            let mut pp = [[0.; 3]; 3];
-            for (j, v) in ids.into_iter().enumerate() {
-                let mut p = local[v];
-                let height = f.height(owner);
-                let e = (p[i] - height).abs();
-                if !e.is_finite() || e > o.plane_tolerance_mm {
-                    return Err(unproven("sommet hors du support plan"));
-                }
-                proof.plane = proof.plane.max(e);
-                p[i] = height;
-                pp[j] = c.boundary[v].unwrap_or(p);
-            }
-            let [p, q, r] = pp;
-            let u = sub(q, p);
-            let v = sub(r, p);
-            if cross(u, v)[i] * if owner < 3 { -1. } else { 1. }
-                <= 128. * f64::EPSILON * norm(u) * norm(v)
-            {
-                return Err(unproven("triangle plan replié sur le bloc"));
-            }
+            prove_plane_triangle(ids, owner, f, local, c, o, proof)?;
             continue;
         }
         let mut uv = [[0.; 2]; 3];
@@ -531,7 +549,19 @@ fn triangles(
         {
             return Err(unproven("triangle replié sur la nappe du cône"));
         }
-        let [p, q, r] = uv;
+        // When r is affine and strictly positive, (theta*r(z),z) maps the
+        // periodic-free chart to a trapezoid with straight sides. Triangles
+        // must have positive degree in the very chart used for the bound.
+        let [p, q, r] = uv.map(|[t, z]| {
+            [
+                if radius_weighted_angle {
+                    t * g.radius(z)
+                } else {
+                    t
+                },
+                z,
+            ]
+        });
         let (dt0, dz0, dt1, dz1) = (q[0] - p[0], q[1] - p[1], r[0] - p[0], r[1] - p[1]);
         let det = dt0 * dz1 - dt1 * dz0;
         if !det.is_finite()
@@ -549,19 +579,81 @@ fn triangles(
         let rmax = uv.iter().map(|p| g.radius(p[1])).fold(0., f64::max);
         // Barycentric Taylor remainder. Var(t), Var(z) <= range²/4,
         // |Cov(t,z)| <= range(t)*range(z)/4; S_zz vanishes identically.
-        let chord = g.major * (rmax * dt * dt + 2. * g.b.abs() * dt * dz) / 8.;
+        // In the trapezoid, barycentric weights for the angle are
+        // mu_i=lambda_i*r_i/r(z), summing to one. Interpolating the transverse
+        // section then compares r(z)*sum(mu_i*A(theta_i)) to r(z)*A(theta).
+        // The mixed term vanishes and only the angular variance remains.
+        let mixed = if radius_weighted_angle {
+            0.
+        } else {
+            2. * g.b.abs() * dt * dz
+        };
+        let chord = g.major * (rmax * dt * dt + mixed) / 8.;
         if !chord.is_finite() {
             return Err(unproven("borne continue du cône non finie"));
         }
         proof.chord = proof.chord.max(chord);
     }
-    let target = 2. * g.theta * g.h;
+    let target = g.theta
+        * g.h
+        * if radius_weighted_angle {
+            g.radii[0] + g.radii[1]
+        } else {
+            2.
+        };
     if witness[1] - witness[0] <= 8. * eps || (area.get() - target).abs() > target * 1e-8 {
         return Err(unproven(
             "couverture ou témoins distincts du modèle circulaire insuffisants",
         ));
     }
     Ok(())
+}
+
+fn append_domain(
+    f: &Block,
+    g: &Envelope,
+    vertices: &mut [V],
+    arcs: &mut Vec<EllipticArc>,
+    proof: &mut ErrorBound,
+    fit: f64,
+) -> Result<(MixedLinearBlend, usize), FabError> {
+    let sq = FRAC_1_SQRT_2;
+
+    let mut moved = 0;
+    for (i, [y, x]) in g.ends.into_iter().enumerate() {
+        let z = if i == 0 { 0. } else { g.h };
+        let r = g.radii[i];
+        // Only the four shared ellipse/rail corners are canonicalized. The
+        // original Analysis stores the unmodified source mesh and attribution.
+        for (v, q) in [(x, [r, 0., z]), (y, [0., r, z])] {
+            let world = f.world(q);
+            proof.record(vertices[v], world, fit)?;
+            if vertices[v] != world {
+                moved += 1;
+            }
+            vertices[v] = world;
+        }
+        arcs.push(EllipticArc {
+            center: f.world([r * g.center, r * g.center, z]),
+            axis: f.axes[2],
+            major_direction: f.vector([-sq, -sq, 0.]),
+            major_mm: r * g.major,
+            minor_mm: r * g.minor,
+            start_rad: -g.theta,
+            sweep_rad: 2. * g.theta,
+            vertices: [y, x],
+        });
+    }
+    let q = (1. + 2. * g.b * g.b).sqrt();
+    let [lo, hi] = g.ends;
+    let blend = MixedLinearBlend {
+        apex: f.world([0., 0., -g.radii[0] / g.b]),
+        axis: f.vector(scale([g.b, g.b, 1.], g.b.signum() / q)),
+        semi_angle_rad: (g.b.abs() / q).asin(),
+        arcs: [arcs.len() - 2, arcs.len() - 1],
+        rails: [[lo[1], hi[1]], [hi[0], lo[0]]],
+    };
+    Ok((blend, moved))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -600,37 +692,19 @@ pub(super) fn candidate(
         &mut proof,
         work,
     )?;
-    triangles(a, &f, &g, &owners, &local, &c, o, &mut proof, work)?;
+    triangles(a, &f, &g, &owners, &local, &c, false, o, &mut proof, work)?;
     // Pay for the result vertex copy and final source-owner materialization.
     work.spend(a.mesh.vertices.len() + a.mesh.triangles.len())?;
-    let sq = FRAC_1_SQRT_2;
     let mut vertices = a.mesh.vertices.clone();
     let mut arcs = Vec::with_capacity(2);
-    let mut moved = 0;
-    for (i, [y, x]) in g.ends.into_iter().enumerate() {
-        let z = if i == 0 { 0. } else { g.h };
-        let r = g.radii[i];
-        // Only the four shared ellipse/rail corners are canonicalized. The
-        // original Analysis stores the unmodified source mesh and attribution.
-        for (v, q) in [(x, [r, 0., z]), (y, [0., r, z])] {
-            let world = f.world(q);
-            proof.record(vertices[v], world, o.cylinder_fit_tolerance_mm)?;
-            if vertices[v] != world {
-                moved += 1;
-            }
-            vertices[v] = world;
-        }
-        arcs.push(EllipticArc {
-            center: f.world([r * g.center, r * g.center, z]),
-            axis: f.axes[2],
-            major_direction: f.vector([-sq, -sq, 0.]),
-            major_mm: r * g.major,
-            minor_mm: r * g.minor,
-            start_rad: -g.theta,
-            sweep_rad: 2. * g.theta,
-            vertices: [y, x],
-        });
-    }
+    let (blend, moved) = append_domain(
+        &f,
+        &g,
+        &mut vertices,
+        &mut arcs,
+        &mut proof,
+        o.cylinder_fit_tolerance_mm,
+    )?;
     let mut planes = Vec::with_capacity(6);
     for (i, rid) in f.regions.into_iter().enumerate() {
         let expected = if i % 3 == 2 { 5 } else { 4 };
@@ -663,15 +737,6 @@ pub(super) fn candidate(
             loops: vec![MixedLoop::Segments { segments }],
         });
     }
-    let q = (1. + 2. * g.b * g.b).sqrt();
-    let [lo, hi] = g.ends;
-    let blend = MixedLinearBlend {
-        apex: f.world([0., 0., -g.radii[0] / g.b]),
-        axis: f.vector(scale([g.b, g.b, 1.], g.b.signum() / q)),
-        semi_angle_rad: (g.b.abs() / q).asin(),
-        arcs: [0, 1],
-        rails: [[lo[1], hi[1]], [hi[0], lo[0]]],
-    };
     let model = RoundedModel {
         revolved: RevolvedModel {
             mixed: MixedModel {
@@ -689,7 +754,10 @@ pub(super) fn candidate(
         smooth_revolution: None,
         unequal_pocket: None,
         cross_drill: None,
-        linear_blend: Some(Box::new(blend)),
+        linear_blend: Some(Box::new(crate::LinearBlends {
+            first: blend,
+            second: None,
+        })),
         octants: vec![],
         partial_cones: vec![],
         tori: vec![],

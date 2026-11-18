@@ -2433,3 +2433,7 @@ La suite `guided_sphere` part des faces du STEP réimporté. Elle vérifie une d
 ## V-1231 — Deux congés adjacents dans un angle aigu ou obtus
 
 Les quatre STL FreeCAD à 65° et 115° (deux densités chacun) donnent onze plans et deux cylindres. La relecture indépendante retrouve un seul arc elliptique partagé par les deux cylindres, de demi-grand axe 4,65289744 ou 2,96422263 mm, et contrôle ses deux p-courbes. L’écart au volume du dessin reste inférieur à 0,00017 mm³. Le témoin à 40° conserve ses facettes. Un sommet déplacé ou une tolérance insuffisante empêchent l’acceptation analytique. Le test `angled_pocket` contrôle les propriétaires de triangles et la fidélité. Le [corpus](../fixtures/angled_pocket/README.md) contient les commandes de reproduction.
+
+## V-1232 — Deux congés de lois affines sur les arêtes opposées d’un bloc
+
+Deux pièces qui produisaient 476 et 774 plans donnent six plans et deux cônes dans Auto. FreeCAD retrouve dix-huit arêtes, dont quatre elliptiques. Deux dessins indépendants remesillés à 354/1 384 et 384/1 430 triangles donnent également huit faces. La plus grande borne est de 0,019501 mm. Les volumes reconstruits de 3 142,5011774 et 3 156,6370021 mm³ concordent avec le dessin à moins de 0,000002 mm³. Trente-six sondes matière/vide, les deux budgets de raccord et la partition source sont contrôlés. Une loi non linéaire sur le second coin ou un pli empêche l’acceptation de la paire.
