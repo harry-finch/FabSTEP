@@ -2437,3 +2437,7 @@ Les quatre STL FreeCAD à 65° et 115° (deux densités chacun) donnent onze pla
 ## V-1232 — Deux congés de lois affines sur les arêtes opposées d’un bloc
 
 Deux pièces qui produisaient 476 et 774 plans donnent six plans et deux cônes dans Auto. FreeCAD retrouve dix-huit arêtes, dont quatre elliptiques. Deux dessins indépendants remesillés à 354/1 384 et 384/1 430 triangles donnent également huit faces. La plus grande borne est de 0,019501 mm. Les volumes reconstruits de 3 142,5011774 et 3 156,6370021 mm³ concordent avec le dessin à moins de 0,000002 mm³. Trente-six sondes matière/vide, les deux budgets de raccord et la partition source sont contrôlés. Une loi non linéaire sur le second coin ou un pli empêche l’acceptation de la paire.
+
+## V-1233 — Rebord torique intérieur et extérieur sur un récipient ouvert
+
+Les quatre STL FreeCAD de 10 922 à 30 018 triangles donnent trois plans, deux cylindres et deux tores. Avant l’extension, le petit récipient conservait 4 494 ou 7 123 faces selon la densité. FreeCAD relit les volumes à moins de 0,001 mm³ des dessins de 1 978,143279 et 3 512,827228 mm³. Les sondes vérifient la matière des deux côtés du rebord et le vide au-dessus du fond. La suite `rounded_lip` couvre la pièce retournée, la provenance des deux parois toriques et une méridienne endommagée. Commandes dans [le corpus](../fixtures/rounded_lip/README.md).

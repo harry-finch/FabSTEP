@@ -5,7 +5,7 @@ resume: "Bac ouvert, fond percé et poches à un ou deux congés contrôlés, y 
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13
-maj: 2026-11-18
+maj: 2026-11-19
 livree:
 ---
 
@@ -62,3 +62,5 @@ R-077 qualifie le bac percé avec onze plans et neuf cylindres, sans nouveau mot
 R-098 — Qualifier un bac ouvert combinant trois perçages traversants et huit congés verticaux. Voir V-1226.
 
 R-100 — Conserver le rebord en saillie et deux cavités de profondeur différente séparées par une cloison. Voir V-1229.
+
+R-103 — Reconstruire les deux congés d’un rebord de récipient ouvert, y compris le quart de tore qui rejoint le cylindre par sa branche radiale intérieure. Voir V-1233.

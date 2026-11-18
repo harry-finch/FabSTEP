@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 102** (23 %)
+**Avancement : 23 livrés sur 103** (22 %)
 
 ## Restant à faire
 
@@ -170,6 +170,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Reconstruire deux congés de poche de même rayon partageant une arête elliptique sur la bissectrice du coin.
 79. **[R-102 G — Deux congés à rayon variable sur un bloc](roadmap/items/R-102-g-deux-conges-a-rayon-variable-sur-un-bloc.md)** · À tester · jalon post-v1
    Reconstruire deux congés de lois linéaires distinctes sur des arêtes parallèles opposées.
+80. **[R-103 E — Rebord circulaire arrondi des deux côtés](roadmap/items/R-103-e-rebord-circulaire-arrondi-des-deux-cotes.md)** · À tester · jalon post-v1
+   Reconstruire les deux congés d’un rebord de récipient ouvert, y compris le quart de tore qui rejoint le cylindre par sa branche radiale intérieure.
 
 ## Actions à faire
 
@@ -269,6 +271,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-107](roadmap/actions/A-107-essayer-la-correction-spherique-sur-un-dome.md) Essayer la correction sphérique sur un dôme (tester, R-050)
 - [ ] [A-108](roadmap/actions/A-108-verifier-les-deux-angles-de-poche-dans-fusion.md) Vérifier les deux angles de poche dans Fusion (tester, R-101)
 - [ ] [A-109](roadmap/actions/A-109-controler-les-deux-conges-variables-dans-fusion.md) Contrôler les deux congés variables dans Fusion (tester, R-102)
+- [ ] [A-110](roadmap/actions/A-110-verifier-les-deux-arrondis-du-rebord-dans-fusion.md) Vérifier les deux arrondis du rebord dans Fusion (tester, R-103)
 
 ## Livré
 

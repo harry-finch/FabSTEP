@@ -1546,16 +1546,27 @@ fn historical_sections(
         } else {
             let lower_cylinder = runs.iter().any(|r| r[1] == ends[0]);
             let upper_cylinder = runs.iter().any(|r| r[0] == ends[1]);
-            let (mut major, center_z, v) =
-                if lower_cylinder && ends[1] == nodes.len() - 1 && low.radius > high.radius {
-                    (high.radius, z0, [0., PI / 2.])
-                } else if upper_cylinder && ends[0] == 0 && low.radius < high.radius {
-                    (low.radius, z1, [-PI / 2., 0.])
-                } else {
-                    return Err(unproven(
-                        "méridienne non affine sans raccord cylindre-plan démontré",
-                    ));
-                };
+            let (mut major, center_z, v) = if lower_cylinder
+                && ends[1] == nodes.len() - 1
+                && low.radius > high.radius
+            {
+                (high.radius, z0, [0., PI / 2.])
+            } else if upper_cylinder && ends[0] == 0 && low.radius < high.radius {
+                (low.radius, z1, [-PI / 2., 0.])
+            } else if split.len() == 3
+                && lower_cylinder
+                && ends[1] == nodes.len() - 1
+                && low.radius < high.radius
+            {
+                (high.radius, z0, [PI / 2., PI])
+            } else if split.len() == 3 && upper_cylinder && ends[0] == 0 && low.radius > high.radius
+            {
+                (low.radius, z1, [-PI, -PI / 2.])
+            } else {
+                return Err(unproven(
+                    "méridienne non affine sans raccord cylindre-plan démontré",
+                ));
+            };
             let minor = height;
             let radial_change = (low.radius - high.radius).abs();
             // Tangency is constrained by actual shared boundary circles/planes, never
@@ -1585,8 +1596,14 @@ fn historical_sections(
                 }
                 first_torus_source = Some((run, nodes[run[0]].radius));
             }
+            // The cylindrical land is on the inner or outer radial branch.
+            let land_radius = if v[0] == -PI || v[1] == PI {
+                major - minor
+            } else {
+                major + minor
+            };
             for n in &mut nodes[run[0]..=run[1]] {
-                n.radius = major + minor;
+                n.radius = land_radius;
             }
             let residual = ids
                 .iter()
