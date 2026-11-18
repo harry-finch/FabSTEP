@@ -1828,3 +1828,36 @@ Formatage et Clippy strict workspace passent avant la suite complète. Les journ
 - Worker SHA-256 : `ac74427f748083ceaafa705f4b9b136cac4d5b72d3bd048daf58069aa910759f`.
 
 Journaux locaux : `artifacts/c2-next/check.log`, `build-app.log`, `app-sha256.json`. Tests, corpus et générateurs sont versionnés et permettent de reproduire les contrôles sans ces journaux. L’avertissement Vite de taille de chunk reste présent ; aucun benchmark de vitesse ni gain global sur Flansch n’est revendiqué. Pas de nouvel essai graphique/Fusion, Windows/Linux ou d’installation autonome : A-081/A-082 portent les vérifications manuelles. La release 1.0.0 reste inchangée.
+
+## V-1207 — R-080, attribution des faces planes restantes de Flansch
+
+Le helper de développement V-1206 a relu le STL de 540 170 triangles en mm, en Auto avec les options par défaut. Il retrouve **231 608 faces** et refuse le résultat avant la validation native de la source (`step.invalid_source_provenance`). Aucune sortie STEP. Sur ce passage de 67,746 s, le RSS maximal échantillonné est de 611 139 584 octets et l’empreinte physique de 448 398 368 octets. Cette mesure décrit un seul passage jusqu’au refus.
+
+La sonde core attribue 252 888 triangles aux 231 584 faces planes. Parmi ces faces, 223 126 ne contiennent qu’un triangle. Les 287 282 autres triangles appartiennent aux 24 faces courbes déjà reconnues. Une fois celles-ci retirées, la plus grande des quatre composantes connexes par arêtes rassemble 231 581 faces planes. En coupant les arêtes dont le dièdre excède 3°, on obtient 182 groupes mais le principal contient encore 225 692 propriétaires plans. Les normales changent assez progressivement pour que cette croissance traverse plusieurs arrondis tangents.
+
+### Supports candidats sur la bride
+
+La sonde Python explore trois intervalles de X mesurés sur la pièce. À une section intérieure, elle ajuste des cercles aux sommets voisins, affine leurs centres sur les arcs observés et teste les deux rayons majeurs possibles pour le rayon de congé choisi. Elle exige un échantillonnage sur au moins 80 % de la largeur axiale de la bande et une distance au support ≤ 0,00001 mm aux trois sommets de chaque triangle retenu. Elle exclut les triangles d’attribution ambiguë. Une face plane est comptée seulement si **tous** ses triangles correspondent au même support. Les composantes et distances aux barycentres ci-dessous portent sur ces faces entières. Axe, stations et rayons mineurs sont des hypothèses spécifiques à Flansch.
+
+| X (mm) | Rayon mineur (mm) | Supports / composantes connexes | Faces planes entièrement attribuées | Écart maximal au barycentre (mm) |
+| --- | ---: | ---: | ---: | ---: |
+| 0 à 0,5 | 0,5 | 7 / 7 | 87 065 | 0,001522 |
+| 6,5 à 7 | 0,5 | 4 / 4 | 63 376 | 0,000326 |
+| 7 à 9 | 2 | 1 / 12 | 56 592 | 0,377758 |
+
+Au total, 207 033 propriétaires plans ont un support torique candidat, 24 551 restent sans attribution complète par cette expérience. Dans la dernière bande, **1 230 barycentres** excèdent 0,05 mm. L’accord des sommets ne suffit donc pas à remplacer ces faces. Dans les deux premières bandes, tous les barycentres vérifiés respectent le budget. L’écart continu et réciproque, la découpe réelle de chaque secteur et ses arêtes communes avec les voisins restent à démontrer.
+
+**Conséquence pour R-085.** Si chacune des onze composantes des deux premières bandes donnait une face valide, le comptage passerait de 231 608 à **81 178** (231 608 − 150 441 + 11). C’est un scénario à géométrie voisine inchangée. Le résultat réel dépendra notamment du nombre de faces nécessaires pour les limites et raccords. Le coût de validation native des 540 170 triangles source et le plafond de tessellation du résultat demandent toujours une mesure en situation.
+
+### Reproduction
+
+Avec le STL privé d’origine et Python équipé de NumPy/SciPy, depuis la racine du dépôt :
+
+```sh
+export FABSTEP_PROFILE_STL="$HOME/Downloads/FlanschTurboLuftfilter_REV02.STL"
+export FABSTEP_PROFILE_DIR="$PWD/artifacts/r080"
+FABSTEP_DUMP_PLANES=1 cargo test -p fabstep-core --features large-stl --target-dir artifacts/r080/target --release --offline --locked --test residual_planar_profile -- --ignored --exact residual_planar_profile
+python3 scripts/qualify-residual-tori.py "$FABSTEP_PROFILE_DIR/planes-3deg.bin"
+```
+
+Deux exécutions donnent le même relevé binaire des triangles plans et le même JSON des supports, vérifiés octet par octet. Les coordonnées détaillées et le STL restent locaux. Les fichiers versionnés permettent le rejeu sur un poste disposant de la source. Formatage et Clippy ciblés contrôlés. Cette qualification ajoute exclusivement des outils de mesure hors application. Le build testé reste V-1206 et sa suite applicative complète est consignée dans cette entrée précédente.

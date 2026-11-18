@@ -444,3 +444,7 @@ L’audit a effectivement bloqué la variante miroir avec le maillage OCCT gén�
 
 
 Clôture C2b : suite complète réussie (579 workspace, 50 bureau, huit worker, 115 large-stl, un transfert réel, 234 UI, douze Python et quatre SDK), formatage et analyses statiques sans échec. Application locale reconstruite, deux exécutables comparés par SHA-256 (V-1206). R-084 passe à tester avec A-081/A-082 ; le parent C2 conserve les domaines restants et le statut en cours. Documentation de reprise actualisée, puis commit et push sur la branche existante ; pas de publication release ni de nouvel essai Flansch.
+
+## 2026-11-18 — R-080, localisation des faces restantes de Flansch
+
+Le build V-1206 reproduit le refus à 231 608 faces. Le diagnostic du graphe et des trois bandes de la bride identifie onze supports toriques candidats sur les deux bandes les plus prometteuses, soit 150 441 faces planes. Une troisième bande présente 1 230 écarts excessifs au barycentre malgré la précision aux sommets. Les deux sondes hors production sont versionnées et rejouées. V-1207 porte les mesures, les limites et les commandes. R-085 porte la qualification des limites des secteurs et de leur reconstruction.

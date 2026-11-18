@@ -31,7 +31,7 @@ Ces lots sont à tester dans FabBoard. Les détails de portée et de preuve sont
 
 Import ordinaire : 32 corps, 64 Mio et 100 000 triangles après placement. Le mode gros STL accepté utilise un helper séparé `large-stl`, source jusqu’à 600 000 triangles et 1 800 000 sommets, annulation, surveillance RSS/empreinte physique à 4 Gio et délai de 30 minutes. Les plafonds résultat/tessellation et 3MF restent inchangés ; le bureau n’active jamais cette feature (ADR-0034).
 
-Dernier essai complet de Flansch (V-1201, avant D2) : quatre zones de 278 642 triangles deviennent douze surfaces, attribution contrôlée. Le résultat conserve **231 608 faces**, dont 231 584 plans, et reste refusé au plafond résultat de 100 000. **Aucun STEP produit, validation native source non atteinte.** La qualification des plans/coûts restants est R-080 ; aucun relèvement de plafond ni gain global de latence promis.
+Le build V-1206 reproduit le refus de Flansch à **231 608 faces**, dont 231 584 plans (V-1207). Aucun STEP produit. Deux bandes de la bride expliquent 150 441 de ces faces par onze supports toriques candidats. Dans une troisième bande, 1 230 triangles dépassent le budget de 0,05 mm dès le barycentre. Les mesures et le rejeu de R-080 figurent dans [VALIDATION](docs/VALIDATION.md).
 
 ## Reprise après cette session
 
@@ -48,6 +48,6 @@ Après la reprise autorisée, **R-084 / C2b est développé et qualifié automat
 
 Les parents C2/D/E/F/G sont **en cours** dans FabBoard : des sous-domaines sont développés, pas la généralisation entière. Les essais utilisateur restent dans leurs actions existantes, sans les dupliquer ni les marquer acceptés.
 
-**Piste utile à la reprise : R-080**, qualifier les plans et coûts restants de Flansch à partir du dernier refus mesuré. Ce diagnostic n’a pas été lancé pendant la clôture et ne garantit pas un STEP. Ne pas relever les plafonds pour contourner le refus. Une généralisation exige encore plusieurs lots bornés avec corpus, preuves de couverture et contrôles natifs ; les nouveaux contrats structurants restent à présenter concrètement avant intégration.
+**Reprise Flansch — R-085.** Construire un corpus indépendant des secteurs toriques du pourtour (rayon 0,5 mm), vérifier leurs limites communes et borner l’écart sur toute la paroi. L’estimation conditionnelle de 81 178 faces justifie cet essai. La validation native dense et le budget de tessellation restent à mesurer sur le fichier entier.
 
 Les commandes de validation/build sont dans README/AGENTS et `scripts/check.sh` / `scripts/build-macos-dev.sh`. Les preuves F1/C2b, les défauts corrigés et les limites sont consignés dans V-1205/V-1206 et ADR-0038/0039. Les journaux locaux sous `artifacts/f-next/` et `artifacts/c2-next/` sont ignorés par Git ; les tests, générateurs et corpus nécessaires à leur reproduction sont versionnés. Ne pas considérer ces journaux locaux comme une dépendance de reprise sur un autre poste.

@@ -6,7 +6,7 @@ L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée i
 
 L’ordre des lots restants reprend le document d’origine ; les priorités et dépendances exprimées dans leurs textes restent applicables. Aucun nouveau développement n’est autorisé par cette migration.
 
-**Avancement : 23 livrés sur 84** (27 %)
+**Avancement : 23 livrés sur 85** (27 %)
 
 ## Restant à faire
 
@@ -120,7 +120,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    AUD-014 — Définir le manifeste applicatif et tester les commandes autorisées/refusées, fenêtres et origines ; ne pas ajouter un fichier de capacités supposé suffisant
 55. **[R-022 Réduire le coût de démarrage du frontend](roadmap/items/R-022-reduire-le-cout-de-demarrage-du-frontend.md)** · Idée · jalon audit
    AUD-009 — Mesurer le démarrage réel de la WebView ; retenir un chargement différé ou un découpage uniquement si le gain est démontré
-56. **[R-080 Qualifier les 231 584 plans restants de Flansch](roadmap/items/R-080-qualifier-les-231-584-plans-restants-de-flansch.md)** · Idée · jalon post-v1
+56. **[R-080 Qualifier les 231 584 plans restants de Flansch](roadmap/items/R-080-qualifier-les-231-584-plans-restants-de-flansch.md)** · À tester · jalon post-v1
    Après les quatre grandes zones reconstruites, Flansch conserve 231 584 faces planes et 24 surfaces analytiques. Identifier les zones encore facettisées et leurs familles possibles avant toute nouvelle extension ou proposition de plafond ; la validation native dense reste un obstacle séparé.
 57. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
    Signer et notariser le paquet macOS ; ces étapes restent ouvertes.
@@ -132,6 +132,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
 61. **[R-084 C2b — reconstruire une révolution à profil cubique](roadmap/items/R-084-c2b-reconstruire-une-revolution-a-profil-cubique.md)** · À tester · jalon post-v1
    Un profil lisse cubique borné, deux disques source et un tour complet ; preuve continue, STEP contrôlé et famille Révolution explicite.
+62. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · Idée · jalon post-v1
+   Commencer par les deux bandes de rayon 0,5 mm identifiées dans R-080. Qualifier les limites des secteurs, la continuité avec les faces voisines et la fidélité dans les deux sens sur un corpus public indépendant. Rejouer ensuite le fichier entier et mesurer les coûts natifs.
 
 ## Actions à faire
 
@@ -209,6 +211,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-080](roadmap/actions/A-080-verifier-les-percages-secants-dans-fusion.md) Vérifier les perçages sécants dans Fusion (tester, R-083)
 - [ ] [A-081](roadmap/actions/A-081-examiner-les-revolutions-cubiques-dans-fabstep.md) Examiner les révolutions cubiques dans FabSTEP (tester, R-084)
 - [ ] [A-082](roadmap/actions/A-082-verifier-les-revolutions-cubiques-dans-fusion.md) Vérifier les révolutions cubiques dans Fusion (tester, R-084)
+- [ ] [A-083](roadmap/actions/A-083-examiner-le-diagnostic-des-faces-restantes-de.md) Examiner le diagnostic des faces restantes de Flansch (valider, R-080)
 
 ## Livré
 
