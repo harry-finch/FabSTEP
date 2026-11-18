@@ -2,13 +2,13 @@
 # Independent OCCT laboratory. Optional open-shell replay from measured parameters.
 set -eu
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-lab_dir="$project_dir/artifacts/r085-native"
+lab_dir=${FABSTEP_TORUS_LAB_DIR:-"$project_dir/artifacts/r085-native"}
 program=qualify-torus-sectors
 report=report.json
 case "${1:-}/$#" in
   /0) ;;
   --open-chain/2) program=qualify-open-torus-chain ;;
-  --shared-tori/2|--belt/2|--base/2|--base-flanks/3|--upper-tubes/4|--side-planes/4|--pierced-side/5)
+  --shared-tori/2|--belt/2|--base/2|--base-flanks/3|--upper-tubes/4|--side-planes/4|--pierced-side/5|--long-flanks/6)
     program=qualify-shared-tori ;;
   *) echo 'Unexpected mode or argument count. See R-085 in docs/VALIDATION.md.' >&2; exit 2 ;;
 esac
@@ -104,6 +104,21 @@ def emit(mode, belt_file, *files):
         print(len(polygon))
         for u, v in polygon:
             print(u, v)
+
+    if mode == "--pierced-side":
+        return
+
+    walls = load(files[3], 256 * 1024)["long_flanks"]
+    if len(walls) != 3:
+        raise ValueError("expected three long cylindrical flanks")
+    for wall in walls:
+        top = wall["top_uv"]
+        if not 3 <= len(top) <= 513:
+            raise ValueError("unsupported upper trim size")
+        print(wall["lower_sector"], *wall["center_yz_mm"], wall["radius_mm"],
+              wall["x_min_mm"], *wall["u_bounds_rad"], int(wall["outward"]), wall["area_mm2"], len(top))
+        for u, x in top:
+            print(u, x)
 
 emit(*sys.argv[1:])
 PYINPUT

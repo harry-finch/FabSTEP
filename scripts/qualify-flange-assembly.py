@@ -92,7 +92,7 @@ def interface_loops(rows, samples, claims, seams, cone_seams, contour_file):
     return loops
 
 
-def assemble(dump, out, negative):
+def assemble(dump, out, negative, long_flanks=False):
     out.mkdir(parents=True, exist_ok=True)
     source = dump / "planes-3deg.bin"
     record = rim["partition"]["residual"]["RECORD"]
@@ -116,7 +116,11 @@ def assemble(dump, out, negative):
                             for b in bores.values()]
         reports["base"] = rim["qualify"](*args, out/"base.json", seams, bores, groups)
         belt = json.loads((out/"base.json").read_text())
-        reports["flanks"] = flanks["qualify"](*args, out/"flanks.json", negative, belt, groups)
+        reports["flanks"] = flanks["qualify"](
+            *args, out/"flanks.json", negative, belt, groups,
+            long_out=out/"long.json" if long_flanks else None,
+            long_groups=groups if long_flanks else None,
+        )
         short = json.loads((out/"flanks.json").read_text())["short_flanks"]
         reports["upper_tubes"], tubes = upper["qualify"](mesh, patches, labels, belt, short, groups)
         reports["pierced_side"], side = pierced["qualify"](mesh, patches, labels, belt, short, negative, groups)
@@ -130,10 +134,15 @@ def assemble(dump, out, negative):
             if len(ids) != bore["triangles"]:
                 raise ValueError("Incomplete cone claim")
             claims[f"cone-{i}"] = ids
-        if len(claims) != 34:
-            raise ValueError("Expected 34 complete source groups")
-        reports["interfaces"] = interface_loops(rows, samples, claims, seams, rim["read_seams"](dump/"cone-seams.tsv"),
-                                              out/"source-contour.json")
+        if len(claims) != (37 if long_flanks else 34):
+            raise ValueError("Incomplete source groups")
+        # The rail parameters used by the shoulder witness refer to the
+        # original 34-face shell, before the three long flanks are attached.
+        reference = {k: v for k, v in claims.items() if not k.startswith("long-flank-")}
+        reports["interfaces_34" if long_flanks else "interfaces"] = interface_loops(
+            rows, samples, reference, seams, rim["read_seams"](dump/"cone-seams.tsv"),
+            out/"source-contour.json",
+        )
         counts = {name: len(ids) for name, ids in claims.items()}
         write_json(out/"counts.json", counts)
         with (out/"patches.tsv").open("w") as stream:
@@ -149,5 +158,6 @@ if __name__ == "__main__":
     parser.add_argument("dump", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--check-negatives", action="store_true")
+    parser.add_argument("--long-flanks", action="store_true")
     args = parser.parse_args()
-    assemble(args.dump, args.output, args.check_negatives)
+    assemble(args.dump, args.output, args.check_negatives, args.long_flanks)

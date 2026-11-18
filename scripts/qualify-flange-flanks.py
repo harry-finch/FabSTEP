@@ -85,7 +85,7 @@ def check_trim(uv, loop_edges, labels, sides):
     return int(vertical.sum())
 
 
-def cylindrical_chart(mesh, ids, center, radius, u_limits, xlo, xhi=None):
+def cylindrical_chart(mesh, ids, center, radius, u_limits, xlo, xhi=None, long_domain=None, plateau=None):
     vertices, inv = np.unique(mesh.rows["points"][ids].reshape(-1, 3), axis=0, return_inverse=True)
     tri = inv.reshape(-1, 3)
     directed = np.stack([tri, np.roll(tri, -1, axis=1)], axis=2).reshape(-1, 2)
@@ -116,6 +116,15 @@ def cylindrical_chart(mesh, ids, center, radius, u_limits, xlo, xhi=None):
     labels = np.where(membership.any(axis=0), membership.argmax(axis=0), 3)
     vertical = 0
     if xhi is None:
+        if plateau is not None:
+            # Reconcile only the measured low plateau of the top path to the
+            # neighboring upper fillet station, before all coverage/error tests.
+            edge_vertices = np.unique(ring[labels == 3])
+            heights = uv[edge_vertices, 1]
+            at_plateau = abs(heights - plateau) <= TOL
+            if abs(heights.min()-plateau) > TOL or not at_plateau.any():
+                raise ValueError("Measured upper trim does not reach the fillet station")
+            uv[edge_vertices[at_plateau], 1] = plateau
         vertical = check_trim(uv, ring, labels, sides)
     else:
         if not membership.any(axis=0).all() or len(np.unique(labels)) != 4:
@@ -144,6 +153,51 @@ def cylindrical_chart(mesh, ids, center, radius, u_limits, xlo, xhi=None):
                   rail_edges=[len(k) for k in sides_keys], distance_bound_mm=distance,
                   vertex_motion_mm=float(motion.max()), upper_vertical_edges=vertical,
                   upper_station_range_mm=[float(f(x[np.unique(ring[labels == 3])])) for f in (min, max)])
+    if long_domain is not None:
+        if xhi is not None:
+            raise ValueError("Expected a nonrectangular upper trim")
+        # Keep the original cyclic order, including the two distinct points
+        # on every vertical step. Form an increasing-angle copy for OCCT.
+        first, = np.flatnonzero((labels == 3) & (np.roll(labels, 1) != 3))
+        start = (first + np.arange((labels == 3).sum())) % len(labels)
+        top_ring = ring[start]
+        top = uv[np.r_[top_ring[:, 0], top_ring[-1, 1]]]
+        upper_ids = ids[indices[start] // 3]
+        upper_local = indices[start] % 3
+        if (near < 0).any():
+            raise ValueError("Missing opposite owner on the cylinder boundary")
+        other_ids = near[start]
+        shared_end = mesh.triangles[upper_ids, (upper_local + 1) % 3]
+        opposite = mesh.triangles[other_ids] == shared_end[:, None]
+        other_local = opposite.argmax(axis=1)
+        if (not np.all(opposite.sum(axis=1) == 1)
+                or not np.array_equal(mesh.triangles[other_ids, (other_local+1) % 3],
+                                      mesh.triangles[upper_ids, upper_local])):
+            raise ValueError("Upper trim has no unique opposite incidence")
+        uses = np.column_stack((mesh.rows["triangle"][upper_ids], upper_local,
+                                mesh.rows["triangle"][other_ids], other_local,
+                                mesh.rows["owner"][other_ids]))
+        forward = bool(top[0, 0] < top[-1, 0])
+        if not forward:
+            top = top[::-1]
+            uses = uses[::-1]
+        du = np.diff(top[:, 0])
+        area = radius * np.dot(du, (top[:-1, 1]+top[1:, 1])/2 - xlo)
+        # The cylinder Jacobian has constant magnitude R. F_u cross F_x
+        # points radially outward, so the signed triangle areas fix the normal.
+        if not np.isclose(area, radius*abs(det.sum())/2, rtol=1e-12, atol=slack):
+            raise ValueError("Triangle area disagrees with the trimmed cylinder")
+        angle_span = abs(uv[ring[:, 1], 0] - uv[ring[:, 0], 0])
+        edge_distance = motion[ring].max(axis=1) + radius*angle_span**2/8 + slack
+        if edge_distance.max() > distance + slack:
+            raise ValueError("Boundary correspondence exceeds its surface budget")
+        long_domain.update(center_yz_mm=center.tolist(), radius_mm=float(radius),
+                           u_bounds_rad=[float(low),float(high)], x_min_mm=float(xlo),
+                           top_uv=top.tolist(), area_mm2=float(area), outward=bool(det[0] > 0),
+                           # Increasing-angle path; each row stores the two directed
+                           # (analysis triangle, local edge) uses and the other owner.
+                           top_source_uses=uses.tolist(), source_forward=forward,
+                           edge_bound_mm=[float(edge_distance[labels == i].max()) for i in range(4)])
     return report, sides_keys, near[labels == 3]
 
 
@@ -222,7 +276,8 @@ def side_junctions(mesh, belt, labels, flanks):
     return dict(direct_cylinder_junctions=direct, tangent_plane_neighbors=flat)
 
 
-def qualify(mesh, supports, patches, labels, incidences, native_out=None, negative=False, belt=None, groups=None):
+def qualify(mesh, supports, patches, labels, incidences, native_out=None, negative=False, belt=None, groups=None,
+            long_out=None, long_groups=None):
     if belt is None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "belt.json"
@@ -231,6 +286,7 @@ def qualify(mesh, supports, patches, labels, incidences, native_out=None, negati
     report, upper_sectors, flanks = [], [], []
     seen = np.zeros(len(labels), dtype=bool)
     refused = []
+    long_flanks = []
     for tag, domain in enumerate(belt["sectors"]):
         low_ids = patches[tag][0]
         xlo, *yz = domain["center"]
@@ -251,7 +307,13 @@ def qualify(mesh, supports, patches, labels, incidences, native_out=None, negati
             raise ValueError("Ambiguous connection to upper sectors")
         upper_tag = next(iter(adjacent), None)
         xhi = None if upper_tag is None else supports[upper_tag][-1]
-        checked, rails, near = cylindrical_chart(mesh, ids, center, radius, limits, xlo, xhi)
+        long_domain = {} if xhi is None and (long_out is not None or long_groups is not None) else None
+        plateau = max(support[-1] for support in supports) if long_domain is not None else None
+        checked, rails, near = cylindrical_chart(mesh, ids, center, radius, limits, xlo, xhi, long_domain, plateau)
+        if long_domain is not None:
+            long_flanks.append(dict(lower_sector=tag, **long_domain))
+            if long_groups is not None:
+                long_groups[f"long-flank-{tag}"] = ids
         flanks.append((ids, rails[:2]))
         low_keys, _ = station_rail(mesh, low_ids, xlo)
         if not np.array_equal(rails[2], low_keys):
@@ -297,6 +359,10 @@ def qualify(mesh, supports, patches, labels, incidences, native_out=None, negati
                     raise ValueError(f"Invalid {case} accepted on sector {tag}")
         report.append(checked)
     sides = side_junctions(mesh, belt, labels, flanks)
+    if long_out is not None:
+        if len(long_flanks) != 3:
+            raise ValueError("Expected three nonrectangular cylinder trims")
+        long_out.write_text(json.dumps(dict(long_flanks=long_flanks), indent=2, allow_nan=False) + "\n")
     if native_out:
         native_out.write_text(json.dumps(dict(short_flanks=upper_sectors), indent=2, allow_nan=False) + "\n")
     return dict(flanks=report, **sides, refused_counterexamples=refused)
@@ -306,6 +372,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("dump", type=Path)
     parser.add_argument("--native-parameters", type=Path, help="Write the four certified rectangular references locally")
+    parser.add_argument("--long-parameters", type=Path, help="Write the ordered three nonrectangular trims locally")
     parser.add_argument("--check-negatives", action="store_true")
     args = parser.parse_args()
     record = partition["residual"]["RECORD"]
@@ -314,5 +381,5 @@ if __name__ == "__main__":
         parser.error("Invalid planar dump")
     report = {}
     partition["qualify"](np.fromfile(args.dump, dtype=record), visit_partition=lambda *data:
-                         report.update(qualify(*data, native_out=args.native_parameters, negative=args.check_negatives)))
+                         report.update(qualify(*data, native_out=args.native_parameters, negative=args.check_negatives, long_out=args.long_parameters)))
     print(json.dumps(report, indent=2, allow_nan=False))

@@ -54,8 +54,7 @@ PiercedSide readPierced(const Flanks& flanks,const Sectors& sectors,const Tubes&
         check(a<0.,"incorrect hole orientation");
         area+=a;side.edges+=count;side.holes.push_back(std::move(loop));
     }
-    std::cin>>std::ws;check(std::cin.eof() && area>0. && std::abs(area-side.area)<1.e-7,
-                            "net pierced area or input length");
+    std::cin>>std::ws;check(area>0. && std::abs(area-side.area)<1.e-7,"net pierced area");
     return side;
 }
 
@@ -208,11 +207,20 @@ Limits verifyPierced(const TopoDS_Shape& shape,const Base& base,const Sectors& s
     return limits;
 }
 
+#include "qualify-flange-long.hxx"
+
 int qualifyPiercedSide(const std::filesystem::path& dir,const Sectors& sectors,const Tubes& tubes,
                        const Base& base,const Flanks& flanks,const Sectors& upper,const Tubes& upperTubes,
                        const TopoDS_Shape& lower,double area,const std::vector<Rectangle>& rects) {
     const auto side=readPierced(flanks,sectors,upperTubes);
     const auto shape=buildPierced(lower,side);
+    if(!std::cin.eof()) {
+        const auto walls=readLongWalls(sectors);
+        auto verifyLower=[&](const TopoDS_Shape& oldFaces){
+            return verifyPierced(oldFaces,base,sectors,tubes,flanks,upper,upperTubes,area,rects,side);
+        };
+        return qualifyLong(dir,shape,sectors,walls,verifyLower);
+    }
     const auto before=verifyPierced(shape,base,sectors,tubes,flanks,upper,upperTubes,area,rects,side);
     constexpr size_t maxBytes=16*1024*1024;
     const auto after=verifyPierced(roundtrip(shape,dir/"pierced-side.step",maxBytes),base,sectors,tubes,flanks,
