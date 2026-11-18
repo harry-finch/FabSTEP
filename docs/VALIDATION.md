@@ -2429,3 +2429,7 @@ Le dessin indépendant possède un rebord de 2 mm, deux fonds à 2 et 4 mm et un
 ## V-1230 — Indication sphérique depuis une face STEP
 
 La suite `guided_sphere` part des faces du STEP réimporté. Elle vérifie une demi-sphère en mode Plans, une zone à deux bords et une sphère complète en Auto, l’égalité des propriétaires source avec la région reconstruite, le recalcul et le retrait. La calotte et une face du disque sélectionnées ensemble sont refusées, de même qu’une paroi cylindrique. Le raccordement à un voisin courbe reste hors du périmètre du bouton Sphère.
+
+## V-1231 — Deux congés adjacents dans un angle aigu ou obtus
+
+Les quatre STL FreeCAD à 65° et 115° (deux densités chacun) donnent onze plans et deux cylindres. La relecture indépendante retrouve un seul arc elliptique partagé par les deux cylindres, de demi-grand axe 4,65289744 ou 2,96422263 mm, et contrôle ses deux p-courbes. L’écart au volume du dessin reste inférieur à 0,00017 mm³. Le témoin à 40° conserve ses facettes. Un sommet déplacé ou une tolérance insuffisante empêchent l’acceptation analytique. Le test `angled_pocket` contrôle les propriétaires de triangles et la fidélité. Le [corpus](../fixtures/angled_pocket/README.md) contient les commandes de reproduction.

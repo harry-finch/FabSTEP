@@ -57,7 +57,7 @@ TopoDS_Face wall(const MixedArcData& near, const EllipticArcData& far, const dou
   const gp_Ax3 frame(g.near_center, axis, gp_Dir(gp_Vec(g.near_center, g.near_arc.front())));
   const auto far_axis = direction(far.axis);
   const double alignment = axis.Dot(far_axis);
-  // The same edge has positive angular speed on one perpendicular support
+  // The same edge has positive angular speed on one cylindrical support
   // and negative angular speed on the other. Keep its original 3D parameter.
   const bool reversed = adjacent && alignment < 0.;
   const auto far_index = [reversed](size_t end) { return reversed ? 1 - end : end; };
@@ -287,9 +287,14 @@ Domain verify(const TopoDS_Shape& solid, const TopTools_IndexedMapOfShape& faces
     const auto a = BRepAdaptor_Surface(walls[0]).Cylinder();
     const auto b = BRepAdaptor_Surface(walls[1]).Cylinder();
     const auto ellipse = BRepAdaptor_Curve(seams[0]).Ellipse();
-    require(seams[0].IsSame(seams[1]) && a.Axis().Direction().IsNormal(b.Axis().Direction(), 1.e-8) &&
-        std::abs(a.Radius() - b.Radius()) < tol &&
-        std::abs(ellipse.MajorRadius() - a.Radius()*std::sqrt(2.)) < tol, status);
+    const auto axis_a = a.Axis().Direction(), axis_b = b.Axis().Direction();
+    const auto normal = ellipse.Axis().Direction();
+    // Orthogonal projection of the same ellipse onto either cylinder's
+    // normal plane must yield its circle, including after STEP transfer.
+    require(seams[0].IsSame(seams[1]) && std::abs(axis_a.Dot(axis_b)) < std::sqrt(0.5) &&
+        std::abs(a.Radius() - b.Radius()) < tol && std::abs(ellipse.MinorRadius() - a.Radius()) < tol &&
+        std::abs(ellipse.MajorRadius() * std::abs(axis_a.Dot(normal)) - a.Radius()) < tol &&
+        std::abs(ellipse.MajorRadius() * std::abs(axis_b.Dot(normal)) - b.Radius()) < tol, status);
     size_t common_planes = 0;
     for (int i = 1; i <= tangents[0].Extent(); ++i) common_planes += tangents[1].Contains(tangents[0](i));
     require(common_planes == 1, status);
