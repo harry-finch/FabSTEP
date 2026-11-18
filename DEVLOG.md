@@ -510,3 +510,13 @@ La normale d’un triangle mince pouvait diviser la face plane autour d’un tro
 ## 2026-11-18 — R-093, cylindre d’une plaque inclinée en Auto
 
 Sur le témoin de V-1220, les deux ouvertures du trou étaient présentes. L’erreur d’arrondi du STL binaire suffisait à rendre les coins des faces voisines non coplanaires aux exigences du noyau. Auto gardait alors 252 plans. La nouvelle preuve utilise conjointement les deux ouvertures et les quatre arêtes latérales de la plaque, puis vérifie et comptabilise les déplacements par rapport aux triangles. Deux poses et deux densités donnent chacune sept faces en réimport. Le maillage aux génératrices vrillées conserve ses facettes. Le protocole de reproduction et les limites figurent dans V-1221.
+
+## 2026-11-18 — Nettoyage local approuvé A+B
+
+Sur la branche `fabboard/nettoyage`, issue de `fabboard/mise-d-equerre` à `82342b40`, inventaire avec `fabboard status .`, `fabboard clean scan --json` et inspection des répertoires Cargo supplémentaires sous `artifacts/`. Les deux essais à blanc ont réussi. L’utilisateur a approuvé les catégories A et B par « A+B » ; la liste exacte et son accord sont conservés dans [A-097](roadmap/actions/A-097-choisir-ce-qui-se-nettoie-dans-fabstep.md).
+
+`fabboard clean trash` a déplacé les 31 chemins reconstructibles et les quatre fichiers `.DS_Store`, sans refus. Volume retiré du projet : 43 784 871 936 octets, environ 40,8 Gio. Le scan passe de 46 526 246 912 à 2 741 391 360 octets, soit 43,3 à 2,6 Gio ; le scan final ne signale plus de cache récupérable. Les fichiers restent dans la Corbeille : leur déplacement ne libère pas cet espace sur le disque tant qu’ils y sont conservés.
+
+Les deux applications à tester, le helper, les fichiers CAO, corpus, rapports, journaux, illustrations, brainstorming, licences, roadmap et skills sont conservés. Les journaux `clippy.log` et `oblique.log` de `artifacts/r089-core-target/` sont toujours présents. Les 35 chemins approuvés sont absents, aucun fichier suivi n’est supprimé, et les empreintes SHA-256 des deux exécutables FabSTEP et du helper sont identiques avant/après. `cargo fmt --all -- --check` et `git diff --check` ont réussi. Les modifications préexistantes du manifeste et de l’installation de la skill `fab-cleanup` restent hors du commit de nettoyage.
+
+Tests, Clippy, vérifications UI et builds après nettoyage non exécutés : la skill demande de consulter l’utilisateur avant cette recompilation complète. [A-098](roadmap/actions/A-098-choisir-quand-recompiler-fabstep-apres-nettoyage.md) conserve ce choix, le coût et les commandes de reprise (`npm --prefix ui ci`, `scripts/check.sh`, puis `scripts/build-macos-dev.sh` pour le paquet de développement). Aucun merge ni push.

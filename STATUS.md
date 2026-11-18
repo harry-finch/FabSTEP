@@ -1,12 +1,13 @@
 # État — 18 novembre 2026
 
-**V1 mécanique 1.0.0 acceptée ; extensions post-v1 dans le build de développement.** Rust/OCCT, Svelte 5/Tauri, GPL-3.0-or-later. Branche de travail : `fabboard/mise-d-equerre` ; aucune modification de la branche par défaut ni du paquet release. Historique et mesures détaillés dans [DEVLOG](DEVLOG.md) et [VALIDATION](docs/VALIDATION.md), suivi utilisateur dans [ROADMAP](ROADMAP.md).
+**V1 mécanique 1.0.0 acceptée ; extensions post-v1 dans le build de développement.** Rust/OCCT, Svelte 5/Tauri, GPL-3.0-or-later. Branche de développement : `fabboard/mise-d-equerre` ; nettoyage local sur `fabboard/nettoyage`, sans modification de la branche par défaut ni du paquet release. Historique et mesures détaillés dans [DEVLOG](DEVLOG.md) et [VALIDATION](docs/VALIDATION.md), suivi utilisateur dans [ROADMAP](ROADMAP.md).
 
 ## Version et validation courantes
 
 - `artifacts/release/1.0.0/FabSTEP.app` reste le paquet autonome signé ad hoc, accepté sur un autre Mac et dans Fusion le 9 novembre (V-1115). Pas de signature Developer ID ni notarisation revendiquée.
 - `artifacts/FabSTEP.app` est le build local de développement, dépendant du SDK installé. Ce paquet comprend les congés de fond de poche R-086 à R-090 et les perçages sécants R-091/R-092, y compris le bloc incliné en STL binaire (V-1219/V-1220). R-093 y ajoute le trou traversant d’une plaque inclinée en mode Auto (V-1221). Les essais de la butée oblique, des congés opposés et du coin à deux congés figurent dans V-1213, V-1214, V-1216 et V-1218.
 - Seize tests opt-in workspace restent ignorés par la suite ordinaire. Les essais graphiques/Fusion des extensions restent ouverts dans FabBoard ; aucun succès automatique ne vaut acceptation utilisateur. Le pilotage du dialogue d’ouverture avait été bloqué, mais l’utilisateur a confirmé l’ouverture manuelle.
+- Nettoyage A+B approuvé en [A-097](roadmap/actions/A-097-choisir-ce-qui-se-nettoie-dans-fabstep.md) : 40,8 Gio de caches et résidus déplacés à la Corbeille, projet ramené à 2,6 Gio. Les deux exécutables FabSTEP et le helper sont inchangés (SHA-256). Aucun fichier suivi retiré ; formatage Rust et contrôle des espaces Git réussis. Les tests et builds après nettoyage restent non exécutés ; leur relance est suivie par [A-098](roadmap/actions/A-098-choisir-quand-recompiler-fabstep-apres-nettoyage.md).
 
 ## Capacités développées
 

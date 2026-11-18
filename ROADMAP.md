@@ -240,6 +240,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-094](roadmap/actions/A-094-verifier-les-percages-secants-de-rayons-3-et-5.md) Vérifier les perçages sécants de rayons 3 et 5 mm dans Fusion (tester, R-091)
 - [ ] [A-095](roadmap/actions/A-095-verifier-le-bloc-incline-a-deux-percages-dans.md) Vérifier le bloc incliné à deux perçages dans Fusion (tester, R-092)
 - [ ] [A-096](roadmap/actions/A-096-verifier-le-trou-de-la-plaque-inclinee-dans.md) Vérifier le trou de la plaque inclinée dans FabSTEP et Fusion (tester, R-093)
+- [ ] [A-098](roadmap/actions/A-098-choisir-quand-recompiler-fabstep-apres-nettoyage.md) Choisir quand recompiler FabSTEP après nettoyage (decider)
 
 ## Livré
 
