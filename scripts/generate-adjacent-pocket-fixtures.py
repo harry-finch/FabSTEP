@@ -185,6 +185,7 @@ def main():
     d = BASE["Dimensions"]()
     cases = {
         "nominal": write(out, "nominal", d, 16, 2),
+        "short": write(out, "short", replace(d, pocket_length=3.75), 16, 2),
         "rotated": write(
             out,
             "rotated",
@@ -197,7 +198,7 @@ def main():
     }
     manifest = dict(
         unit="mm",
-        positives=["nominal", "rotated"],
+        positives=["nominal", "rotated", "short"],
         negatives=["warped_seam"],
         planes=11,
         cylinders=2,

@@ -1,4 +1,5 @@
-//! One concave quarter cylinder stopped by a perpendicular plane and an oblique plane.
+//! Concave pocket fillets bounded by a right stop and an elliptic arc.
+//! The ellipse can belong to an oblique plane or a second perpendicular fillet.
 //! The eleven planar neighbors are seeded from the largest source triangles. Only
 //! the fully certified partition (including the pocket opening) is returned.
 use crate::math::{cross, dot, norm, scale, sub, Sum, V};
@@ -11,6 +12,8 @@ use crate::{
 use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::FRAC_PI_2;
 
+#[path = "adjacent_pocket.rs"]
+mod adjacent;
 mod wall;
 const WALL: usize = 11;
 type Edge = (usize, usize);
@@ -126,24 +129,46 @@ fn partition(
             owners[t] = i;
         }
     }
+    prove_disk(mesh, adjacency, &owners, WALL)?;
+    let (cuts, neighbor) = interfaces(mesh, &owners)?;
+    Ok(Partition {
+        planes: patches,
+        owners,
+        cuts,
+        neighbor,
+    })
+}
+
+fn prove_disk(
+    mesh: &Mesh,
+    adjacency: &[Vec<usize>],
+    owners: &[usize],
+    id: usize,
+) -> Result<(), FabError> {
     let first = owners
         .iter()
-        .position(|&i| i == WALL)
+        .position(|&i| i == id)
         .ok_or_else(unsupported)?;
     let mut wall = BTreeSet::from([first]);
     let mut stack = vec![first];
     while let Some(t) = stack.pop() {
         for &other in &adjacency[t] {
-            if owners[other] == WALL && wall.insert(other) {
+            if owners[other] == id && wall.insert(other) {
                 stack.push(other);
             }
         }
     }
-    checked(wall.len() == owners.iter().filter(|&&v| v == WALL).count())?;
+    checked(wall.len() == owners.iter().filter(|&&v| v == id).count())?;
     let wall_loops = crate::planar::boundaries(mesh, &wall)?;
     checked(wall_loops.len() == 1)?;
-    let vertices: BTreeSet<_> = wall.iter().flat_map(|&t| triangles[t]).collect();
+    let vertices: BTreeSet<_> = wall.iter().flat_map(|&t| mesh.triangles[t]).collect();
     checked(2 * vertices.len() + 2 * wall.len() == 2 + 3 * wall.len() + wall_loops[0].len())?;
+    Ok(())
+}
+
+type Neighbors = BTreeMap<(usize, usize), usize>;
+fn interfaces(mesh: &Mesh, owners: &[usize]) -> Result<(Cuts, Neighbors), FabError> {
+    let triangles = &mesh.triangles;
     let mut directed = BTreeMap::new();
     for (t, &owner) in owners.iter().enumerate() {
         let [a, b, c] = triangles[t];
@@ -167,12 +192,7 @@ fn partition(
         let chain = crate::rounded::block::ordered_chain(&edges).map_err(|_| unsupported())?;
         cuts.insert(key, chain);
     }
-    Ok(Partition {
-        planes: patches,
-        owners,
-        cuts,
-        neighbor,
-    })
+    Ok((cuts, neighbor))
 }
 
 fn intersection(planes: [Plane; 3], near: V) -> Option<V> {
@@ -214,7 +234,7 @@ fn straight(chain: &[usize], raw: &[V], projected: &[V], tol: f64) -> Option<f64
 fn plane_loops(
     mesh: &Mesh,
     part: &Partition,
-    geom: &wall::Geometry,
+    geoms: &[wall::Geometry],
     projected: &[V],
     work: &mut Work,
     o: &Options,
@@ -264,12 +284,18 @@ fn plane_loops(
                     (ids == ordered || ids == [ordered[1], ordered[0]])
                         && (j + ns.len() - k) % ns.len() + 1 == cut.len(),
                 )?;
-                if other == WALL && i == geom.circle_plane {
+                if let Some((index, geom)) = geoms
+                    .iter()
+                    .enumerate()
+                    .find(|(_, g)| other == g.id && i == g.circle_plane)
+                {
                     segments.push(MixedSegment::Arc {
-                        arc: 0,
+                        arc: index,
                         reversed: ids[0] != geom.circle.vertices[0],
                     });
-                } else if other == WALL && i == geom.ellipse_plane {
+                } else if let Some(geom) =
+                    geoms.iter().find(|g| other == g.id && i == g.ellipse_plane)
+                {
                     segments.push(MixedSegment::EllipticArc {
                         arc: 0,
                         reversed: ids[0] != geom.ellipse.vertices[0],
@@ -305,15 +331,17 @@ struct Projected {
 fn project(
     mesh: &Mesh,
     p: &Partition,
-    g: &wall::Geometry,
+    geoms: &[wall::Geometry],
     o: &Options,
 ) -> Result<Projected, FabError> {
     let mut corners = BTreeMap::<usize, BTreeSet<usize>>::new();
     for (&(i, j), cut) in &p.cuts {
         for &id in [cut.first().unwrap(), cut.last().unwrap()] {
             let planes = corners.entry(id).or_default();
-            planes.insert(i);
-            if j != WALL {
+            if i < WALL {
+                planes.insert(i);
+            }
+            if j < WALL {
                 planes.insert(j);
             }
         }
@@ -322,8 +350,20 @@ fn project(
     let mut max_corner = 0_f64;
     let mut displaced = 0;
     for (v, faces) in corners {
-        let point = if let Some(corner) = g.corner(v) {
-            checked(faces.len() == 2)?;
+        let point = if let Some(corner) = geoms.iter().find_map(|g| g.corner(v)) {
+            // The meeting point of two floor rails has only the floor
+            // as a planar incident face. Each isolated end meets two planes.
+            checked(
+                faces.len() == 2
+                    || (faces.len() == 1
+                        && geoms.iter().filter(|g| g.corner(v).is_some()).count() == 2),
+            )?;
+            checked(
+                geoms
+                    .iter()
+                    .filter_map(|g| g.corner(v))
+                    .all(|q| norm(sub(q, corner)) < 1e-8),
+            )?;
             corner
         } else {
             let supports: Vec<_> = faces.iter().map(|&i| p.planes[i].support).collect();
@@ -345,7 +385,10 @@ fn project(
     }
     let mut line_residual = 0_f64;
     for (&(i, j), cut) in &p.cuts {
-        if j == WALL && (i == g.circle_plane || i == g.ellipse_plane) {
+        if geoms
+            .iter()
+            .any(|g| [pair(g.circle_plane, g.id), pair(g.ellipse_plane, g.id)].contains(&(i, j)))
+        {
             continue;
         }
         let error = straight(
@@ -373,10 +416,21 @@ fn candidate(
 ) -> Result<RoundedRecognition, FabError> {
     let mesh = &a.mesh;
     let mut part = partition(mesh, adjacency, o, work)?;
-    let geom = wall::fit(mesh, &mut part, o)?;
-    let error = wall::prove(mesh, &part, &geom, o, work)?;
-    let points = project(mesh, &part, &geom, o)?;
-    let (planes, plane_error) = plane_loops(mesh, &part, &geom, &points.vertices, work, o)?;
+    let neighbor_count = part.cuts.keys().filter(|(_, j)| *j == WALL).count();
+    let geoms = if neighbor_count == 5 {
+        adjacent::fit(mesh, adjacency, &mut part, o, work)?
+    } else {
+        vec![wall::fit(mesh, &mut part, o)?]
+    };
+    let mut residual = 0_f64;
+    let mut chord = 0_f64;
+    for g in &geoms {
+        let error = wall::prove(mesh, &part, g, o, work)?;
+        residual = residual.max(error.residual);
+        chord = chord.max(error.chord);
+    }
+    let points = project(mesh, &part, &geoms, o)?;
+    let (planes, plane_error) = plane_loops(mesh, &part, &geoms, &points.vertices, work, o)?;
     // Winding bounds the difference of each planar trimmed domain by the
     // boundary homotopy, including its circular/elliptical chordal intervals.
     let rounding = mesh
@@ -390,20 +444,29 @@ fn candidate(
         * f64::EPSILON;
     checked(rounding < 1e-8)?;
     let trim = points.max_corner.max(points.line_residual) + 2. * plane_error + rounding + 1e-5;
-    let bound = o.weld_tolerance_mm + error.residual + error.chord + trim;
+    let bound = o.weld_tolerance_mm + residual + chord + trim;
     if bound > o.max_deviation_mm {
         return Err(FabError::new(
             "recognition.deviation_exceeded",
             "La paroi cylindrique et son contour elliptique dépassent la borne d’écart.",
         ));
     }
-    let mut diagnostics=vec![Diagnostic{
-        code:"recognition.oblique_pocket_fitted".into(),severity:Severity::Warning,count:1,
-        message:"Le congé de fond de poche est interprété comme un quart de cylindre arrêté par un plan oblique.".into(),
+    let cylinders = geoms.len();
+    let adjacent = cylinders == 2;
+    let (fitted, adjusted, description) = if adjacent {
+        ("recognition.adjacent_pocket_fitted","recognition.adjacent_pocket_adjusted","Les deux congés adjacents sont interprétés comme des quarts de cylindre à arête elliptique commune.")
+    } else {
+        ("recognition.oblique_pocket_fitted","recognition.oblique_pocket_adjusted","Le congé de fond de poche est interprété comme un quart de cylindre arrêté par un plan oblique.")
+    };
+    let mut diagnostics = vec![Diagnostic {
+        code: fitted.into(),
+        severity: Severity::Warning,
+        count: cylinders,
+        message: description.into(),
     }];
     if points.displaced > 0 {
         diagnostics.push(Diagnostic{
-            code:"recognition.oblique_pocket_adjusted".into(),severity:Severity::Info,count:points.displaced,
+            code:adjusted.into(),severity:Severity::Info,count:points.displaced,
             message:"Les sommets de jonction ont été ajustés aux supports mesurés dans la borne d’écart.".into(),
         });
     }
@@ -412,13 +475,15 @@ fn candidate(
         planes,
         rings: vec![],
         cylinders: vec![],
-        arcs: vec![geom.circle],
-        elliptic_arcs: vec![geom.ellipse],
-        partial_cylinders: vec![MixedPartialCylinder {
-            arcs: [0, 0],
-            inner: true,
-            elliptic_end: true,
-        }],
+        elliptic_arcs: vec![geoms[0].ellipse.clone()],
+        arcs: geoms.into_iter().map(|g| g.circle).collect(),
+        partial_cylinders: (0..cylinders)
+            .map(|index| MixedPartialCylinder {
+                arcs: [index, 0],
+                inner: true,
+                elliptic_end: true,
+            })
+            .collect(),
     };
     let model = RoundedModel {
         revolved: RevolvedModel {
@@ -439,8 +504,8 @@ fn candidate(
         .owners
         .into_iter()
         .map(|i| {
-            if i == WALL {
-                RoundedFaceRef::PartialCylinder { index: 0 }
+            if i >= WALL {
+                RoundedFaceRef::PartialCylinder { index: i - WALL }
             } else {
                 RoundedFaceRef::Plane { index: i }
             }
@@ -451,13 +516,13 @@ fn candidate(
         triangle_faces,
         report: RecognitionReport {
             revolutions: 0,
-            cylinders: 1,
+            cylinders,
             cones: 0,
             spheres: 0,
             tori: 0,
             toroidal_fillets: 0,
-            max_radial_residual_mm: error.residual,
-            max_chord_error_mm: error.chord,
+            max_radial_residual_mm: residual,
+            max_chord_error_mm: chord,
             max_wall_residual_mm: trim,
             max_deviation_bound_mm: bound,
             expected_volume_mm3: volume,

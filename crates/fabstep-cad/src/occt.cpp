@@ -310,7 +310,7 @@ struct SurfaceCounts {
   size_t linear_blends = 0;
   size_t cross_drills = 0;
   size_t revolutions = 0;
-  size_t oblique_pockets = 0;
+  size_t elliptic_cylinders = 0;
 };
 
 constexpr SurfaceCounts trihedral_surfaces{6, 3, 3, 0, 1, 0, 1};
@@ -1203,7 +1203,7 @@ TopoDS_Solid build_mixed_solid(
     const size_t* partial_cone_tokens = nullptr,
     const SphericalOctantData* octant = nullptr, const size_t* octant_token = nullptr,
     const LinearBlendData* blend = nullptr, const EllipticArcData* ellipses = nullptr,
-    const size_t* blend_token = nullptr, bool oblique_pocket = false) {
+    const size_t* blend_token = nullptr, bool pocket_walls = false) {
   IndexedWires wires(points, point_count);
   BRepBuilderAPI_Sewing sewing(Precision::Confusion());
   sewing.SetMaxTolerance(Precision::Confusion());
@@ -1233,11 +1233,14 @@ TopoDS_Solid build_mixed_solid(
     sewing.Add(face);
     if (torus_tokens && labels) labels->push_back({face, torus_tokens[i]});
   }
-  std::vector<TopoDS_Edge> shared_arcs(blend || oblique_pocket ? 2 : arc_count);
-  if (oblique_pocket) {
-    const auto face = pocket::wall(*arcs, *ellipses, points, wires, shared_arcs);
-    sewing.Add(face);
-    if (labels && partial_tokens) labels->push_back({face, *partial_tokens});
+  std::vector<TopoDS_Edge> shared_arcs(blend ? 2 : arc_count + size_t(pocket_walls));
+  if (pocket_walls) {
+    for (size_t i = 0; i < arc_count; ++i) {
+      const auto face = pocket::wall(arcs[i], *ellipses, points, wires, shared_arcs[i],
+                                     shared_arcs[arc_count], arc_count == 2);
+      sewing.Add(face);
+      if (labels && partial_tokens) labels->push_back({face, partial_tokens[i]});
+    }
   }
   if (blend) {
     const auto face = linear_blend_face(*blend, ellipses, points, wires, shared_arcs);
@@ -1275,7 +1278,7 @@ TopoDS_Solid build_mixed_solid(
       const bool hole = j != first_loop;
       const TopoDS_Wire wire = loop.count == 0
           ? rim_wire(plane, rims[loop.start], hole)
-          : segmented_wire(plane, segments + loop.start, loop.count, arcs, shared_arcs, wires, ellipses, oblique_pocket ? 1 : 0);
+          : segmented_wire(plane, segments + loop.start, loop.count, arcs, shared_arcs, wires, ellipses, pocket_walls ? arc_count : 0);
       if (hole) {
         make_face.Add(wire);
       } else {
@@ -1468,7 +1471,7 @@ struct SolidMeasurement {
   std::optional<CrossDrillData> cross_drill;
   std::optional<SmoothRevolutionData> revolution;
   std::optional<TorusSectorSolidData> sector;
-  std::optional<pocket::Geometry> pocket;
+  std::optional<pocket::Domain> pocket;
 };
 
 bool quarter_turn(double span) {
@@ -1956,7 +1959,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
                               const CrossDrillData* expected_drill = nullptr,
                               const SmoothRevolutionData* expected_revolution = nullptr,
                               const TorusSectorSolidData* expected_sector = nullptr,
-                              const pocket::Geometry* expected_pocket = nullptr) {
+                              const pocket::Domain* expected_pocket = nullptr) {
   TopTools_IndexedMapOfShape shells;
   TopExp::MapShapes(shape, TopAbs_SHELL, shells);
   if (shells.Extent() != 1 || !BRep_Tool::IsClosed(shells(1))) {
@@ -1989,10 +1992,10 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
         }
         if (surface.LastUParameter() - surface.FirstUParameter() < 2.0 * std::acos(-1.0) - 1.0e-9) {
           ++found.partial;
-          if ((!expected || expected->oblique_pockets) && faces.Extent() == 12) {
+          if ((!expected || expected->elliptic_cylinders) && (faces.Extent() == 12 || faces.Extent() == 13)) {
             for (TopExp_Explorer it(faces(i), TopAbs_EDGE); it.More(); it.Next()) {
               if (BRepAdaptor_Curve(TopoDS::Edge(it.Current())).GetType() == GeomAbs_Ellipse) {
-                ++found.oblique_pockets;
+                ++found.elliptic_cylinders;
                 break;
               }
             }
@@ -2052,7 +2055,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
                    found.spherical_octants != expected->spherical_octants ||
                    found.partial_conical != expected->partial_conical ||
                    found.linear_blends != expected->linear_blends ||
-                   found.oblique_pockets != expected->oblique_pockets ||
+                   found.elliptic_cylinders != expected->elliptic_cylinders ||
                    found.revolutions != expected->revolutions || found.cross_drills != expected->cross_drills)) {
     throw CadFailure{status, "Les types de surfaces diffèrent de la reconstruction."};
   }
@@ -2061,9 +2064,9 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   std::optional<TorusSectorSolidData> sector;
   if (partial_torus || expected_sector)
     sector = torus_sector::verify(shape,expected_sector,status).domain;
-  std::optional<pocket::Geometry> pocket_geometry;
-  if (found.oblique_pockets || expected_pocket)
-    pocket_geometry = pocket::verify(shape, faces, expected_pocket, status);
+  std::optional<pocket::Domain> pocket_geometry;
+  if (found.elliptic_cylinders || expected_pocket)
+    pocket_geometry = pocket::verify(shape, faces, found.elliptic_cylinders, expected_pocket, status);
   check_edge_incidence(shape, faces, status);
   if (!BRepCheck_Analyzer(shape, true, false, true).IsValid()) {
     throw CadFailure{status, "Le contrôle géométrique du solide a échoué."};
@@ -2085,7 +2088,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     const double expected_volume = torus_sector::Geometry(*sector).volume();
     torus_sector::require(std::isfinite(expected_volume) &&
       std::abs(expected_volume-properties.Mass()) < expected_volume*1e-8,status);
-  } else if (found.linear_blends || found.cross_drills || found.oblique_pockets)
+  } else if (found.linear_blends || found.cross_drills || found.elliptic_cylinders)
     BRepGProp::VolumeProperties(shape, properties, 1.e-11, true);
   else
     BRepGProp::VolumeProperties(shape, properties, true);
@@ -2129,7 +2132,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
 CadMetrics measure(const TopoDS_Shape& shape, SurfaceCounts expected, Status status,
                    const RoundedBoxFrame* expected_box = nullptr,const CrossDrillData* expected_drill=nullptr,
                    const SmoothRevolutionData* expected_revolution=nullptr,
-                   const TorusSectorSolidData* expected_sector=nullptr, const pocket::Geometry* expected_pocket=nullptr) {
+                   const TorusSectorSolidData* expected_sector=nullptr, const pocket::Domain* expected_pocket=nullptr) {
   return measure_solid(shape, status, &expected, expected_box,expected_drill,expected_revolution,expected_sector,expected_pocket).metrics;
 }
 
@@ -3714,7 +3717,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
                    const RoundedBoxFrame* expected_box = nullptr,
                    FaceLabels* labels = nullptr,const CrossDrillData* expected_drill=nullptr,
                    const SmoothRevolutionData* expected_revolution=nullptr,
-                   const TorusSectorSolidData* expected_sector=nullptr, const pocket::Geometry* expected_pocket=nullptr) noexcept {
+                   const TorusSectorSolidData* expected_sector=nullptr, const pocket::Domain* expected_pocket=nullptr) noexcept {
   *output = {};
   return with_occt(invalid_model, error, error_capacity, [&](Status& stage) {
     size_t face_count = 0;
@@ -3865,24 +3868,44 @@ extern "C" int fabstep_build_cross_drill_step(const CrossDrillData* domain,
     {6,3,0,0,0,0,0,0,0,1},output,error,capacity,nullptr,tracked,domain);
 }
 
-// Slots 0 and 1 denote the shared circle and ellipse respectively.
+// Circular stops come first. The final (single) elliptic arc belongs to a
+// stop plane on a one-wall pocket or to both cylinders at an adjacent corner.
+static int build_pocket_step(size_t walls, const double* points, size_t point_count,
+    const double* normals, const size_t* plane_loops, const MixedLoopData* loops,
+    const MixedSegmentData* segments, const MixedArcData* circles, const EllipticArcData* ellipse,
+    const size_t* plane_tokens, const size_t* wall_tokens,
+    StepOutput* output, char* error, size_t capacity) noexcept {
+  FaceLabels labels;
+  auto* tracked = wall_tokens ? &labels : nullptr;
+  SurfaceCounts counts{11, walls, walls};
+  counts.elliptic_cylinders = walls;
+  pocket::Domain expected{{}, walls};
+  return validated_step([&] {
+    for (size_t i = 0; i < walls; ++i)
+      expected.walls[i] = pocket::geometry(circles[i], *ellipse, points);
+    return build_mixed_solid(points, point_count, nullptr, 0, normals, 11, plane_loops, loops,
+        segments, nullptr, 0, circles, walls, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0,
+        plane_tokens, nullptr, tracked, nullptr, nullptr, nullptr, wall_tokens, nullptr, 0, nullptr,
+        nullptr, nullptr, nullptr, ellipse, nullptr, true);
+  }, counts, output, error, capacity, nullptr, tracked, nullptr, nullptr, nullptr, &expected);
+}
+
 extern "C" int fabstep_build_oblique_pocket_step(
     const double* points, size_t point_count, const double* normals, const size_t* plane_loops,
     const MixedLoopData* loops, const MixedSegmentData* segments, const MixedArcData* circle,
     const EllipticArcData* ellipse, const size_t* plane_tokens, const size_t* wall_token,
     StepOutput* output, char* error, size_t capacity) noexcept {
-  FaceLabels labels;
-  auto* tracked = wall_token ? &labels : nullptr;
-  SurfaceCounts counts{11, 1, 1};
-  counts.oblique_pockets = 1;
-  pocket::Geometry expected;
-  return validated_step([&] {
-    expected = pocket::geometry(*circle, *ellipse, points);
-    return build_mixed_solid(points, point_count, nullptr, 0, normals, 11, plane_loops, loops,
-        segments, nullptr, 0, circle, 1, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0,
-        plane_tokens, nullptr, tracked, nullptr, nullptr, nullptr, wall_token, nullptr, 0, nullptr,
-        nullptr, nullptr, nullptr, ellipse, nullptr, true);
-  }, counts, output, error, capacity, nullptr, tracked, nullptr, nullptr, nullptr, &expected);
+  return build_pocket_step(1, points, point_count, normals, plane_loops, loops, segments, circle,
+                           ellipse, plane_tokens, wall_token, output, error, capacity);
+}
+
+extern "C" int fabstep_build_adjacent_pocket_step(
+    const double* points, size_t point_count, const double* normals, const size_t* plane_loops,
+    const MixedLoopData* loops, const MixedSegmentData* segments, const MixedArcData* circles,
+    const EllipticArcData* ellipse, const size_t* plane_tokens, const size_t* wall_tokens,
+    StepOutput* output, char* error, size_t capacity) noexcept {
+  return build_pocket_step(2, points, point_count, normals, plane_loops, loops, segments, circles,
+                           ellipse, plane_tokens, wall_tokens, output, error, capacity);
 }
 
 extern "C" int fabstep_build_linear_blend_step(

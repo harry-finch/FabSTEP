@@ -15,3 +15,9 @@ Autoriser une même arête elliptique en trois dimensions à border deux cylindr
 - Prouver sur les triangles les deux axes, le rayon commun, les arcs d’arrêt, les quatre rails et une chaîne partagée de sommets sur la branche attendue. Chaque triangle appartient à une seule face. Un rayon différent, une discontinuité ou un coin déformé doit empêcher cette interprétation.
 - Vérifier la même arête dans les deux paramétrisations sur tout l’intervalle. Vérifier que le solide réimporté conserve la courbe commune, les deux cercles d’arrêt, la concavité et les voisins. Conserver les plafonds de travail et les tolérances du projet.
 - Comparer la matière et le vide des deux côtés de la jonction, le volume et les dimensions au modèle attendu. Couvrir des tessellations indépendantes, une pièce tournée et les cas négatifs. Avant intégration, vérifier l’attribution source en Auto et le réimport de plusieurs corps distincts.
+
+## Domaine intégré
+
+Chaque cylindre partiel conserve son indice de cercle. Tous deux portent `elliptic_end = true` et référencent la même ellipse, parcourue en sens inverse sur la seconde paroi. Les coordonnées de ses extrémités déterminent les rails associés. Les deux faces restent des cylindres dans l’inspecteur. Les fichiers décrits par ADR-0041 restent lisibles. Cette nouvelle combinaison requiert un lecteur qui connaît le partage du bord entre deux cylindres.
+
+L’implémentation réutilise la sélection de onze supports plans sur un corps de 24 à 4 096 triangles. Elle exige deux supports latéraux orthogonaux, une butée droite par congé et un rayon commun résolu. La vérification de hauteur utilise les extrema de la fonction axiale sur le quart d’arc effectif. Elle accepte notamment une longueur de poche de 3,75 mm avec un rayon de 2 mm. La borne de fidélité, l’attribution des triangles et les tests après réimport figurent dans V-1216.

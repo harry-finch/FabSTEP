@@ -1,6 +1,7 @@
 use super::*;
 
 pub(super) struct Geometry {
+    pub id: usize,
     pub circle_plane: usize,
     pub ellipse_plane: usize,
     pub circle: CircularArc,
@@ -51,7 +52,65 @@ pub(super) fn fit(mesh: &Mesh, p: &mut Partition, o: &Options) -> Result<Geometr
         }
     }
     checked(rails.len() == 2 && caps.len() == 2)?;
-    let mut rails = [rails[0], rails[1]];
+    let axis = cross(
+        p.planes[rails[0]].support.normal,
+        p.planes[rails[1]].support.normal,
+    );
+    caps.sort_by(|&a, &b| {
+        dot(axis, p.planes[b].support.normal)
+            .abs()
+            .total_cmp(&dot(axis, p.planes[a].support.normal).abs())
+    });
+    let (circle_plane, ellipse_plane) = (caps[0], caps[1]);
+    fit_between(
+        mesh,
+        p,
+        o,
+        Stops {
+            wall: WALL,
+            rails: [rails[0], rails[1]],
+            circle_plane,
+            ellipse_plane,
+            far: p.planes[ellipse_plane].support,
+            shared_radius: None,
+        },
+    )
+}
+
+pub(super) struct Stops {
+    pub wall: usize,
+    pub rails: [usize; 2],
+    pub circle_plane: usize,
+    pub ellipse_plane: usize,
+    pub far: Plane,
+    pub shared_radius: Option<f64>,
+}
+
+/// Minimum of a*cos(theta) + b*sin(theta) over the closed first quadrant.
+fn minimum_quarter_offset([a, b]: [f64; 2]) -> f64 {
+    if a < 0. && b < 0. {
+        -a.hypot(b)
+    } else {
+        a.min(b)
+    }
+}
+
+pub(super) fn fit_between(
+    mesh: &Mesh,
+    p: &mut Partition,
+    o: &Options,
+    stops: Stops,
+) -> Result<Geometry, FabError> {
+    let Stops {
+        wall,
+        mut rails,
+        circle_plane,
+        ellipse_plane,
+        far,
+        shared_radius,
+    } = stops;
+    let raw = &mesh.vertices;
+    let tol = o.cylinder_fit_tolerance_mm.min(1e-5);
     checked(
         dot(
             p.planes[rails[0]].support.normal,
@@ -65,17 +124,10 @@ pub(super) fn fit(mesh: &Mesh, p: &mut Partition, o: &Options) -> Result<Geometr
         p.planes[rails[1]].support.normal,
     ))
     .ok_or_else(unsupported)?;
-    caps.sort_by(|&a, &b| {
-        dot(axis, p.planes[b].support.normal)
-            .abs()
-            .total_cmp(&dot(axis, p.planes[a].support.normal).abs())
-    });
-    let (circle_plane, ellipse_plane) = (caps[0], caps[1]);
     let near = p.planes[circle_plane].support;
-    let far = p.planes[ellipse_plane].support;
     checked(dot(axis, near.normal).abs() > 1. - 1e-10)?;
-    let near_chain = &p.cuts[&(circle_plane, WALL)];
-    let far_chain = &p.cuts[&(ellipse_plane, WALL)];
+    let near_chain = &p.cuts[&pair(circle_plane, wall)];
+    let far_chain = &p.cuts[&pair(ellipse_plane, wall)];
     checked(near_chain.len() >= 7 && far_chain.len() >= 7)?;
     let near_mid = raw[near_chain[near_chain.len() / 2]];
     let far_mid = raw[far_chain[far_chain.len() / 2]];
@@ -93,7 +145,7 @@ pub(super) fn fit(mesh: &Mesh, p: &mut Partition, o: &Options) -> Result<Geometr
     let cap_ends = |cap: &[usize]| -> Result<[usize; 2], FabError> {
         let mut ids = [0; 2];
         for (k, &i) in rails.iter().enumerate() {
-            let cut = &p.cuts[&(i, WALL)];
+            let cut = &p.cuts[&pair(i, wall)];
             let hits: Vec<_> = [cap[0], *cap.last().unwrap()]
                 .into_iter()
                 .filter(|v| *v == cut[0] || *v == *cut.last().unwrap())
@@ -117,6 +169,7 @@ pub(super) fn fit(mesh: &Mesh, p: &mut Partition, o: &Options) -> Result<Geometr
         + supports[1].distance(raw[high[0]])
         + supports[0].distance(raw[high[1]]))
         / 4.;
+    let radius = shared_radius.unwrap_or(radius);
     checked(radius.is_finite() && radius > 8. * tol)?;
     let center = add(base, scale(add(x, y), -radius));
     let normal = scale(far.normal, dot(far.normal, axis).signum());
@@ -127,7 +180,15 @@ pub(super) fn fit(mesh: &Mesh, p: &mut Partition, o: &Options) -> Result<Geometr
         -radius * dot(normal, x) / cosine,
         -radius * dot(normal, y) / cosine,
     ];
-    checked(h > slope[0].hypot(slope[1]) + tol)?;
+    if shared_radius.is_some() {
+        // The seam terminates this wall on its proven quarter turn. Narrow
+        // pockets can have positive height here even if the bisector would
+        // cross the opposite side of a hypothetical complete cylinder.
+        checked(h + minimum_quarter_offset(slope) > tol)?;
+    } else {
+        // Keep the historical clearance of an isolated oblique stop.
+        checked(h > slope[0].hypot(slope[1]) + tol)?;
+    }
     let circle = CircularArc {
         center,
         axis,
@@ -153,6 +214,7 @@ pub(super) fn fit(mesh: &Mesh, p: &mut Partition, o: &Options) -> Result<Geometr
         vertices: high,
     };
     Ok(Geometry {
+        id: wall,
         circle_plane,
         ellipse_plane,
         circle,
@@ -182,7 +244,7 @@ pub(super) fn prove(
     let mut chart = vec![[0.; 2]; count];
     let mut wall_vertices = BTreeSet::new();
     for (tri, &owner) in mesh.triangles.iter().zip(&part.owners) {
-        if owner == WALL {
+        if owner == g.id {
             wall_vertices.extend(tri.iter().copied());
         }
     }
@@ -191,7 +253,7 @@ pub(super) fn prove(
         chart[id] = [dot(d, g.y).atan2(dot(d, g.x)), dot(d, g.circle.axis)];
     }
     for (&rail, angle) in g.rails.iter().zip([0., FRAC_PI_2]) {
-        for &id in &part.cuts[&(rail, WALL)] {
+        for &id in &part.cuts[&pair(rail, g.id)] {
             chart[id][0] = angle;
         }
     }
@@ -200,7 +262,7 @@ pub(super) fn prove(
         .into_iter()
         .zip([false, true])
     {
-        let path = &part.cuts[&(cap, WALL)];
+        let path = &part.cuts[&pair(cap, g.id)];
         let mut samples = Vec::with_capacity(path.len());
         for &id in path {
             let theta = chart[id][0];
@@ -222,7 +284,7 @@ pub(super) fn prove(
         }
     }
     for &rail in &g.rails {
-        let path = &part.cuts[&(rail, WALL)];
+        let path = &part.cuts[&pair(rail, g.id)];
         let ascending = chart[path[0]][1] < chart[*path.last().unwrap()][1];
         checked(path.windows(2).all(|p| {
             if ascending {
@@ -256,7 +318,7 @@ pub(super) fn prove(
     let mut area = Sum::default();
     let mut max_span = 0_f64;
     for (tri, &owner) in mesh.triangles.iter().zip(&part.owners) {
-        if owner != WALL {
+        if owner != g.id {
             continue;
         }
         let [a, b, c] = tri.map(|v| chart[v]);
@@ -285,4 +347,22 @@ pub(super) fn prove(
         .hypot(axial)
         .max(g.ellipse.major_mm * span.powi(2) / 8.);
     Ok(ErrorBound { residual, chord })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::minimum_quarter_offset;
+
+    #[test]
+    fn quarter_height_checks_endpoints_and_interior_minima() {
+        for (coefficients, expected) in [
+            ([3., 4.], 3.),
+            ([-3., 4.], -3.),
+            ([3., -4.], -4.),
+            ([-3., -4.], -5.),
+            ([0., 4.], 0.),
+        ] {
+            assert_eq!(minimum_quarter_offset(coefficients), expected);
+        }
+    }
 }

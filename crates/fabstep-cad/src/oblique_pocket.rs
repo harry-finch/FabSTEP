@@ -3,8 +3,8 @@ use super::*;
 use fabstep_core::{CircularArc, EllipticArc};
 use std::f64::consts::FRAC_PI_2;
 
-type Point = [f64; 3];
-const GUARD: f64 = 1e-7; // The corner identity required by the OCCT transfer.
+pub(super) type Point = [f64; 3];
+pub(super) const GUARD: f64 = 1e-7; // The corner identity required by the OCCT transfer.
 
 unsafe extern "C" {
     fn fabstep_build_oblique_pocket_step(
@@ -27,7 +27,7 @@ unsafe extern "C" {
 pub(super) fn invalid() -> FabError {
     FabError::new(
         "cad.invalid_model",
-        "Le cylindre de poche et les contours de ses butées droite et oblique sont incohérents.",
+        "Les congés de la poche et les contours de leurs faces voisines sont incohérents.",
     )
 }
 
@@ -35,7 +35,7 @@ fn sub(a: Point, b: Point) -> Point {
     std::array::from_fn(|i| a[i] - b[i])
 }
 
-fn dot(a: Point, b: Point) -> f64 {
+pub(super) fn dot(a: Point, b: Point) -> f64 {
     a.into_iter().zip(b).map(|(x, y)| x * y).sum()
 }
 
@@ -51,14 +51,15 @@ fn offset(p: Point, direction: Point, distance: f64) -> Point {
     std::array::from_fn(|i| p[i] + distance * direction[i])
 }
 
-fn finite(p: &Point) -> bool {
+pub(super) fn finite(p: &Point) -> bool {
     p.iter().all(|v| v.is_finite())
 }
 
-fn check_curves(
+pub(super) fn check_curves(
     vertices: &[Point],
     circle: &CircularArc,
     ellipse: &EllipticArc,
+    shared_by_cylinders: bool,
 ) -> Result<(), FabError> {
     let ids = [circle.vertices, ellipse.vertices].concat();
     let (r, major) = (circle.radius_mm, ellipse.major_mm);
@@ -102,7 +103,7 @@ fn check_curves(
         || dot(minor_dir, z).abs() * ellipse.minor_mm > GUARD
         || (major * cosine - r).abs() > GUARD
         || norm(cross(centers, z)) > GUARD
-        || dot(centers, z) <= major * dot(major_dir, z).abs() + GUARD
+        || (!shared_by_cylinders && dot(centers, z) <= major * dot(major_dir, z).abs() + GUARD)
     {
         return Err(invalid());
     }
@@ -112,6 +113,22 @@ fn check_curves(
         return Err(invalid());
     }
     let y = cross(z, x);
+    if shared_by_cylinders {
+        // In a short pocket the rest of the full ellipse can cross the stop
+        // plane. Only the quarter between the witnessed rails bounds this wall.
+        let h = dot(centers, z);
+        let hc = -r * dot(ellipse.axis, x) / cosine;
+        let hs = -r * dot(ellipse.axis, y) / cosine;
+        let u = (-hs).atan2(-hc).rem_euclid(std::f64::consts::TAU);
+        let (sin, cos) = circle.sweep_rad.sin_cos();
+        let mut min_height = (h + hc).min(h + hc * cos + hs * sin);
+        if u <= circle.sweep_rad {
+            min_height = min_height.min(h - hc.hypot(hs));
+        }
+        if !min_height.is_finite() || min_height <= GUARD {
+            return Err(invalid());
+        }
+    }
     for (i, t) in [0., circle.sweep_rad].into_iter().enumerate() {
         let lo = vertices[circle.vertices[i]];
         let hi = vertices[ellipse.vertices[i]];
@@ -134,15 +151,15 @@ fn check_curves(
 }
 
 #[derive(Default)]
-struct Planes {
-    normals: Vec<Point>,
-    offsets: Vec<usize>,
-    loops: Vec<NativeMixedLoop>,
-    segments: Vec<NativeMixedSegment>,
+pub(super) struct Planes {
+    pub(super) normals: Vec<Point>,
+    pub(super) offsets: Vec<usize>,
+    pub(super) loops: Vec<NativeMixedLoop>,
+    pub(super) segments: Vec<NativeMixedSegment>,
 }
 
 // Every material line has two oppositely oriented uses on distinct faces.
-// Face index 11 is the concave cylinder, after the eleven planes.
+// Cylinder face indices immediately follow the eleven planes.
 fn register_line(
     lines: &mut BTreeMap<(usize, usize), [Option<usize>; 2]>,
     [from, to]: [usize; 2],
@@ -160,20 +177,69 @@ fn register_line(
     Ok(())
 }
 
+/// The two arcs appearing on planar stops. For adjacent walls the common
+/// ellipse is internal to their pair and never appears in these records.
+pub(super) struct Stop {
+    arc: usize,
+    ellipse: bool,
+    vertices: [usize; 2],
+    normal: Point,
+    area_adjustment: f64,
+}
+
+impl Stop {
+    pub(super) fn circle(arc: usize, c: &CircularArc) -> Self {
+        Self {
+            arc,
+            ellipse: false,
+            vertices: c.vertices,
+            normal: c.axis,
+            area_adjustment: c.radius_mm.powi(2) * (c.sweep_rad - c.sweep_rad.sin()),
+        }
+    }
+
+    fn ellipse(e: &EllipticArc) -> Self {
+        Self {
+            arc: 0,
+            ellipse: true,
+            vertices: [e.vertices[1], e.vertices[0]],
+            normal: e.axis.map(|v| -v),
+            area_adjustment: e.major_mm * e.minor_mm * (e.sweep_rad - e.sweep_rad.sin()),
+        }
+    }
+}
+
+/// Lines are oriented along the boundary of the concave cylindrical face.
+pub(super) struct Rail {
+    vertices: [usize; 2],
+    seam_vertex: usize,
+    inward: Point,
+    radius: f64,
+}
+
+pub(super) fn wall_rails(points: &[Point], c: &CircularArc, far: [usize; 2]) -> [Rail; 2] {
+    std::array::from_fn(|i| Rail {
+        vertices: if i == 0 {
+            [c.vertices[i], far[i]]
+        } else {
+            [far[i], c.vertices[i]]
+        },
+        seam_vertex: far[i],
+        inward: sub(c.center, points[c.vertices[i]]),
+        radius: c.radius_mm,
+    })
+}
+
 impl Planes {
-    fn encode(
+    pub(super) fn encode(
         model: &MixedModel,
-        circle: &CircularArc,
-        ellipse: &EllipticArc,
+        curves: [Stop; 2],
+        rails: &[Rail],
     ) -> Result<Self, FabError> {
         let mut out = Self::default();
         let mut edges = BTreeMap::new();
-        let rails = [
-            [circle.vertices[0], ellipse.vertices[0]],
-            [ellipse.vertices[1], circle.vertices[1]],
-        ];
-        for rail in rails {
-            register_line(&mut edges, rail, 11)?;
+        for (i, rail) in rails.iter().enumerate() {
+            register_line(&mut edges, rail.vertices, model.planes.len() + i / 2)?;
         }
         let mut stops = [None; 2];
         let points = &model.vertices;
@@ -213,33 +279,26 @@ impl Planes {
                             (usize::MAX, vertices)
                         }
                         MixedSegment::Arc {
-                            arc: 0,
+                            arc,
                             reversed: false,
-                        } if stops[0].is_none() => {
-                            if norm(sub(normal, circle.axis)) > 1e-7 {
-                                return Err(invalid());
-                            }
-                            stops[0] = Some(face);
-                            let angle = circle.sweep_rad;
-                            patch_area += dot(normal, circle.axis)
-                                * circle.radius_mm.powi(2)
-                                * (angle - angle.sin());
-                            (0, circle.vertices)
                         }
-                        MixedSegment::EllipticArc {
-                            arc: 0,
+                        | MixedSegment::EllipticArc {
+                            arc,
                             reversed: true,
-                        } if stops[1].is_none() => {
-                            if norm(sub(normal, ellipse.axis.map(|v| -v))) > 1e-7 {
+                        } => {
+                            let elliptic = matches!(segment, MixedSegment::EllipticArc { .. });
+                            let slot = curves
+                                .iter()
+                                .position(|curve| curve.arc == arc && curve.ellipse == elliptic)
+                                .ok_or_else(invalid)?;
+                            let curve = &curves[slot];
+                            if stops[slot].replace(face).is_some()
+                                || norm(sub(normal, curve.normal)) > 1e-7
+                            {
                                 return Err(invalid());
                             }
-                            stops[1] = Some(face);
-                            let angle = ellipse.sweep_rad;
-                            patch_area -= dot(normal, ellipse.axis)
-                                * ellipse.major_mm
-                                * ellipse.minor_mm
-                                * (angle - angle.sin());
-                            (1, [ellipse.vertices[1], ellipse.vertices[0]])
+                            patch_area += dot(normal, curve.normal) * curve.area_adjustment;
+                            (slot, curve.vertices)
                         }
                         _ => return Err(invalid()),
                     };
@@ -272,16 +331,33 @@ impl Planes {
         {
             return Err(invalid());
         }
-        let mut neighbors = stops.to_vec();
-        for (i, rail) in rails.into_iter().enumerate() {
+        let mut supports = vec![];
+        for rail in rails {
+            let [from, to] = rail.vertices;
             let face =
-                edges[&edge_key(rail)][usize::from(rail[1] >= rail[0])].ok_or_else(invalid)?;
-            if neighbors.contains(&Some(face)) {
+                edges[&edge_key(rail.vertices)][usize::from(to >= from)].ok_or_else(invalid)?;
+            if face >= model.planes.len()
+                || stops.contains(&Some(face))
+                || norm(sub(rail.inward, out.normals[face].map(|x| x * rail.radius))) > GUARD
+            {
                 return Err(invalid());
             }
-            neighbors.push(Some(face));
-            let inward = sub(circle.center, points[circle.vertices[i]]);
-            if norm(sub(inward, out.normals[face].map(|x| x * circle.radius_mm))) > GUARD {
+            supports.push((face, rail.seam_vertex));
+        }
+        if supports.chunks_exact(2).any(|pair| pair[0].0 == pair[1].0) {
+            return Err(invalid());
+        }
+        if let [a, b, c, d] = supports.as_slice() {
+            // Exactly one endpoint of the ellipse lies on their common
+            // tangent plane (the floor); the remaining supports are distinct.
+            let mut shared = [(a, c), (a, d), (b, c), (b, d)]
+                .into_iter()
+                .filter(|(first, second)| first.0 == second.0);
+            if shared
+                .next()
+                .is_none_or(|(first, second)| first.1 != second.1)
+                || shared.next().is_some()
+            {
                 return Err(invalid());
             }
         }
@@ -311,25 +387,14 @@ pub(super) fn build(
     {
         return Err(invalid());
     }
-    check_curves(&model.vertices, circle, ellipse)?;
-    let planes = Planes::encode(model, circle, ellipse)?;
-    let c = NativeMixedArc {
-        center: circle.center,
-        axis: circle.axis,
-        radius: circle.radius_mm,
-        sweep: circle.sweep_rad,
-        vertices: circle.vertices,
-    };
-    let e = NativeEllipse {
-        center: ellipse.center,
-        axis: ellipse.axis,
-        major_direction: ellipse.major_direction,
-        major: ellipse.major_mm,
-        minor: ellipse.minor_mm,
-        start: ellipse.start_rad,
-        sweep: ellipse.sweep_rad,
-        vertices: ellipse.vertices,
-    };
+    check_curves(&model.vertices, circle, ellipse, false)?;
+    let planes = Planes::encode(
+        model,
+        [Stop::circle(0, circle), Stop::ellipse(ellipse)],
+        &wall_rails(&model.vertices, circle, ellipse.vertices),
+    )?;
+    let c = native_circle(circle);
+    let e = native_ellipse(ellipse);
     native_step(|output, error, capacity| unsafe {
         fabstep_build_oblique_pocket_step(
             model.vertices.as_ptr(),
@@ -347,4 +412,27 @@ pub(super) fn build(
             capacity,
         )
     })
+}
+
+pub(super) fn native_circle(circle: &CircularArc) -> NativeMixedArc {
+    NativeMixedArc {
+        center: circle.center,
+        axis: circle.axis,
+        radius: circle.radius_mm,
+        sweep: circle.sweep_rad,
+        vertices: circle.vertices,
+    }
+}
+
+pub(super) fn native_ellipse(ellipse: &EllipticArc) -> NativeEllipse {
+    NativeEllipse {
+        center: ellipse.center,
+        axis: ellipse.axis,
+        major_direction: ellipse.major_direction,
+        major: ellipse.major_mm,
+        minor: ellipse.minor_mm,
+        start: ellipse.start_rad,
+        sweep: ellipse.sweep_rad,
+        vertices: ellipse.vertices,
+    }
 }

@@ -280,3 +280,9 @@ Le champ additif `RoundedModel.torus_sectors` conserve les quatre arcs orientés
 ### Poche à butée oblique (R-087)
 
 Le chemin Auto/Surfaces identifie onze régions planes et une bande cylindrique concave. Les deux rails et les deux arcs doivent être partagés avec quatre voisins distincts. Chaque triangle de la bande est vérifié dans le repère angle–hauteur du cylindre. Le calcul de volume intègre la hauteur variable imposée par la butée oblique. Dans `MixedPartialCylinder`, le champ optionnel `elliptic_end` indique que le deuxième indice désigne une entrée de `elliptic_arcs`. Le groupe de provenance reste celui des cylindres partiels. L’arête 3D elliptique est partagée par les deux faces. Sa représentation sur le cylindre utilise une interpolation d’Hermite bornée puis vérifiée par OCCT. Les contrôles portent également sur le réimport multicorps. Voir [ADR-0041](docs/adr/0041-oblique-cylinder-pocket.md).
+
+### Deux congés adjacents à arête commune (R-089)
+
+Avec onze régions planes, le moteur recherche aussi deux bandes concaves qui atteignent ensemble cinq supports plans. Le plan bissecteur sépare les bandes. Chaque bande doit couvrir le quart de cylindre attendu, et leur frontière doit suivre la même chaîne d’arêtes de la source. Les deux cylindres partiels référencent deux cercles d’arrêt et le même indice dans `elliptic_arcs`. La hauteur minimale de la bande est contrôlée sur l’arc de jonction.
+
+La CAO crée une seule arête 3D et deux tracés paramétriques, chacun dans le repère de son cylindre. Après réimport, elle retrouve le partage de cette arête, ses deux propriétaires, le fond commun et les deux autres plans tangents. Les identités des faces et des corps sont conservées lors du transfert d’un document à plusieurs corps. Voir [ADR-0042](docs/adr/0042-adjacent-pocket-fillets.md).

@@ -1,7 +1,7 @@
 ---
 id: R-035
 titre: "E — boîtiers creux ouverts et percés"
-resume: "Bac ouvert, fond percé, poche à congé isolé et poche à deux congés opposés qualifiés. Restent les jonctions, les rebords et les doubles butées obliques."
+resume: "Bac ouvert, fond percé, poches à un congé ou à deux congés opposés ou adjacents de même rayon intégrés. Restent les rebords et les autres combinaisons."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13

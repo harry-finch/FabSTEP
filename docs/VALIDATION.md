@@ -2174,7 +2174,7 @@ Après réimport de la référence, les deux tracés paramétriques ont été in
 | STL maillé indépendamment par FreeCAD, 114 triangles | Deux congés de rayon 2,5 mm | 71 plans, écart de volume +0,303779 mm³ |
 | Même pièce FreeCAD, 240 triangles | Même géométrie analytique | 159 plans, écart de volume +0,049864 mm³ |
 
-Les deux conversions du maillage FreeCAD passent les contrôles de fermeture, de dimensions et les 16 sondes matière/vide. Le mode strict du script exige l’ellipse commune dans les deux résultats et échoue sur le premier résultat facettisé. La reconnaissance analytique reste à développer. Voir [ADR-0042](adr/0042-adjacent-pocket-fillets.md).
+Les deux conversions du maillage FreeCAD passent les contrôles de fermeture, de dimensions et les 16 sondes matière/vide. Le mode strict du script exige l’ellipse commune dans les deux résultats et échoue sur le premier résultat facettisé. Cette mesure précède l’intégration. Les résultats analytiques se trouvent dans V-1216. Voir [ADR-0042](adr/0042-adjacent-pocket-fillets.md).
 
 ```sh
 python3 scripts/generate-adjacent-pocket-fixtures.py artifacts/r089/corpus
@@ -2185,3 +2185,34 @@ PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
 ```
 
 Ajouter `--require-analytic` à la dernière commande pour vérifier une future implémentation.
+
+## V-1216 — R-089 intégré, STEP de la poche à congés adjacents
+
+Les STL de V-1215 et le témoin court sont convertis par les parcours Auto et Surfaces. Sur chaque positif, le STEP réimporté a onze plans et deux cylindres concaves. Les deux faces se partagent la même ellipse. Chacune conserve ses triangles source en Auto, une butée circulaire et deux rails rectilignes.
+
+| Source ou contrôle | Mesure obtenue |
+| --- | --- |
+| Nominal public, rayon 2 mm | 13 faces contre 43 plans auparavant, volume 5 781,551628296 mm³. Borne source de 0,003419 mm. Les écarts mesurés entre les maillages source et résultat sont de 0,002053 et 0,003289 mm pour une tolérance de 0,05 mm. |
+| Poche tournée, rayon 3 mm | 13 faces contre 57 plans auparavant, volume 5 311,353996726 mm³. |
+| Poche courte de 3,75 mm, rayon 2 mm | 13 faces, volume 6 873,536138299 mm³. La revue a aussi reproduit à 3,99 mm un refus lié au prolongement de l’ellipse au-delà des deux rails. Après correction, Auto réimporte deux cylindres sur ce cas et le test `short.stl` couvre le quart réellement utilisé. |
+| Deux STL indépendants FreeCAD | 114 et 240 triangles. Les anciens résultats à 71 et 159 plans deviennent chacun un solide à 11 plans et 2 cylindres. Volume relu 21 005,152484857 mm³ pour 21 005,152485090 mm³ théoriques. Les 16 sondes matière/vide passent. |
+| Arête partagée du STEP de FreeCAD | Demi-axes relus de 3,535534 et 2,5 mm. Écart maximal mesuré de 2,363 × 10⁻⁹ mm sur 257 points par tracé paramétrique. Le noyau contrôle aussi les courbes sur les deux supports après transfert. |
+| Reconstruction multi-corps | Une poche adjacente et une poche à butée oblique de R-087, placées séparément et entrelacées dans le STL, donnent 2 solides, 22 plans et 3 cylindres. Leurs identités et leurs voisins restent dans leur corps. |
+| Cas limites | Le sommet de jonction déformé donne 51 plans. Un étirement sur X seul empêche la jonction. La réflexion suivie d’une rotation en précision ASCII conserve les cylindres et le volume. Une tolérance de déviation de 0,0001 mm refuse la reconstruction analytique. |
+| Contrat CAO | Une troisième poche construite algébriquement vérifie le volume, les voisins, les labels, le sens de l’ellipse et l’ordre des parois. Les mutations de courbe, de rayon, de rails et d’incidence sont refusées. Pour un rayon de 2,5 mm, une longueur de poche de 2,51 mm passe le contrôle natif, le pincement à 2,50 et le croisement à 2,49 sont refusés. |
+
+Le paquet de développement a converti les trois positifs du corpus public, le témoin déformé et le maillage fin FreeCAD. Le STEP du helper a été relu indépendamment avec le contrôle strict. Le contrôle manuel dans Fusion est suivi dans FabBoard.
+
+```sh
+cargo test --locked --offline -p fabstep-core --test adjacent_pocket
+cargo test --locked --offline -p fabstep-cad --test adjacent_pocket_contract --test oblique_pocket_contract
+cargo test --locked --offline -p fabstep-app --test adjacent_pocket --test opposed_pocket --test oblique_pocket
+cargo build --locked --offline -p fabstep-cli
+PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
+  /Applications/FreeCAD.app/Contents/Resources/bin/python \
+  scripts/qualify-adjacent-pocket-freecad.py artifacts/r089/freecad --cli target/debug/fabstep --require-analytic
+```
+
+Le rejeu des pièces privées avec le helper du jalon donne toujours 10 869 faces pour `body 26mm.stl`, dont 14 cylindres et 7 cônes, et un volume de 17 053,652458876 mm³. Sur Flansch, le helper indique 231 608 faces pour un plafond de 100 000 et aucun STEP exportable.
+
+Le 18 novembre 2026, la suite `sh scripts/check.sh` a terminé avec succès. Elle compte 815 exécutions de tests Rust réussies sur les différents profils et 21 ignorées. Les 235 tests d’interface, les contrôles Svelte et Clippy, les builds et le passage du bureau au helper réel ont réussi. Les 23 tests Python passent avec NumPy, l’interpréteur sans NumPy en ignore 11. Après la correction des poches courtes, le contrôle de hauteur et les tests core, CAO et application du jalon ont aussi été rejoués séparément. Les essais manuels R-088 et R-089 sont suivis par A-090 et A-091.

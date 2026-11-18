@@ -484,3 +484,7 @@ Le parcours existant d’Auto et de Surfaces retrouve les deux bandes cylindriqu
 ## 2026-11-18 — R-089, référence du coin à deux congés adjacents
 
 Sur deux maillages indépendants d’une même poche, Auto donne 71 et 159 plans. La pièce CAO a onze plans et deux cylindres reliés par un quart d’ellipse. Les mesures initiales et la commande de contrôle de cette arête sur les deux faces figurent dans V-1215. L’extension correspondante du contrat core/CAO est acceptée dans A-089 et décrite dans ADR-0042.
+
+## 2026-11-18 — R-089, reconstruction du coin dans Auto et Surfaces
+
+Les deux cylindres partagent désormais une arête elliptique après réimport. Sur deux STL dessinés dans FreeCAD, les 71 et 159 faces planes de V-1215 deviennent onze plans et deux cylindres. La revue indépendante a identifié un refus excessif sur les poches courtes. Le contrôle porte désormais sur le quart de cylindre que contient la pièce. Un essai de régression à 3,75 mm de longueur pour un rayon de 2 mm protège ce cas. Voir V-1216.

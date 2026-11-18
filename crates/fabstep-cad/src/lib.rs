@@ -1559,6 +1559,7 @@ pub fn build_rounded_step_with_token_groups(
     )
 }
 
+mod adjacent_pocket;
 mod oblique_pocket;
 mod torus_sector;
 
@@ -2220,6 +2221,9 @@ fn build_surface_step_with_tokens(
             || !octants.is_empty()
         {
             return Err(oblique_pocket::invalid());
+        }
+        if model.partial_cylinders.len() == 2 {
+            return adjacent_pocket::build(model, tokens);
         }
         return oblique_pocket::build(model, tokens);
     }

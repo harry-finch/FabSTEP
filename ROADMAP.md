@@ -101,9 +101,9 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 44. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · En cours · jalon post-v1
    Révolutions toriques composées et première méridienne cubique bornée ; la généralisation reste ouverte.
 45. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · En cours · jalon post-v1
-   Coin triédrique, congé isolé à butées droites ou oblique et deux congés opposés qualifiés. Restent les jonctions entre congés et les autres réseaux.
+   Coin triédrique, congés de poche isolés, opposés et adjacents de même rayon à 90° intégrés. Restent les autres réseaux et les rayons différents.
 46. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · En cours · jalon post-v1
-   Bac ouvert, fond percé, poche à congé isolé et poche à deux congés opposés qualifiés. Restent les jonctions, les rebords et les doubles butées obliques.
+   Bac ouvert, fond percé, poches à un congé ou à deux congés opposés ou adjacents de même rayon intégrés. Restent les rebords et les autres combinaisons.
 47. **[R-036 F — perçages sécants](roadmap/items/R-036-f-percages-secants.md)** · En cours · jalon post-v1
    F1 centré orthogonal développé sous R-083 et qualifié automatiquement ; essais utilisateur et généralisation restent ouverts.
 48. **[R-037 G — congés variables](roadmap/items/R-037-g-conges-variables.md)** · En cours · jalon post-v1
@@ -142,8 +142,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Auto reconstruit le congé cylindrique entre une butée droite et une paroi oblique. Les profils de face conservent le cercle et l’ellipse.
 65. **[R-088 D/E — poche à deux congés de fond opposés](roadmap/items/R-088-d-e-poche-a-deux-conges-de-fond-opposes.md)** · À tester · jalon post-v1
    Reconstruire et mesurer séparément les deux arrondis parallèles d’une poche borgne, y compris lorsque leurs rayons diffèrent.
-66. **[R-089 D/E — jonction de deux congés adjacents de même rayon](roadmap/items/R-089-d-e-jonction-de-deux-conges-adjacents-de-meme.md)** · En cours · jalon post-v1
-   Deux congés perpendiculaires se rejoignent le long d’un arc d’ellipse. Le témoin FreeCAD possède deux cylindres, encore facettisés dans Auto.
+66. **[R-089 D/E — jonction de deux congés adjacents de même rayon](roadmap/items/R-089-d-e-jonction-de-deux-conges-adjacents-de-meme.md)** · À tester · jalon post-v1
+   Dans un coin de poche à 90°, Auto reconstruit les deux congés de même rayon et conserve leur arête elliptique commune.
 
 ## Actions à faire
 
@@ -227,6 +227,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-086](roadmap/actions/A-086-inspecter-le-conge-de-la-poche-dans-fabstep-et.md) Inspecter le congé de la poche dans FabSTEP et Fusion (tester, R-086)
 - [ ] [A-088](roadmap/actions/A-088-verifier-la-butee-elliptique-de-la-poche-dans.md) Vérifier la butée elliptique de la poche dans FabSTEP et Fusion (tester, R-087)
 - [ ] [A-090](roadmap/actions/A-090-mesurer-separement-les-deux-conges-opposes-dans.md) Mesurer séparément les deux congés opposés dans Fusion (tester, R-088)
+- [ ] [A-091](roadmap/actions/A-091-controler-le-coin-a-deux-conges-adjacents-dans.md) Contrôler le coin à deux congés adjacents dans FabSTEP et Fusion (tester, R-089)
 
 ## Livré
 

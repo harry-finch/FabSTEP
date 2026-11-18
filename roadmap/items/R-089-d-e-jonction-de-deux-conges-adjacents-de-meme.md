@@ -1,8 +1,8 @@
 ---
 id: R-089
 titre: "D/E — jonction de deux congés adjacents de même rayon"
-resume: "Deux congés perpendiculaires se rejoignent le long d’un arc d’ellipse. Le témoin FreeCAD possède deux cylindres, encore facettisés dans Auto."
-statut: en-cours
+resume: "Dans un coin de poche à 90°, Auto reconstruit les deux congés de même rayon et conserve leur arête elliptique commune."
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-18
 maj: 2026-11-18
@@ -22,7 +22,7 @@ Rayons différents, trois arêtes arrondies au même sommet, raccords sphérique
 
 ## Dépendances
 
-R-086 pour les congés à butées droites, R-087 pour les bords elliptiques et R-088 pour les congés opposés. L’intégration dans le contrat core/CAO requiert de vérifier l’incidence de la même ellipse sur deux cylindres et d’obtenir l’accord prévu par INT-AUDIT-01.
+R-086 pour les congés à butées droites, R-087 pour les bords elliptiques et R-088 pour les congés opposés. L’accord A-089 autorise l’extension du contrat core/CAO à la même ellipse sur deux cylindres.
 
 ## Critères d'acceptation
 
@@ -34,4 +34,8 @@ Après conversion, réimporter un solide à onze plans et deux cylindres. Prouve
 
 ## Qualification initiale
 
-Les trois STL publics sont reproductibles. Une seconde pièce construite dans FreeCAD donne une seule ellipse partagée, de demi-axes 3,535534 et 2,5 mm. Auto réimporte encore 71 ou 159 plans selon le maillage. Le domaine proposé et les critères de preuve figurent dans [ADR-0042](../../docs/adr/0042-adjacent-pocket-fillets.md). Voir V-1215.
+Les trois STL de qualification initiale sont reproductibles. Une seconde pièce construite dans FreeCAD donne une seule ellipse partagée, de demi-axes 3,535534 et 2,5 mm. Avant intégration, Auto réimportait 71 ou 159 plans selon le maillage. Le domaine approuvé et les critères de preuve figurent dans [ADR-0042](../../docs/adr/0042-adjacent-pocket-fillets.md). Voir V-1215.
+
+## Résultat de développement
+
+Auto et Surfaces reconstruisent onze plans et deux cylindres sur les témoins publics, y compris la poche courte, et sur deux maillages indépendants. Les contrôles couvrent les voisins, la provenance, le DXF des butées, la fidélité, le partage de l’ellipse après réimport et la séparation des corps. Le coin déformé conserve ses facettes. Voir [V-1216](../../docs/VALIDATION.md#v-1216--r-089-intégré-step-de-la-poche-à-congés-adjacents).

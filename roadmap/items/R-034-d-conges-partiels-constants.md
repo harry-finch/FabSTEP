@@ -1,7 +1,7 @@
 ---
 id: R-034
 titre: "D — congés partiels constants"
-resume: "Coin triédrique, congé isolé à butées droites ou oblique et deux congés opposés qualifiés. Restent les jonctions entre congés et les autres réseaux."
+resume: "Coin triédrique, congés de poche isolés, opposés et adjacents de même rayon à 90° intégrés. Restent les autres réseaux et les rayons différents."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13

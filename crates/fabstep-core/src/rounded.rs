@@ -426,7 +426,7 @@ fn recognize_policy_with_proofs(
             if scope.is_some() {
                 return Err(FabError::new(
                     "guidance.family_unproven",
-                    "La poche à butée oblique nécessite la reconstruction du corps complet.",
+                    "Le congé de poche à bord elliptique nécessite la reconstruction du corps complet.",
                 ));
             }
             return Ok(pocket);

@@ -2,7 +2,8 @@
   "unit": "mm",
   "positives": [
     "nominal",
-    "rotated"
+    "rotated",
+    "short"
   ],
   "negatives": [
     "warped_seam"
@@ -156,6 +157,156 @@
       ],
       "inside_material_mm": [
         -7.7,
+        -4.7,
+        3.3
+      ]
+    },
+    "short": {
+      "triangles": 320,
+      "groups": {
+        "outer_bottom": [
+          0,
+          8
+        ],
+        "outer_y_min": [
+          8,
+          12
+        ],
+        "rim": [
+          12,
+          28
+        ],
+        "outer_x_max": [
+          28,
+          32
+        ],
+        "outer_y_max": [
+          32,
+          36
+        ],
+        "outer_x_min": [
+          36,
+          40
+        ],
+        "fillet_x": [
+          40,
+          104
+        ],
+        "stop_x_max": [
+          104,
+          172
+        ],
+        "stop_y_max": [
+          172,
+          240
+        ],
+        "fillet_y": [
+          240,
+          304
+        ],
+        "wall_y_min": [
+          304,
+          308
+        ],
+        "wall_x_min": [
+          308,
+          312
+        ],
+        "floor": [
+          312,
+          320
+        ]
+      },
+      "seam_segments": 16,
+      "mesh_volume_mm3": 6873.59815917152,
+      "sha256": "e1a3d7e8dc9cb50dc5e3acbb5e3764210b0e6f344dc4339b4f25d566edb8c426",
+      "radius_mm": 2,
+      "volume_mm3": 6873.5361382941655,
+      "bounds_mm": [
+        [
+          -15.0,
+          -10.0,
+          0
+        ],
+        [
+          15.0,
+          10.0,
+          12
+        ]
+      ],
+      "seam_center_mm": [
+        0.125,
+        -3.0,
+        5
+      ],
+      "seam_major_radius_mm": 2.8284271247461903,
+      "seam_minor_radius_mm": 2,
+      "seam_endpoints_mm": [
+        [
+          -1.875,
+          -5.0,
+          5
+        ],
+        [
+          0.125,
+          -3.0,
+          3
+        ]
+      ],
+      "seam_midpoint_mm": [
+        -1.289213562373095,
+        -4.414213562373095,
+        3.585786437626905
+      ],
+      "stop_circles": {
+        "x": {
+          "center_mm": [
+            1.875,
+            -3.0,
+            5
+          ],
+          "radius_mm": 2,
+          "endpoints_mm": [
+            [
+              1.875,
+              -5.0,
+              5
+            ],
+            [
+              1.875,
+              -3.0,
+              3
+            ]
+          ]
+        },
+        "y": {
+          "center_mm": [
+            0.125,
+            5.0,
+            5
+          ],
+          "radius_mm": 2,
+          "endpoints_mm": [
+            [
+              -1.875,
+              5.0,
+              5
+            ],
+            [
+              0.125,
+              5.0,
+              3
+            ]
+          ]
+        }
+      },
+      "inside_void_mm": [
+        0,
+        0,
+        7.5
+      ],
+      "inside_material_mm": [
+        -1.575,
         -4.7,
         3.3
       ]
