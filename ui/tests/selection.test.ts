@@ -254,3 +254,14 @@ test('both bounded cylinders in an unequal pocket have selectable source owners'
   body.rounded_recognition!.triangle_faces[1].index = 2;
   assert.equal(attributions([body])[0].families,null);
 });
+
+test('bicubic attribution requires the roof and all five supports', () => {
+  const report=(owners:number[])=>({
+    id:'body', analysis:{mesh:{triangles:Array(6).fill([0,1,2])}},
+    height_patch_recognition:{triangle_faces:owners}
+  }) as unknown as BodyResult;
+  assert.deepEqual(attributions([report([4,3,5,1,0,2])])[0].families,['plane','plane','height_patch','plane','plane','plane']);
+  for(const owners of [[0,1,2,3,4], [0,1,2,3,4,4], [0,1,2,3,4,6], [0,1,2,3,4,4.5]]) {
+    assert.equal(attributions([report(owners)])[0].families,null);
+  }
+});

@@ -9,6 +9,7 @@ fn main() {
     for file in [
         "cross_drill.hxx",
         "smooth_revolution.hxx",
+        "height_patch.hxx",
         "torus_sector.hxx",
         "oblique_pocket.hxx",
         "unequal_pocket.hxx",

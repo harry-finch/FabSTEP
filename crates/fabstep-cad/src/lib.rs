@@ -197,6 +197,7 @@ pub enum ResultFaceFamily {
     Torus,
     Other,
     Revolution,
+    HeightPatch,
 }
 
 /// IDs are zero-based and scoped to this read of the final STEP, not the source.
@@ -388,6 +389,13 @@ unsafe extern "C" {
     ) -> i32;
     fn fabstep_build_torus_sector_step(
         domain: *const torus_sector::NativeTorusSector,
+        tokens: *const usize,
+        output: *mut NativeStep,
+        error: *mut c_char,
+        capacity: usize,
+    ) -> i32;
+    fn fabstep_build_height_patch(
+        data: *const NativeHeightPatch,
         tokens: *const usize,
         output: *mut NativeStep,
         error: *mut c_char,
@@ -1289,6 +1297,45 @@ pub fn build_rounded_box_step(model: &RoundedBoxModel) -> Result<ValidatedStep, 
     })
 }
 
+#[repr(C)]
+struct NativeHeightPatch {
+    origin: [f64; 3],
+    size: [f64; 2],
+    heights: [[f64; 4]; 4],
+}
+
+pub fn build_height_patch(
+    patch: &fabstep_core::HeightPatch,
+    tokens: Option<&[usize]>,
+) -> Result<ValidatedStep, FabError> {
+    if tokens.is_some_and(|t| {
+        t.len() != 6
+            || t.contains(&0)
+            || t.iter()
+                .enumerate()
+                .any(|(i, token)| t[..i].contains(token))
+    }) {
+        return Err(FabError::new(
+            "step.invalid_source_provenance",
+            "Six jetons de face sont requis pour la plaque bicubique.",
+        ));
+    }
+    let data = NativeHeightPatch {
+        origin: patch.origin,
+        size: patch.size,
+        heights: patch.heights,
+    };
+    native_step(|output, error, capacity| unsafe {
+        fabstep_build_height_patch(
+            &data,
+            tokens.map_or(std::ptr::null(), |t| t.as_ptr()),
+            output,
+            error,
+            capacity,
+        )
+    })
+}
+
 /// Construit les surfaces de révolution reconnues, puis valide le STEP réimporté.
 pub fn build_rounded_step(model: &RoundedModel) -> Result<ValidatedStep, FabError> {
     build_rounded_step_impl(model, None)
@@ -1571,7 +1618,12 @@ fn build_rounded_step_impl(
     model: &RoundedModel,
     tokens: Option<SurfaceTokens<'_>>,
 ) -> Result<ValidatedStep, FabError> {
-    if model.revolved.mixed.partial_cylinders.iter().any(|c| c.elliptic_start)
+    if model
+        .revolved
+        .mixed
+        .partial_cylinders
+        .iter()
+        .any(|c| c.elliptic_start)
         && (model.unequal_pocket.is_some() || model.revolved.mixed.partial_cylinders.len() != 1)
     {
         return Err(oblique_pocket::invalid());
@@ -1741,7 +1793,9 @@ fn build_smooth_revolution(
         || !unit_direction(&f.axis)
         || !f.height_mm.is_finite()
         || f.height_mm <= 0.
-        || f.radii_mm[pole..].iter().any(|r| !r.is_finite() || *r <= 0.)
+        || f.radii_mm[pole..]
+            .iter()
+            .any(|r| !r.is_finite() || *r <= 0.)
         || (pole == 1 && (f.radii_mm[0] != 0. || f.second_span.is_some()))
         || f.rings.iter().any(|&r| r >= cap_count)
         || (pole == 0 && f.rings[0] == f.rings[1])
@@ -1754,21 +1808,39 @@ fn build_smooth_revolution(
         None => (0., [0.; 3]),
         Some(span) => {
             if !(0.125..=0.875).contains(&span.start_fraction)
-                || span.next_radii_mm.iter().any(|r| !r.is_finite() || *r <= 0.)
+                || span
+                    .next_radii_mm
+                    .iter()
+                    .any(|r| !r.is_finite() || *r <= 0.)
             {
                 return Err(invalid());
             }
             (span.start_fraction, span.next_radii_mm)
         }
     };
-    let radii = || f.radii_mm.iter().copied().chain(
-        f.second_span.iter().flat_map(|span| span.next_radii_mm.iter().copied()),
-    );
-    let scale = f.origin.into_iter().chain(radii()).chain([f.height_mm])
-        .map(f64::abs).fold(1., f64::max);
+    let radii = || {
+        f.radii_mm.iter().copied().chain(
+            f.second_span
+                .iter()
+                .flat_map(|span| span.next_radii_mm.iter().copied()),
+        )
+    };
+    let scale = f
+        .origin
+        .into_iter()
+        .chain(radii())
+        .chain([f.height_mm])
+        .map(f64::abs)
+        .fold(1., f64::max);
     let roundoff = 512. * f64::EPSILON * scale;
-    let shortest_span = if f.second_span.is_some() { knot.min(1. - knot) } else { 1. };
-    let min_feature = radii().skip(pole).fold(f.height_mm * shortest_span, f64::min);
+    let shortest_span = if f.second_span.is_some() {
+        knot.min(1. - knot)
+    } else {
+        1.
+    };
+    let min_feature = radii()
+        .skip(pole)
+        .fold(f.height_mm * shortest_span, f64::min);
     if roundoff > 5e-8 || f.witness_tolerance_mm >= min_feature / 2. {
         return Err(invalid());
     }
@@ -1776,7 +1848,8 @@ fn build_smooth_revolution(
     // also bounds any displacement when the native split is evaluated.
     let support_tolerance = (roundoff * 2.).clamp(1e-9, 5e-8);
     if f.second_span.is_some()
-        && ((1. - knot) * f.radii_mm[2] + knot * next_radii[0] - f.radii_mm[3]).abs() > support_tolerance
+        && ((1. - knot) * f.radii_mm[2] + knot * next_radii[0] - f.radii_mm[3]).abs()
+            > support_tolerance
     {
         return Err(invalid());
     }
@@ -1788,15 +1861,26 @@ fn build_smooth_revolution(
     let direction_tolerance = 5e-8 / feature_extent;
     if let Some(vertex) = f.pole_vertex {
         let point = m.vertices.get(vertex).ok_or_else(invalid)?;
-        let displacement = (0..3).map(|k| (point[k]-f.origin[k]).powi(2)).sum::<f64>().sqrt();
-        if displacement > f.witness_tolerance_mm + roundoff { return Err(invalid()); }
+        let displacement = (0..3)
+            .map(|k| (point[k] - f.origin[k]).powi(2))
+            .sum::<f64>()
+            .sqrt();
+        if displacement > f.witness_tolerance_mm + roundoff {
+            return Err(invalid());
+        }
     }
     for end in pole..2 {
         let ring = &m.rings[f.rings[end]];
-        let plane = &m.planes[end-pole];
+        let plane = &m.planes[end - pole];
         let expected_center: [f64; 3] =
             std::array::from_fn(|i| f.origin[i] + end as f64 * f.height_mm * f.axis[i]);
-        let expected_radius = if end == 0 { f.radii_mm[0] } else { f.second_span.as_ref().map_or(f.radii_mm[3], |s| s.next_radii_mm[2]) };
+        let expected_radius = if end == 0 {
+            f.radii_mm[0]
+        } else {
+            f.second_span
+                .as_ref()
+                .map_or(f.radii_mm[3], |s| s.next_radii_mm[2])
+        };
         let expected_sign = if end == 0 { -1. } else { 1. };
         if !finite(&ring.center)
             || !unit_direction(&ring.axis)
@@ -2262,7 +2346,11 @@ fn build_surface_step_with_tokens(
     octants: &[MixedSphericalOctant],
     tokens: Option<SurfaceTokens<'_>>,
 ) -> Result<ValidatedStep, FabError> {
-    if model.partial_cylinders.iter().any(|wall| wall.elliptic_end || wall.elliptic_start) {
+    if model
+        .partial_cylinders
+        .iter()
+        .any(|wall| wall.elliptic_end || wall.elliptic_start)
+    {
         if !cones.is_empty()
             || !spheres.is_empty()
             || !tori.is_empty()
@@ -2272,7 +2360,11 @@ fn build_surface_step_with_tokens(
             return Err(oblique_pocket::invalid());
         }
         if model.partial_cylinders.len() == 2 {
-            if model.partial_cylinders.iter().any(|wall| wall.elliptic_start) {
+            if model
+                .partial_cylinders
+                .iter()
+                .any(|wall| wall.elliptic_start)
+            {
                 return Err(oblique_pocket::invalid());
             }
             return adjacent_pocket::build(model, tokens);
@@ -3202,6 +3294,7 @@ pub fn result_faces(bytes: &[u8]) -> Result<ResultFaces, FabError> {
             4 => ResultFaceFamily::Torus,
             5 => ResultFaceFamily::Other,
             6 => ResultFaceFamily::Revolution,
+            7 => ResultFaceFamily::HeightPatch,
             _ => return Err(invalid()),
         };
         faces.push(ResultFace {

@@ -114,7 +114,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes
 51. **[R-026 Qualifier le garde de cocircularité des anneaux fermés](roadmap/items/R-026-qualifier-le-garde-de-cocircularite-des-anneaux-fermes.md)** · À tester · jalon audit
    Le défaut de conditionnement a été reproduit puis corrigé dans R-070. Les anneaux clairsemés et les profils en D sont couverts par les tests de V-1194.
-52. **[R-038 H — surfaces libres](roadmap/items/R-038-h-surfaces-libres.md)** · Idée · jalon post-v1
+52. **[R-038 H — surfaces libres](roadmap/items/R-038-h-surfaces-libres.md)** · À tester · jalon post-v1
    Patch bicubique de type hauteur, quatre limites source sur un solide fermé
 53. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · Idée · jalon atelier
    Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
@@ -258,6 +258,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-102](roadmap/actions/A-102-verifier-les-deux-butees-inclinees-dans-fusion.md) Vérifier les deux butées inclinées dans Fusion (tester, R-097)
 - [ ] [A-103](roadmap/actions/A-103-inspecter-le-bac-et-ses-trois-percages-dans.md) Inspecter le bac et ses trois perçages dans Fusion (tester, R-098)
 - [ ] [A-104](roadmap/actions/A-104-inspecter-la-pointe-de-revolution-dans-fusion.md) Inspecter la pointe de révolution dans Fusion (tester, R-099)
+- [ ] [A-105](roadmap/actions/A-105-verifier-les-deux-reliefs-bicubiques-dans-fusion.md) Vérifier les deux reliefs bicubiques dans Fusion (tester, R-038)
 
 ## Livré
 

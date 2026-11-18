@@ -25,7 +25,10 @@ pub struct ParameterTrial {
 }
 
 fn candidates(options: &Options) -> Result<Vec<f64>, FabError> {
-    if options.reconstruction == ReconstructionMode::Planar {
+    if matches!(
+        options.reconstruction,
+        ReconstructionMode::Planar | ReconstructionMode::HeightPatch
+    ) {
         return Err(FabError::new(
             "search.analytic_mode_required",
             "La recherche exige un mode de reconnaissance des formes courbes.",

@@ -6,7 +6,7 @@
   import { t, type Key } from '../lib/i18n.svelte';
   import type { SourceZone, SurfaceFamily, ZoneInspection } from '../lib/selection';
   let { zone, inspection, bodyName, topologyState, hasMore, ongrow, onshrink, onclear }: { zone:SourceZone|null; inspection:ZoneInspection|null; bodyName:string; topologyState:'pending'|'ready'|'unavailable'; hasMore:boolean; ongrow:()=>void; onshrink:()=>void; onclear:()=>void } = $props();
-  const labels:Record<SurfaceFamily,Key> = { plane:'inspection.plane', cylinder:'inspection.cylinder', partial_cylinder:'inspection.partialCylinder', partial_cone:'inspection.partialCone', cone:'inspection.cone', sphere:'inspection.sphere', spherical_octant:'inspection.sphere', linear_blend:'inspection.cone', cross_drill:'inspection.cylinder', smooth_revolution:'inspection.revolution', torus_sector:'inspection.torus', torus:'inspection.torus' };
+  const labels:Record<SurfaceFamily,Key> = { plane:'inspection.plane', cylinder:'inspection.cylinder', partial_cylinder:'inspection.partialCylinder', partial_cone:'inspection.partialCone', cone:'inspection.cone', sphere:'inspection.sphere', spherical_octant:'inspection.sphere', linear_blend:'inspection.cone', cross_drill:'inspection.cylinder', smooth_revolution:'inspection.revolution', height_patch:'inspection.heightPatch', torus_sector:'inspection.torus', torus:'inspection.torus' };
 </script>
 <Section id="source-inspection" title={t('inspection.title')}>
   {#snippet actions()}

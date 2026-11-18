@@ -1,11 +1,11 @@
 import type { BodyResult, SelectionTopology } from './types.ts';
 
 export type SourceZone = { previewBodyId:string; seed:number; triangles:number[]; ring:number };
-export type SurfaceFamily = 'plane'|'cylinder'|'partial_cylinder'|'partial_cone'|'cone'|'sphere'|'spherical_octant'|'linear_blend'|'cross_drill'|'smooth_revolution'|'torus_sector'|'torus';
+export type SurfaceFamily = 'plane'|'cylinder'|'partial_cylinder'|'partial_cone'|'cone'|'sphere'|'spherical_octant'|'linear_blend'|'cross_drill'|'smooth_revolution'|'height_patch'|'torus_sector'|'torus';
 export type ZoneInspection = { families:Partial<Record<SurfaceFamily, number>>; unavailable:number; analysisBodyIds:string[] };
 export type Attribution = { analysisBodyId:string; families:SurfaceFamily[] | null };
 const MAX_TRIANGLES = 100_000;
-const families = new Set(['plane','cylinder','partial_cylinder','partial_cone','cone','sphere','spherical_octant','linear_blend','cross_drill','smooth_revolution','torus_sector','torus']);
+const families = new Set(['plane','cylinder','partial_cylinder','partial_cone','cone','sphere','spherical_octant','linear_blend','cross_drill','smooth_revolution','height_patch','torus_sector','torus']);
 
 /** Un clic doit rester immobile, primaire et seul pendant tout le geste. */
 export class SourceClickGesture {
@@ -44,6 +44,12 @@ export function attributions(results:BodyResult[]):Attribution[] {
   return results.map(body => {
     let entries:{kind:string; index?:number}[] | null = null;
     let bounds:Partial<Record<SurfaceFamily, number>> = {};
+    if (body.height_patch_recognition) {
+      const owners = body.height_patch_recognition.triangle_faces;
+      const complete = owners.length === body.analysis.mesh.triangles.length && new Set(owners).size === 6
+        && owners.every(owner => Number.isInteger(owner) && owner >= 0 && owner <= 5);
+      return { analysisBodyId:body.id, families:complete ? owners.map(owner => owner === 5 ? 'height_patch' : 'plane') : null };
+    }
     if (body.rounded_box_recognition) {
       entries = body.rounded_box_recognition.triangle_faces;
     } else {

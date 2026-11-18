@@ -2415,3 +2415,9 @@ Le générateur indépendant `scripts/qualify-multibore-tray-freecad.py` dessine
 ## V-1227 — Révolution cubique à pointe axiale
 
 Les vingt tests core, CAO, app et document des suites `smooth_revolution` et `smooth_revolution_document` passent. L’ancien modèle à 3 281 plans devient une révolution et un disque. La lecture indépendante avec FreeCAD retrouve les deux solides, leurs pointes et les volumes de 1 005,309634 et 522,401965 mm³. Sur 492 positions de profil, l’écart radial maximal reste inférieur à 0,0000001 mm. Un déplacement du sommet de 0,02 mm, une interruption de l’éventail ou un budget insuffisant empêchent l’acceptation de la pointe.
+
+## V-1228 — Relief bicubique à rive horizontale, du STL au STEP
+
+À partir de dessins FreeCAD d’une bosse et d’une selle, le CLI de production reconstruit quatre STL de 5 138 à 16 526 triangles. La relecture indépendante de chaque STEP vérifie un solide fermé à cinq plans et une surface bicubique, les volumes de 2 090 et 1 920 mm³ et huit points de matière ou de vide. Les bornes continues du moteur vont de 0,001016 à 0,001780 mm. La distance échantillonnée à l’aperçu tessellisé est une mesure distincte.
+
+Reproduire avec `scripts/qualify-height-patch-freecad.py <sortie> --cli <chemin-vers-fabstep>` sous Python FreeCAD. Les suites Rust `height_patch` couvrent la provenance complète, deux corps séparés, les budgets et les entrées hors domaine. Le réglage est explicite dans l’interface avancée et le CLI (`--mode height-patch`). L’essai dans Fusion est suivi dans FabBoard.

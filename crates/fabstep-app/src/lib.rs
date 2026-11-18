@@ -79,6 +79,8 @@ pub struct ConversionReport {
     pub revolved_recognition: Option<RevolvedRecognition>,
     pub rounded_recognition: Option<RoundedRecognition>,
     pub rounded_box_recognition: Option<RoundedBoxRecognition>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub height_patch_recognition: Option<fabstep_core::HeightPatchRecognition>,
     pub fidelity: Option<FidelityReport>,
 }
 
@@ -97,6 +99,7 @@ pub enum Recognized {
     Revolved(RevolvedRecognition),
     Rounded(RoundedRecognition),
     RoundedBox(RoundedBoxRecognition),
+    HeightPatch(fabstep_core::HeightPatchRecognition),
 }
 impl Recognized {
     pub fn report(&self) -> &RecognitionReport {
@@ -106,6 +109,7 @@ impl Recognized {
             Self::Revolved(r) => &r.report,
             Self::Rounded(r) => &r.report,
             Self::RoundedBox(r) => &r.report,
+            Self::HeightPatch(r) => &r.report,
         }
     }
 }
@@ -115,6 +119,9 @@ impl Recognized {
 /// échouée ou un budget dépassé ne sont jamais masqués par un repli.
 pub fn recognize_surfaces(analysis: &Analysis, options: &Options) -> Result<Recognized, FabError> {
     match options.reconstruction {
+        ReconstructionMode::HeightPatch => {
+            fabstep_core::recognize_height_patch(analysis, options).map(Recognized::HeightPatch)
+        }
         ReconstructionMode::Auto => {
             fabstep_core::recognize_automatic(analysis, options).map(Recognized::Rounded)
         }
@@ -219,6 +226,7 @@ fn convert_analysis_with_face_tokens(
         ReconstructionMode::Auto
         | ReconstructionMode::Cylinders
         | ReconstructionMode::Primitives
+        | ReconstructionMode::HeightPatch
         | ReconstructionMode::Surfaces => Some(control.run(
             ConversionPhase::Recognition,
             Some(body_index),
@@ -363,6 +371,7 @@ fn convert_analysis_with_recognized(
                         fabstep_cad::build_rounded_step_with_token_groups(&r.model, groups)
                     } else { build_rounded_step(&r.model) }
                 },
+                Recognized::HeightPatch(r) => fabstep_cad::build_height_patch(&r.model, face_tokens),
                 Recognized::RoundedBox(r) => build_rounded_box_step(&r.model),
             }
         } else if let Some(tokens) = face_tokens {
@@ -490,13 +499,15 @@ fn convert_analysis_with_recognized(
         revolved_recognition,
         rounded_recognition,
         rounded_box_recognition,
+        height_patch_recognition,
     ) = match recognized {
-        Some(Recognized::Extrusion(r)) => (Some(r), None, None, None, None),
-        Some(Recognized::Mixed(r)) => (None, Some(r), None, None, None),
-        Some(Recognized::Revolved(r)) => (None, None, Some(r), None, None),
-        Some(Recognized::Rounded(r)) => (None, None, None, Some(r), None),
-        Some(Recognized::RoundedBox(r)) => (None, None, None, None, Some(r)),
-        None => (None, None, None, None, None),
+        Some(Recognized::Extrusion(r)) => (Some(r), None, None, None, None, None),
+        Some(Recognized::Mixed(r)) => (None, Some(r), None, None, None, None),
+        Some(Recognized::Revolved(r)) => (None, None, Some(r), None, None, None),
+        Some(Recognized::Rounded(r)) => (None, None, None, Some(r), None, None),
+        Some(Recognized::RoundedBox(r)) => (None, None, None, None, Some(r), None),
+        Some(Recognized::HeightPatch(r)) => (None, None, None, None, None, Some(r)),
+        None => (None, None, None, None, None, None),
     };
     Ok(Conversion {
         report: ConversionReport {
@@ -508,6 +519,7 @@ fn convert_analysis_with_recognized(
             revolved_recognition,
             rounded_recognition,
             rounded_box_recognition,
+            height_patch_recognition,
             fidelity,
         },
         step_bytes: result.bytes,

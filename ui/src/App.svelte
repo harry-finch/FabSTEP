@@ -112,7 +112,7 @@
   let guidedAttempt = $state<{ requestId:number; status:'pending'|'success'|'refused' }|null>(null);
   const guidedRefusal = $derived(isGuidedRefusal(guidedAttempt,current,!!error));
   const errorTitle = $derived(guidedRefusal ? 'guidance.notApplied' : 'workspace.failed');
-  const eligibleGuidedFaces = $derived(!busy && !processing && result?.request_id === current ? guidedFaces(stepDocument,stepSelection,current,sourceId,guidanceHints.length) : null);
+  const eligibleGuidedFaces = $derived(!busy && !processing && result?.request_id === current && result.settings.reconstruction !== 'height_patch' ? guidedFaces(stepDocument,stepSelection,current,sourceId,guidanceHints.length) : null);
   const stepContextReveal = new ContextReveal();
   let stepWorker:Worker|null = null, pendingStepDocument:ResultFaces|null = null;
   const stepReplies = new SelectionReplies();
@@ -228,7 +228,7 @@
   let largeTriangles = $state<number | null>(null);
   let largeAccepted = $state(false);
   let cancelling = $state(false);
-  const canPrepareGuidance = $derived(!largeTriangles && canPrepareCorrection(result,current,options.reconstruction,!!native(),busy || !!processing) && stepDocument?.source_correspondence.status !== 'exact');
+  const canPrepareGuidance = $derived(!largeTriangles && canPrepareCorrection(result,current,options.reconstruction,!!native(),busy || !!processing) && (options.reconstruction === 'height_patch' || stepDocument?.source_correspondence.status !== 'exact'));
   let faceProfile = $state<FaceProfileState>({ response:null, geometry:null, pending:false, exporting:false, error:null, note:null });
   let profileGeometryWorker:ReturnType<typeof createFaceProfileGeometryWorker>|null = null;
   function faceProfileContext():FaceProfileContext|null {
@@ -285,8 +285,8 @@
   }
   function resetSectionPlane(){if(sectionBounds)changeSection({...sectionInput,basis:'xy',face_id:null,custom_frame:null,offset_mm:(sectionBounds[0][2]+sectionBounds[1][2])/2});}
   function sectionBodyName(id:number){const body=sourcePreparationState.response?.metadata?.bodies.find(body=>body.solid_id===id);return body?t('sourceSection.body',{n:id+1,name:bodyLabel({id:body.analysis_body_id,name:body.name,provenance:body.provenance},t('workspace.stlBody'),(object,instance)=>t('workspace.objectBody',{object,instance}))}):t('section.solid',{n:id+1});}
-  const engineKeys: Record<string, Key> = { 'worker.busy':'engine.workerBusy', 'worker.memory_limit':'engine.workerMemory', 'worker.monitor_failed':'engine.workerMonitor', 'worker.invalid_input':'engine.workerProtocol', 'worker.input_changed':'engine.workerProtocol', 'worker.invalid_job':'engine.workerProtocol', 'worker.request_invalid':'engine.workerProtocol', 'worker.request_too_large':'engine.workerProtocol', 'worker.job_not_fresh':'engine.workerProtocol', 'worker.serialization':'engine.workerProtocol', 'worker.error':'engine.workerProtocol', 'worker.source_too_large':'engine.input_too_large', "worker.unavailable":"engine.workerUnavailable", "worker.confirmation_required":"engine.workerConfirmation", "worker.input_invalid":"engine.workerInput", "worker.protocol":"engine.workerProtocol", "worker.output_too_large":"engine.workerOutput", "worker.failed":"engine.workerFailed", "worker.cancelled":"engine.workerCancelled", "worker.timeout":"engine.workerTimeout", "worker.io":"engine.workerIo", "worker.allocation":"engine.workerAllocation", 'guidance.family_unproven':'guidance.family_unproven', 'guidance.region_unavailable':'guidance.region_unavailable', 'search.analytic_mode_required':'parameterSearch.analyticRequired', 'search.guidance_active':'parameterSearch.guidanceActive', 'guidance.limit':'guidance.limit', 'guidance.overlapping_indications':'guidance.overlapping_indications', 'guidance.unknown_indication':'guidance.unknown_indication', 'guidance.provenance_unavailable':'guidance.provenance_unavailable', 'guidance.invalid_selection':'guidance.invalid_selection', 'guidance.multiple_bodies':'guidance.multiple_bodies', 'guidance.plane_incomplete':'guidance.plane_incomplete', 'guidance.plane_unproven':'guidance.plane_unproven', 'guidance.plane_unsupported_boundary':'guidance.plane_unsupported_boundary', 'guidance.cone_unproven':'guidance.cone_unproven', 'guidance.ambiguous_cone':'guidance.ambiguous_cone', 'guidance.unsupported_family':'guidance.unsupported_family', 'guidance.cylinder_unproven':'guidance.cylinder_unproven', 'guidance.ambiguous_cylinder':'guidance.ambiguous_cylinder', 'threemf.invalid_archive':'engine.m3_invalid_archive', 'threemf.archive_limit':'engine.m3_archive_limit', 'threemf.unsupported_compression':'engine.m3_unsupported_compression', 'threemf.invalid_path':'engine.m3_invalid_path', 'threemf.duplicate_part':'engine.m3_duplicate_part', 'threemf.missing_part':'engine.m3_missing_part', 'threemf.invalid_xml':'engine.m3_invalid_xml', 'threemf.xml_limit':'engine.m3_xml_limit', 'threemf.invalid_package':'engine.m3_invalid_package', 'threemf.external_resource':'engine.m3_external_resource', 'threemf.invalid_transform':'engine.m3_invalid_transform', 'threemf.non_finite':'engine.m3_non_finite', 'threemf.complexity_limit':'engine.m3_complexity_limit', 'threemf.invalid_reference':'engine.m3_invalid_reference', 'threemf.invalid_index':'engine.m3_invalid_index', 'threemf.empty_model':'engine.m3_empty_model', 'threemf.unsupported_version':'engine.m3_unsupported_version', 'threemf.unsupported_extension':'engine.m3_unsupported_extension', 'threemf.invalid_unit':'engine.m3_invalid_unit', 'threemf.duplicate_id':'engine.m3_duplicate_id', 'threemf.unsupported_object':'engine.m3_unsupported_object', 'mesh.invalid_index':'engine.m3_mesh_invalid_index', 'input.too_many_bodies':'engine.m3_too_many_bodies', 'cad.bodies_not_separated':'workspace.notSeparated', 'engine.source_metadata':'engine.source_metadata', 'engine.source_transport':'engine.source_transport', 'engine.source_busy':'engine.source_busy', 'engine.source_conflict':'engine.source_conflict', 'engine.source_allocation':'engine.source_allocation', 'engine.stale':'engine.engine_stale', 'engine.state':'engine.engine_state', 'io.extension':'engine.io_extension', 'io.file':'engine.io_file', 'io.path':'engine.io_path', 'engine.task':'engine.engine_task', 'validation.analytic_mismatch':'engine.validation_analytic_mismatch', 'recognition.conic_unproven':'engine.recognition_conic_unproven', 'recognition.partial_unproven':'engine.recognition_partial_unproven', 'validation.distance_budget':'engine.distance_budget', 'validation.distance_resolution':'engine.distance_resolution', 'recognition.disabled':'engine.recognition_disabled', 'recognition.unsupported':'engine.recognition_unsupported', 'recognition.too_complex':'engine.recognition_too_complex', 'recognition.invalid_analysis':'engine.recognition_invalid_analysis', "options.invalid_tolerance": "engine.options_invalid_tolerance", "mesh.empty": "engine.mesh_empty", "mesh.non_finite": "engine.mesh_non_finite", "mesh.invalid_volume": "engine.mesh_invalid_volume", "mesh.coordinate_range": "engine.mesh_coordinate_range", "mesh.degenerate_triangle": "engine.mesh_degenerate_triangle", "mesh.duplicate_triangle": "engine.mesh_duplicate_triangle", "mesh.non_manifold_edge": "engine.mesh_non_manifold_edge", "mesh.open": "engine.mesh_open", "mesh.inconsistent_orientation": "engine.mesh_inconsistent_orientation", "mesh.multiple_components": "engine.mesh_multiple_components", "mesh.non_manifold_vertex": "engine.mesh_non_manifold_vertex", "input.too_large": "engine.input_too_large", "input.too_many_triangles": "engine.input_too_many_triangles", "stl.invalid_length": "engine.stl_invalid_length", "stl.invalid_ascii": "engine.stl_invalid_ascii", "planar.too_complex": "engine.planar_too_complex", "planar.invalid_contour": "engine.planar_invalid_contour", "validation.bounds_mismatch": "engine.validation_bounds_mismatch", "validation.volume_mismatch": "engine.validation_volume_mismatch" };
-  const diagnosticKeys: Record<string, Key> = { 'recognition.bored_prism_projection':'engine.bored_prism_projection', 'recognition.unequal_pocket_fitted':'engine.unequal_pocket_fitted', 'recognition.unequal_pocket_adjusted':'engine.oblique_pocket_adjusted', 'recognition.adjacent_pocket_fitted':'engine.adjacent_pocket_fitted', 'recognition.adjacent_pocket_adjusted':'engine.oblique_pocket_adjusted', 'recognition.double_oblique_pocket_fitted':'engine.double_oblique_pocket_fitted', 'recognition.oblique_pocket_fitted':'engine.oblique_pocket_fitted', 'recognition.oblique_pocket_adjusted':'engine.oblique_pocket_adjusted', 'recognition.toric_sector_endpoints_projected':'engine.toric_sector_endpoints_projected', 'recognition.toric_sector_fitted':'engine.toric_sector_fitted', 'reconstruction.fitted_revolution':'engine.fitted_revolution', 'recognition.linear_blend_endpoints_projected':'engine.linear_blend_endpoints_projected', 'recognition.partial_conical_chain':'engine.partial_conical_chain', 'auto.faceted_base':'engine.auto_faceted_base', 'auto.planar_regions_split':'engine.auto_planar_regions_split', 'auto.regions_faceted':'engine.auto_region_faceted', 'guidance.auto_applied':'guidance.auto_applied', 'guidance.torus_applied':'guidance.torus_applied', 'guidance.plane_verified':'guidance.plane_verified', 'guidance.plane_applied':'guidance.plane_applied', 'guidance.plane_residual':'guidance.plane_residual',  'guidance.cone_applied':'guidance.cone_applied', 'guidance.complete_cone_verified':'guidance.cone_applied', 'guidance.cylinder_applied':'guidance.cylinder_applied', 'guidance.complete_cylinder_verified':'guidance.cylinder_applied', 'recognition.rounded_box_intent_assumed':'engine.rounded_box_intent_assumed', 'recognition.rounded_box_coverage':'engine.rounded_box_coverage', 'recognition.rounded_intent_assumed':'engine.rounded_intent_assumed', 'recognition.conic_intent_assumed':'engine.conic_intent_assumed', 'precision.custom_tolerances':'engine.custom_tolerances', 'document.product_names_adapted':'engine.product_names_adapted', 'threemf.metadata_ignored':'engine.m3_metadata_ignored', 'document.separate_bodies':'workspace.bodiesSeparated', 'recognition.circular_intent_assumed':'engine.recognition_circular_intent', 'recognition.bound_scope':'engine.recognition_bound_scope', "validation.native_required": "engine.diag_validation_native_required", "mesh.orientation_reversed": "engine.diag_mesh_orientation_reversed", "planar.approximate": "engine.diag_planar_approximate" };
+  const engineKeys: Record<string, Key> = { 'recognition.height_patch_unproven':'engine.height_patch_unproven', 'worker.busy':'engine.workerBusy', 'worker.memory_limit':'engine.workerMemory', 'worker.monitor_failed':'engine.workerMonitor', 'worker.invalid_input':'engine.workerProtocol', 'worker.input_changed':'engine.workerProtocol', 'worker.invalid_job':'engine.workerProtocol', 'worker.request_invalid':'engine.workerProtocol', 'worker.request_too_large':'engine.workerProtocol', 'worker.job_not_fresh':'engine.workerProtocol', 'worker.serialization':'engine.workerProtocol', 'worker.error':'engine.workerProtocol', 'worker.source_too_large':'engine.input_too_large', "worker.unavailable":"engine.workerUnavailable", "worker.confirmation_required":"engine.workerConfirmation", "worker.input_invalid":"engine.workerInput", "worker.protocol":"engine.workerProtocol", "worker.output_too_large":"engine.workerOutput", "worker.failed":"engine.workerFailed", "worker.cancelled":"engine.workerCancelled", "worker.timeout":"engine.workerTimeout", "worker.io":"engine.workerIo", "worker.allocation":"engine.workerAllocation", 'guidance.family_unproven':'guidance.family_unproven', 'guidance.region_unavailable':'guidance.region_unavailable', 'search.analytic_mode_required':'parameterSearch.analyticRequired', 'search.guidance_active':'parameterSearch.guidanceActive', 'guidance.limit':'guidance.limit', 'guidance.overlapping_indications':'guidance.overlapping_indications', 'guidance.unknown_indication':'guidance.unknown_indication', 'guidance.provenance_unavailable':'guidance.provenance_unavailable', 'guidance.invalid_selection':'guidance.invalid_selection', 'guidance.multiple_bodies':'guidance.multiple_bodies', 'guidance.plane_incomplete':'guidance.plane_incomplete', 'guidance.plane_unproven':'guidance.plane_unproven', 'guidance.plane_unsupported_boundary':'guidance.plane_unsupported_boundary', 'guidance.cone_unproven':'guidance.cone_unproven', 'guidance.ambiguous_cone':'guidance.ambiguous_cone', 'guidance.unsupported_family':'guidance.unsupported_family', 'guidance.cylinder_unproven':'guidance.cylinder_unproven', 'guidance.ambiguous_cylinder':'guidance.ambiguous_cylinder', 'threemf.invalid_archive':'engine.m3_invalid_archive', 'threemf.archive_limit':'engine.m3_archive_limit', 'threemf.unsupported_compression':'engine.m3_unsupported_compression', 'threemf.invalid_path':'engine.m3_invalid_path', 'threemf.duplicate_part':'engine.m3_duplicate_part', 'threemf.missing_part':'engine.m3_missing_part', 'threemf.invalid_xml':'engine.m3_invalid_xml', 'threemf.xml_limit':'engine.m3_xml_limit', 'threemf.invalid_package':'engine.m3_invalid_package', 'threemf.external_resource':'engine.m3_external_resource', 'threemf.invalid_transform':'engine.m3_invalid_transform', 'threemf.non_finite':'engine.m3_non_finite', 'threemf.complexity_limit':'engine.m3_complexity_limit', 'threemf.invalid_reference':'engine.m3_invalid_reference', 'threemf.invalid_index':'engine.m3_invalid_index', 'threemf.empty_model':'engine.m3_empty_model', 'threemf.unsupported_version':'engine.m3_unsupported_version', 'threemf.unsupported_extension':'engine.m3_unsupported_extension', 'threemf.invalid_unit':'engine.m3_invalid_unit', 'threemf.duplicate_id':'engine.m3_duplicate_id', 'threemf.unsupported_object':'engine.m3_unsupported_object', 'mesh.invalid_index':'engine.m3_mesh_invalid_index', 'input.too_many_bodies':'engine.m3_too_many_bodies', 'cad.bodies_not_separated':'workspace.notSeparated', 'engine.source_metadata':'engine.source_metadata', 'engine.source_transport':'engine.source_transport', 'engine.source_busy':'engine.source_busy', 'engine.source_conflict':'engine.source_conflict', 'engine.source_allocation':'engine.source_allocation', 'engine.stale':'engine.engine_stale', 'engine.state':'engine.engine_state', 'io.extension':'engine.io_extension', 'io.file':'engine.io_file', 'io.path':'engine.io_path', 'engine.task':'engine.engine_task', 'validation.analytic_mismatch':'engine.validation_analytic_mismatch', 'recognition.conic_unproven':'engine.recognition_conic_unproven', 'recognition.partial_unproven':'engine.recognition_partial_unproven', 'validation.distance_budget':'engine.distance_budget', 'validation.distance_resolution':'engine.distance_resolution', 'recognition.disabled':'engine.recognition_disabled', 'recognition.unsupported':'engine.recognition_unsupported', 'recognition.too_complex':'engine.recognition_too_complex', 'recognition.invalid_analysis':'engine.recognition_invalid_analysis', "options.invalid_tolerance": "engine.options_invalid_tolerance", "mesh.empty": "engine.mesh_empty", "mesh.non_finite": "engine.mesh_non_finite", "mesh.invalid_volume": "engine.mesh_invalid_volume", "mesh.coordinate_range": "engine.mesh_coordinate_range", "mesh.degenerate_triangle": "engine.mesh_degenerate_triangle", "mesh.duplicate_triangle": "engine.mesh_duplicate_triangle", "mesh.non_manifold_edge": "engine.mesh_non_manifold_edge", "mesh.open": "engine.mesh_open", "mesh.inconsistent_orientation": "engine.mesh_inconsistent_orientation", "mesh.multiple_components": "engine.mesh_multiple_components", "mesh.non_manifold_vertex": "engine.mesh_non_manifold_vertex", "input.too_large": "engine.input_too_large", "input.too_many_triangles": "engine.input_too_many_triangles", "stl.invalid_length": "engine.stl_invalid_length", "stl.invalid_ascii": "engine.stl_invalid_ascii", "planar.too_complex": "engine.planar_too_complex", "planar.invalid_contour": "engine.planar_invalid_contour", "validation.bounds_mismatch": "engine.validation_bounds_mismatch", "validation.volume_mismatch": "engine.validation_volume_mismatch" };
+  const diagnosticKeys: Record<string, Key> = { 'recognition.height_patch_fitted':'engine.height_patch_fitted', 'recognition.bored_prism_projection':'engine.bored_prism_projection', 'recognition.unequal_pocket_fitted':'engine.unequal_pocket_fitted', 'recognition.unequal_pocket_adjusted':'engine.oblique_pocket_adjusted', 'recognition.adjacent_pocket_fitted':'engine.adjacent_pocket_fitted', 'recognition.adjacent_pocket_adjusted':'engine.oblique_pocket_adjusted', 'recognition.double_oblique_pocket_fitted':'engine.double_oblique_pocket_fitted', 'recognition.oblique_pocket_fitted':'engine.oblique_pocket_fitted', 'recognition.oblique_pocket_adjusted':'engine.oblique_pocket_adjusted', 'recognition.toric_sector_endpoints_projected':'engine.toric_sector_endpoints_projected', 'recognition.toric_sector_fitted':'engine.toric_sector_fitted', 'reconstruction.fitted_revolution':'engine.fitted_revolution', 'recognition.linear_blend_endpoints_projected':'engine.linear_blend_endpoints_projected', 'recognition.partial_conical_chain':'engine.partial_conical_chain', 'auto.faceted_base':'engine.auto_faceted_base', 'auto.planar_regions_split':'engine.auto_planar_regions_split', 'auto.regions_faceted':'engine.auto_region_faceted', 'guidance.auto_applied':'guidance.auto_applied', 'guidance.torus_applied':'guidance.torus_applied', 'guidance.plane_verified':'guidance.plane_verified', 'guidance.plane_applied':'guidance.plane_applied', 'guidance.plane_residual':'guidance.plane_residual',  'guidance.cone_applied':'guidance.cone_applied', 'guidance.complete_cone_verified':'guidance.cone_applied', 'guidance.cylinder_applied':'guidance.cylinder_applied', 'guidance.complete_cylinder_verified':'guidance.cylinder_applied', 'recognition.rounded_box_intent_assumed':'engine.rounded_box_intent_assumed', 'recognition.rounded_box_coverage':'engine.rounded_box_coverage', 'recognition.rounded_intent_assumed':'engine.rounded_intent_assumed', 'recognition.conic_intent_assumed':'engine.conic_intent_assumed', 'precision.custom_tolerances':'engine.custom_tolerances', 'document.product_names_adapted':'engine.product_names_adapted', 'threemf.metadata_ignored':'engine.m3_metadata_ignored', 'document.separate_bodies':'workspace.bodiesSeparated', 'recognition.circular_intent_assumed':'engine.recognition_circular_intent', 'recognition.bound_scope':'engine.recognition_bound_scope', "validation.native_required": "engine.diag_validation_native_required", "mesh.orientation_reversed": "engine.diag_mesh_orientation_reversed", "planar.approximate": "engine.diag_planar_approximate" };
   function errorText(e: unknown): string {
     if (typeof e !== 'object' || !e || !('message' in e)) return `${t('engine.unknownDetail')}: ${String(e)}`;
     const raw = e as { code?: string; message: string; body?: { id: string; name: string; detail: string } | null };
@@ -307,6 +307,7 @@
     if (err.code === 'recognition.deviation_exceeded') {
       const values = [...err.message.matchAll(/([+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*mm/gi)].map(m => m[1]);
       if (values.length >= 2) return withBody(`${t('engine.recognition_deviation', { bound:values[0], budget:values[1] })} (${err.code})`);
+      if (options.reconstruction === 'height_patch') return withBody(`${t('engine.height_patch_budget')} (${err.code})`);
     }
     if (err.code === 'validation.distance_exceeded') {
       const value = err.message.match(/([+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*mm/i)?.[1];
@@ -322,7 +323,8 @@
   const parameterReplies = new ParameterSearchReplies();
   let parameterProposal = $state<{token:SearchToken; response:ParameterSearchResponse}|null>(null);
   let parameterError = $state<unknown>(null);
-  const canSearch = $derived(!!bytes && !!native() && sourceId !== null && uploadedSourceId === sourceId && preview?.request_id === current && !busy && !processing && options.reconstruction !== 'planar' && !guidanceHints.length && !guidedAttempt && validPreferences(options));
+  const allowParameterSearch = $derived(options.reconstruction !== 'planar' && options.reconstruction !== 'height_patch');
+  const canSearch = $derived(!!bytes && !!native() && sourceId !== null && uploadedSourceId === sourceId && preview?.request_id === current && !busy && !processing && allowParameterSearch && !guidanceHints.length && !guidedAttempt && validPreferences(options));
   function clearParameterSearch() { parameterReplies.clear(); parameterProposal = null; parameterError = null; }
   async function searchParameters() {
     if (!canSearch || sourceId === null) return;
@@ -448,6 +450,8 @@
   const selectedPreview = $derived(stepView || mappedSource ? null : preview?.bodies.find(body => body.id === selectedId) ?? null);
   const selection = $derived(stepView || mappedSource ? null : selectedBody ?? (selectedId ? null : result?.bodies.length === 1 ? result.bodies[0] : null));
   const report = $derived(selection?.recognition?.report ?? selection?.mixed_recognition?.report ?? selection?.revolved_recognition?.report ?? selection?.rounded_recognition?.report ?? selection?.rounded_box_recognition?.report ?? null);
+  const heightPatches = $derived((selection ? [selection] : result?.bodies ?? []).flatMap(body => body.height_patch_recognition ? [body.height_patch_recognition] : []));
+  const heightBound = $derived(heightPatches.length ? Math.max(...heightPatches.map(r => r.report.max_deviation_bound_mm)) : null);
   const metrics = $derived(selection?.cad ?? result?.cad ?? null);
   const sourceTriangles = $derived(selection ? selection.analysis.report.input_triangles : result ? result.bodies.reduce((sum, body) => sum + body.analysis.report.input_triangles, 0) : selectedPreview ? selectedPreview.mesh.triangles.length : preview?.bodies.reduce((sum, body) => sum + body.mesh.triangles.length, 0) ?? null);
   const sourceVertices = $derived(selection ? selection.analysis.report.vertices : result ? result.bodies.reduce((sum, body) => sum + body.analysis.report.vertices, 0) : selectedPreview ? selectedPreview.mesh.vertices.length : preview?.bodies.reduce((sum, body) => sum + body.mesh.vertices.length, 0) ?? null);
@@ -861,9 +865,10 @@
               <option value="surfaces">{t('workspace.surfacesChoice')}</option>
               <option value="cylinders">{t('workspace.cylinderChoice')}</option>
               <option value="primitives">{t('workspace.primitivesMode')}</option>
+              <option value="height_patch">{t('workspace.heightPatchChoice')}</option>
             </select>
           </label>
-          <p class="muted">{options.reconstruction === 'auto' ? t('workspace.autoIntent') : t('workspace.manualIntent')}</p>
+          <p class="muted">{options.reconstruction === 'auto' ? t('workspace.autoIntent') : options.reconstruction === 'height_patch' ? t('workspace.heightPatchIntent') : t('workspace.manualIntent')}</p>
           <label class="property numeric-property" title={t('workspace.weldHint')}>
             <span>
               {t('workspace.weld')}
@@ -905,9 +910,9 @@
             </span>
           </label>
           {#if options.reconstruction !== 'planar' || stepView || !!guidedAttempt || !validPreferences(options)}
-            <label class="property numeric-property" title={t('workspace.fitToleranceHint')}>
+            <label class="property numeric-property" title={t(options.reconstruction === 'height_patch' ? 'workspace.heightToleranceHint' : 'workspace.fitToleranceHint')}>
               <span>
-                {t('workspace.fitTolerance')}
+                {t(options.reconstruction === 'height_patch' ? 'workspace.heightTolerance' : 'workspace.fitTolerance')}
                 <span class="hint">ⓘ</span>
               </span>
               <span class="number">
@@ -945,18 +950,18 @@
                 <span>mm</span>
               </span>
             </label>
-            <p class="muted">{t('workspace.toleranceExplanation')}</p>
+            {#if options.reconstruction !== 'height_patch'}<p class="muted">{t('workspace.toleranceExplanation')}</p>{/if}
           {/if}
           <Disclosure id="reconstruction-limits" label={t('workspace.reconstructionLimits')}>
             <p class="muted">{t('workspace.brepLimit')}</p>
             <p class="muted">
-              {options.reconstruction === 'auto' ? t('workspace.autoIntent') : options.reconstruction === 'surfaces' ? t('workspace.surfacesLimit') : options.reconstruction === 'primitives' ? t('workspace.primitivesLimit') : options.reconstruction === 'cylinders' ? t('workspace.cylinderLimit') : t('workspace.limit')}
+              {options.reconstruction === 'auto' ? t('workspace.autoIntent') : options.reconstruction === 'height_patch' ? t('workspace.heightPatchLimit') : options.reconstruction === 'surfaces' ? t('workspace.surfacesLimit') : options.reconstruction === 'primitives' ? t('workspace.primitivesLimit') : options.reconstruction === 'cylinders' ? t('workspace.cylinderLimit') : t('workspace.limit')}
             </p>
             {#if options.reconstruction !== 'planar' && options.reconstruction !== 'auto'}
               <p class="muted">{t('workspace.recognitionRefusal')}</p>
             {/if}
           </Disclosure>
-          {#if options.reconstruction !== 'planar' && !recognitionFailed}
+          {#if allowParameterSearch && !recognitionFailed}
             <ParameterSearch
               enabled={canSearch}
               searching={processing?.phase === 'searching'}
@@ -969,7 +974,7 @@
             />
           {/if}
         </Disclosure>
-        {#if recognitionFailed}
+        {#if allowParameterSearch && recognitionFailed}
           <ParameterSearch
             enabled={canSearch}
             searching={processing?.phase === 'searching'}
@@ -1041,6 +1046,12 @@
               <strong>{fmt(metrics.revolution_faces)}</strong>
             </div>
           {/if}
+          {#if heightPatches.length}
+            <div class="metric">
+              <span>{t('inspection.heightPatch')}</span>
+              <strong>{fmt(heightPatches.length)}</strong>
+            </div>
+          {/if}
           {#if selection?.rounded_recognition}
             <div class="metric">
               <span>{t('workspace.toroidalFillets')}</span>
@@ -1052,9 +1063,11 @@
               <span>{t('workspace.radialResidual')}</span>
               <strong>{measuredValue(report.max_radial_residual_mm)} mm</strong>
             </div>
+          {/if}
+          {#if report || heightBound !== null}
             <div class="metric" title={t('workspace.maxDeviationHint')}>
               <span>{t('workspace.deviation')}</span>
-              <strong>{precise(report.max_deviation_bound_mm)} mm</strong>
+              <strong>{precise(report?.max_deviation_bound_mm ?? heightBound!)} mm</strong>
             </div>
           {/if}
           <div class="metric">
@@ -1093,7 +1106,7 @@
               <div class="metric">
                 <span>{t('workspace.mode')}</span>
                 <strong>
-                  {!!result.guidance_hints.length ? t('guidance.title') : result.settings.reconstruction === 'auto' ? t('workspace.autoChoice') : result.settings.reconstruction === 'surfaces' ? t('workspace.surfacesMode') : result.settings.reconstruction === 'primitives' ? t('workspace.primitivesMode') : result.settings.reconstruction === 'cylinders' ? t('workspace.cylinderMode') : t('workspace.planarMode')}
+                  {!!result.guidance_hints.length ? t('guidance.title') : result.settings.reconstruction === 'auto' ? t('workspace.autoChoice') : result.settings.reconstruction === 'height_patch' ? t('workspace.heightPatchChoice') : result.settings.reconstruction === 'surfaces' ? t('workspace.surfacesMode') : result.settings.reconstruction === 'primitives' ? t('workspace.primitivesMode') : result.settings.reconstruction === 'cylinders' ? t('workspace.cylinderMode') : t('workspace.planarMode')}
                 </strong>
               </div>
               <div class="metric">
@@ -1106,7 +1119,7 @@
               </div>
               {#if result.settings.reconstruction !== 'planar' || !!result.guidance_hints.length}
                 <div class="metric">
-                  <span>{t('workspace.fitTolerance')}</span>
+                  <span>{t(result.settings.reconstruction === 'height_patch' ? 'workspace.heightTolerance' : 'workspace.fitTolerance')}</span>
                   <strong>{settingValue(result.settings.cylinder_fit_tolerance_mm)} mm</strong>
                 </div>
                 <div class="metric">
