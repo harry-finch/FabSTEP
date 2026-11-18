@@ -5,7 +5,7 @@ resume: "Deux trous cylindriques orthogonaux de rayons distincts, intersection t
 statut: "idee"
 jalon: "post-v1"
 cree: "2026-11-13"
-maj: "2026-11-13"
+maj: "2026-11-18"
 ---
 
 | F — perçages sécants | Deux trous cylindriques orthogonaux de rayons distincts, intersection transverse | Courbes de découpe partagées, domaines et incidence prouvés ; sondes matière/vide ; refus tangences et triples intersections | Contrat de découpe à concevoir ; contacts entre corps toujours refusés |
@@ -29,3 +29,17 @@ Qualification préalable : [R-063](R-063-f0-qualifier-les-courbes-des-percages-s
 ## Poursuite globale autorisée
 
 L’utilisateur confirme que l’objectif est de réaliser l’ensemble C1b2, C2, D, E, F et G et autorise la poursuite du chantier. Les tranches déjà développées restent à tester ; cet accord ne remplace pas leur acceptation ni les preuves géométriques. Les travaux sont décomposés en extensions bornées, corpus indépendants et vérifications natives. Les changements structurants encore indéfinis seront présentés lorsqu’un contrat concret est établi ; l’accord sur les perçages sécants A-045 reste acquis.
+
+
+## Tranche de production F1 préparée après D/G
+
+A-045 autorise déjà le contrat : aucun nouvel arbitrage n’est requis pour le domaine centré, orthogonal, avec grand rayon au moins double du petit et quatre entrées circulaires complètes. A-067 attend une lecture du laboratoire, pas une seconde autorisation d’architecture.
+
+1. Construire un corpus STL paramétrique indépendant avec dimensions/rayons variés, rotations, miroirs et retessellisations. Les deux branches idéales sont Γ±(t) = (r cos t, r sin t, ±√(R² − r² sin²t)). Ajouter des refus opposés : décentrage, rapports de rayons hors domaine, tangence, branche incomplète ou parcourue plusieurs fois, carte repliée, troisième trou et fond non prouvé.
+2. Retrouver six supports et quatre anneaux source ; démontrer deux paires coaxiales orthogonales, leur intersection centrée, les marges et le choix de matière. Exiger neuf propriétaires : six plans, deux parois du petit trou et une paroi du grand trou à deux ouvertures. Cette dernière a quatre limites et une caractéristique d’Euler de −2 ; les deux branches doivent être disjointes, parcourues une fois et utilisées en sens opposés par leurs voisins. L’aire seule ne prouve pas cette couverture.
+3. Introduire un domaine scalaire dédié et additif avec quatre références d’anneaux, deux branches analytiques et trois propriétaires cylindriques. Une branche peut être découpée en plusieurs arêtes natives à une couture périodique : ne pas assimiler branche source et arête OCCT. Toute construction native reste subordonnée aux domaines et au choix de matière démontrés par le core.
+4. Généraliser le certificat F0 aux paramètres et repères mesurés, conserver ses budgets, comptabiliser l’écart natif dans la borne finale. Le contrôle de volume utilise un intervalle indépendant et une mesure native adaptative avec les seuils existants. N’admettre les arêtes spline dans le précontrôle de tessellation que pour les intersections certifiées, sans accepter les splines arbitraires ni relever le plafond de triangles.
+
+Les difficultés ouvertes sont la couverture source autour des deux ouvertures, les transformations d’intervalles, les coutures paramétriques natives et leur tessellation bornée. Les trous décentrés/obliques, tangences, triples intersections, budgets modifiés ou contrat BRep générique seraient des extensions distinctes à présenter ; ils ne sont pas promis par F1. Aucun code de production F n’est encore activé.
+
+Le certificat d’intervalles devra conserver les options numériques du laboratoire (`-fno-fast-math -ffp-contract=off`, ou équivalents plateforme) dans son unité de compilation. Un rapport exactement 2:1 peut être indéterminé après mesure STL : privilégier des témoins avec marge (par exemple R=6,5 mm et r=3 mm), ou refuser l’incertitude ; aucune canonicalisation non comptée pour faire passer le corpus.
