@@ -1,4 +1,4 @@
-//! Centered orthogonal through bores with two transverse, closed branches.
+//! Orthogonal through bores with two transverse, closed branches.
 //! The cylinder charts are periodic. The oriented boundary of each domain
 //! fixes its degree; pointwise projection alone cannot prove the two holes.
 use crate::math::*;
@@ -67,8 +67,9 @@ fn mouth(face: usize) -> Option<(usize, usize)> {
 fn branch_position(f: &CrossDrill, t: f64, sign: f64) -> V {
     let [r, big] = f.radii;
     let (s, c) = t.sin_cos();
-    let y = r * s;
-    [r * c, y, sign * ((big - y) * (big + y)).sqrt()]
+    let [dx, dy] = f.small_offset;
+    let y = dy + r * s;
+    [dx + r * c, y, sign * ((big - y) * (big + y)).sqrt()]
 }
 fn delta_angle(a: f64, b: f64) -> f64 {
     let d = b - a;
@@ -122,7 +123,6 @@ fn seed(
         || (b0.radius - b1.radius).abs() > 2. * fit
         || r <= 1e-4
         || big - 1.5 * r <= 4. * eps.max(1e-7)
-        || norm(sub(c0, c1)) > 2. * fit
         || dot(s0.axis, b0.axis).abs() > 1e-6
     {
         return Ok(None);
@@ -139,8 +139,13 @@ fn seed(
     let x = scale(x, 1. / norm(x));
     let y = cross(z, x);
     let mut model = CrossDrill {
+        small_offset: [0.; 2],
         witness_tolerance_mm: 0.,
-        center: midpoint(c0, c1),
+        center: if norm(sub(c0, c1)) <= 2. * fit {
+            midpoint(c0, c1)
+        } else {
+            c1
+        },
         axes: [x, y, z],
         half_lengths: [0.; 3],
         radii: [r, big],
@@ -220,8 +225,20 @@ fn seed(
     let offset = std::array::from_fn(|i| (heights[i + 3] + heights[i]) * 0.5);
     model.center = world(&model, offset);
     model.half_lengths = std::array::from_fn(|i| (heights[i + 3] - heights[i]) * 0.5);
+    let measured = local(&model, c0);
+    // Absorb only deviations already covered by the measured mouth residual.
+    // This preserves historical centered cylinders on float32 placements.
+    if measured[0].hypot(measured[1]) > fit {
+        model.small_offset = [measured[0], measured[1]];
+    }
+    let [dx, dy] = model.small_offset;
     let l = model.half_lengths;
-    if l[0] <= r + 8. * eps || l[1] <= big + 8. * eps || l[2] <= big + 8. * eps {
+    if big - 1.5 * (r + dy.abs()) <= (if dy == 0. { 4. } else { 5.5 }) * eps.max(1e-7)
+        || dy.abs() > r
+        || l[0] <= dx.abs() + r + 8. * eps
+        || l[1] <= big + 8. * eps
+        || l[2] <= big + 8. * eps
+    {
         return Ok(None);
     }
     let roundoff = 128.
@@ -242,7 +259,7 @@ fn seed(
         let Some((slot, _)) = mouth(i) else {
             return Ok(None);
         };
-        let mut q = [0.; 3];
+        let mut q = if slot < 2 { [dx, dy, 0.] } else { [0.; 3] };
         q[i % 3] = height(&model, i);
         if norm(sub(rim.center, world(&model, q))) > fit
             || (rim.radius - model.radii[usize::from(slot >= 2)]).abs() > fit
@@ -286,6 +303,7 @@ fn owners(
 ) -> Result<Option<Vec<usize>>, FabError> {
     work.spend(a.mesh.triangles.len() * 13)?;
     let [r, big] = seed.model.radii;
+    let [dx, dy] = seed.model.small_offset;
     let owners: Vec<_> = a
         .mesh
         .triangles
@@ -296,7 +314,9 @@ fn owners(
                 return seed.plane_by_region[rgn];
             }
             let p = ids.map(|v| points[v]);
-            let small = p.iter().all(|q| (q[0].hypot(q[1]) - r).abs() <= fit);
+            let small = p
+                .iter()
+                .all(|q| ((q[0] - dx).hypot(q[1] - dy) - r).abs() <= fit);
             let large = p.iter().all(|q| (q[1].hypot(q[2]) - big).abs() <= fit);
             match (small, large) {
                 (false, true) => LARGE,
@@ -446,6 +466,7 @@ fn topology(
         boundary: vec![None; a.mesh.vertices.len()],
     };
     let f = &seed.model;
+    let [dx, dy] = f.small_offset;
     for face in [0, 2, 3, 5] {
         let (slot, wall) = mouth(face).unwrap();
         let es = &cuts[&(face, wall)];
@@ -462,7 +483,11 @@ fn topology(
         let radius = f.radii[usize::from(slot >= 2)];
         // The cylindrical frame x/y for z, or y/z for x, is right-handed.
         // Directed edge origins here come from the planar side of each mouth.
-        let angle = |p: V| p[(axis + 2) % 3].atan2(p[(axis + 1) % 3]);
+        let center = if slot < 2 { [dx, dy, 0.] } else { [0.; 3] };
+        let angle = |p: V| {
+            let q = sub(p, center);
+            q[(axis + 2) % 3].atan2(q[(axis + 1) % 3])
+        };
         let mut total = Sum::default();
         for (i, &v) in ring.iter().enumerate() {
             let a = angle(points[v]);
@@ -473,10 +498,10 @@ fn topology(
             }
             total.add(step);
             err.wall = err.wall.max(radius * step * step / 8.);
-            let mut q = [0.; 3];
+            let mut q = center;
             q[axis] = height(f, face);
-            q[(axis + 1) % 3] = radius * a.cos();
-            q[(axis + 2) % 3] = radius * a.sin();
+            q[(axis + 1) % 3] += radius * a.cos();
+            q[(axis + 2) % 3] += radius * a.sin();
             err.record(points[v], q, o.cylinder_fit_tolerance_mm)?;
             if t.boundary[v].replace(q).is_some() {
                 return Err(fail("embouchures partagées entre domaines"));
@@ -487,10 +512,22 @@ fn topology(
         }
     }
     let [r, big] = f.radii;
-    let floor = ((big - r) * (big + r)).sqrt();
-    let ratio = r / big;
-    let small_accel = r * r / floor + r.powi(4) / (4. * floor.powi(3));
-    let large_accel = r.hypot(big * ratio / (1. - ratio * ratio).powf(1.5));
+    let extent = r + dy.abs();
+    let floor = ((big - extent) * (big + extent)).sqrt();
+    let (small_accel, large_accel) = if dy == 0. {
+        let ratio = r / big;
+        (
+            r * r / floor + r.powi(4) / (4. * floor.powi(3)),
+            r.hypot(big * ratio / (1. - ratio * ratio).powf(1.5)),
+        )
+    } else {
+        // y=d+r sin(t), h=sqrt(R²-y²). Bound |h''| on the small chart,
+        // and |(asin(y/R))''|*R together with |x''| on the large chart.
+        (
+            (r * r + extent * r) / floor + (extent * r).powi(2) / floor.powi(3),
+            r.hypot(big * (r / floor + extent * r * r / floor.powi(3))),
+        )
+    };
     for j in 0..2 {
         let es = &cuts[&(SMALL_LOW + j, LARGE)];
         work.spend(8 * es.len())?;
@@ -498,7 +535,7 @@ fn topology(
         if j == 1 {
             cycle.reverse();
         }
-        let phase = |v: usize| points[v][1].atan2(points[v][0]);
+        let phase = |v: usize| (points[v][1] - dy).atan2(points[v][0] - dx);
         let mut total = Sum::default();
         for (i, &v) in cycle.iter().enumerate() {
             let angle = phase(v);
@@ -636,15 +673,17 @@ fn prove_strip_interiors(
         let radius = f.radii[usize::from(large)];
         let (p, q) = (local[a], local[b]);
         let m = midpoint(p, q);
+        let [dx, dy] = f.small_offset;
+        let center = if large { [0.; 3] } else { [dx, dy, 0.] };
         let other_distance = if large {
-            m[0].hypot(m[1]) - f.radii[0]
+            (m[0] - dx).hypot(m[1] - dy) - f.radii[0]
         } else {
             m[1].hypot(m[2]) - f.radii[1]
         };
         if (p[axis] - q[axis]).abs() <= clearance
             || f.half_lengths[axis] - m[axis].abs() <= clearance
             || other_distance <= clearance
-            || (m[j].hypot(m[k]) - radius).abs() > fit
+            || ((m[j] - center[j]).hypot(m[k] - center[k]) - radius).abs() > fit
         {
             continue;
         }
@@ -702,13 +741,15 @@ fn proof(
         let radius = f.radii[usize::from(wall == LARGE)];
         let j = (axis + 1) % 3;
         let k = (axis + 2) % 3;
+        let [dx, dy] = f.small_offset;
+        let center = if wall == LARGE { [0.; 3] } else { [dx, dy, 0.] };
         let mut uv = [[0.; 2]; 3];
         for (i, v) in ids.into_iter().enumerate() {
             let p = local[v];
             let mut q = t.boundary[v].unwrap_or(p);
-            let angle = q[k].atan2(q[j]);
-            q[j] = radius * angle.cos();
-            q[k] = radius * angle.sin();
+            let angle = (q[k] - center[k]).atan2(q[j] - center[j]);
+            q[j] = center[j] + radius * angle.cos();
+            q[k] = center[k] + radius * angle.sin();
             err.record(p, q, o.cylinder_fit_tolerance_mm)?;
             uv[i] = [angle, q[axis]];
             if t.boundary[v].is_none() {
@@ -759,6 +800,9 @@ fn proof(
     // (r cos t, asin(k sin t)), k=r/R<2/3. Its signed curvature is
     // positive: its numerator has the sign of 1-k²(1-cos⁴(t)) >= 1-k². The sampled
     // polygons are therefore simple, convex and in disjoint half-cylinders.
+    // With transverse displacement d, the chart is (dx+r cos t, asin(y/R)),
+    // y=d+r sin t. Its curvature determinant has the sign of
+    // 1 - sin(t)*y*r*cos²(t)/(R²-y²), positive since |y|,r < 2R/3.
     // In the small chart the two trims are strictly single-valued axial graphs.
     // The homotopy from each straight chart edge to its exact trim is charged
     // to 'trim'. Cylinder interpolation has S_theta_theta of norm radius,
@@ -769,6 +813,36 @@ fn proof(
 pub(crate) fn volume(f: &CrossDrill) -> Result<f64, FabError> {
     let [r, big] = f.radii;
     let [x, y, z] = f.half_lengths;
+    if f.small_offset[1] != 0. {
+        let a = f.small_offset[1].abs() / big;
+        let b = r / big;
+        // Section through the narrow bore: integrate sqrt(1-v²) against
+        // the semicircle density on v in [a-b,a+b]. Integration by parts
+        // of v^n*(b²-(v-a)²)^(3/2) gives this recurrence for its moments.
+        let mut previous = 1.;
+        let mut moment = a;
+        let mut coefficient = 1.;
+        let mut sum = Sum::default();
+        sum.add(1.);
+        for n in 1..96 {
+            let k = n as f64;
+            let next = (a * (2. * k + 3.) * moment + k * (b * b - a * a) * previous) / (k + 3.);
+            previous = moment;
+            moment = next;
+            if n % 2 == 1 {
+                let j = (n / 2) as f64;
+                coefficient *= (j - 0.5) / (j + 1.);
+                sum.add(coefficient * moment);
+            }
+        }
+        let v = 8. * x * y * z - 2. * PI * (z * r * r + x * big * big)
+            + 2. * PI * r * r * big * sum.get();
+        return if v.is_finite() && v > 0. {
+            Ok(v)
+        } else {
+            Err(fail("volume de matière non positif"))
+        };
+    }
     // F0 overlap integral. Moments of cos²(t)*sin^(2k)(t) have ratio
     // (2k+1)/(2k+4). The absolute ratio of successive terms is at most q.
     // The native certificate independently encloses the volume with intervals.
@@ -832,13 +906,15 @@ pub(crate) fn candidate(
     // Each measured radius can vary by w. Require R - w > 1.5 (r + w)
     // even after the reconstruction and the CAD frame each charge roundoff.
     let witness = f.witness_tolerance_mm + seed.roundoff;
-    if f.radii[1] - 1.5 * f.radii[0] <= 2.5 * witness {
+    let [dx, dy] = f.small_offset;
+    let margin = if dy == 0. { 2.5 } else { 5.5 };
+    if f.radii[1] - 1.5 * (f.radii[0] + dy.abs()) <= margin * witness {
         return Ok(None);
     }
     let mut rings = Vec::with_capacity(4);
     for face in [2, 5, 0, 3] {
         let i = face % 3;
-        let mut p = [0.; 3];
+        let mut p = if i == 2 { [dx, dy, 0.] } else { [0.; 3] };
         p[i] = height(f, face);
         rings.push(CircularRing {
             center: world(f, p),

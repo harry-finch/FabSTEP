@@ -1,6 +1,6 @@
-# Corpus de perçages sécants centrés
+# Corpus de perçages cylindriques orthogonaux
 
-`python3 scripts/generate-cross-drill-fixtures.py` régénère les quatorze STL analytiques et le manifeste avec la bibliothèque standard Python. Les positions, les paramètres et l’attribution des facettes proviennent du générateur géométrique. Ils ne dépendent d’aucune reconnaissance FabSTEP ni construction OCCT.
+`python3 scripts/generate-cross-drill-fixtures.py` régénère les seize STL analytiques et le manifeste avec la bibliothèque standard Python. Les positions, les paramètres et l’attribution des facettes proviennent du générateur géométrique. Ils ne dépendent d’aucune reconnaissance FabSTEP ni construction OCCT.
 
 ## Géométrie
 
@@ -28,7 +28,9 @@ Le générateur relit les STL, puis vérifie la connexité, les incidences d’a
 | `f_ratio_strip` | Même rapport de 0,60, dans le repère du bloc. Une seule bande axiale relie directement la bouche à la jonction sur chaque petite paroi. |
 | `f_ratio_near` | Rayons 3 et 4,51 mm, rapport 0,665188… ; pièce réfléchie et 96 intervalles. |
 | `f_ratio_boundary`, `f_ratio_above` | Rayons 3 et 4,50 mm au seuil de 2/3, puis 3 et 4,49 mm au-delà ; la prise en charge analytique doit être refusée. |
-| `f_off_center` | Axe du petit trou décalé de 1,125 mm en X et de 0,625 mm en Y. |
+| `f_off_center` | Axe du petit trou décalé de 1,125 mm en X et de 0,625 mm en Y. Les deux vides se rejoignent et les deux axes sont gauches. |
+| `f_off_center_rotated` | Décalages opposés, rotation et translation du bloc, 80 intervalles par couture. |
+| `f_offset_clearance` | La distance transverse de 1,4 mm sort du domaine prouvé pour ces rayons. |
 | `f_fold` | Sommet intérieur de la petite paroi positive déplacé sur son propre cylindre au-delà de la colonne angulaire suivante. Des triangles inversent leur orientation géométrique, tandis que les incidences et les deux coutures demeurent. |
 | `f_missing_mouth` | Plan d’entrée Z positif absent. La relecture trouve deux contours ouverts, de 4 et 64 arêtes. |
 
@@ -70,3 +72,9 @@ Le script produit une seconde tessellation à 0,10 rad dans chaque pose. Il test
 En mode Auto, les STL FreeCAD des perçages sans subdivision (884 et 1 766 triangles) donnent chacun un solide à six plans et trois cylindres. Les bornes continues calculées sont respectivement de 0,021398 et 0,003347 mm, arrondies par excès. Avec subdivisions (1 388 et 2 774 triangles), les bornes sont de 0,021439 et 0,003366 mm. Les 48 sondes de matière et de vide donnent le résultat attendu après réimport des quatre STEP.
 
 Sur les STL binaires inclinés à 884 et 1 766 triangles, les bornes continues obtenues sont de 0,021399 et 0,003349 mm, arrondies par excès. Les deux solides réimportés dans FreeCAD comportent six plans et trois faces cylindriques. Les 24 sondes matière/vide passent et l’écart de volume par rapport à l’intégrale des sections est inférieur à 0,00010 mm³ sur chaque solide.
+
+## Perçages décentrés
+
+Le grand trou reste centré et aligné sur X. Le petit trou traverse le bloc selon Z à la position locale (a, d). Ses deux branches ont pour coordonnées `(a + r cos t, d + r sin t, ±√(R² − (d + r sin t)²))`. Le moteur vérifie `|d| ≤ r`, le dégagement des quatre entrées et la condition `R > 1,5 (r+|d|)` avec marge sur les rayons et les deux axes. Le certificat après réimport encadre continûment la courbe d’intersection et ses deux traces sur les cylindres. Le volume de référence provient d’une quadrature des sections du dessin.
+
+Sur le témoin décentré, le volume de référence vaut 5 301,123749 mm³. La commande de qualification FreeCAD ci-dessus vérifie également les variantes de décalage positif et négatif et les deux maillages indépendants du premier témoin. Le fichier à essayer avec les réglages initiaux est `freecad_offset_coarse.stl` (886 triangles). Chaque STEP qualifié contient six plans et trois parois cylindriques.

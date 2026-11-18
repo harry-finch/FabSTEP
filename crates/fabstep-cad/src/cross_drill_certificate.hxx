@@ -510,7 +510,7 @@ struct State {
   Certificate result;
   bool started=false;
   I phase_end;
-  double r,R;
+  double r,R,offset;
   std::array<Cylinder,2> surfaces;
 };
 inline bool leaf(State& s,const std::array<Net,3>& nets) {
@@ -519,16 +519,20 @@ inline bool leaf(State& s,const std::array<Net,3>& nets) {
   const I w=hull(n[3]);if(w.lo<=0.)return false;
   const auto x2=product(n[0],n[0]),y2=product(n[1],n[1]),z2=product(n[2],n[2]),w2=product(n[3],n[3]);
   const I f1=hull(add(add(x2,y2),scaled(w2,square(I(s.r))),true))/square(w);
-  const I f2=hull(add(add(y2,z2),scaled(w2,square(I(s.R))),true))/square(w);
+  // Local x/y are relative to the small axis; the large axis lies at y=-d.
+  const Poly large_y=s.offset==0. ? n[1] : add(n[1],scaled(n[3],I(s.offset)));
+  const I f2=hull(add(add(s.offset==0. ? y2 : product(large_y,large_y),z2),scaled(w2,square(I(s.R))),true))/square(w);
   const I rho2=hull(add(x2,y2))/square(w);
   if(rho2.lo<=0.)return false;
   const I rho=root(rho2),z=hull(n[2])/w;
   const int sign=z.lo>0.?1:z.hi<0.?-1:0;
   if(!sign)return false;
   const double zmin=sign>0?z.lo:-z.hi;
-  const I delta=root(square(I(s.R))-square(I(s.r)));
+  const I delta=root(square(I(s.R))-square(I(s.r)+I(std::abs(s.offset))));
   const I radial=I(magnitude(f1))/(rho+I(s.r));
-  const I axial=(I(magnitude(f1))+I(magnitude(f2)))/(I(zmin)+delta);
+  // Project (x,y) radially to (x*,y*) on the small circle. Then
+  // |(y+d)^2-(y*+d)^2| <= |rho²-r²| + 2|d|*|rho-r|.
+  const I axial=(I(magnitude(f1))+I(magnitude(f2))+I(2.*std::abs(s.offset))*radial)/(I(zmin)+delta);
   const double bound=norm({radial,axial,I(0.)}).hi;
   s.result.last_bound3d=bound;
   const Poly phase=add(product(n[0],derivative(n[1])),product(n[1],derivative(n[0])),true);
@@ -595,14 +599,14 @@ inline bool resolvedRadii(double small, double large, double uncertainty = 0.) {
 
 inline Certificate certifyEdge(const TopoDS_Edge& edge,const TopoDS_Face& face1,
                                const TopoDS_Face& face2,double r,double R,
-                               const Budget& budget=Budget{},const certificate_detail::LocalFrame* frame=nullptr) {
+                               const Budget& budget=Budget{},const certificate_detail::LocalFrame* frame=nullptr,double offset=0.) {
   using namespace certificate_detail;
   Counter counter{0,budget.max_work};Scope scope(counter);
   Certificate result;
-  State state{budget,counter,{},false,I(0.),r,R,{}};
+  State state{budget,counter,{},false,I(0.),r,R,offset,{}};
   try {
     static_assert(std::numeric_limits<double>::is_iec559,"binary64 interval arithmetic required");
-    if(!resolvedRadii(r,R)||!std::isfinite(budget.tolerance_mm)||budget.tolerance_mm<=0.||budget.max_depth<0||budget.max_depth>30||budget.max_leaves==0||budget.max_leaves>65'536)
+    if(!std::isfinite(offset)||std::abs(offset)>r||!resolvedRadii(r+std::abs(offset),R)||!std::isfinite(budget.tolerance_mm)||budget.tolerance_mm<=0.||budget.max_depth<0||budget.max_depth>30||budget.max_leaves==0||budget.max_leaves>65'536)
       throw Failure{"invalid_laboratory_contract"};
     double first,last;
     RawSpline space=curve3(edge,first,last);
@@ -635,9 +639,34 @@ inline Certificate certifyEdge(const TopoDS_Edge& edge,const TopoDS_Face& face1,
 // Integrate the binomial series with q=(r/R)². The moments of
 // cos²(u)sin^(2k)(u) have ratio (2k+1)/(2k+4), and moment zero is pi/4.
 // All terms after the constant are negative and their ratios are at most q.
-inline certificate_detail::I idealVolume(double lx,double ly,double lz,double small,double large) {
+inline certificate_detail::I idealVolume(double lx,double ly,double lz,double small,double large,double offset=0.) {
   using namespace certificate_detail;
   if(!(lx>2.*small && ly>2.*large && lz>2.*large && resolvedRadii(small,large)))throw Failure{"unsupported_volume_domain"};
+  if (offset != 0.) {
+    if (std::abs(offset)>small || !resolvedRadii(small+std::abs(offset),large)) throw Failure{"unsupported_volume_offset"};
+    // v=(d+y)/R has the translated semicircle distribution from the small
+    // hole. Its normalized moments follow by integrating the derivative of
+    // v^n*(b²-(v-a)²)^(3/2) on [a-b,a+b], a=|d|/R, b=r/R.
+    const I a=I(std::abs(offset))/I(large), b=I(small)/I(large), dm=square(b)-square(a);
+    I prev(1.), moment=a, coefficient(1.), sum(1.);
+    for(int n=1;n<96;++n) {
+      I next=(a*I(2*n+3)*moment+I(n)*dm*prev)/I(n+3);
+      prev=moment; moment=next;
+      if(n%2) {
+        const int k=n/2;
+        coefficient=coefficient*(I(k)-I(.5))/I(k+1);
+        sum=sum+coefficient*moment;
+      }
+    }
+    // All later binomial terms are nonpositive; their magnitudes are at
+    // most q^k, q=((|d|+r)/R)^2. We included all terms through k=48.
+    const I q=square(a+b);
+    I tail(1.);
+    for(int k=0;k<49;++k) tail=tail*q;
+    sum=sum+I(-(tail/(I(1.)-q)).hi,0.);
+    return I(lx)*I(ly)*I(lz)-pi()*(I(lz)*square(I(small))+I(lx)*square(I(large)))
+         +I(2.)*pi()*square(I(small))*I(large)*sum;
+  }
   const I q=square(I(small)/I(large));
   I term=pi()/I(4.),sum(0.);
   // Keep the historical enclosure when q <= 1/4; for q < 4/9,
@@ -749,7 +778,7 @@ inline SelfTestResult selfTest() {
     const V zero{I(0.),I(0.),I(0.)},x{I(1.),I(0.),I(0.)},y{I(0.),I(1.),I(0.)},z{I(0.),I(0.),I(1.)};
     const std::array<Cylinder,2> surfaces{Cylinder{zero,x,y,z,I(3.)},Cylinder{zero,z,y,x,I(6.)}};
     Budget budget;budget.tolerance_mm=1e-7;
-    State positive{budget,counter,{},false,I(0.),3.,6.,surfaces};
+    State positive{budget,counter,{},false,I(0.),3.,6.,0.,surfaces};
     require(leaf(positive,nets),"selftest_positive_local_certificate");
     require(positive.result.sign==1&&positive.result.phase_direction==1&&positive.result.bound3d<1e-7&&positive.result.boundPcurves<1e-7,"selftest_positive_quantities");
     // Perturb only the middle quartic pole. Its endpoint values and
@@ -762,11 +791,11 @@ inline SelfTestResult selfTest() {
     require(pcurve_bound(jet(nets[0]),jet(interior),surfaces[0])>=.00375,"selftest_hermite_interior_corruption");
     auto wrong=nets;
     for(I& v:wrong[1][1])v=v+I(.01);
-    State adversary{budget,counter,{},false,I(0.),3.,6.,surfaces};
+    State adversary{budget,counter,{},false,I(0.),3.,6.,0.,surfaces};
     require(!leaf(adversary,wrong),"selftest_pcurve_corruption_not_rejected");
     wrong=nets;
     for(I& v:wrong[0][0])v=v+I(.01);
-    State displaced{budget,counter,{},false,I(0.),3.,6.,surfaces};
+    State displaced{budget,counter,{},false,I(0.),3.,6.,0.,surfaces};
     require(!leaf(displaced,wrong),"selftest_curve_corruption_not_rejected");
     out.ok=true;out.reason="interval_periodic_bernstein_hermite_and_positive_continuous_local_certificate_passed";
   } catch(const Failure& error) {out.reason=error.reason;}

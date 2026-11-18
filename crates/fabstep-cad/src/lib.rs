@@ -266,6 +266,7 @@ struct NativeSmoothRevolution {
 
 #[repr(C)]
 struct NativeCrossDrill {
+    small_offset: [f64; 2],
     center: [f64; 3],
     axes: [[f64; 3]; 3],
     half: [f64; 3],
@@ -1836,6 +1837,7 @@ fn build_cross_drill(
     let m = &model.revolved.mixed;
     let [r, big] = f.radii;
     let [hx, hy, hz] = f.half_lengths;
+    let [dx, dy] = f.small_offset;
     if m.planes.len() != 6
         || m.rings.len() != 4
         || m.vertices.len() > MAX_SOURCE_VERTICES
@@ -1854,6 +1856,7 @@ fn build_cross_drill(
             .center
             .iter()
             .chain(&f.half_lengths)
+            .chain(&f.small_offset)
             .chain(&f.radii)
             .all(|x| x.is_finite())
         || !(r > 0. && hx > r && hy > big && hz > big)
@@ -1894,10 +1897,13 @@ fn build_cross_drill(
         return Err(invalid());
     }
     let witness = f.witness_tolerance_mm + numerical;
-    // Both radii can move by the witness error. Keep the entire uncertainty
-    // interval strictly inside r/R < 2/3, including the native support tolerance.
-    if big - 1.5 * r <= 2.5 * witness.max(1e-7)
-        || witness >= r.min(hx - r).min(hy - big).min(hz - big) / 2.
+    // Both radius errors are at most w; moving both axes charges 2w to their separation.
+    // The centered path retains its historical margin.
+    let extent = dy.abs() + r;
+    let margin = if dy == 0. { 2.5 } else { 5.5 };
+    if big - 1.5 * extent <= margin * witness.max(1e-7)
+        || dy.abs() > r
+        || witness >= r.min(hx - dx.abs() - r).min(hy - big).min(hz - big) / 2.
     {
         return Err(invalid());
     }
@@ -1961,7 +1967,10 @@ fn build_cross_drill(
             return Err(invalid());
         }
         used[ring] = true;
-        let center = std::array::from_fn(|k| f.center[k] + normal[k] * f.half_lengths[axis]);
+        let center = std::array::from_fn(|k| {
+            let offset = if slot < 2 { dx * x[k] + dy * y[k] } else { 0. };
+            f.center[k] + normal[k] * f.half_lengths[axis] + offset
+        });
         if !curve.radius_mm.is_finite()
             || !curve.center.iter().all(|x| x.is_finite())
             || !unit_direction(&curve.axis)
@@ -1983,12 +1992,12 @@ fn build_cross_drill(
                 return Err(invalid());
             }
             let [x, y, z] = local(id)?;
-            let t = y.atan2(x);
-            let ideal_y = r * t.sin();
+            let t = (y - dy).atan2(x - dx);
+            let ideal_y = dy + r * t.sin();
             let stop = (big * big - ideal_y * ideal_y).sqrt() * if branch == 0 { -1. } else { 1. };
             if !stop.is_finite()
                 || (branch == 0) != (z < 0.)
-                || norm([x - r * t.cos(), y - ideal_y, z - stop]) > witness
+                || norm([x - dx - r * t.cos(), y - ideal_y, z - stop]) > witness
             {
                 return Err(invalid());
             }
@@ -2007,6 +2016,7 @@ fn build_cross_drill(
         }
     }
     let domain = NativeCrossDrill {
+        small_offset: f.small_offset,
         center: f.center,
         axes: f.axes,
         half: f.half_lengths,

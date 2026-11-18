@@ -15,7 +15,7 @@ use std::{
     path::Path,
 };
 
-const POSITIVES: [&str; 8] = [
+const POSITIVES: [&str; 10] = [
     "f_nominal",
     "f_scaled",
     "f_rotated",
@@ -24,11 +24,13 @@ const POSITIVES: [&str; 8] = [
     "f_ratio",
     "f_ratio_mid",
     "f_ratio_near",
+    "f_off_center",
+    "f_off_center_rotated",
 ];
 const CLOSED_NEGATIVES: [&str; 4] = [
     "f_ratio_boundary",
     "f_ratio_above",
-    "f_off_center",
+    "f_offset_clearance",
     "f_fold",
 ];
 
@@ -433,6 +435,13 @@ fn cross_drill_json_extends_legacy_models_and_roundtrips_its_owners() {
     assert!(branches
         .iter()
         .all(|branch| branch.as_array().unwrap().len() == 64));
+    let mut old = model.clone();
+    old["cross_drill"]
+        .as_object_mut()
+        .unwrap()
+        .remove("small_offset");
+    let previous: RoundedModel = serde_json::from_value(old).unwrap();
+    assert_eq!(previous.cross_drill.unwrap().small_offset, [0.; 2]);
     let decoded: RoundedModel = serde_json::from_value(model.clone()).unwrap();
     assert_eq!(serde_json::to_value(decoded).unwrap(), model);
 
@@ -485,6 +494,25 @@ fn freecad_bore_strips_keep_both_openings_and_every_source_face() {
         ([5., 1., -6.], true),
     ];
     check_freecad_bores("freecad_mid_coarse.stl", volume, 0.0001, &local_probes);
+
+    let offset = &cases["cases"]["f_off_center"];
+    let offset_probes: Vec<_> = offset["material_probes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|probe| {
+            (
+                vector(&probe["point_mm"]),
+                probe["material"].as_bool().unwrap(),
+            )
+        })
+        .collect();
+    check_freecad_bores(
+        "freecad_offset_coarse.stl",
+        offset["parameters"]["volume_mm3"].as_f64().unwrap(),
+        0.0001,
+        &offset_probes,
+    );
 
     let rotated_probes: Vec<_> = case["material_probes"]
         .as_array()

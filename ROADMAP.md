@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 95** (24 %)
+**Avancement : 23 livrés sur 96** (24 %)
 
 ## Restant à faire
 
@@ -156,6 +156,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Retrouver le congé linéaire sur une paroi dont les sommets appartiennent tous aux deux bords elliptiques.
 72. **[R-095 C2 — révolution à deux méridiennes cubiques tangentes](roadmap/items/R-095-c2-revolution-a-deux-meridiennes-cubiques.md)** · À tester · jalon post-v1
    Reconstruire une paroi de révolution dont la méridienne comporte deux segments cubiques à tangente commune.
+73. **[R-096 F — perçages traversants orthogonaux à axes décentrés](roadmap/items/R-096-f-percages-traversants-orthogonaux-a-axes.md)** · À tester · jalon post-v1
+   Reconstruire les deux intersections partagées lorsque le petit perçage est décentré par rapport au grand.
 
 ## Actions à faire
 
@@ -246,6 +248,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-096](roadmap/actions/A-096-verifier-le-trou-de-la-plaque-inclinee-dans.md) Vérifier le trou de la plaque inclinée dans FabSTEP et Fusion (tester, R-093)
 - [ ] [A-099](roadmap/actions/A-099-inspecter-le-conge-a-rayon-variable-dans-fusion.md) Inspecter le congé à rayon variable dans Fusion (tester, R-094)
 - [ ] [A-100](roadmap/actions/A-100-verifier-la-revolution-a-deux-segments-dans.md) Vérifier la révolution à deux segments dans Fusion (tester, R-095)
+- [ ] [A-101](roadmap/actions/A-101-verifier-les-deux-percages-decentres-dans-fusion.md) Vérifier les deux perçages décentrés dans Fusion (tester, R-096)
 
 ## Livré
 

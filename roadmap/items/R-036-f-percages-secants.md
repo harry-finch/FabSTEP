@@ -84,3 +84,5 @@ Le certificat d’intervalles devra conserver les options numériques du laborat
 R-083 a intégré F1. R-091 élargit le rapport de rayons aux couples dont l’enveloppe de mesure reste strictement sous deux tiers. Un contrôle supplémentaire couvre les maillages reliant directement bouches et jonctions. Le corpus contient une pièce dessinée et maillée dans FreeCAD. Les résultats, y compris le repli au seuil, figurent dans V-1219. Les axes décentrés ou obliques et les intersections multiples restent à qualifier.
 
 R-092 traite le contour fragmenté du bloc incliné décrit dans V-1219. Les deux densités de maillage dans les deux poses sont reconstruites aux seuils initiaux. Qualification et témoin de non-régression du mode Plans dans V-1220. Pour étendre F, restent les axes décentrés ou obliques entre eux, les rapports hors du domaine prouvé et les intersections multiples.
+
+R-096 — Reconstruire les deux intersections partagées lorsque le petit perçage est décentré par rapport au grand. Voir V-1224.

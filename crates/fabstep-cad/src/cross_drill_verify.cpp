@@ -48,7 +48,7 @@ struct CycleArc {
 };
 Coverage coverBranch(const std::vector<cross_drill_lab::Certificate>& certs,
                      const std::vector<CycleArc>& arcs, int branch, double tolerance, double r,
-                     double R) {
+                     double R, double offset) {
   using cross_drill_lab::certificate_detail::I;
   using cross_drill_lab::certificate_detail::magnitude;
   using cross_drill_lab::certificate_detail::middle;
@@ -130,8 +130,10 @@ Coverage coverBranch(const std::vector<cross_drill_lab::Certificate>& certs,
   }
   // An ideal point in a bridge is at most half its angular length from a
   // proved endpoint. Bound the speed on the exact cylinder intersection.
-  const I zmin = root(square(I(R)) - square(I(r)));
-  const I speed = root(square(I(r)) + square(square(I(r)) / (I(2.) * zmin)));
+  const I extent = I(r)+I(std::abs(offset));
+  const I zmin = root(square(I(R)) - square(extent));
+  const I dz = offset == 0. ? square(I(r))/(I(2.)*zmin) : extent*I(r)/zmin;
+  const I speed = root(square(I(r)) + square(dz));
   result.gap = gap;
   result.bound = (I(worst) + speed * I(gap) / I(2.)).hi;
   result.ok = result.bound <= tolerance;
@@ -141,13 +143,13 @@ Coverage coverBranch(const std::vector<cross_drill_lab::Certificate>& certs,
 }
 Coverage budgetedBranch(const std::vector<cross_drill_lab::Certificate>& certs,
                         const std::vector<CycleArc>& arcs, int branch, double tolerance,
-                        std::size_t& remaining, double r, double R) {
+                        std::size_t& remaining, double r, double R, double offset) {
   using namespace cross_drill_lab::certificate_detail;
   Counter counter{0, remaining};
   Scope scope(counter);
   Coverage result;
   try {
-    result = coverBranch(certs, arcs, branch, tolerance, r, R);
+    result = coverBranch(certs, arcs, branch, tolerance, r, R, offset);
   } catch (const Failure& error) {
     result.reason = error.reason;
   }
@@ -180,13 +182,16 @@ CrossDrillData infer(const TopTools_IndexedMapOfShape& faces) {
   std::sort(rings.begin(), rings.end(),
             [](const gp_Circ& a, const gp_Circ& b) { return a.Radius() < b.Radius(); });
   CrossDrillData d{};
-  const auto center = (rings[0].Location().XYZ() + rings[1].Location().XYZ()) * .5;
+  const auto center = (rings[2].Location().XYZ() + rings[3].Location().XYZ()) * .5;
   store(d.center, center);
   const auto dx = gp_Vec(rings[2].Location(), rings[3].Location()),
              dz = gp_Vec(rings[0].Location(), rings[1].Location());
   d.half[0] = dx.Magnitude() / 2.;
   d.half[2] = dz.Magnitude() / 2.;
   const gp_Dir x(dx), z(dz), y(z.Crossed(x));
+  const auto delta = (rings[0].Location().XYZ() + rings[1].Location().XYZ())*.5 - center;
+  d.small_offset[0] = delta.Dot(x.XYZ());
+  d.small_offset[1] = delta.Dot(y.XYZ());
   store(d.axes[0], x.XYZ());
   store(d.axes[1], y.XYZ());
   store(d.axes[2], x.Crossed(y).XYZ());
@@ -209,13 +214,19 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
   const auto d = expected ? *expected : infer(faces);
   const auto center = point(d.center);
   const double r = d.radii[0], R = d.radii[1], tol = Precision::Confusion();
-  require(r > tol && cross_drill_lab::resolvedRadii(r, R, tol) && d.half[0] > r + tol && d.half[1] > R + tol &&
+  const double dx=d.small_offset[0], dy=d.small_offset[1];
+  require(r > tol && std::isfinite(dx) && std::isfinite(dy) && std::abs(dy)<=r &&
+              R-1.5*(r+std::abs(dy))>(dy==0. ? 2.5 : 5.5)*tol && d.half[0] > std::abs(dx)+r+tol && d.half[1] > R + tol &&
               d.half[2] > R + tol,
           "Rayons ou portées des perçages invalides.");
   const std::array<gp_Dir, 3> axes{dir(d.axes[0]), dir(d.axes[1]), dir(d.axes[2])};
   require(axes[0].IsNormal(axes[2], 1.e-8) && axes[2].Crossed(axes[0]).IsEqual(axes[1], 1.e-8),
           "Repère des perçages invalide.");
   auto at = [&](size_t axis, double v) { return center.Translated(gp_Vec(axes[axis]) * v); };
+  const gp_Pnt small_center=center.Translated(gp_Vec(axes[0])*dx+gp_Vec(axes[1])*dy);
+  auto mouth=[&](size_t axis, double value) {
+    return (axis==2 ? small_center : center).Translated(gp_Vec(axes[axis])*value);
+  };
   auto near_angle = [&](double extent) { return std::min(1.e-8, tol / (4. * extent)); };
   std::array<int, 6> planes{};
   std::array<int, 3> walls{};
@@ -260,7 +271,7 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
       const size_t axis = large ? 0 : 2;
       require(std::abs(c.Radius() - (large ? R : r)) <= tol &&
                   c.Axis().Direction().IsParallel(axes[axis], near_angle(d.half[axis])) &&
-                  gp_Lin(c.Axis()).Distance(center) +
+                  gp_Lin(c.Axis()).Distance(large ? center : small_center) +
                           gp_Vec(c.Axis().Direction()).Crossed(gp_Vec(axes[axis])).Magnitude() *
                               (d.half[axis] + c.Radius()) +
                           std::abs(c.Radius() - (large ? R : r)) <=
@@ -276,14 +287,14 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
         const auto pos = circle.Location();
         int k = -1;
         for (int j = 0; j < 2; ++j)
-          if (pos.Distance(at(axis, (j ? 1. : -1.) * d.half[axis])) <= tol)
+          if (pos.Distance(mouth(axis, (j ? 1. : -1.) * d.half[axis])) <= tol)
             k = j;
         require(
             k >= 0 && circle.Axis().Direction().IsParallel(axes[axis], near_angle(c.Radius())) &&
                 std::abs(circle.Radius() - c.Radius()) <= tol && BRep_Tool::IsClosed(e) &&
                 std::abs(c3.LastParameter() - c3.FirstParameter() - 2. * std::acos(-1.)) < 1.e-8,
             "Anneau d’entrée incorrect.");
-        require(pos.Distance(at(axis, (k ? 1. : -1.) * d.half[axis])) +
+        require(pos.Distance(mouth(axis, (k ? 1. : -1.) * d.half[axis])) +
                         gp_Vec(circle.Axis().Direction()).Crossed(gp_Vec(axes[axis])).Magnitude() *
                             circle.Radius() +
                         std::abs(circle.Radius() - (large ? R : r)) <=
@@ -317,7 +328,8 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
   using namespace cross_drill_lab::certificate_detail;
   Counter framing{0, remaining};
   Scope frame_scope(framing);
-  const LocalFrame frame(d.center, d.axes[0], d.axes[2]);
+  LocalFrame frame(d.center, d.axes[0], d.axes[2]);
+  frame.center=plus(frame.center,plus(scale(frame.axes[0],I(dx)),scale(frame.axes[1],I(dy))));
   remaining -= framing.work;
   for (int i = 1; i <= incidence.Extent(); ++i) {
     const auto edge = TopoDS::Edge(incidence.FindKey(i));
@@ -360,7 +372,7 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
     budget.max_work = remaining;
     budget.max_leaves = leaves;
     budget.mesh_deflection_mm = deflection;
-    auto cert = cross_drill_lab::certifyEdge(edge, a, b, r, R, budget, &frame);
+    auto cert = cross_drill_lab::certifyEdge(edge, a, b, r, R, budget, &frame, dy);
     if (!cert.ok)
       throw std::runtime_error("Certificat continu du raccord refusé : " + cert.reason);
     require(cert.sign == branch &&
@@ -377,7 +389,7 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
   }
   require(lines == 12 && mouths == 4, "Le bloc ne possède pas ses douze arêtes et quatre entrées.");
   for (int sign : {-1, 1}) {
-    auto coverage = budgetedBranch(certs, links, sign, 1.e-7, remaining, r, R);
+    auto coverage = budgetedBranch(certs, links, sign, 1.e-7, remaining, r, R, dy);
     if (!coverage.ok)
       throw std::runtime_error("Couverture cyclique du raccord refusée : " + coverage.reason);
   }
@@ -390,16 +402,16 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
             "Sonde matière/vide des perçages incohérente.");
   };
   probe(center, false);
-  probe(at(2, (R + d.half[2]) * .5), false);
+  probe(mouth(2, (R + d.half[2]) * .5), false);
   probe(at(0, (r + d.half[0]) * .5), false);
   probe(at(1, (R + d.half[1]) * .5), true);
-  const double step = .015 * std::min({r, d.half[0] - r, d.half[1] - R, d.half[2] - R});
+  const double step = .015 * std::min({r, d.half[0] - std::abs(dx) - r, d.half[1] - R, d.half[2] - R});
   for (int branch : {-1, 1})
     for (double t : {.39, 1.71, 3.44, 5.12}) {
-      const double x = r * std::cos(t), y = r * std::sin(t), z = branch * std::sqrt(R * R - y * y);
+      const double x = dx+r*std::cos(t), y = dy+r*std::sin(t), z = branch*std::sqrt(R*R-y*y);
       const gp_Pnt p =
           center.Translated(gp_Vec(axes[0]) * x + gp_Vec(axes[1]) * y + gp_Vec(axes[2]) * z);
-      const gp_Vec a = gp_Vec(axes[0]) * (x / r) + gp_Vec(axes[1]) * (y / r),
+      const gp_Vec a = gp_Vec(axes[0])*((x-dx)/r)+gp_Vec(axes[1])*((y-dy)/r),
                    b = gp_Vec(axes[1]) * (y / R) + gp_Vec(axes[2]) * (z / R);
       const double dot = a.Dot(b), den = 1. - dot * dot;
       for (int i : {-1, 1})
@@ -408,7 +420,7 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
                 i > 0 && j > 0);
     }
   const auto volume =
-      cross_drill_lab::idealVolume(2. * d.half[0], 2. * d.half[1], 2. * d.half[2], r, R);
+      cross_drill_lab::idealVolume(2. * d.half[0], 2. * d.half[1], 2. * d.half[2], r, R, dy);
   out.volume_low = volume.lo;
   out.volume_high = volume.hi;
   return out;
