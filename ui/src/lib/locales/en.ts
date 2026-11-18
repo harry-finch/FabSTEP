@@ -27,6 +27,7 @@ const en: Shape<typeof fr> = {
     unequal_pocket_fitted: "The two fillets of different radii share a curved edge.",
     adjacent_pocket_fitted: "The two pocket fillets meet along an elliptical arc.",
     oblique_pocket_fitted: "The pocket fillet is reconstructed as a quarter cylinder with an elliptical arc on the inclined wall.",
+    bored_prism_projection: "Vertices of the drilled plate were adjusted to the reconstructed faces. The deviation bound includes their displacement.",
     oblique_pocket_adjusted: "Pocket vertices were adjusted to match the reconstructed faces. The deviation bound includes their displacement.",
     toric_sector_fitted: "A mesh band forms a torus sector. Its edges are fitted within the stated tolerance.",
     fitted_revolution:"The cubic profile is fitted to the mesh within the reported deviation bound; the original design intent is not inferred.",

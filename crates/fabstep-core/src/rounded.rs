@@ -11,6 +11,7 @@ use crate::{
 use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::{PI, TAU};
 pub(crate) mod block;
+mod bored_prism;
 mod linear_blend;
 mod octant;
 mod smooth_revolution;
@@ -365,9 +366,8 @@ fn recognize_policy_with_proofs(
     }
     let rims = segmented_rims(a, o, &segmentation, &mut work)?;
     // A larger segmentation tolerance can split a mouth when it changes the
-    // seed order. Try to reassemble it only when there are already witnessed
-    // bore openings. The ordinary segmentation remains in force for every
-    // other family and for a faceted fallback.
+    // seed order. Try the witnessed openings first, retaining the ordinary
+    // partition for the other recognizers and the faceted fallback.
     let alternate = if (1..4).contains(&rims.len())
         && rims.iter().all(|rim| {
             let loops = &segmentation.model.faces[rim.region].loops;
@@ -936,6 +936,35 @@ fn recognize_policy_with_proofs(
     let mut result = RoundedRecognition{model,triangle_faces:owners.into_iter().map(Option::unwrap).collect(),report:RecognitionReport{revolutions: 0,cylinders,cones,spheres,tori,toroidal_fillets:tori,max_radial_residual_mm:errors.radial,max_chord_error_mm:errors.chord,max_wall_residual_mm:errors.wall,max_deviation_bound_mm:bound,expected_volume_mm3:volume,diagnostics:vec![intent,Diagnostic{code:"recognition.rounded_coverage".into(),severity:Severity::Info,count:a.mesh.triangles.len(),message:format!("Tous les triangles sont attribués : {spheres} sphères, {tori} tores, {cones} cônes, {cylinders} cylindres et {planes} plans. Frontières, raccords et éventuels pôles issus de la source.")},Diagnostic{code:"recognition.bound_scope".into(),severity:Severity::Info,count:1,message:"Borne composée : soudage, résidus de projection, flèche sphérique ou borne paramétrique des triangles. Validation native et audit bidirectionnel requis ; pas une mesure Hausdorff globale.".into()}]}};
     if automatic && rejected > 0 {
         result.report.diagnostics.push(Diagnostic{code:"auto.regions_faceted".into(),severity:Severity::Info,count:rejected,message:"Les candidats locaux non prouvés restent facettisés ; aucun relâchement des tolérances.".into()});
+    }
+    if automatic && cylinders + spheres + cones + tori == 0 && scope.is_none() {
+        // Extremely thin triangles may fragment both mouths. Only spend the
+        // remaining budget on another partition after ordinary families decline.
+        let retry = if rims.is_empty() && bored_prism::split_caps(&segmentation) {
+            crate::planar::retry_perforations(&segmentation, &a.mesh, &adjacency, tol)?
+        } else {
+            None
+        };
+        let proof = (|| {
+            let recovered;
+            let (partition, openings) = if let Some(partition) = &retry {
+                recovered = segmented_rims(a, o, partition, &mut work)?;
+                (partition, &recovered)
+            } else if rims.len() == 2 {
+                (&segmentation, &rims)
+            } else {
+                (bore_partition, bore_rims)
+            };
+            bored_prism::recover(a, o, partition, openings, &edges, &mut work, &mut result)
+        })();
+        if let Err(e) = proof {
+            if !matches!(
+                e.code.as_str(),
+                "recognition.surface_unproven" | "recognition.too_complex"
+            ) {
+                return Err(e);
+            }
+        }
     }
     Ok(result)
 }

@@ -150,8 +150,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Deux trous orthogonaux de rayons plus proches reconstruits. Sept STEP contrôlés dans FreeCAD, y compris quatre maillages indépendants. Essai FabSTEP et Fusion ouvert.
 69. **[R-092 F3 — reconnaître les perçages du bloc incliné en STL binaire](roadmap/items/R-092-f3-reconnaitre-les-percages-du-bloc-incline-en.md)** · À tester · jalon post-v1
    Deux poses et deux densités de STL binaire inclinés donnent six plans et trois cylindres aux réglages par défaut. Vérification Fusion ouverte.
-70. **[R-093 Auto — reconnaître le trou traversant d’une plaque inclinée](roadmap/items/R-093-auto-reconnaitre-le-trou-traversant-d-une-plaque.md)** · Idée · jalon post-v1
-   Sur la plaque inclinée à un perçage de V-1220, Cylindres donne sept faces, dont le cylindre du trou. Auto choisit encore 252 faces planes.
+70. **[R-093 Auto — reconnaître le trou traversant d’une plaque inclinée](roadmap/items/R-093-auto-reconnaitre-le-trou-traversant-d-une-plaque.md)** · À tester · jalon post-v1
+   Sur la plaque inclinée de 268 triangles, le mode Automatique reconstruit six faces planes et un cylindre de Ø6 mm. Sélectionner la paroi retrouve ses 126 triangles source.
 
 ## Actions à faire
 
@@ -239,6 +239,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-093](roadmap/actions/A-093-verifier-les-deux-conges-de-rayons-differents.md) Vérifier les deux congés de rayons différents dans FabSTEP et Fusion (tester, R-090)
 - [ ] [A-094](roadmap/actions/A-094-verifier-les-percages-secants-de-rayons-3-et-5.md) Vérifier les perçages sécants de rayons 3 et 5 mm dans Fusion (tester, R-091)
 - [ ] [A-095](roadmap/actions/A-095-verifier-le-bloc-incline-a-deux-percages-dans.md) Vérifier le bloc incliné à deux perçages dans Fusion (tester, R-092)
+- [ ] [A-096](roadmap/actions/A-096-verifier-le-trou-de-la-plaque-inclinee-dans.md) Vérifier le trou de la plaque inclinée dans FabSTEP et Fusion (tester, R-093)
 
 ## Livré
 

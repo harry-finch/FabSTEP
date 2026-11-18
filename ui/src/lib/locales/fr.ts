@@ -25,6 +25,7 @@ const fr = {
     unequal_pocket_fitted: "Les deux congés de rayons différents partagent une arête courbe.",
     adjacent_pocket_fitted: "Les deux congés se rejoignent le long d’un arc d’ellipse.",
     oblique_pocket_fitted: "Le congé de la poche est reconstruit en quart de cylindre, avec un arc elliptique sur la paroi inclinée.",
+    bored_prism_projection: "Les sommets de la plaque percée ont été ajustés aux faces reconstruites. Leur déplacement est inclus dans la borne d’écart.",
     oblique_pocket_adjusted: "Des sommets de la poche ont été ajustés aux parois reconstruites. Leur déplacement est inclus dans la borne d’écart.",
     toric_sector_fitted: "Une bande du maillage forme un secteur de tore. Ses bords sont ajustés dans la tolérance indiquée.",
     fitted_revolution:"Le profil cubique est ajusté au maillage dans la borne d’écart indiquée ; l’intention de conception originale n’est pas déduite.",

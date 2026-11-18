@@ -183,7 +183,8 @@ fn planar(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
     })
 }
 fn safe_planes(a: &Analysis, r: &mut RoundedRecognition) -> Result<(), FabError> {
-    let old = &r.model.revolved.mixed.planes;
+    let mixed = &r.model.revolved.mixed;
+    let old = &mixed.planes;
     let mut split = BTreeSet::new();
     for (i, p) in old.iter().enumerate() {
         if p.loops
@@ -194,7 +195,7 @@ fn safe_planes(a: &Analysis, r: &mut RoundedRecognition) -> Result<(), FabError>
             if p.loops.iter().any(|lp| match lp {
                 MixedLoop::Polygon { vertices } => vertices
                     .iter()
-                    .any(|&v| dot(sub(a.mesh.vertices[v], origin), p.normal).abs() > 5e-8),
+                    .any(|&v| dot(sub(mixed.vertices[v], origin), p.normal).abs() > 5e-8),
                 _ => false,
             }) {
                 split.insert(i);

@@ -1,5 +1,9 @@
 # Corpus synthétique
 
+## Plaque inclinée à trou traversant
+
+Le fichier [inclined_plate_hole.stl](inclined_plate_hole.stl) contient 268 triangles. Il provient d’une plaque de 24 × 20 × 6 mm inclinée avant maillage dans FreeCAD, avec un trou de diamètre 6 mm perpendiculaire aux grandes faces. Le script [qualify-inclined-plate-hole-freecad.py](../scripts/qualify-inclined-plate-hole-freecad.py) régénère le témoin et une tessellation de 520 triangles dans deux poses. La commande de qualification figure dans V-1221 de [VALIDATION](../docs/VALIDATION.md).
+
 ## Cylindres ouverts à triangulation décalée
 
 `python3 fixtures/generate_partial_staggered.py` génère `partial_staggered/` sans lire de fichier utilisateur ni appeler le reconnaisseur. Les références analytiques décrivent un demi-disque extrudé R5/H7 et une lentille extrudée délimitée par deux cercles R3 dont les centres sont espacés de 4 mm. Les cinq positifs couvrent décalage des angles intérieurs, bandes alignées près des bouchons, rotation 3D, coordonnées f32 translatées et deux génératrices partagées entre cylindres. Les cinq négatifs ajoutent bosse, creux, excursion axiale, repli ou triangle manquant. `expected.json` fixe volumes et transformation ; générer le corpus ne valide pas la conversion. Voir [ADR-0021](../docs/adr/0021-staggered-open-cylinder-walls.md) et les essais exécutés dans [VALIDATION](../docs/VALIDATION.md).

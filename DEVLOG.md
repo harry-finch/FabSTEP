@@ -506,3 +506,7 @@ Le témoin historique de rayons 3 et 5,5 mm passe de 306 plans à six plans et t
 ## 2026-11-18 — R-092, perçages dans un bloc incliné avant maillage binaire
 
 La normale d’un triangle mince pouvait diviser la face plane autour d’un trou. Les deux moitiés formaient alors un contour que le moteur refusait. L’ajustement sur toute la face et la mesure des directions entre les centres des bouches permettent de reconstruire le solide aux réglages initiaux. La revue a identifié un contre-exemple important pour le mode Plans, une plaque dont les deux pans peuvent chacun être construits exactement. La partition initiale garde la priorité, et cette plaque conserve ses onze faces. Les résultats des deux poses, des deux densités de maillage et du test de réimport sont consignés dans V-1220.
+
+## 2026-11-18 — R-093, cylindre d’une plaque inclinée en Auto
+
+Sur le témoin de V-1220, les deux ouvertures du trou étaient présentes. L’erreur d’arrondi du STL binaire suffisait à rendre les coins des faces voisines non coplanaires aux exigences du noyau. Auto gardait alors 252 plans. La nouvelle preuve utilise conjointement les deux ouvertures et les quatre arêtes latérales de la plaque, puis vérifie et comptabilise les déplacements par rapport aux triangles. Deux poses et deux densités donnent chacune sept faces en réimport. Le maillage aux génératrices vrillées conserve ses facettes. Le protocole de reproduction et les limites figurent dans V-1221.

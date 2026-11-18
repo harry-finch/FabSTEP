@@ -180,10 +180,16 @@ Les demandes Cylindre/Cône sont d’abord prouvées par le parcours existant ; 
 
 ## Reconstruction automatique locale et sélection de paroi (UX5)
 
-Le mode additif Auto passe par `automatic.rs` et une politique locale du reconnaisseur arrondi. Il retient les candidats démontrés et facettise les refus locaux avant assemblage, avec limites de travail et contrôles source/natifs inchangés. Les modèles plans non constructibles sont subdivisés avant attribution ; aucun sommet n’est déplacé. `RoundedRecognition` unifie le résultat suivi, avec jetons plans/cylindres/partiels/cônes/sphères/tores réellement transférés par OCCT.
+Le mode additif Auto passe par `automatic.rs` et une politique locale du reconnaisseur arrondi. Il retient les candidats démontrés et facettise les refus locaux avant assemblage, avec limites de travail et contrôles source/natifs inchangés. La subdivision d’un contour plan non constructible réutilise les triangles source. `RoundedRecognition` unifie le résultat suivi, avec jetons plans/cylindres/partiels/cônes/sphères/tores réellement transférés par OCCT.
 
 La session peut partir d’Auto et rejouer ses indications sans perdre les régions reconnues indépendantes. Le groupe torique comprend sa portée cylindrique nécessaire ; les chaînes coniques adjacentes restent refusées en guidage. `suggest_region` est une lecture du résultat immuable, protégée par identité/révision/source/époque ; il mappe une région source vers des faces STEP entières. Le worker UI valide la sélection groupée et les double-clics partagent une file bornée à un calcul actif et une dernière attente. Les stratégies historiques et leurs défauts API restent compatibles. Décision, limites et migration des préférences : [ADR-0029](docs/adr/0029-automatic-local-reconstruction.md).
 
+
+### Plaque inclinée à un perçage traversant (R-093)
+
+Si Auto conserve uniquement des plans, `rounded/bored_prism.rs` peut encore démontrer un prisme droit convexe percé sur au plus 32 000 triangles. Les deux profils extérieurs à quatre sommets définissent l’axe. Les deux anneaux intérieurs fournissent un centre et un rayon communs. Le moteur associe les coins opposés, vérifie deux triangles par face latérale et affecte tous les triangles des deux faces d’extrémité. Le contrôle périodique du cylindre vérifie que le reste de la paroi couvre effectivement le trou.
+
+Les coordonnées ajustées servent au contrôle de constructibilité des plans. Le rapport compte le déplacement maximal par rapport aux sommets source, le résidu radial, l’écart des cordes et la tolérance de soudage. Si la preuve échoue, Auto garde sa partition précédente. Le résultat utilise les faces planes, les anneaux et le cylindre existants. Les contrôles natifs de volume, de fidélité et de provenance s’appliquent avant export.
 
 ## Raccords ouverts cylindre–chanfrein
 

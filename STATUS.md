@@ -5,7 +5,7 @@
 ## Version et validation courantes
 
 - `artifacts/release/1.0.0/FabSTEP.app` reste le paquet autonome signé ad hoc, accepté sur un autre Mac et dans Fusion le 9 novembre (V-1115). Pas de signature Developer ID ni notarisation revendiquée.
-- `artifacts/FabSTEP.app` est le build local de développement, dépendant du SDK installé. Ce paquet comprend les congés de fond de poche R-086 à R-090 et les perçages sécants R-091/R-092, y compris le bloc incliné en STL binaire (V-1219/V-1220). Les essais de la butée oblique, des congés opposés et du coin à deux congés figurent dans V-1213, V-1214, V-1216 et V-1218.
+- `artifacts/FabSTEP.app` est le build local de développement, dépendant du SDK installé. Ce paquet comprend les congés de fond de poche R-086 à R-090 et les perçages sécants R-091/R-092, y compris le bloc incliné en STL binaire (V-1219/V-1220). R-093 y ajoute le trou traversant d’une plaque inclinée en mode Auto (V-1221). Les essais de la butée oblique, des congés opposés et du coin à deux congés figurent dans V-1213, V-1214, V-1216 et V-1218.
 - Seize tests opt-in workspace restent ignorés par la suite ordinaire. Les essais graphiques/Fusion des extensions restent ouverts dans FabBoard ; aucun succès automatique ne vaut acceptation utilisateur. Le pilotage du dialogue d’ouverture avait été bloqué, mais l’utilisateur a confirmé l’ouverture manuelle.
 
 ## Capacités développées
@@ -22,6 +22,8 @@ Les familles mécaniques qualifiées comprennent extrusions, cylindres et cônes
 - **R-082 / G1** : raccord convexe à rayon linéaire entre deux plans orthogonaux, deux limites elliptiques exactes et un cône incliné. Auto/Surfaces, profils DXF et deux corps séparés contrôlés. Le parcours des cylindres constants est préservé par un test de variation préalable ; les déplacements des quatre extrémités reconstruites sont comptés.
 
 - **R-083, R-091 et R-092 / F** : deux trous traversants centrés orthogonaux, quatre anneaux, six plans et trois parois cylindriques. Le rapport petit/grand rayon reste strictement sous deux tiers, avec marge sur les deux mesures. Partition source, courbes communes réimportées, volume, provenance et deux corps séparés contrôlés. Correction locale couplée et DXF non conique refusés.
+
+- **R-093** couvre le cas d’une plaque à un trou traversant perpendiculaire aux faces d’entrée. Sur le [témoin incliné](fixtures/inclined_plate_hole.stl), les six plans et le cylindre de Ø6 mm sont relus dans FreeCAD. La sélection du cylindre retrouve ses 126 triangles. L’essai dans Fusion est suivi par [A-096](roadmap/actions/A-096-verifier-le-trou-de-la-plaque-inclinee-dans.md).
 
 - **R-084 / C2b** ajoute une révolution complète à profil cubique positif et deux disques source. Auto/Surfaces, profils bombés, étranglés et à inflexion, placements, miroir, fidélité et provenance contrôlés. Une tessellation paramétrique du domaine natif certifié corrige les triangles trop éloignés du mailleur générique sur ces profils. Les splines multisegments, pôles et raccords à d’autres familles restent hors domaine.
 

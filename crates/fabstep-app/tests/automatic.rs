@@ -239,3 +239,89 @@ fn automatic_multibody_keeps_placements_and_native_identity_and_rejects_contacts
     )
     .is_err());
 }
+
+#[test]
+fn tilted_plate_keeps_a_selectable_through_bore_in_auto() {
+    use fabstep_cad::ResultFaceFamily;
+    use std::collections::BTreeSet;
+
+    let source = include_bytes!("../../../fixtures/inclined_plate_hole.stl");
+    let options = auto();
+    let document = convert_document_with_provenance(source, InputFormat::Stl, &options).unwrap();
+    let cad = &document.report.cad;
+    assert_eq!(
+        (
+            cad.solids,
+            cad.faces,
+            cad.planar_faces,
+            cad.cylindrical_faces
+        ),
+        (1, 7, 6, 1)
+    );
+    let expected_volume = 24. * 20. * 6. - std::f64::consts::PI * 3.0_f64.powi(2) * 6.;
+    assert!((cad.volume_mm3 - expected_volume).abs() < 0.001);
+    let converted = &document.report.bodies[0].conversion;
+    let audit = converted.fidelity.as_ref().unwrap();
+    assert!(audit.source_to_result_mm <= options.max_deviation_mm);
+    assert!(audit.result_to_source_mm <= options.max_deviation_mm);
+    let proof = converted.rounded_recognition.as_ref().unwrap();
+    assert!(proof.report.max_deviation_bound_mm <= options.max_deviation_mm);
+    assert!((proof.report.expected_volume_mm3 - expected_volume).abs() < 0.001);
+
+    let faces = document.step.result_faces().unwrap();
+    assert_eq!(faces.source_correspondence.status, "exact");
+    let wall = faces
+        .result
+        .faces
+        .iter()
+        .find(|f| f.family == ResultFaceFamily::Cylinder)
+        .unwrap();
+    // The two rings and their connecting strip are known from the independent
+    // CAD drawing. Collect triangle IDs in the original preview numbering.
+    let preview = fabstep_app::preview_document(source, InputFormat::Stl, &options).unwrap();
+    let mesh = &preview.bodies[0].mesh;
+    let axis = [4. / 9., -4. / 9., -7. / 9.];
+    let center = [9., -5., 11.];
+    let on_wall = |i: usize| {
+        let p: [f64; 3] = std::array::from_fn(|k| mesh.vertices[i][k] - center[k]);
+        let z: f64 = (0..3).map(|k| p[k] * axis[k]).sum();
+        let radius = (0..3)
+            .map(|k| (p[k] - z * axis[k]).powi(2))
+            .sum::<f64>()
+            .sqrt();
+        (radius - 3.).abs() < 2e-5
+    };
+    let expected: BTreeSet<_> = mesh
+        .triangles
+        .iter()
+        .enumerate()
+        .filter(|(_, triangle)| triangle.iter().copied().all(on_wall))
+        .map(|(id, _)| id)
+        .collect();
+    assert_eq!(expected.len(), 126);
+    let rows = &faces.source_correspondence.faces;
+    let wall_row = rows.iter().find(|row| row.face_id == wall.id).unwrap();
+    assert_eq!(
+        wall_row
+            .source_triangle_ids
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>(),
+        expected
+    );
+    let mut all: Vec<_> = rows
+        .iter()
+        .flat_map(|row| row.source_triangle_ids.iter().copied())
+        .collect();
+    all.sort_unstable();
+    assert!(all.into_iter().eq(0..mesh.triangles.len()));
+
+    let replay = document
+        .step
+        .guided_surface(&[wall.id], GuidanceFamily::Cylinder)
+        .unwrap();
+    assert_eq!(
+        (replay.report.cad.faces, replay.report.cad.cylindrical_faces),
+        (7, 1)
+    );
+}

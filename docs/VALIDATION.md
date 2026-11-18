@@ -2352,3 +2352,36 @@ cmp fixtures/cross_drill/freecad_mid_rotated.stl artifacts/r092/reference/freeca
 **Tests de développement.** Le passage complet de `cargo test --workspace --offline --locked` en profil de test optimisé compte 638 réussites et 16 tests optionnels ignorés. Les doctests, le formatage, Clippy strict et les 236 tests d’interface passent. Les tests ciblés de segmentation, perçages et précision passent aussi en profil ordinaire. Le helper compilé avec `large-stl` passe ses tests et le STEP du témoin incliné produit par le helper de FabSTEP.app passe la même relecture FreeCAD. Le build du bureau et le test de dialogue avec son helper passent. L’essai interactif Fusion reste ouvert dans A-095.
 
 Sur le boîtier arrondi de 28 700 triangles, six passages alternés de la commande `check --mode planar` donnent des médianes de temps CPU de 2,99 s avant et 2,89 s après, sous charge concurrente. Le nombre de faces reste de 27 989. Pour le bloc droit à 884 triangles, les médianes sont de 0,093 et 0,107 s. Ces mesures caractérisent le coût local du contrôle.
+
+## V-1221 — R-093, perçage traversant d’une plaque inclinée en Auto
+
+La référence FreeCAD est un bloc de 24 × 20 × 6 mm percé perpendiculairement à ses grandes faces. Le trou mesure Ø6 mm et le volume théorique vaut 2 710,353997 mm³. Chaque pose est appliquée **avant** l’export STL binaire. Pour chaque STEP Auto, FreeCAD 1.1.1 vérifie un solide valide et fermé, ses dimensions dans le repère du dessin, l’axe et le rayon du trou, les deux contours circulaires partagés avec les faces planes et 15 positions dans la matière ou le vide.
+
+| Pose et triangles source | Faces planes avant R-093 | Faces réimportées en Auto | Volume relu (mm³) | Borne locale annoncée (mm, arrondi supérieur) |
+|---|---:|---|---:|---:|
+| Pose de V-1220, 268 | 252 | 6 plans et 1 cylindre | 2 710,354031 | 0,003732 |
+| Pose de V-1220, 520 | 492 | 6 plans et 1 cylindre | 2 710,354025 | 0,000935 |
+| Seconde pose, 268 | 238 | 6 plans et 1 cylindre | 2 710,354005 | 0,003731 |
+| Seconde pose, 520 | 458 | 6 plans et 1 cylindre | 2 710,354005 | 0,000935 |
+
+Les 60 sondes passent. Sur la première pose, un budget d’écart de 0,001 mm conserve les 252 plans du maillage grossier et le cylindre du maillage fin. Pour le témoin de 268 triangles, le mode explicite Cylindres garde ses sept faces. Le test applicatif vérifie la provenance de tous les triangles, retrouve les 126 triangles attendus en sélectionnant le cylindre et rejoue la correction guidée sur cette face. Le STEP produit par le helper de l’application passe aussi la relecture de la première pose dans FreeCAD. Le rapport du helper et celui de la CLI comptent chacun 134 sommets ajustés sur ce témoin.
+
+**Autre profil extérieur.** Un prisme de 6 mm d’épaisseur a pour coins (−12, −8), (11, −8), (9, 10) et (−8, 10) mm. Il porte un trou de Ø4,5 mm centré en (2, 1) mm. Après rotation de 37° autour de la direction (2, 1, 3) et maillage en 332 triangles, Auto passe de 321 faces planes à six plans et un cylindre. FreeCAD relit un solide fermé, retrouve le centre du trou et mesure 2 064,574192 mm³ pour 2 064,574123 mm³ dans le dessin.
+
+**Contre-exemples.** Si les deux ouvertures circulaires sont conservées mais que les génératrices de la paroi sont vrillées de huit pas de maillage, les triangles restent facettisés. Quatre permutations de l’ordre des facettes et un trou excentré de 1,5 mm donnent chacun sept faces. L’ellipse, l’heptagone, la paroi conique et les ouvertures décalées entre les deux faces conservent leur résultat plan antérieur. Une paroi à laquelle il manque un triangle est refusée avec `mesh.open`.
+
+**Pièces réelles.** Les conversions Auto avant et après de `body 26mm.stl` donnent un solide de 10 869 faces, dont 14 cylindres et 7 cônes. Le volume réimporté de 17 053,652459 mm³, les dimensions et les deux mesures de fidélité sont identiques. Le test optionnel sur ce fichier retrouve les quatre raccords cylindre–chanfrein et leur correspondance source, puis rejoue un essai guidé. Le helper de FabSTEP.app retrouve 231 608 faces sur Flansch (540 170 triangles), puis retourne `step.invalid_source_provenance` au plafond de 100 000 faces. Le dossier de calcul contient le refus et aucun STEP.
+
+**Temps du noyau.** Pour six appels alternés par version à `check --mode auto` en build de développement, le temps CPU médian sur la plaque passe de 0,068 à 0,061 s. Sur le contre-exemple elliptique, la médiane se situe à 0,066 s dans les deux versions. Ces mesures portent sur les fichiers de 268 triangles.
+
+**Reproduction sur macOS.** Le fichier à ouvrir dans l’application est [inclined_plate_hole.stl](../fixtures/inclined_plate_hole.stl). Le script recrée les deux poses et leurs maillages, lance les conversions, relit les STEP et imprime les mesures.
+
+```sh
+cargo build --offline --locked -p fabstep-cli
+PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
+  /Applications/FreeCAD.app/Contents/Resources/bin/python \
+  scripts/qualify-inclined-plate-hole-freecad.py artifacts/r093/reference --cli target/debug/fabstep
+cmp fixtures/inclined_plate_hole.stl artifacts/r093/reference/main-coarse.stl
+```
+
+**Validation du jalon.** La suite Rust du workspace en profil de test optimisé compte 641 tests réussis et 16 tests optionnels ignorés. Le test optionnel de la correction guidée sur `body 26mm.stl` passe aussi en exécution séparée. Le bureau macOS passe ses 51 tests, dont le lancement du helper embarqué. Les huit tests du helper, les 236 tests de l’interface, le formatage, Clippy strict, le contrôle Svelte et le build passent. Le contrôle interactif de la sélection et la mesure dans Fusion sont suivis dans [A-096](../roadmap/actions/A-096-verifier-le-trou-de-la-plaque-inclinee-dans.md).
