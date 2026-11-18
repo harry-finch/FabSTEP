@@ -126,10 +126,10 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Intégrer l’octant sphérique et ses trois raccords cylindriques à partir des frontières STL, avec preuve continue et STEP validé.
 58. **[R-082 G1 — reconstruire un raccord à rayon linéaire](roadmap/items/R-082-g1-reconstruire-un-raccord-a-rayon-lineaire.md)** · À tester · jalon post-v1
    Reconnaître l’enveloppe conique inclinée à extrémités elliptiques d’un arrondi linéaire, sans la confondre avec des sections circulaires empilées.
-59. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
-   Signer et notariser le paquet macOS ; ces étapes restent ouvertes.
-60. **[R-083 F1 — reconnaître les perçages sécants depuis le STL](roadmap/items/R-083-f1-reconnaitre-les-percages-secants-depuis-le.md)** · En cours · jalon post-v1
+59. **[R-083 F1 — reconnaître les perçages sécants depuis le STL](roadmap/items/R-083-f1-reconnaitre-les-percages-secants-depuis-le.md)** · En cours · jalon post-v1
    Prouver deux perçages centrés orthogonaux, leurs limites communes et leur reconstruction STEP, dans le domaine déjà autorisé par A-045.
+60. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
+   Signer et notariser le paquet macOS ; ces étapes restent ouvertes.
 
 ## Actions à faire
 
