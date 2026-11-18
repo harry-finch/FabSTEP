@@ -37,7 +37,7 @@ Le helper de l’application refuse Flansch à **231 608 faces**. Le laboratoi
 
 ## Reprise après cette session
 
-Le secteur annulaire de R-085 est intégré sous ADR-0040. L’assemblage local du pourtour de Flansch reste le travail actif. La reprise ultérieure ne nécessite pas l’historique de conversation : lire les consignes et ce document, les réponses de `fabboard action list`, puis les éléments ci-dessous. Les accords A-045 (F) et A-068 (D/G) sont acquis ; ils ne valent pas acceptation des essais manuels.
+Le secteur annulaire de R-085 est intégré sous ADR-0040. La prochaine étape géométrique vise le raccord d’une paroi cylindrique partielle aux faces voisines. Une poche arrondie avec un congé interrompu fournirait un témoin indépendant pour les chantiers D et E. La couture des 267 facettes sur Flansch reste, à ce stade, une preuve de laboratoire. La reprise ultérieure ne nécessite pas l’historique de conversation : lire les consignes et ce document, les réponses de `fabboard action list`, puis les éléments ci-dessous. Les accords A-045 (F) et A-068 (D/G) sont acquis ; ils ne valent pas acceptation des essais manuels.
 
 | Chantier | Déjà développé | Travail restant avant généralisation |
 | --- | --- | --- |

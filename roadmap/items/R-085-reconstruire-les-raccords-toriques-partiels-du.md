@@ -27,7 +27,7 @@ Diagnostic R-080 et contrat ADR-0040. Les autres raccords du pourtour dépendent
 
 ## Critères d'acceptation
 
-Attribution exhaustive, bornes dans les deux sens, limites partagées et contrôle natif après STEP. La première configuration doit conserver sept faces sélectionnables sur le corpus public en Auto. Pour Flansch, vérifier les voisins et leurs autres bords, assembler le corps complet, rejouer le helper et consigner le premier refus ou la validation du solide.
+Attribution exhaustive, bornes dans les deux sens, limites partagées et contrôle natif après STEP. La première configuration doit conserver sept faces sélectionnables sur le corpus public en Auto. Pour étendre le raccordement entre une paroi courbe et les facettes voisines, qualifier aussi un solide indépendant de Flansch en mode Auto. Vérifier les faces reconnues, le partage du bord, le volume après réimport et le comportement sur une limite déformée. Pour Flansch, vérifier les voisins et leurs autres bords, assembler le corps complet, rejouer le helper et consigner le premier refus ou la validation du solide.
 
 ## Vérifications de l'utilisateur
 
