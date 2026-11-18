@@ -161,6 +161,27 @@ def signed_tetrahedron(a, b, c):
     ) / 6
 
 
+def binary_mesh(faces):
+    data = bytearray(80) + struct.pack("<I", len(faces))
+    for tri in faces:
+        data.extend(FACET.pack(0, 0, 0, *(x for p in tri for x in p), 0))
+    # Measure the f32 coordinates that the importer will actually read.
+    triangles = [(t[3:6], t[6:9], t[9:12]) for t in FACET.iter_unpack(data[84:])]
+    return data, triangles
+
+
+def mesh_measurements(triangles):
+    edges = Counter()
+    volumes = []
+    for a, b, c in triangles:
+        assert len({a, b, c}) == 3
+        edges.update([(a, b), (b, c), (c, a)])
+        volumes.append(signed_tetrahedron(a, b, c))
+    assert max(edges.values()) == 1
+    boundary = sum((b, a) not in edges for a, b in edges)
+    return math.fsum(volumes), boundary
+
+
 def write(directory, name, d, nx, na):
     faces, groups = generate(name, d, nx, na)
     if name == "rotated":
@@ -180,18 +201,8 @@ def write(directory, name, d, nx, na):
         )
         triangles = zip(vertices, vertices, vertices)
     else:
-        data = bytearray(80) + struct.pack("<I", len(faces))
-        for tri in faces:
-            data.extend(FACET.pack(0, 0, 0, *(x for p in tri for x in p), 0))
-        triangles = ((t[3:6], t[6:9], t[9:12]) for t in FACET.iter_unpack(data[84:]))
-    edges = Counter()
-    volumes = []
-    for a, b, c in triangles:
-        assert len({a, b, c}) == 3
-        edges.update([(a, b), (b, c), (c, a)])
-        volumes.append(signed_tetrahedron(a, b, c))
-    boundary = sum((b, a) not in edges for a, b in edges)
-    assert max(edges.values()) == 1
+        data, triangles = binary_mesh(faces)
+    mesh_volume, boundary = mesh_measurements(triangles)
     assert boundary == (2 * nx + 2 if name == "missing_floor" else 0)
     path = directory / (name + ".stl")
     path.write_bytes(data)
@@ -217,7 +228,7 @@ def write(directory, name, d, nx, na):
         * (math.pi / 2 - na * math.sin(math.pi / (2 * na)))
         / 2
     )
-    excess = math.fsum(volumes) - volume
+    excess = mesh_volume - volume
     if name == "staggered":
         # Every triangle lies radially outside the inscribed circle defined
         # by the coarser angular step. Bound the missing sector of void.

@@ -2136,3 +2136,26 @@ PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
 Le contrôle indépendant doit être lancé sans `--baseline` pour exiger les surfaces analytiques. Le helper embarqué dans `artifacts/FabSTEP.app` a aussi converti le témoin nominal, le maillage FreeCAD fin et le témoin déformé. Les deux exécutables de l’application locale ont été comparés octet par octet aux binaires de développement.
 
 Le 18 novembre 2026, `sh scripts/check.sh` a terminé avec succès. Sur l’ensemble des profils, 795 exécutions de tests Rust ont réussi et 21 ont été ignorées. Le passage du bureau au helper réel sur macOS a réussi. Les 235 tests d’interface passent, Svelte signale zéro erreur et zéro avertissement, et les builds aboutissent. Les 23 tests Python passent avec NumPy. L’interpréteur sans NumPy en ignore 11. Le test ciblé de sélection du congé passe aussi dans le profil ordinaire. L’essai manuel dans FabSTEP et Fusion reste suivi par A-088.
+
+## V-1214 — Deux congés de fond opposés (R-088)
+
+Le binaire du commit `789fdf5` reconnaît déjà deux bandes cylindriques concaves indépendantes qui partagent le même fond et les mêmes butées. Le jalon enregistre les cas dans la suite de tests. Les vérifications portent sur les chemins Auto et Surfaces et sur le helper de `artifacts/FabSTEP.app`.
+
+| Source | Résultat réimporté |
+| --- | --- |
+| Poche nominale, 266 triangles | 1 solide, 11 plans et 2 cylindres de rayons 2 et 3 mm. Volume 5 804,637181484 mm³ pour 5 804,637182013 mm³ théoriques. |
+| Même poche, 350 triangles, trois rangées à subdivisions différentes par cylindre | Mêmes treize faces, mêmes rayons, même volume à 10⁻⁶ mm³ près. |
+| Poche tournée et translatée, 410 triangles | Deux rayons de 1,5 et 3,5 mm et 11 plans. Volume 5 312,011075014 mm³ pour 5 312,011079353 mm³ attendus. |
+| Maillage fermé avec un sommet du raccord droit déformé de 0,16 mm | Un seul cylindre sur le groupe gauche. Les 58 autres faces sont planes. Tous les triangles restent attribués et les écarts échantillonnés dans les deux sens respectent la tolérance. |
+| Autre pièce construite dans FreeCAD 1.1.1, 132 puis 284 triangles | Une poche à deux cylindres de rayons 1,75 et 3,25 mm, de longueur 23 mm. Le volume théorique est de 21 020,250850545 mm³. L’erreur absolue maximale au réimport est inférieure à 0,000006 mm³. |
+
+Sur les trois sources positives, le test d’intégration associe chaque cylindre à ses triangles source et à ses quatre voisins. Les profils des butées contiennent deux quarts de cercle aux centres et rayons prévus dans le repère monde. Chaque DXF encode deux entités `ARC`. Le script FreeCAD contrôle indépendamment les quatre arêtes par cylindre, le partage des deux butées et du fond, les dimensions, la concavité et dix sondes dans la matière ou dans le vide. Les quatre fichiers publics ont aussi été convertis avec le helper embarqué. Les congés de ce domaine sont séparés par un fond plan.
+
+```sh
+cargo test -p fabstep-app --test opposed_pocket --offline --locked
+python3 scripts/generate-opposed-pocket-fixtures.py artifacts/r088/reproduced
+diff -r -x README.md fixtures/opposed_pocket artifacts/r088/reproduced
+PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
+  /Applications/FreeCAD.app/Contents/Resources/bin/python \
+  scripts/validate-opposed-pocket-freecad.py artifacts/r088/freecad --cli target/debug/fabstep
+```

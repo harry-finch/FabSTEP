@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 87** (26 %)
+**Avancement : 23 livrés sur 88** (26 %)
 
 ## Restant à faire
 
@@ -101,9 +101,9 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 44. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · En cours · jalon post-v1
    Révolutions toriques composées et première méridienne cubique bornée ; la généralisation reste ouverte.
 45. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · En cours · jalon post-v1
-   Coin à trois arrondis et congé de poche à deux butées droites ou une butée oblique intégrés. Restent les autres arrêts et réseaux de congés.
+   Coin triédrique, congé isolé à butées droites ou oblique et deux congés opposés qualifiés. Restent les jonctions entre congés et les autres réseaux.
 46. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · En cours · jalon post-v1
-   Bac ouvert, fond percé et poche à un congé de fond intégrés. Une butée oblique est intégrée. Restent les congés multiples, rebords et doubles butées obliques.
+   Bac ouvert, fond percé, poche à congé isolé et poche à deux congés opposés qualifiés. Restent les jonctions, les rebords et les doubles butées obliques.
 47. **[R-036 F — perçages sécants](roadmap/items/R-036-f-percages-secants.md)** · En cours · jalon post-v1
    F1 centré orthogonal développé sous R-083 et qualifié automatiquement ; essais utilisateur et généralisation restent ouverts.
 48. **[R-037 G — congés variables](roadmap/items/R-037-g-conges-variables.md)** · En cours · jalon post-v1
@@ -140,6 +140,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Auto reconstruit un congé intérieur à deux butées, même quand ses extrémités comportent des nombres de facettes différents.
 64. **[R-087 D/E — congé de poche arrêté par une paroi oblique](roadmap/items/R-087-d-e-conge-de-poche-arrete-par-une-paroi-oblique.md)** · À tester · jalon post-v1
    Auto reconstruit le congé cylindrique entre une butée droite et une paroi oblique. Les profils de face conservent le cercle et l’ellipse.
+65. **[R-088 D/E — poche à deux congés de fond opposés](roadmap/items/R-088-d-e-poche-a-deux-conges-de-fond-opposes.md)** · À tester · jalon post-v1
+   Reconstruire et mesurer séparément les deux arrondis parallèles d’une poche borgne, y compris lorsque leurs rayons diffèrent.
 
 ## Actions à faire
 
@@ -222,6 +224,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-085](roadmap/actions/A-085-controler-le-secteur-annulaire-dans-fusion.md) Contrôler le secteur annulaire dans Fusion (tester, R-085)
 - [ ] [A-086](roadmap/actions/A-086-inspecter-le-conge-de-la-poche-dans-fabstep-et.md) Inspecter le congé de la poche dans FabSTEP et Fusion (tester, R-086)
 - [ ] [A-088](roadmap/actions/A-088-verifier-la-butee-elliptique-de-la-poche-dans.md) Vérifier la butée elliptique de la poche dans FabSTEP et Fusion (tester, R-087)
+- [ ] [A-090](roadmap/actions/A-090-mesurer-separement-les-deux-conges-opposes-dans.md) Mesurer séparément les deux congés opposés dans Fusion (tester, R-088)
 
 ## Livré
 

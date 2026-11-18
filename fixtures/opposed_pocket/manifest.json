@@ -1,0 +1,452 @@
+{
+  "unit": "mm",
+  "positives": [
+    "nominal",
+    "staggered",
+    "rotated"
+  ],
+  "negatives": [
+    "warped_stop"
+  ],
+  "planes": 11,
+  "cylinders": 2,
+  "cases": {
+    "nominal": {
+      "triangles": 266,
+      "groups": {
+        "outer_bottom": [
+          0,
+          6
+        ],
+        "outer_y_min": [
+          6,
+          10
+        ],
+        "outer_x_max": [
+          10,
+          12
+        ],
+        "outer_y_max": [
+          12,
+          16
+        ],
+        "outer_x_min": [
+          16,
+          18
+        ],
+        "rim": [
+          18,
+          30
+        ],
+        "floor": [
+          30,
+          34
+        ],
+        "left_fillet": [
+          34,
+          98
+        ],
+        "left_wall": [
+          98,
+          102
+        ],
+        "right_fillet": [
+          102,
+          182
+        ],
+        "right_wall": [
+          182,
+          186
+        ],
+        "stop_min": [
+          186,
+          226
+        ],
+        "stop_max": [
+          226,
+          266
+        ]
+      },
+      "mesh_volume_mm3": 5804.834125112151,
+      "sha256": "90f9d208996f847f398374009dd146a705b47bdf64c7c08aa9c210fffa14f4b5",
+      "volume_mm3": 5804.637182013331,
+      "radii_mm": [
+        2,
+        3
+      ],
+      "planar_floor_width_mm": 5,
+      "inside_void_mm": [
+        0,
+        0,
+        7.5
+      ],
+      "bounds_mm": [
+        [
+          -15.0,
+          -10.0,
+          0
+        ],
+        [
+          15.0,
+          10.0,
+          12
+        ]
+      ],
+      "fillets": [
+        {
+          "radius_mm": 2,
+          "area_mm2": 50.26548245743669,
+          "ends_mm": [
+            [
+              -8.0,
+              -3.0,
+              5
+            ],
+            [
+              8.0,
+              -3.0,
+              5
+            ]
+          ],
+          "inside_material_mm": [
+            0,
+            -4.7,
+            3.3
+          ]
+        },
+        {
+          "radius_mm": 3,
+          "area_mm2": 75.39822368615503,
+          "ends_mm": [
+            [
+              -8.0,
+              2.0,
+              6
+            ],
+            [
+              8.0,
+              2.0,
+              6
+            ]
+          ],
+          "inside_material_mm": [
+            0,
+            4.55,
+            3.45
+          ]
+        }
+      ]
+    },
+    "staggered": {
+      "triangles": 350,
+      "groups": {
+        "outer_bottom": [
+          0,
+          6
+        ],
+        "outer_y_min": [
+          6,
+          10
+        ],
+        "outer_x_max": [
+          10,
+          12
+        ],
+        "outer_y_max": [
+          12,
+          16
+        ],
+        "outer_x_min": [
+          16,
+          18
+        ],
+        "rim": [
+          18,
+          30
+        ],
+        "floor": [
+          30,
+          34
+        ],
+        "left_fillet": [
+          34,
+          126
+        ],
+        "left_wall": [
+          126,
+          130
+        ],
+        "right_fillet": [
+          130,
+          238
+        ],
+        "right_wall": [
+          238,
+          242
+        ],
+        "stop_min": [
+          242,
+          282
+        ],
+        "stop_max": [
+          282,
+          350
+        ]
+      },
+      "mesh_volume_mm3": 5804.73750143415,
+      "sha256": "2c4979428a61809819e39fddde557b712b6f36acbce938c352ee45e96d12975b",
+      "volume_mm3": 5804.637182013331,
+      "radii_mm": [
+        2,
+        3
+      ],
+      "planar_floor_width_mm": 5,
+      "inside_void_mm": [
+        0,
+        0,
+        7.5
+      ],
+      "bounds_mm": [
+        [
+          -15.0,
+          -10.0,
+          0
+        ],
+        [
+          15.0,
+          10.0,
+          12
+        ]
+      ],
+      "fillets": [
+        {
+          "radius_mm": 2,
+          "area_mm2": 50.26548245743669,
+          "ends_mm": [
+            [
+              -8.0,
+              -3.0,
+              5
+            ],
+            [
+              8.0,
+              -3.0,
+              5
+            ]
+          ],
+          "inside_material_mm": [
+            0,
+            -4.7,
+            3.3
+          ]
+        },
+        {
+          "radius_mm": 3,
+          "area_mm2": 75.39822368615503,
+          "ends_mm": [
+            [
+              -8.0,
+              2.0,
+              6
+            ],
+            [
+              8.0,
+              2.0,
+              6
+            ]
+          ],
+          "inside_material_mm": [
+            0,
+            4.55,
+            3.45
+          ]
+        }
+      ]
+    },
+    "rotated": {
+      "triangles": 410,
+      "groups": {
+        "outer_bottom": [
+          0,
+          8
+        ],
+        "outer_y_min": [
+          8,
+          14
+        ],
+        "outer_x_max": [
+          14,
+          16
+        ],
+        "outer_y_max": [
+          16,
+          22
+        ],
+        "outer_x_min": [
+          22,
+          24
+        ],
+        "rim": [
+          24,
+          40
+        ],
+        "floor": [
+          40,
+          46
+        ],
+        "left_fillet": [
+          46,
+          166
+        ],
+        "left_wall": [
+          166,
+          172
+        ],
+        "right_fillet": [
+          172,
+          310
+        ],
+        "right_wall": [
+          310,
+          316
+        ],
+        "stop_min": [
+          316,
+          363
+        ],
+        "stop_max": [
+          363,
+          410
+        ]
+      },
+      "mesh_volume_mm3": 5312.178363387247,
+      "sha256": "20ec7bb5e4949251d6d805bcbdf5062fa8470f33fde5dfc141e9dbcd72a205fc",
+      "volume_mm3": 5312.011079353266,
+      "radii_mm": [
+        1.5,
+        3.5
+      ],
+      "planar_floor_width_mm": 7.0,
+      "inside_void_mm": [
+        14.5,
+        -4,
+        2
+      ],
+      "bounds_mm": [
+        [
+          7,
+          -19.0,
+          -8.0
+        ],
+        [
+          19,
+          11.0,
+          12.0
+        ]
+      ],
+      "fillets": [
+        {
+          "radius_mm": 1.5,
+          "area_mm2": 42.411500823462205,
+          "ends_mm": [
+            [
+              11.5,
+              -13.0,
+              -2.5
+            ],
+            [
+              11.5,
+              5.0,
+              -2.5
+            ]
+          ],
+          "inside_material_mm": [
+            10.225,
+            -4,
+            -3.7750000000000004
+          ]
+        },
+        {
+          "radius_mm": 3.5,
+          "area_mm2": 98.96016858807849,
+          "ends_mm": [
+            [
+              13.5,
+              -13.0,
+              4.5
+            ],
+            [
+              13.5,
+              5.0,
+              4.5
+            ]
+          ],
+          "inside_material_mm": [
+            10.525,
+            -4,
+            7.475
+          ]
+        }
+      ]
+    },
+    "warped_stop": {
+      "triangles": 206,
+      "groups": {
+        "outer_bottom": [
+          0,
+          4
+        ],
+        "outer_y_min": [
+          4,
+          6
+        ],
+        "outer_x_max": [
+          6,
+          8
+        ],
+        "outer_y_max": [
+          8,
+          10
+        ],
+        "outer_x_min": [
+          10,
+          12
+        ],
+        "rim": [
+          12,
+          20
+        ],
+        "floor": [
+          20,
+          22
+        ],
+        "left_fillet": [
+          22,
+          61
+        ],
+        "left_wall": [
+          61,
+          63
+        ],
+        "right_fillet": [
+          63,
+          110
+        ],
+        "right_wall": [
+          110,
+          112
+        ],
+        "stop_min": [
+          112,
+          152
+        ],
+        "stop_max": [
+          152,
+          206
+        ]
+      },
+      "mesh_volume_mm3": 5804.517714491254,
+      "sha256": "a1166f6bc2a99360f8e67d6f580d8ca30b7a90318a242c75c9d5275784ecba30"
+    }
+  }
+}

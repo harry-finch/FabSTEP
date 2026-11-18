@@ -476,3 +476,7 @@ Les STL témoins montrent deux difficultés distinctes : l’arrêt elliptique d
 ## 2026-11-18 — R-087, reconnaissance de la butée oblique dans Auto
 
 Après accord A-087, la reconnaissance Rust et la construction OCCT utilisent le même cercle, la même ellipse et les mêmes génératrices que les quatre voisins du congé. L’essai porte sur les cinq STL publics, une seconde poche maillée par FreeCAD, les profils DXF natifs et un document à deux corps. La comparaison avec le résultat facettisé de V-1212 et les limites mesurées sont consignées dans V-1213.
+
+## 2026-11-18 — R-088, deux congés parallèles au fond d’une poche
+
+Le parcours existant d’Auto et de Surfaces retrouve les deux bandes cylindriques même lorsque les rayons et les nombres de triangles diffèrent. Les essais de régression couvrent l’identité des faces sélectionnables, les arcs de la butée en DXF et la conservation du côté intact sur une pièce déformée. Une seconde poche dessinée dans FreeCAD vérifie la géométrie et la matière sur deux maillages. Voir V-1214.
