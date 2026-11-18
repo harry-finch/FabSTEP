@@ -1076,7 +1076,7 @@ TopoDS_Face linear_blend_face(const LinearBlendData& blend, const EllipticArcDat
     if (!matched)
       throw invalid;
   }
-  if (shared[0].IsNull() || shared[1].IsNull() || !seen_rails[0] || !seen_rails[1])
+  if (shared[blend.arcs[0]].IsNull() || shared[blend.arcs[1]].IsNull() || !seen_rails[0] || !seen_rails[1])
     throw invalid;
   return face;
 }
@@ -1213,7 +1213,7 @@ TopoDS_Solid build_mixed_solid(
     const size_t* partial_cone_tokens = nullptr,
     const SphericalOctantData* octant = nullptr, const size_t* octant_token = nullptr,
     const LinearBlendData* blend = nullptr, const EllipticArcData* ellipses = nullptr,
-    const size_t* blend_token = nullptr, bool pocket_walls = false, bool double_stop = false) {
+    const size_t* blend_token = nullptr, bool pocket_walls = false, bool double_stop = false, size_t blend_count = 1) {
   IndexedWires wires(points, point_count);
   BRepBuilderAPI_Sewing sewing(Precision::Confusion());
   sewing.SetMaxTolerance(Precision::Confusion());
@@ -1243,7 +1243,7 @@ TopoDS_Solid build_mixed_solid(
     sewing.Add(face);
     if (torus_tokens && labels) labels->push_back({face, torus_tokens[i]});
   }
-  std::vector<TopoDS_Edge> shared_arcs(blend ? 2 : arc_count + size_t(pocket_walls));
+  std::vector<TopoDS_Edge> shared_arcs(blend ? 2*blend_count : arc_count + size_t(pocket_walls));
   if (pocket_walls) {
     for (size_t i = 0; i < arc_count; ++i) {
       const auto face = pocket::wall(arcs[i], ellipses[double_stop ? 1 : 0], points, wires, shared_arcs[i],
@@ -1252,10 +1252,10 @@ TopoDS_Solid build_mixed_solid(
       if (labels && partial_tokens) labels->push_back({face, partial_tokens[i]});
     }
   }
-  if (blend) {
-    const auto face = linear_blend_face(*blend, ellipses, points, wires, shared_arcs);
+  for (size_t i=0; blend && i<blend_count; ++i) {
+    const auto face = linear_blend_face(blend[i], ellipses, points, wires, shared_arcs);
     sewing.Add(face);
-    if (labels && blend_token) labels->push_back({face,*blend_token});
+    if (labels && blend_token) labels->push_back({face,blend_token[i]});
   }
   for (size_t i = 0; i < partial_count; ++i) {
     const auto face = partial_revolved_face(partial[i], arcs, points, shared_arcs, wires);
@@ -1830,28 +1830,19 @@ void check_trihedral_geometry(const TopoDS_Shape& solid, const TopTools_IndexedM
 
 // Reconstruct the local block frame from the actual edge owners, including on
 // a multi-root STEP read where no scalar construction model is available.
-void check_linear_blend_geometry(const TopoDS_Shape& shape, const TopTools_IndexedMapOfShape& faces,
-                                 double volume, Status status) {
-  const CadFailure invalid{
-      status,
-      "Le cône incliné, ses supports ou son volume ne correspondent pas au raccord linéaire."};
+struct BlendMeasurement {
+  std::array<TopoDS_Face, 2> caps, sides;
+  double box_volume, removed, setback, width;
+};
+
+BlendMeasurement measure_linear_corner(const TopoDS_Face& wall, const TopTools_IndexedMapOfShape& faces,
+                                       const TopTools_IndexedDataMapOfShapeListOfShape& incidence,
+                                       const CadFailure& invalid) {
   const double tol = 4. * Precision::Confusion();
-  if (faces.Extent() != 7)
-    throw invalid;
-  TopoDS_Face wall;
-  for (int i = 1; i <= faces.Extent(); ++i) {
-    const BRepAdaptor_Surface surface(TopoDS::Face(faces(i)));
-    if (surface.GetType() == GeomAbs_Cone && wall.IsNull())
-      wall = TopoDS::Face(faces(i));
-    else if (surface.GetType() != GeomAbs_Plane)
-      throw invalid;
-  }
-  if (wall.IsNull())
-    throw invalid;
+  BlendMeasurement out;
   const auto cone = BRepAdaptor_Surface(wall).Cone();
   const auto apex = cone.Apex();
-  TopTools_IndexedDataMapOfShapeListOfShape incidence;
-  TopExp::MapShapesAndUniqueAncestors(shape, TopAbs_EDGE, TopAbs_FACE, incidence);
+
   std::array<TopoDS_Edge, 2> ends, rails;
   std::array<gp_Pln, 2> caps, sides;
   std::array<gp_Dir, 2> inward;
@@ -1864,20 +1855,21 @@ void check_linear_blend_geometry(const TopoDS_Shape& shape, const TopTools_Index
       throw invalid;
     const BRepAdaptor_Curve curve(edge);
     if (!owners.First().IsSame(wall) && !owners.Last().IsSame(wall)) {
-      if (curve.GetType() != GeomAbs_Line)
-        throw invalid;
       continue;
     }
-    const auto plane_face =
-        TopoDS::Face(owners.First().IsSame(wall) ? owners.Last() : owners.First());
+    const auto plane_face = TopoDS::Face(owners.First().IsSame(wall) ? owners.Last() : owners.First());
     if (adjacent.Contains(plane_face))
       throw invalid;
     adjacent.Add(plane_face);
+    if (BRepAdaptor_Surface(plane_face).GetType() != GeomAbs_Plane)
+      throw invalid;
     const auto plane = BRepAdaptor_Surface(plane_face).Plane();
     if (curve.GetType() == GeomAbs_Ellipse && ncap < 2) {
+      out.caps[ncap] = plane_face;
       ends[ncap] = edge;
       caps[ncap++] = plane;
     } else if (curve.GetType() == GeomAbs_Line && nrail < 2) {
+      out.sides[nrail] = plane_face;
       rails[nrail] = edge;
       sides[nrail] = plane;
       inward[nrail] = plane.Axis().Direction();
@@ -1925,12 +1917,12 @@ void check_linear_blend_geometry(const TopoDS_Shape& shape, const TopTools_Index
     if (oriented_between(rails[j], contacts[0][j], contacts[1][j]).IsNull())
       throw invalid;
   for (int i = 1; i <= faces.Extent(); ++i) {
-    if (faces(i).IsSame(wall) || adjacent.Contains(faces(i)))
+    if (BRepAdaptor_Surface(TopoDS::Face(faces(i))).GetType() != GeomAbs_Plane ||
+        adjacent.Contains(faces(i)))
       continue;
     const auto plane = BRepAdaptor_Surface(TopoDS::Face(faces(i))).Plane();
     const size_t axis = plane.Axis().Direction().IsParallel(inward[0], box_angle_tolerance) ? 0 : 1;
-    if (!plane.Axis().Direction().IsParallel(inward[axis], box_angle_tolerance) ||
-        lengths[axis] != 0.)
+    if (!plane.Axis().Direction().IsParallel(inward[axis], box_angle_tolerance) || lengths[axis] != 0.)
       throw invalid;
     lengths[axis] = gp_Vec(corners[0], plane.Location()).Dot(gp_Vec(inward[axis]));
   }
@@ -1946,8 +1938,7 @@ void check_linear_blend_geometry(const TopoDS_Shape& shape, const TopTools_Index
     actual_axis.Reverse();
   if (apex.Distance(corners[0].Translated(gp_Vec(z) * (-radius[0] / b))) > tol ||
       !actual_axis.IsEqual(expect_axis, box_angle_tolerance) ||
-      std::abs(std::abs(std::sin(cone.SemiAngle())) - std::abs(b) / std::sqrt(1. + 2. * b2)) >
-          1.e-8)
+      std::abs(std::abs(std::sin(cone.SemiAngle())) - std::abs(b) / std::sqrt(1. + 2. * b2)) > 1.e-8)
     throw invalid;
   const double denom = 1. - b2, A = std::sqrt(1. + b2) / denom, B = 1. / std::sqrt(denom);
   const double sweep = 2. * std::asin(std::sqrt(denom / 2.));
@@ -1966,13 +1957,62 @@ void check_linear_blend_geometry(const TopoDS_Shape& shape, const TopTools_Index
       throw invalid;
   }
   const double d2 = sweep * sweep;
-  const double segment = sweep < .01 ? sweep * d2 * (1. / 6. - d2 * (1. / 120. - d2 / 5040.))
-                                     : sweep - std::sin(sweep);
+  const double segment =
+      sweep < .01 ? sweep * d2 * (1. / 6. - d2 * (1. / 120. - d2 / 5040.)) : sweep - std::sin(sweep);
   const double cut = (1. - A * B * segment) / 2.;
-  const double ideal =
-      height * (lengths[0] * lengths[1] -
-                cut * (radius[0] * radius[0] + radius[0] * radius[1] + radius[1] * radius[1]) / 3.);
-  if (!std::isfinite(ideal) || std::abs(ideal - volume) > std::max(1.e-8, ideal * 1.e-8))
+  out.box_volume = height * lengths[0] * lengths[1];
+  out.removed = height * cut * (radius[0] * radius[0] + radius[0] * radius[1] + radius[1] * radius[1]) / 3.;
+  out.setback = std::max(radius[0], radius[1]);
+  out.width = std::min(lengths[0], lengths[1]);
+  return out;
+}
+
+void check_linear_blend_geometry(const TopoDS_Shape& shape, const TopTools_IndexedMapOfShape& faces,
+                                 double volume, Status status) {
+  const CadFailure invalid{
+      status, "Le cône incliné, ses supports ou son volume ne correspondent pas au raccord linéaire."};
+  if (faces.Extent() != 7 && faces.Extent() != 8)
+    throw invalid;
+  TopTools_IndexedDataMapOfShapeListOfShape incidence;
+  TopExp::MapShapesAndUniqueAncestors(shape, TopAbs_EDGE, TopAbs_FACE, incidence);
+  for (int i = 1; i <= incidence.Extent(); ++i) {
+    const auto& owners = incidence.FindFromIndex(i);
+    if (owners.Extent() != 2)
+      throw invalid;
+    const auto a = BRepAdaptor_Surface(TopoDS::Face(owners.First())).GetType();
+    const auto b = BRepAdaptor_Surface(TopoDS::Face(owners.Last())).GetType();
+    if (a == GeomAbs_Plane && b == GeomAbs_Plane &&
+        BRepAdaptor_Curve(TopoDS::Edge(incidence.FindKey(i))).GetType() != GeomAbs_Line)
+      throw invalid;
+  }
+  std::vector<BlendMeasurement> corners;
+  for (int i = 1; i <= faces.Extent(); ++i) {
+    const auto face = TopoDS::Face(faces(i));
+    const auto type = BRepAdaptor_Surface(face).GetType();
+    if (type == GeomAbs_Cone)
+      corners.push_back(measure_linear_corner(face, faces, incidence, invalid));
+    else if (type != GeomAbs_Plane)
+      throw invalid;
+  }
+  if (corners.size() != size_t(faces.Extent() - 6))
+    throw invalid;
+  const auto& first = corners[0];
+  double ideal = first.box_volume - first.removed;
+  if (corners.size() == 2) {
+    const auto& other = corners[1];
+    const double tol = 4. * Precision::Confusion();
+    for (const auto& cap : other.caps)
+      if (!cap.IsSame(first.caps[0]) && !cap.IsSame(first.caps[1]))
+        throw invalid;
+    for (const auto& side : other.sides)
+      if (side.IsSame(first.sides[0]) || side.IsSame(first.sides[1]))
+        throw invalid;
+    if (first.setback + other.setback + tol >= std::min(first.width, other.width) ||
+        std::abs(first.box_volume - other.box_volume) > first.box_volume * 1.e-8)
+      throw invalid;
+    ideal -= other.removed;
+  }
+  if (!std::isfinite(ideal) || ideal <= 0. || std::abs(ideal - volume) > std::max(1.e-8, ideal * 1.e-8))
     throw invalid;
 }
 
@@ -3961,19 +4001,22 @@ extern "C" int fabstep_build_adjacent_pocket_step(
 extern "C" int fabstep_build_linear_blend_step(
     const double* points, size_t point_count, const double* normals, const size_t* plane_loops,
     const MixedLoopData* loops, const MixedSegmentData* segments, const EllipticArcData* ellipses,
-    const LinearBlendData* blend, const size_t* plane_tokens, const size_t* blend_token,
+    const LinearBlendData* blend, size_t blend_count, const size_t* plane_tokens, const size_t* blend_token,
     StepOutput* output, char* error, size_t error_capacity) noexcept {
   FaceLabels labels;
   auto* tracked = blend_token ? &labels : nullptr;
   return validated_step(
       [&] {
-        return build_mixed_solid(points, point_count, nullptr, 0, normals, 6, plane_loops, loops,
-                                 segments, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0, nullptr,
-                                 0, nullptr, 0, plane_tokens, nullptr, tracked, nullptr, nullptr,
-                                 nullptr, nullptr, nullptr, 0, nullptr, nullptr, nullptr, blend,
-                                 ellipses, blend_token);
+        if (!blend || (blend_count != 1 && blend_count != 2))
+          throw CadFailure{invalid_model, "Nombre de congés linéaires invalide."};
+        return build_mixed_solid(points, point_count, nullptr, 0, normals, 6, plane_loops, loops, segments,
+                                 nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0,
+                                 plane_tokens, nullptr, tracked, nullptr, nullptr, nullptr, nullptr,
+                                 nullptr, 0, nullptr, nullptr, nullptr, blend, ellipses, blend_token, false,
+                                 false, blend_count);
       },
-      {6, 0, 0, 1, 0, 0, 0, 1, 1}, output, error, error_capacity, nullptr, tracked);
+      {6, 0, 0, blend_count, 0, 0, 0, blend_count, blend_count}, output, error, error_capacity, nullptr,
+      tracked);
 }
 
 // Fixed D2 model. Rust validates every index and the exact face/arc counts.

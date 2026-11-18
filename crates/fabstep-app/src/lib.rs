@@ -256,7 +256,7 @@ fn rounded_face_counts(model: &fabstep_core::RoundedModel) -> [usize; 12] {
         model.tori.len(),
         model.partial_cones.len(),
         model.octants.len(),
-        usize::from(model.linear_blend.is_some()),
+        model.linear_blend.as_ref().map_or(0, |b| b.iter().count()),
         if model.cross_drill.is_some() { 3 } else { 0 },
         usize::from(model.smooth_revolution.is_some()),
         model.torus_sectors.len(),

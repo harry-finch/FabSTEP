@@ -1,0 +1,507 @@
+{
+  "opposed": {
+    "sha256": "ed02e0c451c51630573133e858d95539d567312f504893f8f3df075e585f4174",
+    "placement": "plain",
+    "triangles": 728,
+    "positive": true,
+    "defect": null,
+    "parameters": {
+      "laws": [
+        [
+          3.0,
+          0.2
+        ],
+        [
+          4.0,
+          -0.15
+        ]
+      ],
+      "volume_mm3": 3142.501177417038
+    },
+    "analytic_bounds_mm": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        20.0,
+        16.0,
+        10.0
+      ]
+    ],
+    "topology": {
+      "euler_characteristic": 2,
+      "boundary_edges": 0,
+      "sampled_volume_mm3": 3142.3886290278374,
+      "joined_edges": [
+        [
+          "cap_-1",
+          "cone_0",
+          28
+        ],
+        [
+          "cap_-1",
+          "cone_1",
+          28
+        ],
+        [
+          "cap_-1",
+          "side_0_0",
+          1
+        ],
+        [
+          "cap_-1",
+          "side_0_1",
+          1
+        ],
+        [
+          "cap_-1",
+          "side_1_0",
+          1
+        ],
+        [
+          "cap_-1",
+          "side_1_1",
+          1
+        ],
+        [
+          "cap_0",
+          "cone_0",
+          28
+        ],
+        [
+          "cap_0",
+          "cone_1",
+          28
+        ],
+        [
+          "cap_0",
+          "side_0_0",
+          1
+        ],
+        [
+          "cap_0",
+          "side_0_1",
+          1
+        ],
+        [
+          "cap_0",
+          "side_1_0",
+          1
+        ],
+        [
+          "cap_0",
+          "side_1_1",
+          1
+        ],
+        [
+          "cone_0",
+          "side_0_0",
+          5
+        ],
+        [
+          "cone_0",
+          "side_0_1",
+          5
+        ],
+        [
+          "cone_1",
+          "side_1_0",
+          5
+        ],
+        [
+          "cone_1",
+          "side_1_1",
+          5
+        ],
+        [
+          "side_0_0",
+          "side_1_1",
+          5
+        ],
+        [
+          "side_0_1",
+          "side_1_0",
+          5
+        ]
+      ]
+    },
+    "patches": [
+      {
+        "owner": "cone_0",
+        "first_source_triangle": 0,
+        "triangles": 280
+      },
+      {
+        "owner": "cone_1",
+        "first_source_triangle": 280,
+        "triangles": 280
+      },
+      {
+        "owner": "cap_0",
+        "first_source_triangle": 560,
+        "triangles": 60
+      },
+      {
+        "owner": "cap_-1",
+        "first_source_triangle": 620,
+        "triangles": 60
+      },
+      {
+        "owner": "side_0_0",
+        "first_source_triangle": 680,
+        "triangles": 12
+      },
+      {
+        "owner": "side_0_1",
+        "first_source_triangle": 692,
+        "triangles": 12
+      },
+      {
+        "owner": "side_1_0",
+        "first_source_triangle": 704,
+        "triangles": 12
+      },
+      {
+        "owner": "side_1_1",
+        "first_source_triangle": 716,
+        "triangles": 12
+      }
+    ],
+    "material_probes": []
+  },
+  "offset": {
+    "sha256": "673ca7a8562dd57f60b83a4a7a0436c0102c56b7941d113d8560d2416ecd4fe0",
+    "placement": "permuted",
+    "triangles": 1064,
+    "positive": true,
+    "defect": null,
+    "parameters": {
+      "laws": [
+        [
+          2.0,
+          0.24
+        ],
+        [
+          2.5,
+          0.12
+        ]
+      ],
+      "volume_mm3": 3156.637003044625
+    },
+    "analytic_bounds_mm": [
+      [
+        3.0,
+        -8.0,
+        5.0
+      ],
+      [
+        13.0,
+        12.0,
+        21.0
+      ]
+    ],
+    "topology": {
+      "euler_characteristic": 2,
+      "boundary_edges": 0,
+      "sampled_volume_mm3": 3156.62073001515,
+      "joined_edges": [
+        [
+          "cap_-1",
+          "cone_0",
+          64
+        ],
+        [
+          "cap_-1",
+          "cone_1",
+          64
+        ],
+        [
+          "cap_-1",
+          "side_0_0",
+          1
+        ],
+        [
+          "cap_-1",
+          "side_0_1",
+          1
+        ],
+        [
+          "cap_-1",
+          "side_1_0",
+          1
+        ],
+        [
+          "cap_-1",
+          "side_1_1",
+          1
+        ],
+        [
+          "cap_0",
+          "cone_0",
+          64
+        ],
+        [
+          "cap_0",
+          "cone_1",
+          64
+        ],
+        [
+          "cap_0",
+          "side_0_0",
+          1
+        ],
+        [
+          "cap_0",
+          "side_0_1",
+          1
+        ],
+        [
+          "cap_0",
+          "side_1_0",
+          1
+        ],
+        [
+          "cap_0",
+          "side_1_1",
+          1
+        ],
+        [
+          "cone_0",
+          "side_0_0",
+          3
+        ],
+        [
+          "cone_0",
+          "side_0_1",
+          3
+        ],
+        [
+          "cone_1",
+          "side_1_0",
+          3
+        ],
+        [
+          "cone_1",
+          "side_1_1",
+          3
+        ],
+        [
+          "side_0_0",
+          "side_1_1",
+          3
+        ],
+        [
+          "side_0_1",
+          "side_1_0",
+          3
+        ]
+      ]
+    },
+    "patches": [
+      {
+        "owner": "cone_0",
+        "first_source_triangle": 0,
+        "triangles": 384
+      },
+      {
+        "owner": "cone_1",
+        "first_source_triangle": 384,
+        "triangles": 384
+      },
+      {
+        "owner": "cap_0",
+        "first_source_triangle": 768,
+        "triangles": 132
+      },
+      {
+        "owner": "cap_-1",
+        "first_source_triangle": 900,
+        "triangles": 132
+      },
+      {
+        "owner": "side_0_0",
+        "first_source_triangle": 1032,
+        "triangles": 8
+      },
+      {
+        "owner": "side_0_1",
+        "first_source_triangle": 1040,
+        "triangles": 8
+      },
+      {
+        "owner": "side_1_0",
+        "first_source_triangle": 1048,
+        "triangles": 8
+      },
+      {
+        "owner": "side_1_1",
+        "first_source_triangle": 1056,
+        "triangles": 8
+      }
+    ],
+    "material_probes": []
+  },
+  "nonlinear_second": {
+    "sha256": "708e5d666f21b5433291a68503c729f72785fcfeedb11c738946d5ba638b75a8",
+    "placement": "plain",
+    "triangles": 728,
+    "positive": false,
+    "defect": "nonlinear",
+    "parameters": {
+      "laws": [
+        [
+          3.0,
+          0.2
+        ],
+        [
+          4.0,
+          -0.15
+        ]
+      ],
+      "volume_mm3": 3142.501177417038
+    },
+    "analytic_bounds_mm": null,
+    "topology": {
+      "euler_characteristic": 2,
+      "boundary_edges": 0,
+      "sampled_volume_mm3": 3140.6406980724632,
+      "joined_edges": [
+        [
+          "cap_-1",
+          "cone_0",
+          28
+        ],
+        [
+          "cap_-1",
+          "cone_1",
+          28
+        ],
+        [
+          "cap_-1",
+          "side_0_0",
+          1
+        ],
+        [
+          "cap_-1",
+          "side_0_1",
+          1
+        ],
+        [
+          "cap_-1",
+          "side_1_0",
+          1
+        ],
+        [
+          "cap_-1",
+          "side_1_1",
+          1
+        ],
+        [
+          "cap_0",
+          "cone_0",
+          28
+        ],
+        [
+          "cap_0",
+          "cone_1",
+          28
+        ],
+        [
+          "cap_0",
+          "side_0_0",
+          1
+        ],
+        [
+          "cap_0",
+          "side_0_1",
+          1
+        ],
+        [
+          "cap_0",
+          "side_1_0",
+          1
+        ],
+        [
+          "cap_0",
+          "side_1_1",
+          1
+        ],
+        [
+          "cone_0",
+          "side_0_0",
+          5
+        ],
+        [
+          "cone_0",
+          "side_0_1",
+          5
+        ],
+        [
+          "cone_1",
+          "side_1_0",
+          5
+        ],
+        [
+          "cone_1",
+          "side_1_1",
+          5
+        ],
+        [
+          "side_0_0",
+          "side_1_1",
+          5
+        ],
+        [
+          "side_0_1",
+          "side_1_0",
+          5
+        ]
+      ]
+    },
+    "patches": [
+      {
+        "owner": "cone_0",
+        "first_source_triangle": 0,
+        "triangles": 280
+      },
+      {
+        "owner": "cone_1",
+        "first_source_triangle": 280,
+        "triangles": 280
+      },
+      {
+        "owner": "cap_0",
+        "first_source_triangle": 560,
+        "triangles": 60
+      },
+      {
+        "owner": "cap_-1",
+        "first_source_triangle": 620,
+        "triangles": 60
+      },
+      {
+        "owner": "side_0_0",
+        "first_source_triangle": 680,
+        "triangles": 12
+      },
+      {
+        "owner": "side_0_1",
+        "first_source_triangle": 692,
+        "triangles": 12
+      },
+      {
+        "owner": "side_1_0",
+        "first_source_triangle": 704,
+        "triangles": 12
+      },
+      {
+        "owner": "side_1_1",
+        "first_source_triangle": 716,
+        "triangles": 12
+      }
+    ],
+    "material_probes": []
+  }
+}

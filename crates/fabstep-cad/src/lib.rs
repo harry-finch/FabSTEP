@@ -426,6 +426,7 @@ unsafe extern "C" {
         segments: *const NativeMixedSegment,
         ellipses: *const NativeEllipse,
         blend: *const NativeLinearBlend,
+        blend_count: usize,
         plane_tokens: *const usize,
         blend_token: *const usize,
         output: *mut NativeStep,
@@ -1565,7 +1566,7 @@ pub fn build_rounded_step_with_token_groups(
         model.tori.len(),
         model.partial_cones.len(),
         model.octants.len(),
-        usize::from(model.linear_blend.is_some()),
+        model.linear_blend.as_ref().map_or(0, |b| b.iter().count()),
         if model.cross_drill.is_some() { 3 } else { 0 },
         usize::from(model.smooth_revolution.is_some()),
         model.torus_sectors.len(),
@@ -2132,7 +2133,7 @@ fn build_cross_drill(
 
 fn build_linear_blend(
     model: &RoundedModel,
-    blend: &fabstep_core::MixedLinearBlend,
+    domains: &fabstep_core::LinearBlends,
     tokens: Option<SurfaceTokens<'_>>,
 ) -> Result<ValidatedStep, FabError> {
     let mixed = &model.revolved.mixed;
@@ -2144,8 +2145,9 @@ fn build_linear_blend(
     };
     let finite = |p: &[f64; 3]| p.iter().all(|v| v.is_finite());
     let dot = |a: [f64; 3], b: [f64; 3]| a.into_iter().zip(b).map(|(v, w)| v * w).sum::<f64>();
+    let count = domains.iter().count();
     if mixed.planes.len() != 6
-        || mixed.elliptic_arcs.len() != 2
+        || mixed.elliptic_arcs.len() != 2 * count
         || mixed.vertices.len() > MAX_SOURCE_VERTICES
         || !mixed.vertices.iter().all(finite)
         || !mixed.rings.is_empty()
@@ -2157,14 +2159,10 @@ fn build_linear_blend(
         || !model.partial_cones.is_empty()
         || !model.spheres.is_empty()
         || !model.tori.is_empty()
-        || !finite(&blend.apex)
-        || !unit_direction(&blend.axis)
-        || !(0.0 < blend.semi_angle_rad && blend.semi_angle_rad < std::f64::consts::FRAC_PI_2)
-        || !matches!(blend.arcs, [0, 1] | [1, 0])
     {
         return Err(invalid());
     }
-    let mut ellipses = Vec::with_capacity(2);
+    let mut ellipses = Vec::with_capacity(count * 2);
     for arc in &mixed.elliptic_arcs {
         if !(finite(&arc.center)
             && unit_direction(&arc.axis)
@@ -2191,30 +2189,46 @@ fn build_linear_blend(
             vertices: arc.vertices,
         });
     }
-    let [bottom, top] = blend.arcs.map(|i| &ellipses[i]);
-    let [lo_y, lo_x] = bottom.vertices;
-    let [hi_y, hi_x] = top.vertices;
-    let expected_rails = [[lo_x, hi_x], [hi_y, lo_y]];
-    if bottom.vertices.iter().any(|v| top.vertices.contains(v))
-        || !(blend.rails == expected_rails || blend.rails == [expected_rails[1], expected_rails[0]])
-    {
-        return Err(invalid());
-    }
-    let native = NativeLinearBlend {
-        apex: blend.apex,
-        axis: blend.axis,
-        angle: blend.semi_angle_rad,
-        arcs: blend.arcs,
-        rails: blend.rails,
-    };
-    let mut used = [false; 2];
+    let mut used = vec![false; 2 * count];
+    let mut lower = vec![false; 2 * count];
     let mut lines = BTreeMap::<(usize, usize), (usize, usize)>::new();
-    for &[from, to] in &blend.rails {
-        let entry = lines.entry(edge_key([from, to])).or_default();
-        if from < to {
-            entry.0 += 1;
-        } else {
-            entry.1 += 1;
+    let mut native = Vec::with_capacity(count);
+    for (index, blend) in domains.iter().enumerate() {
+        let [a, b] = blend.arcs;
+        let valid_slots = [a.min(b), a.max(b)] == [2 * index, 2 * index + 1];
+        if !(finite(&blend.apex)
+            && unit_direction(&blend.axis)
+            && 0. < blend.semi_angle_rad
+            && blend.semi_angle_rad < std::f64::consts::FRAC_PI_2
+            && valid_slots)
+        {
+            return Err(invalid());
+        }
+        lower[a] = true;
+        let [bottom, top] = blend.arcs.map(|i| &ellipses[i]);
+        let [lo_y, lo_x] = bottom.vertices;
+        let [hi_y, hi_x] = top.vertices;
+        let expected_rails = [[lo_x, hi_x], [hi_y, lo_y]];
+        if bottom.vertices.iter().any(|v| top.vertices.contains(v))
+            || !(blend.rails == expected_rails
+                || blend.rails == [expected_rails[1], expected_rails[0]])
+        {
+            return Err(invalid());
+        }
+        native.push(NativeLinearBlend {
+            apex: blend.apex,
+            axis: blend.axis,
+            angle: blend.semi_angle_rad,
+            arcs: blend.arcs,
+            rails: blend.rails,
+        });
+        for &[from, to] in &blend.rails {
+            let entry = lines.entry(edge_key([from, to])).or_default();
+            if from < to {
+                entry.0 += 1;
+            } else {
+                entry.1 += 1;
+            }
         }
     }
     let mut segments = Vec::new();
@@ -2237,7 +2251,7 @@ fn build_linear_blend(
             return Err(invalid());
         }
         let mut area_adjustment = 0.;
-        let mut contains_ellipse = false;
+        let mut plane_ellipses = [false; 2];
         for i in 0..count {
             let segment = match path {
                 MixedLoop::Polygon { vertices } => MixedSegment::Line {
@@ -2270,11 +2284,11 @@ fn build_linear_blend(
                 }
                 MixedSegment::EllipticArc { arc, reversed } => {
                     let curve = ellipses.get(arc).ok_or_else(invalid)?;
-                    if used[arc] || contains_ellipse || reversed != (arc == blend.arcs[0]) {
+                    if used[arc] || plane_ellipses[arc / 2] || reversed != lower[arc] {
                         return Err(invalid());
                     }
                     used[arc] = true;
-                    contains_ellipse = true;
+                    plane_ellipses[arc / 2] = true;
                     let [a, b] = curve.vertices;
                     let sense = if reversed { -1. } else { 1. };
                     area_adjustment += sense
@@ -2305,7 +2319,7 @@ fn build_linear_blend(
         normals.push(plane.normal);
         loops.push(NativeMixedLoop { start, count });
     }
-    if used != [true, true] || lines.values().any(|&uses| uses != (1, 1)) {
+    if used.contains(&false) || lines.values().any(|&uses| uses != (1, 1)) {
         return Err(invalid());
     }
     let plane_loops = [0usize, 1, 2, 3, 4, 5, 6];
@@ -2318,7 +2332,8 @@ fn build_linear_blend(
             loops.as_ptr(),
             segments.as_ptr(),
             ellipses.as_ptr(),
-            &native,
+            native.as_ptr(),
+            native.len(),
             tokens.map_or(std::ptr::null(), |t| t.planes.as_ptr()),
             tokens.map_or(std::ptr::null(), |t| t.linear_blends.as_ptr()),
             output,
@@ -6975,12 +6990,15 @@ mod tests {
             partial_cones: vec![],
             octants: vec![],
             cross_drill: None,
-            linear_blend: Some(Box::new(fabstep_core::MixedLinearBlend {
-                apex: [0., 0., -bottom / slope],
-                axis: [slope.abs() / q, slope.abs() / q, slope.signum() / q],
-                semi_angle_rad: (slope.abs() / q).asin(),
-                arcs: [0, 1],
-                rails: [[1, 6], [5, 0]],
+            linear_blend: Some(Box::new(fabstep_core::LinearBlends {
+                second: None,
+                first: fabstep_core::MixedLinearBlend {
+                    apex: [0., 0., -bottom / slope],
+                    axis: [slope.abs() / q, slope.abs() / q, slope.signum() / q],
+                    semi_angle_rad: (slope.abs() / q).asin(),
+                    arcs: [0, 1],
+                    rails: [[1, 6], [5, 0]],
+                },
             })),
         }
     }

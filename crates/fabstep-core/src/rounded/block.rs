@@ -62,6 +62,8 @@ pub(super) fn candidate(
     }
     if neighbors.iter().filter(|n| n.count_ones() == 3).count() == 2 {
         linear_blend::candidate(&top, neighbors, a, s, adj, edges, o, work)
+    } else if neighbors.iter().filter(|n| n.count_ones() == 3).count() == 4 {
+        linear_blend::pair::candidate(&top, neighbors, a, s, adj, edges, o, work)
     } else {
         octant::candidate(&top, neighbors, a, s, adj, edges, o, work)
     }

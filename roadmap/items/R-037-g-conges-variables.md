@@ -54,3 +54,5 @@ L’utilisateur confirme que l’objectif est de réaliser l’ensemble C1b2, C2
 Première tranche intégrée : [R-082](R-082-g1-reconstruire-un-raccord-a-rayon-lineaire.md), raccord convexe linéaire borné, contrôles V-1204 et essais A-077/A-078. Les lois générales et raccords multiples restent distincts ; le jalon global G n’est pas déclaré livré.
 
 R-094 étend le raccord linéaire à des bandes reliant directement les deux coupes elliptiques. Le témoin de R-093 passait ici à 176 faces planes. Voir V-1222.
+
+R-102 — Reconstruire deux congés de lois linéaires distinctes sur des arêtes parallèles opposées. Voir V-1232.
