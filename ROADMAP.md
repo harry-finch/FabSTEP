@@ -90,30 +90,30 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    La sonde R-072 rapporte une empreinte physique de 6.9G malgré un RSS maximal échantillonné de 2,35 Gio. Comparer les métriques macOS et qualifier une surveillance adaptée avant toute augmentation de capacité ; préserver arrêt et nettoyage du helper.
 40. **[R-075 Reconstruire un raccord tore–cône–cylindre prouvé](roadmap/items/R-075-reconstruire-un-raccord-tore-cone-cylindre.md)** · À tester · jalon post-v1
    Première extension issue de R-074 : reconstruire la zone de 64 080 triangles par trois surfaces, avec raccord tangent prouvé et bandes à deux anneaux. Contrat de données inchangé ; règle de preuve approuvée pour implémentation, sans promesse de convertir Flansch entier.
-41. **[R-026 Qualifier le garde de cocircularité des anneaux fermés](roadmap/items/R-026-qualifier-le-garde-de-cocircularite-des-anneaux-fermes.md)** · Idée · jalon audit
-   AUD-017 — Construire une reproduction du défaut supposé ; conserver la protection des anneaux peu échantillonnés. Aucun remplacement direct par `fit_circle` sans cette preuve
-42. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · En cours · jalon post-v1
-   Partiellement intégré : révolutions toriques composées ; reste la méridienne courbe générale.
-43. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · En cours · jalon post-v1
-   Coin à trois arrondis intégré ; reste la généralisation des congés partiels et de leurs combinaisons.
-44. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · En cours · jalon post-v1
-   Bac ouvert et fond percé intégrés ; restent les congés du fond/rebord et autres combinaisons.
-45. **[R-036 F — perçages sécants](roadmap/items/R-036-f-percages-secants.md)** · En cours · jalon post-v1
-   Certificat natif validé au laboratoire ; reconnaissance STL et intégration R-083 en développement.
-46. **[R-037 G — congés variables](roadmap/items/R-037-g-conges-variables.md)** · En cours · jalon post-v1
-   Premier raccord à rayon linéaire intégré ; restent les autres configurations et raccords variables multiples.
-47. **[R-038 H — surfaces libres](roadmap/items/R-038-h-surfaces-libres.md)** · Idée · jalon post-v1
-   Patch bicubique de type hauteur, quatre limites source sur un solide fermé
-48. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · Idée · jalon atelier
-   Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
-49. **[R-050 I2 — élargir les familles guidées](roadmap/items/R-050-i2-elargir-les-familles-guidees.md)** · Idée · jalon atelier
-   Après Plan (R-056), ajouter le raccord torique guidé puis étudier les sphères.
-50. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
-   Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
-51. **[R-059 C1b2 — chaînes coniques sans portée intermédiaire](roadmap/items/R-059-c1b2-chaines-coniques-sans-portee-intermediaire.md)** · Idée · jalon post-v1
-   Prouver les ruptures de pente entre cônes directement adjacents, sans découper artificiellement une méridienne courbe.
-52. **[R-076 C2b — chaînes toriques composées et arcs au-delà de 90°](roadmap/items/R-076-c2b-chaines-toriques-composees-et-arcs-au-dela.md)** · À tester · jalon post-v1
+41. **[R-076 C2b — chaînes toriques composées et arcs au-delà de 90°](roadmap/items/R-076-c2b-chaines-toriques-composees-et-arcs-au-dela.md)** · À tester · jalon post-v1
    Reconstruire les trois autres zones courbes mesurées sur Flansch : raccord à deux cônes et arcs de 100°, avec frontières source et preuves continues.
+42. **[R-026 Qualifier le garde de cocircularité des anneaux fermés](roadmap/items/R-026-qualifier-le-garde-de-cocircularite-des-anneaux-fermes.md)** · Idée · jalon audit
+   AUD-017 — Construire une reproduction du défaut supposé ; conserver la protection des anneaux peu échantillonnés. Aucun remplacement direct par `fit_circle` sans cette preuve
+43. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · En cours · jalon post-v1
+   Partiellement intégré : révolutions toriques composées ; reste la méridienne courbe générale.
+44. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · En cours · jalon post-v1
+   Coin à trois arrondis intégré ; reste la généralisation des congés partiels et de leurs combinaisons.
+45. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · En cours · jalon post-v1
+   Bac ouvert et fond percé intégrés ; restent les congés du fond/rebord et autres combinaisons.
+46. **[R-036 F — perçages sécants](roadmap/items/R-036-f-percages-secants.md)** · En cours · jalon post-v1
+   Certificat natif validé au laboratoire ; reconnaissance STL et intégration R-083 en développement.
+47. **[R-037 G — congés variables](roadmap/items/R-037-g-conges-variables.md)** · En cours · jalon post-v1
+   Premier raccord à rayon linéaire intégré ; restent les autres configurations et raccords variables multiples.
+48. **[R-038 H — surfaces libres](roadmap/items/R-038-h-surfaces-libres.md)** · Idée · jalon post-v1
+   Patch bicubique de type hauteur, quatre limites source sur un solide fermé
+49. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · Idée · jalon atelier
+   Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
+50. **[R-050 I2 — élargir les familles guidées](roadmap/items/R-050-i2-elargir-les-familles-guidees.md)** · Idée · jalon atelier
+   Après Plan (R-056), ajouter le raccord torique guidé puis étudier les sphères.
+51. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
+   Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
+52. **[R-059 C1b2 — chaînes coniques sans portée intermédiaire](roadmap/items/R-059-c1b2-chaines-coniques-sans-portee-intermediaire.md)** · Idée · jalon post-v1
+   Prouver les ruptures de pente entre cônes directement adjacents, sans découper artificiellement une méridienne courbe.
 53. **[R-077 E2 — bac ouvert avec perçage du fond](roadmap/items/R-077-e2-bac-ouvert-avec-percage-du-fond.md)** · À tester · jalon post-v1
    Qualifier un bac à coins arrondis avec un trou traversant le fond, sans remplir la cavité ni perdre les parois.
 54. **[R-078 C1b2b — chaînes coniques adjacentes et mixtes](roadmap/items/R-078-c1b2b-chaines-coniques-adjacentes-et-mixtes.md)** · À tester · jalon post-v1
