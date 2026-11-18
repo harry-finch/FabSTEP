@@ -182,6 +182,7 @@ pub fn recognize_complete_torus(a: &Analysis, o: &Options) -> Result<RoundedReco
     }
     Ok(RoundedRecognition {
         model: RoundedModel {
+            cross_drill: None,
             linear_blend: None,
             octants: vec![],
             partial_cones: vec![],

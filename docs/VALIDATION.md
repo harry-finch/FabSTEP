@@ -1736,3 +1736,44 @@ La première suite globale a détecté une régression sur `m2c_open_arc.stl` : 
 Après correction, `sh scripts/check.sh` termine avec le code 0 : **553 tests workspace, 50 bureau, huit worker, 101 ciblés large-stl, un transfert réel, 231 UI, douze Python et quatre SDK**. Formatage, Clippy strict, Svelte sans erreur/avertissement, build UI et contrôles bureau/helper passent. Seize opt-in workspace et quatre du sous-ensemble large-stl restent ignorés ; le test de transfert réel initialement ignoré au bureau est exécuté explicitement. Le build UI conserve son avertissement de taille de chunk, sans échec. Journaux : `artifacts/g-next/check-final.log` et `build-app.log`.
 
 `artifacts/FabSTEP.app` est reconstruit ; les deux exécutables correspondent à leurs builds par SHA-256 : bureau `f03743f468fb87a2b7213f8c5b8230b122c8a8d63be01d320f578c5b32bd6036`, worker `1e76a88a5f96dfa1529ff77ca9967ed9980ff02814410f8ae23f67831e380a60`. Le paquet de développement dépend toujours du SDK local, la release 1.0.0 reste inchangée. Aucun nouvel essai graphique/Fusion ni mesure de performance avant/après n’est revendiqué. R-082 à tester via A-077/A-078. Flansch n’a pas été rejoué pour G : son dernier refus V-1201 reste la référence.
+
+## V-1205 — F1 : reconnaissance source des perçages sécants (18 novembre 2026)
+
+### Périmètre et références
+
+R-083 met en œuvre le contrat autorisé A-045, décrit dans ADR-0038 : un bloc, deux trous traversants centrés et orthogonaux, quatre anneaux d’entrée et deux branches communes. Le grand rayon est au moins double du petit avec marge résolue. La recherche locale est bornée à 32 000 triangles et 8 192 régions ; chaque cycle comporte 12 à 4 096 témoins avec pas angulaire au plus π/4. Les axes décentrés/obliques, rapports indéterminés, tangences et triples intersections restent hors domaine.
+
+Le générateur indépendant `scripts/generate-cross-drill-fixtures.py` fournit cinq positifs et quatre négatifs, avec incidence orientée, connexité, liens de sommets et sondes matière/vide vérifiés après relecture STL. Le manifeste donne les plages source, les limites et le volume numérique indépendant. La grande paroi a quatre contours et une caractéristique d’Euler de −2 ; le solide percé complet a χ=−4. Régénération par l’orchestrateur : neuf STL et manifeste identiques à l’octet près, copie dans `artifacts/f-next/corpus-replay/`.
+
+### Preuve et construction
+
+Le core conserve les sommets source, les quatre anneaux et les deux cycles de branche. Il démontre les supports, la partition en neuf domaines, les incidences opposées, les degrés des contours et l’orientation stricte des cartes cylindriques. Sur le grand cylindre, les deux limites idéales forment des courbes convexes disjointes dans le repère développé ; sur le petit, les limites sont des graphes axiaux. Les bornes de remplacement des contours s’ajoutent à l’interpolation des parois, aux projections mesurées et à une réserve native de 4e−7 mm. Cette réserve ne relève pas le budget demandé.
+
+La CAO découpe les supports selon les domaines prouvés et conserve l’historique des neuf faces. Les deux branches peuvent se décomposer en plusieurs arêtes de couture : leur identité ne vient pas du nombre d’arêtes OCCT. Leur représentation spatiale et leurs deux courbes paramétriques sont construites conjointement, puis certifiées sur les données réellement réimportées. Le contrôle partage dix millions d’opérations et 16 384 feuilles par solide et vérification. Les supports, les cycles, les sondes de matière et le volume sont contrôlés avant et après STEP, ainsi que lors d’une combinaison de corps.
+
+Le certificat F0 a été déplacé vers la CAO avec un en-tête de compatibilité pour le laboratoire. Son unité de compilation conserve les règles d’arithmétique d’intervalles (`-fno-fast-math -ffp-contract=off`, équivalent MSVC non essayé ici). Le volume natif utilise l’intégration adaptative et reste une mesure comparée à l’intervalle analytique indépendant. Les splines arbitraires restent refusées ; la tessellation n’admet que les limites certifiées du domaine et conserve le plafond résultat.
+
+### Vérifications ciblées
+
+Premiers tests core : trois réussis, dont branches inversées ou parcourues deux fois avec points pourtant situés sur les deux supports ; Clippy strict réussi. Deux tests CAO réussis : domaines, références et paramètres corrompus refusés, groupes de provenance complets et distincts. Cinq tests application réussis : dix conversions des cinq positifs dans Auto/Surfaces, types/volume/dimensions/fidélité, attribution exacte et voisinages, sondes matière/vide, refus des négatifs et du guidage couplé, ancien JSON, deux corps séparés à 18 faces et contact refusé. Journaux ciblés dans `artifacts/f-next/`.
+
+Le rejeu natif F0 par l’orchestrateur conserve les certificats à 1e−5 et 1e−7 mm, les adversaires et l’intervalle de volume V-1200 (`lab-report.json`). Ce laboratoire n’est pas présenté comme une preuve source. Les tests UI ciblés de sélection passent et Svelte indique zéro erreur/avertissement ; les trois propriétaires supplémentaires sont affichés avec le libellé Cylindre existant.
+
+### Régression identifiée en revue
+
+Quatre trous borgnes opposés à pointes coniques peuvent présenter les mêmes quatre anneaux d’entrée qu’un candidat F. Un reproducteur indépendant fermé de 1 044 triangles démontre le défaut : avant F, le parcours Surfaces laisse le reconnaisseur historique trouver six plans, quatre cylindres et quatre cônes ; sans garde de jonction, F intercepte les pointes et bloque le repli. La reconnaissance exige désormais une arête source commune entre des parois petite/grande uniquement attribuables à leurs cylindres avant de commencer sa preuve bloquante. Les autres erreurs de preuve et de budget ne sont pas avalées. La validation finale et le rejeu du cas corrigé sont consignés ci-dessous une fois exécutés.
+
+
+Après ajout du garde de jonction, les **quatre tests core** passent, dont la régression des trous borgnes. Les **deux tests CAO** passent après alignement des limites de témoins avec le core (12 à 4 096 points, pas au plus π/4) et ajout des adversaires de cycles clairsemés. Le test applicatif supplémentaire reconvertit effectivement les quatre trous borgnes en Primitives et Surfaces : un solide, six plans, quatre cylindres et quatre cônes. Clippy strict du workspace et formatage passent. Le premier essai de compilation de cette régression signalait seulement le fichier de référence pas encore installé ; générateur et STL sont désormais versionnés ensemble.
+
+
+La revue indépendante CAO confirme les certificats des branches/paramètres après transfert et après combinaison multisolide, avec réserve cumulative de 4e−7 mm. Elle a relevé un dernier garde public : la tolérance des témoins, déjà plafonnée par les marges de stock et de séparation des rayons, doit aussi rester inférieure à r/2. Le wrapper et un modèle corrompu de petit rayon ont été renforcés ; le test vérifie un refus scalaire avant l’appel au noyau. Ce changement local de refus est appliqué pendant la suite globale, après compilation initiale ; le test CAO est donc rejoué explicitement sur le code final, en plus du parcours large-stl recompilé.
+
+
+### Validation finale automatisée
+
+`sh scripts/check.sh` termine avec le code 0 : **565 tests workspace, 50 bureau, huit worker, 107 ciblés large-stl, un transfert réel, 232 UI, douze Python et quatre SDK réussis**. Formatage, Clippy strict du workspace/bureau/worker, Svelte (zéro erreur/avertissement), builds UI/bureau et helper passent. Seize tests opt-in workspace et quatre ciblés large-stl restent ignorés ; le transfert réel initialement ignoré au bureau est rejoué explicitement avec succès. L’avertissement connu de taille de chunk UI reste présent. Journal : `artifacts/f-next/check.log`.
+
+La qualification est automatisée sur macOS avec le SDK local. Les essais graphiques et les réimports manuels Fusion restent ouverts ; Windows/Linux et l’option de compilation MSVC ne sont pas validés ici. Aucun benchmark avant/après ni nouvel essai de Flansch n’est revendiqué.
+
+Le rejeu CAO final (`cargo test -p fabstep-cad --test cross_drill --offline --locked`) réussit ses deux tests, y compris le refus scalaire r/2, puis le formatage est contrôlé à nouveau. `scripts/build-macos-dev.sh` termine avec succès et actualise `artifacts/FabSTEP.app`. Correspondance SHA-256 des exécutables copiés avec leurs builds : bureau `d534b15f8f9a1fc173d57207eb4f4412ba72079ef043dba8ee5129190cafa8a0`, worker `3beec03d1a31e0f621bba05bb1adc3d0e84a5d7e91a3fcd8f14c58e15f8f8d7c`. Journaux : `cad-final-replay.log`, `build-app.log`, `bundle-hashes.json` dans `artifacts/f-next/`. Paquet de développement dépendant du SDK local ; release 1.0.0 inchangée.

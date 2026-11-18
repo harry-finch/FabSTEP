@@ -117,12 +117,12 @@ impl Frame {
     }
 }
 #[derive(Clone)]
-struct Rim {
-    vertices: Vec<usize>,
-    region: usize,
-    center: V,
-    axis: V,
-    radius: f64,
+pub(crate) struct Rim {
+    pub(crate) vertices: Vec<usize>,
+    pub(crate) region: usize,
+    pub(crate) center: V,
+    pub(crate) axis: V,
+    pub(crate) radius: f64,
 }
 #[derive(Clone)]
 struct Node {
@@ -354,6 +354,33 @@ fn recognize_policy_with_proofs(
             });
         }
     }
+    if rims.len() == 4 {
+        match crate::cross_drill::candidate(
+            a,
+            &segmentation,
+            &rims,
+            &adjacency,
+            &edges,
+            o,
+            &mut work,
+        ) {
+            Ok(Some(_)) if scope.is_some() => {
+                return Err(FabError::new(
+                    "guidance.family_unproven",
+                    "Les perçages sécants ne permettent pas de correction locale.",
+                ))
+            }
+            Ok(Some(result)) => return Ok(result),
+            Ok(None) => (),
+            Err(e)
+                if automatic
+                    && matches!(
+                        e.code.as_str(),
+                        "recognition.surface_unproven" | "recognition.deviation_exceeded"
+                    ) => {}
+            Err(e) => return Err(e),
+        }
+    }
     if rims.is_empty() {
         match block::candidate(a, &segmentation, &adjacency, &edges, o, &mut work) {
             Ok(Some(_)) if scope.is_some() => {
@@ -519,6 +546,7 @@ fn recognize_policy_with_proofs(
         }
     }
     let mut model = RoundedModel {
+        cross_drill: None,
         linear_blend: None,
         octants: vec![],
         partial_cones: vec![],
@@ -2227,6 +2255,9 @@ fn compact_rings(m: &mut RoundedModel) -> Result<(), FabError> {
     Ok(())
 }
 pub(crate) fn volume(m: &RoundedModel) -> Result<f64, FabError> {
+    if let Some(f) = &m.cross_drill {
+        return crate::cross_drill::volume(f);
+    }
     let mixed = &m.revolved.mixed;
     // A cone normal is perpendicular to p - apex over the whole face.
     // Using its apex for the divergence integral makes its flux exactly zero.

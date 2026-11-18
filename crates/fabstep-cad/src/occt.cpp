@@ -3,6 +3,9 @@
 #include <BRepAlgoAPI_Check.hxx>
 #include <BRepAlgoAPI_Common.hxx>
 #include <BRepAlgoAPI_Section.hxx>
+#include <BRepAlgoAPI_Splitter.hxx>
+#include <Geom_BSplineCurve.hxx>
+#include "cross_drill.hxx"
 #include <BRepClass_FaceClassifier.hxx>
 #include <BRepLProp_SLProps.hxx>
 #include <BRepBndLib.hxx>
@@ -292,6 +295,7 @@ struct SurfaceCounts {
   size_t spherical_octants = 0;
   size_t partial_conical = 0;
   size_t linear_blends = 0;
+  size_t cross_drills = 0;
 };
 
 constexpr SurfaceCounts trihedral_surfaces{6, 3, 3, 0, 1, 0, 1};
@@ -1081,6 +1085,8 @@ TopoDS_Wire segmented_wire(const gp_Pln& plane, const MixedSegmentData* segments
   return wire.Wire();
 }
 
+#include "cross_drill_build.hxx"
+
 TopoDS_Face spherical_octant(const SphericalOctantData& patch, const MixedArcData* arcs,
                             const double* points, const std::vector<TopoDS_Edge>& shared,
                             IndexedWires& wires) {
@@ -1431,6 +1437,7 @@ struct SolidMeasurement {
   CadMetrics metrics;
   SurfaceCounts surfaces;
   std::optional<RoundedBoxFrame> rounded_box;
+  std::optional<CrossDrillData> cross_drill;
 };
 
 bool quarter_turn(double span) {
@@ -1914,7 +1921,8 @@ void check_linear_blend_geometry(const TopoDS_Shape& shape, const TopTools_Index
 
 SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
                               const SurfaceCounts* expected = nullptr,
-                              const RoundedBoxFrame* expected_box = nullptr) {
+                              const RoundedBoxFrame* expected_box = nullptr,
+                              const CrossDrillData* expected_drill = nullptr) {
   TopTools_IndexedMapOfShape shells;
   TopExp::MapShapes(shape, TopAbs_SHELL, shells);
   if (shells.Extent() != 1 || !BRep_Tool::IsClosed(shells(1))) {
@@ -1934,6 +1942,15 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
       case GeomAbs_Plane: ++found.planar; break;
       case GeomAbs_Cylinder:
         ++found.cylindrical;
+        if (!found.cross_drills && (!expected || expected->cross_drills)) {
+          for (TopExp_Explorer it(faces(i),TopAbs_EDGE); it.More(); it.Next()) {
+            const auto edge=TopoDS::Edge(it.Current());
+            if (!BRep_Tool::Degenerated(edge) && BRepAdaptor_Curve(edge).GetType()==GeomAbs_BSplineCurve) {
+              found.cross_drills=1;
+              break;
+            }
+          }
+        }
         if (surface.LastUParameter() - surface.FirstUParameter() < 2.0 * std::acos(-1.0) - 1.0e-9) {
           ++found.partial;
           quarter_cylinders += quarter_turn(surface.LastUParameter() - surface.FirstUParameter());
@@ -1990,7 +2007,8 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
                    found.spherical != expected->spherical || found.toroidal != expected->toroidal ||
                    found.spherical_octants != expected->spherical_octants ||
                    found.partial_conical != expected->partial_conical ||
-                   found.linear_blends != expected->linear_blends)) {
+                   found.linear_blends != expected->linear_blends ||
+                   found.cross_drills != expected->cross_drills)) {
     throw CadFailure{status, "Les types de surfaces diffèrent de la reconstruction."};
   }
   check_edge_incidence(shape, faces, status);
@@ -2003,7 +2021,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   }
 
   GProp_GProps properties;
-  if (found.linear_blends)
+  if (found.linear_blends || found.cross_drills)
     BRepGProp::VolumeProperties(shape, properties, 1.e-11, true);
   else
     BRepGProp::VolumeProperties(shape, properties, true);
@@ -2024,7 +2042,16 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     }
   }
   std::optional<RoundedBoxFrame> rounded_box;
-  if (found.linear_blends) {
+  std::optional<CrossDrillData> drill;
+  if (found.cross_drills) {
+    try {
+      auto proof=verify_cross_drill(shape,expected_drill,0.);
+      const double tol=std::max(1.e-9,result.volume*1.e-8);
+      if(result.volume<proof.volume_low-tol || result.volume>proof.volume_high+tol)
+        throw CadFailure{status,"Le volume des perçages ne correspond pas à l’intervalle analytique."};
+      drill=proof.data;
+    } catch (const std::exception& e) {throw CadFailure{status,e.what()};}
+  } else if (found.linear_blends) {
     check_linear_blend_geometry(shape, faces, result.volume, status);
   } else if (trihedron) {
     check_trihedral_geometry(shape, faces, result.volume, status);
@@ -2032,12 +2059,12 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     rounded_box = expected_box ? *expected_box : infer_rounded_box_frame(faces, status);
     check_rounded_box_geometry(shape, faces, result, *rounded_box, status);
   }
-  return {result, found, rounded_box};
+  return {result, found, rounded_box, drill};
 }
 
 CadMetrics measure(const TopoDS_Shape& shape, SurfaceCounts expected, Status status,
-                   const RoundedBoxFrame* expected_box = nullptr) {
-  return measure_solid(shape, status, &expected, expected_box).metrics;
+                   const RoundedBoxFrame* expected_box = nullptr,const CrossDrillData* expected_drill=nullptr) {
+  return measure_solid(shape, status, &expected, expected_box,expected_drill).metrics;
 }
 
 bool same_measurement(const CadMetrics& before, const CadMetrics& after) {
@@ -2405,7 +2432,8 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
     auto shape = single_solid(reader.Shape(root), stage);
     const auto& expected_box = before[i].report.rounded_box;
     auto report = measure_solid(shape, stage, &before[i].report.surfaces,
-                                expected_box ? &*expected_box : nullptr);
+                                expected_box ? &*expected_box : nullptr,
+                                before[i].report.cross_drill ? &*before[i].report.cross_drill : nullptr);
     if (!same_measurement(before[i].report.metrics, report.metrics)) {
       throw CadFailure{mismatch, "Les dimensions, la position ou le volume d'un corps changent au réimport."};
     }
@@ -2452,6 +2480,8 @@ void check_meshing_resolution(const TopoDS_Shape& shape, double deflection) {
   TopTools_IndexedMapOfShape edges;
   TopExp::MapShapes(shape, TopAbs_EDGE, edges);
   size_t estimated_segments = 0;
+  std::map<int,double> junctions;
+  bool inspected_junctions=false;
   for (int i = 1; i <= edges.Extent(); ++i) {
     const auto edge = TopoDS::Edge(edges(i));
     if (BRep_Tool::Degenerated(edge)) {
@@ -2469,6 +2499,26 @@ void check_meshing_resolution(const TopoDS_Shape& shape, double deflection) {
       const double step = std::min(mesh_angular_step(ellipse.MajorRadius(), deflection),
                                    mesh_angle * ellipse.MinorRadius() / ellipse.MajorRadius());
       segments = std::ceil(std::abs(curve.LastParameter() - curve.FirstParameter()) / step);
+    } else if (curve.GetType() == GeomAbs_BSplineCurve) {
+      if (!inspected_junctions) {
+        inspected_junctions=true;
+        for (TopExp_Explorer it(shape,TopAbs_SOLID);it.More();it.Next()) {
+          const auto& solid=it.Current();
+          TopTools_IndexedMapOfShape body_edges;TopExp::MapShapes(solid,TopAbs_EDGE,body_edges);
+          bool spline=false;
+          for(int j=1;j<=body_edges.Extent() && !spline;++j) {
+            const auto e=TopoDS::Edge(body_edges(j));
+            spline=!BRep_Tool::Degenerated(e) && BRepAdaptor_Curve(e).GetType()==GeomAbs_BSplineCurve;
+          }
+          if(spline) try {
+            const auto proof=verify_cross_drill(solid,nullptr,deflection);
+            for(const auto& [e,n]:proof.mesh_edges)junctions.emplace(edges.FindIndex(e),n);
+          } catch(const std::exception& ex){throw CadFailure{mesh_failed,ex.what()};}
+        }
+      }
+      const auto hit=junctions.find(i);
+      if(hit==junctions.end())throw CadFailure{mesh_failed,"Courbe spline sans certificat de perçages."};
+      segments=hit->second;
     } else if (curve.GetType() != GeomAbs_Line) {
       throw CadFailure{mesh_failed,
                        "La tessellation attend des arêtes droites, circulaires ou elliptiques."};
@@ -3483,7 +3533,7 @@ template <typename BuildSolid>
 int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
                    char* error, size_t error_capacity,
                    const RoundedBoxFrame* expected_box = nullptr,
-                   FaceLabels* labels = nullptr) noexcept {
+                   FaceLabels* labels = nullptr,const CrossDrillData* expected_drill=nullptr) noexcept {
   *output = {};
   return with_occt(invalid_model, error, error_capacity, [&](Status& stage) {
     size_t face_count = 0;
@@ -3496,7 +3546,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     }
     const TopoDS_Solid solid = build();
     stage = invalid_solid;
-    const CadMetrics before = measure(solid, expected, stage, expected_box);
+    const CadMetrics before = measure(solid, expected, stage, expected_box,expected_drill);
 
     stage = write_failed;
     DESTEP_Parameters parameters;
@@ -3515,7 +3565,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
 
     stage = read_failed;
     stream.seekg(0);
-    const CadMetrics after = measure(read_step(stream), expected, stage, expected_box);
+    const CadMetrics after = measure(read_step(stream), expected, stage, expected_box,expected_drill);
     if (!same_measurement(before, after)) {
       throw CadFailure{mismatch, "Les dimensions ou le volume changent après réimport du STEP."};
     }
@@ -3603,6 +3653,14 @@ extern "C" int fabstep_build_mixed_step(
 }
 
 // Rust validates every index, both complete oriented uses and the model bounds.
+extern "C" int fabstep_build_cross_drill_step(const CrossDrillData* domain,
+    const size_t* plane_tokens,const size_t* wall_tokens,StepOutput* output,char* error,size_t capacity) noexcept {
+  FaceLabels labels;
+  auto* tracked=wall_tokens?&labels:nullptr;
+  return validated_step([&]{return build_cross_drill(*domain,plane_tokens,wall_tokens,tracked);},
+    {6,3,0,0,0,0,0,0,0,1},output,error,capacity,nullptr,tracked,domain);
+}
+
 extern "C" int fabstep_build_linear_blend_step(
     const double* points, size_t point_count, const double* normals, const size_t* plane_loops,
     const MixedLoopData* loops, const MixedSegmentData* segments, const EllipticArcData* ellipses,

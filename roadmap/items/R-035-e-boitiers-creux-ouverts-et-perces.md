@@ -1,12 +1,45 @@
 ---
-id: "R-035"
+id: R-035
 titre: "E — boîtiers creux ouverts et percés"
-resume: "Bac ouvert à fond/parois/rebord présents ; trous éloignés des raccords"
-statut: "idee"
-jalon: "post-v1"
-cree: "2026-11-13"
+resume: "Bac ouvert et fond percé intégrés ; restent les congés du fond/rebord et autres combinaisons."
+statut: en-cours
+jalon: post-v1
+cree: 2026-11-13
 maj: 2026-11-18
+livree:
 ---
+
+## But
+
+Reconstruire des boîtiers ouverts et percés en conservant leurs parois, leur épaisseur et leur vide.
+
+## Inclus
+
+Bacs ouverts à parois et fond présents, trous éloignés des raccords ; extensions aux congés du fond/rebord après qualification de leurs domaines.
+
+## Hors périmètre
+
+Cavités totalement enfermées, fermeture inventée, corps fusionnés implicitement et perçages ambigus.
+
+## Dépendances
+
+R-062, R-077 et domaines de raccord D ; contrats complémentaires à qualifier pour fond/rebord.
+
+## Critères d'acceptation
+
+Un solide fermé avec vide conservé, parois et épaisseurs source contrôlées ; réimport, volume, fidélité et provenance vérifiés.
+
+## Vérifications de l'utilisateur
+
+Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions FabBoard ; ne pas les dupliquer au niveau de ce chantier global.
+
+## État consolidé — 18 novembre 2026
+
+R-062 et R-077 intégrés : bac ouvert à coins verticaux arrondis, puis fond percé. Reste : congés du fond/rebord et autres combinaisons. Aucun résultat de ces extensions restantes n’est revendiqué.
+
+L’utilisateur a autorisé la réalisation de l’ensemble. Le statut « en cours » représente ce chantier global partiellement intégré ; il ne signifie pas que tous ses domaines sont déjà disponibles. Les essais manuels ouverts ne bloquent pas les travaux indépendants restants.
+
+## Historique et décisions
 
 | E — boîtiers creux ouverts et percés | Bac ouvert à fond/parois/rebord présents ; trous éloignés des raccords | Épaisseur et vide conservés ; une coque frontière fermée ; rayons intérieur/extérieur contrôlés | Dépend de D ; cavités totalement enfermées exclues de ce lot |
 

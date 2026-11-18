@@ -1247,6 +1247,11 @@ fn rounded_source_faces(
         recognized.model.partial_cones.len(),
         recognized.model.octants.len(),
         usize::from(recognized.model.linear_blend.is_some()),
+        if recognized.model.cross_drill.is_some() {
+            3
+        } else {
+            0
+        },
     ];
     let count = counts.iter().sum::<usize>();
     let invalid = || {
@@ -1288,6 +1293,7 @@ fn rounded_source_faces(
             F::PartialCone { index } => (6, index),
             F::SphericalOctant { index } => (7, index),
             F::LinearBlend { index } => (8, index),
+            F::CrossDrill { index } => (9, index),
         };
         if index >= counts[kind] {
             return Err(invalid());

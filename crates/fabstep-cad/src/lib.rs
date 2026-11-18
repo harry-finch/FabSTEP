@@ -251,6 +251,14 @@ struct NativeEllipse {
 }
 
 #[repr(C)]
+struct NativeCrossDrill {
+    center: [f64; 3],
+    axes: [[f64; 3]; 3],
+    half: [f64; 3],
+    radii: [f64; 2],
+}
+
+#[repr(C)]
 struct NativeLinearBlend {
     apex: [f64; 3],
     axis: [f64; 3],
@@ -362,6 +370,14 @@ unsafe extern "C" {
         output: *mut NativeStep,
         error: *mut c_char,
         error_capacity: usize,
+    ) -> i32;
+    fn fabstep_build_cross_drill_step(
+        domain: *const NativeCrossDrill,
+        planes: *const usize,
+        walls: *const usize,
+        output: *mut NativeStep,
+        error: *mut c_char,
+        capacity: usize,
     ) -> i32;
     fn fabstep_build_linear_blend_step(
         points: *const f64,
@@ -1259,6 +1275,7 @@ struct SurfaceTokens<'a> {
     partial_cones: &'a [usize],
     octants: &'a [usize],
     linear_blends: &'a [usize],
+    cross_drill: &'a [usize],
 }
 
 /// Tracks construction identities for all complete rounded surface families.
@@ -1372,6 +1389,36 @@ pub fn build_rounded_step_with_linear_blend_provenance(
     octant_tokens: &[usize],
     linear_blend_tokens: &[usize],
 ) -> Result<ValidatedStep, FabError> {
+    build_rounded_step_with_cross_drill_provenance(
+        model,
+        plane_tokens,
+        cylinder_tokens,
+        partial_cylinder_tokens,
+        cone_tokens,
+        sphere_tokens,
+        torus_tokens,
+        partial_cone_tokens,
+        octant_tokens,
+        linear_blend_tokens,
+        &[],
+    )
+}
+
+/// The tenth group labels the lower small wall, upper small wall, and large wall of two intersecting bores.
+#[allow(clippy::too_many_arguments)]
+pub fn build_rounded_step_with_cross_drill_provenance(
+    model: &RoundedModel,
+    plane_tokens: &[usize],
+    cylinder_tokens: &[usize],
+    partial_cylinder_tokens: &[usize],
+    cone_tokens: &[usize],
+    sphere_tokens: &[usize],
+    torus_tokens: &[usize],
+    partial_cone_tokens: &[usize],
+    octant_tokens: &[usize],
+    linear_blend_tokens: &[usize],
+    cross_drill_tokens: &[usize],
+) -> Result<ValidatedStep, FabError> {
     let arrays = [
         plane_tokens,
         cylinder_tokens,
@@ -1382,6 +1429,7 @@ pub fn build_rounded_step_with_linear_blend_provenance(
         partial_cone_tokens,
         octant_tokens,
         linear_blend_tokens,
+        cross_drill_tokens,
     ];
     let counts = [
         model.revolved.mixed.planes.len(),
@@ -1393,6 +1441,7 @@ pub fn build_rounded_step_with_linear_blend_provenance(
         model.partial_cones.len(),
         model.octants.len(),
         usize::from(model.linear_blend.is_some()),
+        if model.cross_drill.is_some() { 3 } else { 0 },
     ];
     let invalid = || {
         FabError::new(
@@ -1426,6 +1475,7 @@ pub fn build_rounded_step_with_linear_blend_provenance(
             partial_cones: partial_cone_tokens,
             octants: octant_tokens,
             linear_blends: linear_blend_tokens,
+            cross_drill: cross_drill_tokens,
         }),
     )
 }
@@ -1434,6 +1484,9 @@ fn build_rounded_step_impl(
     model: &RoundedModel,
     tokens: Option<SurfaceTokens<'_>>,
 ) -> Result<ValidatedStep, FabError> {
+    if let Some(f) = &model.cross_drill {
+        return build_cross_drill(model, f, tokens);
+    }
     if let Some(blend) = &model.linear_blend {
         return build_linear_blend(model, blend, tokens);
     }
@@ -1539,8 +1592,206 @@ fn build_rounded_step_impl(
     )
 }
 
-/// Validate the complete scalar boundary before passing six paths and exactly
-/// two ellipse slots to OCCT. Each line has two distinct, opposite uses.
+/// Validate the six stock planes, four mouths and two witnessed branches
+/// before constructing the three coupled cylindrical domains.
+fn build_cross_drill(
+    model: &RoundedModel,
+    f: &fabstep_core::CrossDrill,
+    tokens: Option<SurfaceTokens<'_>>,
+) -> Result<ValidatedStep, FabError> {
+    let invalid = || {
+        FabError::new(
+            "cad.invalid_model",
+            "Les limites et les supports des perçages sécants sont incohérents.",
+        )
+    };
+    let m = &model.revolved.mixed;
+    let [r, big] = f.radii;
+    let [hx, hy, hz] = f.half_lengths;
+    if m.planes.len() != 6
+        || m.rings.len() != 4
+        || m.vertices.len() > MAX_SOURCE_VERTICES
+        || !m.cylinders.is_empty()
+        || !m.partial_cylinders.is_empty()
+        || !m.arcs.is_empty()
+        || !m.elliptic_arcs.is_empty()
+        || !model.revolved.cones.is_empty()
+        || !model.partial_cones.is_empty()
+        || !model.octants.is_empty()
+        || model.linear_blend.is_some()
+        || !model.spheres.is_empty()
+        || !model.tori.is_empty()
+        || !f.axes.iter().all(unit_direction)
+        || !f
+            .center
+            .iter()
+            .chain(&f.half_lengths)
+            .chain(&f.radii)
+            .all(|x| x.is_finite())
+        || !(r > 0. && big >= 2. * r && hx > r && hy > big && hz > big)
+    {
+        return Err(invalid());
+    }
+    let dot = |a: [f64; 3], b: [f64; 3]| a.into_iter().zip(b).map(|(x, y)| x * y).sum::<f64>();
+    let norm = |a: [f64; 3]| dot(a, a).sqrt();
+    let sub = |a: [f64; 3], b: [f64; 3]| std::array::from_fn(|j| a[j] - b[j]);
+    let [x, y, z] = f.axes;
+    let cross = |a: [f64; 3], b: [f64; 3]| {
+        [
+            a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0],
+        ]
+    };
+    if dot(x, z).abs() > 1e-10
+        || norm(sub(cross(z, x), y)) > 1e-10
+        || !m.vertices.iter().flatten().all(|p| p.is_finite())
+    {
+        return Err(invalid());
+    }
+    let local = |id: usize| {
+        m.vertices
+            .get(id)
+            .map(|&p| f.axes.map(|u| dot(sub(p, f.center), u)))
+            .ok_or_else(invalid)
+    };
+    let numerical = 128.
+        * f64::EPSILON
+        * f.center
+            .into_iter()
+            .map(f64::abs)
+            .chain(f.half_lengths)
+            .fold(1., f64::max);
+    if numerical > 5e-8 || !f.witness_tolerance_mm.is_finite() || f.witness_tolerance_mm < 0. {
+        return Err(invalid());
+    }
+    let witness = f.witness_tolerance_mm + numerical;
+    if witness >= r.min(big - 2. * r).min(hx - r).min(hy - big).min(hz - big) / 2. {
+        return Err(invalid());
+    }
+    let mut used = [false; 4];
+    let mut corners = [None; 8];
+    for (face, p) in m.planes.iter().enumerate() {
+        let axis = face % 3;
+        let sign = if face < 3 { -1. } else { 1. };
+        let normal = f.axes[axis].map(|v| sign * v);
+        if norm(sub(p.normal, normal)) > 1e-10 || !unit_direction(&p.normal) {
+            return Err(invalid());
+        }
+        let Some(MixedLoop::Polygon { vertices }) = p.loops.first() else {
+            return Err(invalid());
+        };
+        if vertices.len() != 4
+            || vertices.iter().any(|&i| i >= m.vertices.len())
+            || signed_area(vertices, &m.vertices, p.normal) <= 0.
+        {
+            return Err(invalid());
+        }
+        let mut mask = 0u8;
+        for &id in vertices {
+            let at = local(id)?;
+            let bits: usize = (0..3).map(|k| usize::from(at[k] > 0.) << k).sum();
+            let goal = std::array::from_fn(|k| {
+                if bits & (1 << k) != 0 {
+                    f.half_lengths[k]
+                } else {
+                    -f.half_lengths[k]
+                }
+            });
+            if at[axis] * sign <= 0.
+                || norm(sub(at, goal)) > witness
+                || mask & (1 << bits) != 0
+                || corners[bits].is_some_and(|previous| previous != id)
+            {
+                return Err(invalid());
+            }
+            corners[bits] = Some(id);
+            mask |= 1 << bits;
+        }
+        let rim_slot = match face {
+            2 => Some(0),
+            5 => Some(1),
+            0 => Some(2),
+            3 => Some(3),
+            _ => None,
+        };
+        let Some(slot) = rim_slot else {
+            if p.loops.len() != 1 {
+                return Err(invalid());
+            }
+            continue;
+        };
+        let ring = f.rims[slot];
+        let Some(curve) = m.rings.get(ring) else {
+            return Err(invalid());
+        };
+        if !matches!(p.loops.as_slice(),[_,MixedLoop::Circle{ring:i}] if *i==ring) || used[ring] {
+            return Err(invalid());
+        }
+        used[ring] = true;
+        let center = std::array::from_fn(|k| f.center[k] + normal[k] * f.half_lengths[axis]);
+        if !curve.radius_mm.is_finite()
+            || !curve.center.iter().all(|x| x.is_finite())
+            || !unit_direction(&curve.axis)
+            || norm(sub(curve.center, center)) > numerical
+            || norm(sub(curve.axis, f.axes[axis])) > 1e-10
+            || (curve.radius_mm - if slot < 2 { r } else { big }).abs() > numerical
+        {
+            return Err(invalid());
+        }
+    }
+    let mut ids = std::collections::BTreeSet::new();
+    for (branch, cycle) in f.branches.iter().enumerate() {
+        if !(12..=4096).contains(&cycle.len()) {
+            return Err(invalid());
+        }
+        let mut phases = Vec::with_capacity(cycle.len());
+        for &id in cycle {
+            if !ids.insert(id) {
+                return Err(invalid());
+            }
+            let [x, y, z] = local(id)?;
+            let t = y.atan2(x);
+            let ideal_y = r * t.sin();
+            let stop = (big * big - ideal_y * ideal_y).sqrt() * if branch == 0 { -1. } else { 1. };
+            if !stop.is_finite()
+                || (branch == 0) != (z < 0.)
+                || norm([x - r * t.cos(), y - ideal_y, z - stop]) > witness
+            {
+                return Err(invalid());
+            }
+            phases.push(t);
+        }
+        let mut wrap = 0;
+        for (&a, &b) in phases.iter().zip(phases.iter().cycle().skip(1)) {
+            let delta = (b - a).rem_euclid(TAU);
+            if !(delta > 0. && delta <= std::f64::consts::FRAC_PI_4 + 1e-10) {
+                return Err(invalid());
+            }
+            wrap += usize::from(b < a);
+        }
+        if wrap != 1 {
+            return Err(invalid());
+        }
+    }
+    let domain = NativeCrossDrill {
+        center: f.center,
+        axes: f.axes,
+        half: f.half_lengths,
+        radii: f.radii,
+    };
+    native_step(|output, error, capacity| unsafe {
+        fabstep_build_cross_drill_step(
+            &domain,
+            tokens.map_or(std::ptr::null(), |t| t.planes.as_ptr()),
+            tokens.map_or(std::ptr::null(), |t| t.cross_drill.as_ptr()),
+            output,
+            error,
+            capacity,
+        )
+    })
+}
+
 fn build_linear_blend(
     model: &RoundedModel,
     blend: &fabstep_core::MixedLinearBlend,
@@ -4724,6 +4975,7 @@ mod tests {
         revolved.cones.clear();
         revolved.mixed.rings[1].center[2] = height;
         RoundedModel {
+            cross_drill: None,
             linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
@@ -4744,6 +4996,7 @@ mod tests {
 
     fn complete_sphere_model(center: [f64; 3], radius_mm: f64) -> RoundedModel {
         RoundedModel {
+            cross_drill: None,
             linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
@@ -5108,6 +5361,7 @@ mod tests {
     #[test]
     fn rounded_provenance_tracks_all_surface_families_and_partial_cylinders() {
         let partial = RoundedModel {
+            cross_drill: None,
             linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
@@ -5200,6 +5454,7 @@ mod tests {
             );
         }
         let partial = RoundedModel {
+            cross_drill: None,
             linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
@@ -5262,6 +5517,7 @@ mod tests {
         let mut model = RoundedModel {
             revolved,
             spheres: vec![],
+            cross_drill: None,
             linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
@@ -5366,6 +5622,7 @@ mod tests {
             inner: false,
         });
         RoundedModel {
+            cross_drill: None,
             linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
@@ -6114,6 +6371,7 @@ mod tests {
             },
             spheres: vec![],
             tori: vec![],
+            cross_drill: None,
             linear_blend: None,
             octants: vec![],
             partial_cones: vec![MixedPartialCone {
@@ -6207,6 +6465,7 @@ mod tests {
             spheres: vec![],
             tori: vec![],
             partial_cones: vec![],
+            cross_drill: None,
             linear_blend: None,
             octants: vec![MixedSphericalOctant {
                 center: [0.; 3],
@@ -6304,6 +6563,7 @@ mod tests {
             tori: vec![],
             partial_cones: vec![],
             octants: vec![],
+            cross_drill: None,
             linear_blend: Some(Box::new(fabstep_core::MixedLinearBlend {
                 apex: [0., 0., -bottom / slope],
                 axis: [slope.abs() / q, slope.abs() / q, slope.signum() / q],

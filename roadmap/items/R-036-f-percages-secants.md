@@ -1,12 +1,47 @@
 ---
-id: "R-036"
+id: R-036
 titre: "F — perçages sécants"
-resume: "Deux trous cylindriques orthogonaux de rayons distincts, intersection transverse"
-statut: "idee"
-jalon: "post-v1"
-cree: "2026-11-13"
-maj: "2026-11-18"
+resume: "F1 centré orthogonal développé sous R-083 et qualifié automatiquement ; essais utilisateur et généralisation restent ouverts."
+statut: en-cours
+jalon: post-v1
+cree: 2026-11-13
+maj: 2026-11-18
+livree:
 ---
+
+## But
+
+Reconstruire les limites communes de deux perçages cylindriques orthogonaux de rayons distincts à partir du STL.
+
+## Inclus
+
+Première tranche centrée avec quatre entrées complètes, branches transverses, preuve source et certificat natif ; détail dans R-083.
+
+## Hors périmètre
+
+Tangences, axes obliques/décentrés, triples intersections, trous borgnes ou branches ambiguës.
+
+## Dépendances
+
+Accord A-045, laboratoire R-063 ; intégration R-083 et ADR-0038.
+
+## Critères d'acceptation
+
+Source, domaines, courbes communes, volume, solide réimporté et provenance prouvés dans les budgets ; aucun export partiel.
+
+## Vérifications de l'utilisateur
+
+Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions FabBoard ; ne pas les dupliquer au niveau de ce chantier global.
+
+## État consolidé — 18 novembre 2026
+
+R-063 : certificat de laboratoire développé et testé. R-083 : reconnaissance STL et intégration CAO développées, suite complète V-1205 réussie. Le domaine reste limité à deux trous centrés orthogonaux, avec grand rayon au moins double du petit et marge résolue. Les essais utilisateur sont portés par R-083.
+
+Restent à spécifier et prouver séparément : décentrages, axes obliques, rapports de rayons hors domaine, intersections multiples et correction locale couplée. Les paragraphes historiques ci-dessous décrivent la préparation antérieure à F1, pas l’état actuel.
+
+L’utilisateur a autorisé la réalisation de l’ensemble. Le statut « en cours » représente ce chantier global partiellement intégré ; il ne signifie pas que tous ses domaines sont déjà disponibles. Les essais manuels ouverts ne bloquent pas les travaux indépendants restants.
+
+## Historique et décisions
 
 | F — perçages sécants | Deux trous cylindriques orthogonaux de rayons distincts, intersection transverse | Courbes de découpe partagées, domaines et incidence prouvés ; sondes matière/vide ; refus tangences et triples intersections | Contrat de découpe à concevoir ; contacts entre corps toujours refusés |
 

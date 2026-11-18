@@ -6,6 +6,14 @@ mod occt_version;
 
 fn main() {
     println!("cargo:rerun-if-changed=src/occt.cpp");
+    for file in [
+        "cross_drill.hxx",
+        "cross_drill_build.hxx",
+        "cross_drill_verify.cpp",
+        "cross_drill_certificate.hxx",
+    ] {
+        println!("cargo:rerun-if-changed=src/{file}");
+    }
     println!("cargo:rerun-if-env-changed=OCCT_ROOT");
     println!("cargo:rerun-if-env-changed=HOMEBREW_PREFIX");
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_LARGE_STL");
@@ -55,6 +63,22 @@ fn main() {
         .flag(&include)
         .file("src/occt.cpp")
         .compile("fabstep_occt");
+
+    // Keep outward-rounded interval operations separate from the normal CAD TU.
+    let mut proof = cc::Build::new();
+    proof.cpp(true).std("c++17");
+    if proof.get_compiler().is_like_msvc() {
+        proof.include(&include).flag("/fp:strict");
+    } else {
+        proof
+            .flag("-fno-fast-math")
+            .flag("-ffp-contract=off")
+            .flag("-isystem")
+            .flag(&include);
+    }
+    proof
+        .file("src/cross_drill_verify.cpp")
+        .compile("fabstep_cross_drill_proof");
 
     println!("cargo:rustc-link-search=native={}", lib.display());
     for toolkit in [

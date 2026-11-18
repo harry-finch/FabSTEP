@@ -614,6 +614,7 @@ pub(super) fn candidate(
         spheres: vec![],
         tori: vec![],
         partial_cones: vec![],
+        cross_drill: None,
         linear_blend: None,
         octants: vec![MixedSphericalOctant {
             center: f.world([f.radius; 3]),

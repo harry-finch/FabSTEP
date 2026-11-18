@@ -97,10 +97,10 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 43. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · En cours · jalon post-v1
    Bac ouvert et fond percé intégrés ; restent les congés du fond/rebord et autres combinaisons.
 44. **[R-036 F — perçages sécants](roadmap/items/R-036-f-percages-secants.md)** · En cours · jalon post-v1
-   Certificat natif validé au laboratoire ; reconnaissance STL et intégration R-083 en développement.
+   F1 centré orthogonal développé sous R-083 et qualifié automatiquement ; essais utilisateur et généralisation restent ouverts.
 45. **[R-037 G — congés variables](roadmap/items/R-037-g-conges-variables.md)** · En cours · jalon post-v1
    Premier raccord à rayon linéaire intégré ; restent les autres configurations et raccords variables multiples.
-46. **[R-083 F1 — reconnaître les perçages sécants depuis le STL](roadmap/items/R-083-f1-reconnaitre-les-percages-secants-depuis-le.md)** · En cours · jalon post-v1
+46. **[R-083 F1 — reconnaître les perçages sécants depuis le STL](roadmap/items/R-083-f1-reconnaitre-les-percages-secants-depuis-le.md)** · À tester · jalon post-v1
    Prouver deux perçages centrés orthogonaux, leurs limites communes et leur reconstruction STEP, dans le domaine déjà autorisé par A-045.
 47. **[R-059 C1b2 — chaînes coniques sans portée intermédiaire](roadmap/items/R-059-c1b2-chaines-coniques-sans-portee-intermediaire.md)** · Idée · jalon post-v1
    Prouver les ruptures de pente entre cônes directement adjacents, sans découper artificiellement une méridienne courbe.
@@ -203,6 +203,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-076](roadmap/actions/A-076-verifier-le-coin-a-trois-arrondis-dans-fusion.md) Vérifier le coin à trois arrondis dans Fusion (tester, R-081)
 - [ ] [A-077](roadmap/actions/A-077-examiner-le-raccord-a-rayon-lineaire-dans.md) Examiner le raccord à rayon linéaire dans FabSTEP (tester, R-082)
 - [ ] [A-078](roadmap/actions/A-078-verifier-les-raccords-elliptiques-dans-fusion.md) Vérifier les raccords elliptiques dans Fusion (tester, R-082)
+- [ ] [A-079](roadmap/actions/A-079-examiner-les-percages-secants-dans-fabstep.md) Examiner les perçages sécants dans FabSTEP (tester, R-083)
+- [ ] [A-080](roadmap/actions/A-080-verifier-les-percages-secants-dans-fusion.md) Vérifier les perçages sécants dans Fusion (tester, R-083)
 
 ## Livré
 

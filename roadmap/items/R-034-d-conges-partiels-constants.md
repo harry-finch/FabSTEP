@@ -1,12 +1,45 @@
 ---
-id: "R-034"
+id: R-034
 titre: "D — congés partiels constants"
-resume: "Une ou deux arêtes droites arrondies, puis coin à trois branches"
-statut: "idee"
-jalon: "post-v1"
-cree: "2026-11-13"
+resume: "Coin à trois arrondis intégré ; reste la généralisation des congés partiels et de leurs combinaisons."
+statut: en-cours
+jalon: post-v1
+cree: 2026-11-13
 maj: 2026-11-18
+livree:
 ---
+
+## But
+
+Reconstruire des congés constants locaux sans propager artificiellement un arrondi à toute la pièce.
+
+## Inclus
+
+Arêtes et coins locaux dont les supports, rayons, tangences, arrêts et domaines sont démontrés ; généralisation progressive des combinaisons.
+
+## Hors périmètre
+
+Propagation implicite, raccords arbitraires, absence de supports ou de frontières prouvées.
+
+## Dépendances
+
+R-062, R-079, R-081 ; contrat local ADR-0036 approuvé par A-068.
+
+## Critères d'acceptation
+
+Couverture source exhaustive, borne continue, limites partagées, volume et solide STEP réimporté vérifiés pour chaque domaine intégré.
+
+## Vérifications de l'utilisateur
+
+Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions FabBoard ; ne pas les dupliquer au niveau de ce chantier global.
+
+## État consolidé — 18 novembre 2026
+
+R-081 intègre le coin orthogonal à trois arrondis ; R-062 qualifie des coins verticaux de bac. Reste : généralisation des configurations de congés partiels et de leurs combinaisons. Le domaine global D n’est pas terminé.
+
+L’utilisateur a autorisé la réalisation de l’ensemble. Le statut « en cours » représente ce chantier global partiellement intégré ; il ne signifie pas que tous ses domaines sont déjà disponibles. Les essais manuels ouverts ne bloquent pas les travaux indépendants restants.
+
+## Historique et décisions
 
 | D — congés partiels constants | Une ou deux arêtes droites arrondies, puis coin à trois branches | Supports, rayon, tangences et arrêts source prouvés ; aucun arrondi propagé implicitement | À développer avec contrat local de raccords |
 

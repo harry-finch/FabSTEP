@@ -1,12 +1,45 @@
 ---
-id: "R-033"
+id: R-033
 titre: "C2 — profils de révolution courbes"
-resume: "Lignes et arcs circulaires, puis méridienne lisse de complexité bornée"
-statut: "idee"
-jalon: "post-v1"
-cree: "2026-11-13"
+resume: "Partiellement intégré : révolutions toriques composées ; reste la méridienne courbe générale."
+statut: en-cours
+jalon: post-v1
+cree: 2026-11-13
 maj: 2026-11-18
+livree:
 ---
+
+## But
+
+Étendre la reconnaissance des profils de révolution courbes, depuis les compositions exactes jusqu’aux méridiennes plus générales.
+
+## Inclus
+
+Lignes et arcs circulaires composés, limites source, axe et couverture démontrés ; étude puis contrat borné pour les méridiennes lisses.
+
+## Hors périmètre
+
+Surfaces libres arbitraires, fermeture inventée, approximation sans borne ; un nouveau contrat de méridienne doit être qualifié avant intégration.
+
+## Dépendances
+
+R-061, R-075, R-076 ; les choix de contrat supplémentaires seront présentés dans leur tranche.
+
+## Critères d'acceptation
+
+Profils reconstruits avec bornes continues, volume et réimport contrôlés ; les variantes hors domaine restent refusées ou facettisées selon le mode.
+
+## Vérifications de l'utilisateur
+
+Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions FabBoard ; ne pas les dupliquer au niveau de ce chantier global.
+
+## État consolidé — 18 novembre 2026
+
+R-061/R-075/R-076 intégrés et à tester. Reste : méridiennes lisses plus générales. Aucun développement de cette partie libre n’est encore revendiqué.
+
+L’utilisateur a autorisé la réalisation de l’ensemble. Le statut « en cours » représente ce chantier global partiellement intégré ; il ne signifie pas que tous ses domaines sont déjà disponibles. Les essais manuels ouverts ne bloquent pas les travaux indépendants restants.
+
+## Historique et décisions
 
 | C2 — profils de révolution courbes | Lignes et arcs circulaires, puis méridienne lisse de complexité bornée | Profil simple, axe et couverture prouvés, borne continue et volume contrôlé ; trims source | Étude ; méridienne libre soumise à contrat et décision d’interprétation |
 

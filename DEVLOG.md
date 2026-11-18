@@ -419,3 +419,16 @@ Second domaine d’ADR-0036/A-068 intégré après D2 : six plans et une portion
 Trois périmètres disjoints (core, CAO, tests multi-corps) et revues croisées, intégration/validation par l’orchestrateur. La revue a complété le budget des copies finales et évité un parcours inutile. La suite globale a révélé une interception des anciens arcs cylindriques constants par G : ajout d’une preuve préalable de variation sur les deux tangences, régression à quatre variantes, puis rejeu complet réussi. La CAO conserve les ellipses 3D ; son interpolation paramétrique bornée est contrôlée numériquement, sans la présenter comme un certificat continu. Détails et limites dans V-1204.
 
 Validation finale : 553 tests workspace, 50 bureau, huit worker, 101 large-stl, un transfert réel, 231 UI, douze Python et quatre SDK. Format, Clippy, Svelte et builds passent. Application de développement reconstruite, exécutables vérifiés par empreintes. R-082 à tester via A-077/A-078 ; aucun essai Fusion ou graphique revendiqué, aucun nouveau résultat Flansch. La prochaine tranche F a été précisée dans R-036 sous l’accord A-045 existant ; elle n’est pas encore activée en production.
+
+
+## 2026-11-18 — F1, perçages sécants et préparation de la reprise
+
+R-083 met en œuvre l’accord A-045 : reconnaissance de deux perçages traversants centrés orthogonaux, partition en neuf faces, domaines scalaires additifs, construction native et certificat des intersections réellement réimportées. Le corpus indépendant couvre placements, miroir, échelle, retessellation et refus. ADR-0038 décrit le contrat ; V-1205 porte les résultats de validation et leurs limites. Les branches restent un cas certifié spécifique, sans autorisation générale des splines ni hausse des plafonds.
+
+Les revues croisées ont fait corriger la priorité sur quatre trous borgnes à pointes coniques, ajouter leur corpus de non-régression, aligner les limites de témoins core/CAO et plafonner le résidu public également par le petit rayon. La réserve native composée est comptée dans la borne source. L’interface conserve le libellé Cylindre et sait attribuer les trois propriétaires supplémentaires ; aucun nouveau panneau ou choix n’est ajouté.
+
+Les parents C2/D/E/F/G affichaient à tort « idée » malgré leurs tranches développées : ils passent « en cours », avec état consolidé et périmètres restants. Les sous-jalons ne deviennent pas livrés sans acceptation utilisateur. Les réordonnancements effectués par FabBoard pendant la session sont conservés sans réécriture d’historique.
+
+À la demande de l’utilisateur, aucun nouveau chantier n’est lancé après F1 : préparation d’une reprise autonome dans STATUS et la roadmap, puis commit et push du travail validé sur la branche existante. R-080 reste une piste de diagnostic pour Flansch ; aucun nouvel essai ni conversion de ce fichier n’est revendiqué. La release 1.0.0 demeure inchangée.
+
+Clôture validée : suite complète code 0 (565 workspace, 50 bureau, huit worker, 107 large-stl, un transfert réel, 232 UI, douze Python, quatre SDK), deux tests CAO rejoués après le dernier garde et formatage réussi. Paquet de développement reconstruit ; les deux exécutables sont vérifiés par SHA-256, valeurs dans V-1205. Aucun essai graphique/Fusion nouveau ; les actions F1 restent à faire.

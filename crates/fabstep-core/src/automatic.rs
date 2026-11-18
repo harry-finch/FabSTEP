@@ -91,7 +91,10 @@ fn recognize(
     }
     // Local D/G blocks already own their entire source partition, including
     // the shared analytic boundaries that adjoining planes must preserve.
-    if !result.model.octants.is_empty() || result.model.linear_blend.is_some() {
+    if !result.model.octants.is_empty()
+        || result.model.linear_blend.is_some()
+        || result.model.cross_drill.is_some()
+    {
         refresh(a, o, &mut result)?;
         return Ok(result);
     }
@@ -105,6 +108,7 @@ fn planar(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
     let s = crate::planar::build_with_provenance(&a.mesh, &adj, o.plane_tolerance_mm)?;
     Ok(RoundedRecognition {
         model: RoundedModel {
+            cross_drill: None,
             linear_blend: None,
             octants: vec![],
             partial_cones: vec![],
@@ -524,7 +528,9 @@ pub fn recognize_automatic_guided(
         )?
     };
     if !requests.is_empty()
-        && (!result.model.octants.is_empty() || result.model.linear_blend.is_some())
+        && (!result.model.octants.is_empty()
+            || result.model.linear_blend.is_some()
+            || result.model.cross_drill.is_some())
     {
         return Err(unproven());
     }

@@ -394,6 +394,23 @@ pub struct MixedLinearBlend {
     pub rails: [[usize; 2]; 2],
 }
 
+/// Centered orthogonal through bores. The right-handed frame uses the large
+/// bore axis x and the small bore axis z. Radii are [small, large]. Rims are
+/// the two small mouths in increasing z, then the two large mouths in x.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CrossDrill {
+    /// Achieved source-witness residual, already charged to the deviation bound.
+    pub witness_tolerance_mm: f64,
+    pub center: [f64; 3],
+    pub axes: [[f64; 3]; 3],
+    pub half_lengths: [f64; 3],
+    pub radii: [f64; 2],
+    pub rims: [usize; 4],
+    /// Each witnessed source cycle (z negative, positive) is ordered by
+    /// increasing phase around z, without repeating the first vertex id.
+    pub branches: [Vec<usize>; 2],
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoundedModel {
     pub revolved: RevolvedModel,
@@ -405,20 +422,44 @@ pub struct RoundedModel {
     pub octants: Vec<MixedSphericalOctant>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub linear_blend: Option<Box<MixedLinearBlend>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cross_drill: Option<Box<CrossDrill>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RoundedFaceRef {
-    LinearBlend { index: usize },
-    SphericalOctant { index: usize },
-    PartialCone { index: usize },
-    Plane { index: usize },
-    Cylinder { index: usize },
-    PartialCylinder { index: usize },
-    Cone { index: usize },
-    Sphere { index: usize },
-    Torus { index: usize },
+    /// 0 and 1 are the lower and upper small walls; 2 is the large wall.
+    CrossDrill {
+        index: usize,
+    },
+    LinearBlend {
+        index: usize,
+    },
+    SphericalOctant {
+        index: usize,
+    },
+    PartialCone {
+        index: usize,
+    },
+    Plane {
+        index: usize,
+    },
+    Cylinder {
+        index: usize,
+    },
+    PartialCylinder {
+        index: usize,
+    },
+    Cone {
+        index: usize,
+    },
+    Sphere {
+        index: usize,
+    },
+    Torus {
+        index: usize,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -468,6 +509,7 @@ pub use rounded_box::recognize_rounded_box;
 
 mod complete_sphere;
 mod complete_torus;
+mod cross_drill;
 mod math;
 mod mesh_section;
 pub use mesh_section::{section_meshes, section_meshes_controlled};

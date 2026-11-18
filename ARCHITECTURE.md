@@ -254,3 +254,12 @@ Le contrat G approuvé dans ADR-0036 ajoute `MixedModel.elliptic_arcs`, des usag
 La CAO partage les deux arêtes elliptiques 3D exactes et les deux génératrices. Leur représentation paramétrique sur le cône utilise une interpolation d’Hermite bornée à 128 intervalles, contrôlée par l’estimation numérique OCCT de l’écart, sous `Precision::Confusion()/8`. Cette estimation n’est pas un certificat continu ; elle ne remplace ni la preuve source ni les contrôles de solide et de réimport. Les seuils d’export ne sont pas augmentés. Le précontrôle des ellipses borne aussi leur tessellation.
 
 La partition source exhaustive est obligatoire. Le suivi des étiquettes natives conserve la politique historique tout-ou-rien d’ADR-0018 : une correspondance indisponible n’est jamais inventée. Les corpus G vérifient une correspondance native exacte, y compris deux corps séparés, sans promettre que tout transfert STEP conserve ses étiquettes. Aucun changement de cette politique n’est introduit par G.
+
+
+### Perçages sécants centrés — R-083
+
+`RoundedModel.cross_drill` ajoute un domaine optionnel `CrossDrill` sans changer les anciens documents. Son repère, ses quatre anneaux, ses deux cycles de sommets bruts et son résidu mesuré traversent la frontière scalaire ; aucun objet OCCT ne la traverse. Les trois propriétaires `RoundedFaceRef::CrossDrill` forment le dixième groupe de provenance. Les wrappers historiques restent utilisables. Voir ADR-0038 pour le domaine et les limites.
+
+`cross_drill.rs` prouve la partition orientée en six plans et trois parois, les cycles, les cartes cylindriques et leurs bornes continues. Avant de prendre priorité sur les reconnaisseurs historiques, une jonction source entre les deux parois cylindriques est exigée : quatre anneaux de trous borgnes ne suffisent pas. La réserve native de 4e−7 mm entre dans le budget demandé, sans relever les tolérances.
+
+La CAO construit conjointement les courbes spatiales et paramétriques, puis certifie leurs données effectivement réimportées et leurs cycles. `cross_drill_verify.cpp` compile séparément le certificat partagé avec le laboratoire F0, sans fast-math ni contraction FMA. Les budgets d’intervalles, le volume indépendant, les sondes matière et le contrôle du solide entier s’appliquent aussi aux documents multisolides. L’exception de tessellation pour les branches certifiées n’autorise pas les splines arbitraires. La provenance native conserve la politique tout-ou-rien ADR-0018 ; les corrections locales couplées et les profils DXF non coniques restent refusés.
