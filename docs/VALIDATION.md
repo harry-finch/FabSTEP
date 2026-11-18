@@ -1861,3 +1861,59 @@ python3 scripts/qualify-residual-tori.py "$FABSTEP_PROFILE_DIR/planes-3deg.bin"
 ```
 
 Deux exécutions donnent le même relevé binaire des triangles plans et le même JSON des supports, vérifiés octet par octet. Les coordonnées détaillées et le STL restent locaux. Les fichiers versionnés permettent le rejeu sur un poste disposant de la source. Formatage et Clippy ciblés contrôlés. Cette qualification ajoute exclusivement des outils de mesure hors application. Le build testé reste V-1206 et sa suite applicative complète est consignée dans cette entrée précédente.
+
+## V-1208 — R-085, secteurs toriques et raccords de la bride
+
+### Conversion par l’application
+
+Le corpus public contient quatre variantes positives et trois contre-exemples. La régénération des sept STL et du manifeste donne huit fichiers identiques à l’octet près. Le secteur annulaire de référence possède une ouverture de 80°, une hauteur de 6 mm et un volume idéal de 264,312610251146 mm³. Son congé est borné par quatre arcs partagés. Le laboratoire OCCT 7.9.3 contrôle deux placements avant/après STEP et mesure un écart maximal de volume de 3,314e−11 mm³. Deux secteurs décalés en azimut sont refusés même si leur volume et leurs rayons correspondent.
+
+Auto et Surfaces passent huit conversions avec volume, fidélité et comptage de sept faces sur la pièce nominale et ses variantes oblique, réfléchie et retessellée. En Auto, chaque sélection STEP retrouve exactement son groupe de triangles source. Le document intercalé à deux corps garde quatorze propriétaires distincts. Le test du STL ouvert, du pli angulaire et de la paroi déformée exclut une fausse face torique. Le repli Auto historique de la paroi déformée aboutit à un refus natif de planéité. Les tests core couvrent aussi le budget insuffisant, la permutation des triangles et le refus de correction locale. Trois tests CAO couvrent le réimport, les mutations de modèle et le changement du petit rayon dans un STEP déjà écrit.
+
+La première écriture du prototype de production perdait les sept identifiants malgré un BRep correct. Le prétraitement géométrique OCCT remplaçait certaines faces déjà validées. Pour cette construction, le transfert conserve désormais les identités. Les contrôles géométriques restent actifs à chaque passage. La revue indépendante a fait ajouter la comparaison du repère réinféré avec pondération des axes par la taille physique, les centres et rayons des courbes 2D sur les plans et une réserve de transfert de 1e−5 mm débitée du budget. Le certificat analytique porte sur la configuration décrite dans ADR-0040.
+
+### Couverture des bandes réelles de Flansch
+
+Sur les onze supports de R-080, neuf cartes couvrent directement un rectangle d’azimut et de méridienne. Les deux autres ont un bord irrégulier avec la partition initiale. La recherche bornée examine les propriétaires entiers encore libres à une arête du contour. Elle teste toutes les combinaisons de cinq candidats au maximum et exige une seule complétion admissible dans cette recherche, puis l’absence de collision entre complétions. Trois propriétaires d’un triangle comblent les deux lacunes. Les onze secteurs regroupent **154 001 triangles et 150 444 faces planes**. Les tests contrôlent la compensation des arêtes intérieures, l’orientation des triangles en coordonnées angulaires, le parcours complet des quatre limites et la borne continue dans les deux sens. La borne maximale des onze secteurs ainsi complétés est inférieure à 0,001752 mm.
+
+Deux jonctions relient directement trois de ces tores. Chaque interface suit 90 arêtes source partagées. L’ajustement simultané contraint les cercles guides à être tangents et impose le même plan méridien sur les deux côtés de chaque jonction. La preuve UV repasse pour les trois secteurs (11 729, 6 030 et 6 033 propriétaires). Déplacement maximal mesuré aux sommets de ces trois zones : 0,000006360 mm. Le laboratoire réimporte trois faces toriques reliées par deux arcs partagés, avec huit bords libres et zéro solide. Certaines courbes paramétriques STEP des limites sont des splines linéaires à deux pôles. Le laboratoire en contrôle le degré, les pôles, les nœuds et le domaine affine. Un déplacement de 0,05 mm d’un voisin est détecté. Ces conclusions concernent les trois parois et leurs deux interfaces.
+
+Pour les neuf rectangles initiaux, le recalage angulaire des méridiens tient compte de la longueur des rails voisins. Sur un tube long, une erreur angulaire de quelques dix-millièmes de degré suffit à manquer la face adjacente. Dix-sept des dix-huit incidences méridiennes ont une bande cylindrique compatible après recalage, avec contrôle du bord commun et de toute la carte cylindrique. Treize passent directement. Quatre nécessitent de s’arrêter à une station complète de la source et de conserver un triangle extérieur avec son propriétaire. L’écart continu maximal des dix-sept incidences est inférieur à 0,000027586 mm. Ce compte porte sur les incidences et peut désigner deux fois le même tube.
+
+Le secteur à 15 845 propriétaires partage deux véritables quarts de cercle avec deux bandes cylindriques. Sur les paramètres mesurés de cette zone, le laboratoire construit et relit trois faces, deux arcs communs d’incidences opposées, huit arêtes libres et zéro solide. Aire analytique 71,76780497593708 mm². L’écart maximal par face est inférieur à 2,253e−12 mm². Une bande écourtée à son extrémité distale est refusée. Une autre zone haute touche un propriétaire dont les trois sommets suivent un autre tore. Sa composante candidate de 2 294 triangles garde un bord irrégulier.
+
+### Rejeu du document et reproduction
+
+Le helper recompilé, en Auto et millimètres, refuse le document à **231 608 faces** en amont de la construction native du corps. Aucune sortie STEP. Mesure isolée de 72,208 s, RSS maximal échantillonné de 655 556 608 octets et empreinte physique de 400 852 000 octets. Les nouvelles parois privées sont des résultats de qualification. Le parcours de production exige la preuve du solide entier. Le scénario arithmétique de remplacement des onze zones par onze faces donne 81 175 faces avant toute modification des voisins. Les limites du résultat final et la validation native du maillage dense restent à mesurer après intégration des raccords.
+
+Depuis la racine, reprendre le dump privé décrit dans V-1207 et utiliser un Python équipé de NumPy et SciPy. Le STL, les coordonnées et les STEP locaux de Flansch sont ignorés par Git.
+
+```sh
+python3 scripts/qualify-sector-boundaries.py --align-cylinders --native-parameters artifacts/r085-source/sector-15845-parameters.json artifacts/r080/planes-3deg.bin
+python3 scripts/qualify-sector-partition.py --align-cylinders --native-parameters artifacts/r085-source/shared-tori.json artifacts/r080/planes-3deg.bin
+sh scripts/qualify-torus-sectors.sh
+sh scripts/qualify-torus-sectors.sh --open-chain artifacts/r085-source/sector-15845-parameters.json
+sh scripts/qualify-torus-sectors.sh --shared-tori artifacts/r085-source/shared-tori.json
+```
+
+### Ceinture inférieure de Flansch
+
+Le graphe des arêtes source identifie un cycle parcourant sept secteurs toriques et cinq bandes cylindriques distinctes. La sonde compare les deux extrémités des mêmes bandes et ajuste les tangentes communes aux cercles guides. Les cartes des douze faces sont ensuite revérifiées avec les mêmes méridiens aux interfaces. La bande couvre 90 011 triangles et 87 518 propriétaires plans entiers. La borne maximale mesurée sur ses cartes est de 0,001752 mm.
+
+Sur ces paramètres, la CAO relit une coque ouverte connexe de douze faces. Douze méridiens circulaires ont deux incidences opposées. Les 24 arêtes libres constituent exactement deux cycles de douze arêtes. L’écart maximal d’aire par face est inférieur à 1,083e−11 mm². Un voisin déplacé de 0,05 mm est refusé. La première boucle correspond à 504 arêtes source adjacentes à un propriétaire plan. La seconde correspond à 507 arêtes source et 500 propriétaires extérieurs.
+
+La recherche des flancs coaxiaux dans le dump des plans associe quatre secteurs bas à quatre secteurs hauts, par des parois de 180 ou 184 triangles et 90 arêtes source à l’interface haute de chacune. Les trois autres parois candidates dépassent la station X=6,5 mm, atteignent environ X=9,99 à 10,03 mm et ne rejoignent aucun des quatre secteurs hauts identifiés. Ce comptage établit la connexité des faces voisines. Une preuve complète des domaines des flancs et des contours du dessus est encore nécessaire à l’assemblage du solide.
+
+```sh
+python3 scripts/qualify-flange-rim.py --native-parameters artifacts/r085-source/belt.json artifacts/r080/planes-3deg.bin
+sh scripts/qualify-torus-sectors.sh --belt artifacts/r085-source/belt.json
+```
+
+Le propriétaire plan à X=0 comporte 2 314 triangles. Son contour extérieur est exactement le cycle des 504 arêtes basses de la ceinture. Ses cinq contours intérieurs sont disjoints et parcourus une fois. Quatre ont 360 arêtes, le cinquième en a 362. Le relevé optionnel des interfaces plan/courbe attribue chaque contour entièrement à un seul cône existant. L’écart radial maximal de l’ajustement circulaire reste inférieur à 0,0000058 mm, la borne corde–cercle à 0,001603 mm. Le dump binaire historique des plans reste identique après activation du relevé supplémentaire. Pour reproduire cette attribution, ajouter `FABSTEP_DUMP_ANALYTIC_SEAMS=1` à la commande de la sonde R-080 (V-1207), puis passer son fichier `analytic-seams.tsv` à `qualify-flange-rim.py --analytic-seams`. Le prochain assemblage du plan doit réutiliser les anneaux des cinq cônes sur son contour intérieur.
+
+
+### Contrôles globaux
+
+`sh scripts/check.sh` termine avec code 0. Les 588 tests workspace, 50 bureau, huit worker, 121 ciblés large-stl, un transfert réel, 235 UI, douze Python et quatre SDK passent. Formatage, Clippy strict workspace/bureau/worker et Svelte réussissent. Seize tests opt-in workspace et quatre large-stl restent ignorés dans cette suite. Le transfert bureau est rejoué explicitement. La sonde privée R-080 actualisée a été exécutée séparément sur Flansch.
+
+Le build macOS de développement a été reconstruit avec `sh scripts/build-macos-dev.sh`. Les fichiers livrés sont identiques aux sorties Cargo (SHA-256 bureau `9f313a182398074677a98f1a4c6f3990cbd7f5be8d12e3a34ee729317f0b8fa6`, helper `e6cce2638258af49eed68227a94fac984901ce4a965387d43c6ccc94e2448bda`). L’avertissement existant de taille de chunk Vite demeure. Les essais manuels du bureau et de Fusion restent ouverts dans A-084/A-085. Windows et Linux n’ont pas été qualifiés dans ce lot.

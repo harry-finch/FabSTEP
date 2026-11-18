@@ -20,6 +20,9 @@ Le développement reconnaît aussi **deux perçages traversants centrés et orth
 
 Le développement ajoute une première **révolution à profil cubique ajusté** : un tour complet autour d’un axe, deux disques plans et un rayon positif variant avec la hauteur. Les anneaux source, la couverture de la paroi et son écart sont vérifiés ; l’ajustement est signalé et la face est nommée Révolution. Les formes historiques gardent la priorité. Les profils à plusieurs segments, les pôles et la correction locale de cette paroi restent hors périmètre. Voir [ADR-0039](docs/adr/0039-bounded-cubic-revolution.md) et [R-084](roadmap/items/R-084-c2b-reconstruire-une-revolution-a-profil-cubique.md).
 
+Auto et Surfaces reconnaissent aussi le congé torique extérieur d’un secteur de couronne fermé par deux plans radiaux. Le résultat comprend quatre plans, deux cylindres et une face sélectionnable comme **Tore**. Un modèle de référence est disponible dans [le corpus des secteurs toriques](fixtures/torus_sectors/README.md).
+
+
 ### Reconstruire et corriger dans le build de développement
 
 **Ouvrir STL / 3MF** affiche le maillage. **Reconstruire le STEP**, dans l’inspecteur, lance **Automatique** : le moteur recherche les familles compatibles, conserve les régions prouvées et garde les zones incertaines en facettes. Il ne modifie pas les tolérances en silence. Le document entier doit passer les contrôles source, solide réimporté, dimensions, volume et fidélité avant export. Un défaut du maillage, des corps en contact ou une limite de calcul dépassée restent bloquants.

@@ -777,6 +777,7 @@ pub(crate) fn candidate(
         partial_cones: vec![],
         octants: vec![],
         linear_blend: None,
+        torus_sectors: vec![],
         smooth_revolution: None,
         cross_drill: Some(Box::new(seed.model)),
     };

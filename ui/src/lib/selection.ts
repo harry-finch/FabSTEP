@@ -1,11 +1,11 @@
 import type { BodyResult, SelectionTopology } from './types.ts';
 
 export type SourceZone = { previewBodyId:string; seed:number; triangles:number[]; ring:number };
-export type SurfaceFamily = 'plane'|'cylinder'|'partial_cylinder'|'partial_cone'|'cone'|'sphere'|'spherical_octant'|'linear_blend'|'cross_drill'|'smooth_revolution'|'torus';
+export type SurfaceFamily = 'plane'|'cylinder'|'partial_cylinder'|'partial_cone'|'cone'|'sphere'|'spherical_octant'|'linear_blend'|'cross_drill'|'smooth_revolution'|'torus_sector'|'torus';
 export type ZoneInspection = { families:Partial<Record<SurfaceFamily, number>>; unavailable:number; analysisBodyIds:string[] };
 export type Attribution = { analysisBodyId:string; families:SurfaceFamily[] | null };
 const MAX_TRIANGLES = 100_000;
-const families = new Set(['plane','cylinder','partial_cylinder','partial_cone','cone','sphere','spherical_octant','linear_blend','cross_drill','smooth_revolution','torus']);
+const families = new Set(['plane','cylinder','partial_cylinder','partial_cone','cone','sphere','spherical_octant','linear_blend','cross_drill','smooth_revolution','torus_sector','torus']);
 
 /** Un clic doit rester immobile, primaire et seul pendant tout le geste. */
 export class SourceClickGesture {
@@ -50,7 +50,7 @@ export function attributions(results:BodyResult[]):Attribution[] {
       const rounded = body.rounded_recognition, revolved = rounded?.model.revolved ?? body.revolved_recognition?.model;
       const mixed = revolved?.mixed ?? body.mixed_recognition?.model;
       entries = rounded?.triangle_faces ?? body.revolved_recognition?.triangle_faces ?? body.mixed_recognition?.triangle_faces ?? null;
-      bounds = { plane:mixed?.planes.length, cylinder:mixed?.cylinders.length, partial_cylinder:mixed?.partial_cylinders.length, cone:revolved?.cones.length, partial_cone:rounded?.model.partial_cones?.length, sphere:rounded?.model.spheres.length, spherical_octant:rounded?.model.octants?.length, linear_blend:rounded?.model.linear_blend ? 1 : 0, cross_drill:rounded?.model.cross_drill ? 3 : 0, smooth_revolution:rounded?.model.smooth_revolution ? 1 : 0, torus:rounded?.model.tori.length };
+      bounds = { plane:mixed?.planes.length, cylinder:mixed?.cylinders.length, partial_cylinder:mixed?.partial_cylinders.length, cone:revolved?.cones.length, partial_cone:rounded?.model.partial_cones?.length, sphere:rounded?.model.spheres.length, spherical_octant:rounded?.model.octants?.length, linear_blend:rounded?.model.linear_blend ? 1 : 0, cross_drill:rounded?.model.cross_drill ? 3 : 0, smooth_revolution:rounded?.model.smooth_revolution ? 1 : 0, torus_sector:rounded?.model.torus_sectors?.length, torus:rounded?.model.tori.length };
     }
     const valid = entries && entries.length === body.analysis.mesh.triangles.length && entries.every(face => families.has(face.kind) && (body.rounded_box_recognition || (Number.isInteger(face.index) && face.index! >= 0 && face.index! < (bounds[face.kind as SurfaceFamily] ?? 0))));
     return { analysisBodyId:body.id, families:valid ? entries!.map(face => face.kind as SurfaceFamily) : null };

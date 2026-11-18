@@ -448,3 +448,9 @@ Clôture C2b : suite complète réussie (579 workspace, 50 bureau, huit worker, 
 ## 2026-11-18 — R-080, localisation des faces restantes de Flansch
 
 Le build V-1206 reproduit le refus à 231 608 faces. Le diagnostic du graphe et des trois bandes de la bride identifie onze supports toriques candidats sur les deux bandes les plus prometteuses, soit 150 441 faces planes. Une troisième bande présente 1 230 écarts excessifs au barycentre malgré la précision aux sommets. Les deux sondes hors production sont versionnées et rejouées. V-1207 porte les mesures, les limites et les commandes. R-085 porte la qualification des limites des secteurs et de leur reconstruction.
+
+## 2026-11-18 — R-085, secteurs toriques et ceinture de Flansch
+
+L’utilisateur approuve l’extension du contrat aux secteurs à quatre arcs partagés. La première configuration fermée entre dans l’application avec sept faces. La qualification sur Flansch retrouve trois propriétaires d’un triangle qui manquaient à deux cartes et vérifie les onze secteurs des deux bandes sans chevauchement de propriétaires. Les tangentes communes permettent de reconstruire la ceinture inférieure réelle de douze faces dans le laboratoire natif. La fermeture du corps dépend des autres contours, détaillés dans V-1208. Le helper de développement refuse encore l’export. La première tranche est à essayer via A-084 et A-085 et R-085 reste en cours.
+
+La suite complète V-1208 passe. Les deux binaires du paquet de développement sont vérifiés par SHA-256. Le rejeu indépendant reproduit les paramètres de la ceinture et les contrôles natifs après STEP. Les réordonnancements FabBoard intervenus pendant la session sont conservés.

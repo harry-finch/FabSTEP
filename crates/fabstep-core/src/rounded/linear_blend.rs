@@ -655,6 +655,7 @@ pub(super) fn candidate(
             },
             cones: vec![],
         },
+        torus_sectors: vec![],
         smooth_revolution: None,
         cross_drill: None,
         linear_blend: Some(Box::new(blend)),

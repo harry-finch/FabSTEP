@@ -65,7 +65,7 @@ def component_sizes(triangles):
     return sorted(np.bincount(labels).tolist(), reverse=True)
 
 
-def measure(rows, bands):
+def measure(rows, bands, visit_support=None):
     triangles = rows["points"]
     all_owners, total = np.unique(rows["owner"], return_counts=True)
     assigned = np.full(len(rows), -1)
@@ -116,7 +116,10 @@ def measure(rows, bands):
             complete = owner[count == total[np.searchsorted(all_owners, owner)]]
             whole.update(complete.tolist())
             if complete.size:
-                faces = pts[np.isin(rows["owner"][ids], complete)]
+                complete_ids = ids[np.isin(rows["owner"][ids], complete)]
+                faces = triangles[complete_ids]
+                if visit_support is not None:
+                    visit_support(complete_ids, center, major, minor, axial_center)
                 components.extend(component_sizes(faces))
                 centroids = faces.mean(axis=1)
                 radial = np.linalg.norm(centroids[:, 1:] - center, axis=1)

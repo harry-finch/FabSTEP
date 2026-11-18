@@ -224,3 +224,20 @@ test('smooth revolution attribution requires its single explicit domain and pres
   body.rounded_recognition!.triangle_faces[1]={kind:'plane',index:0};
   assert.deepEqual(attributions([body])[0].families,['plane','plane','plane']);
 });
+
+test('torus sector owners use their own index range independently of full tori', () => {
+  const body = {
+    id:'stl/component/0',analysis:{mesh:{triangles:[[0,1,2],[2,3,0]]}},
+    rounded_recognition:{
+      model:{revolved:{mixed:{planes:[],cylinders:[],partial_cylinders:[]},cones:[]},
+        spheres:[],tori:[{}],torus_sectors:[{},{}]},
+      triangle_faces:[{kind:'torus',index:0},{kind:'torus_sector',index:1}]
+    }
+  } as unknown as BodyResult;
+  assert.deepEqual(attributions([body])[0].families,['torus','torus_sector']);
+  body.rounded_recognition!.triangle_faces[1].index=2;
+  assert.equal(attributions([body])[0].families,null);
+  delete body.rounded_recognition!.model.torus_sectors;
+  body.rounded_recognition!.triangle_faces[1]={kind:'torus',index:0};
+  assert.deepEqual(attributions([body])[0].families,['torus','torus']);
+});

@@ -272,3 +272,7 @@ La CAO construit conjointement les courbes spatiales et paramétriques, puis cer
 La reconnaissance vient après les classificateurs historiques. Au moins cinq niveaux complets, la partition source, les cartes angle–hauteur orientées et les disques sont prouvés. La borne d’interpolation inclut les dérivées radiales, angulaires et mixtes ; la planéité des disques garde sa tolérance propre. Un profil circulaire non distinguable n’est pas rebaptisé cubique. Le volume polynomial est calculé indépendamment du noyau.
 
 Le wrapper CAO vérifie les champs scalaires exclusifs et les supports avant l’ABI. Le noyau compare les pôles physiques, l’axe, les limites et leurs courbes paramétriques après chaque transfert, y compris multisolide. Seul ce domaine certifié autorise sa couture spline. Les ressources de tessellation restent plafonnées ; les corrections guidées couplées et sections non coniques restent refusées. La réserve native est chargée dans le budget source, sans modifier les tolérances de l’utilisateur.
+
+### Secteur torique à quatre arcs (R-085)
+
+Le champ additif `RoundedModel.torus_sectors` conserve les quatre arcs orientés de chaque secteur. Le premier domaine est un secteur de couronne fermé de sept faces. Le core contrôle la couverture et l’écart de chaque triangle, puis la CAO vérifie les courbes de bord, leur partage et le volume après réimport. L’inspection associe les triangles source par un douzième groupe de propriétaires. Le détail du contrat et des voisins pris en charge figure dans [ADR-0040](docs/adr/0040-bounded-torus-sectors.md).

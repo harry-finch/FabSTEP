@@ -21,7 +21,9 @@ const fr = {
   },
   parameterSearch: {analyticRequired:"Choisir une reconnaissance des formes courbes pour rechercher un réglage.",guidanceActive:"La recherche de réglages est indisponible pendant une reconstruction guidée.","button": "Rechercher un réglage", "hint": "Compare jusqu’à 7 tolérances radiales, sans modifier le budget d’écart ni les autres réglages. Chaque essai valide le document entier.", "ranking": "Parmi les essais validés : moins de faces, puis tolérance la plus stricte. Ce classement ne garantit pas la meilleure géométrie.", "apply": "Appliquer et recalculer", "none": "Aucun essai validé. Les réglages sont conservés.", "same": "Le réglage actuel est retenu.", "proposal": "Tolérance proposée : {value} mm", "summary": "{faces} faces, dont {curved} courbes", "trials": "Détail des essais", "rejected": "Refusé", "bound": "Borne composée : {value} mm", "sampled": "Écart échantillonné maximal : {value} mm"},
 
-  engine: { fitted_revolution:"Le profil cubique est ajusté au maillage dans la borne d’écart indiquée ; l’intention de conception originale n’est pas déduite.",
+  engine: { toric_sector_endpoints_projected: "Les extrémités du secteur torique ont été ajustées. La borne d’écart inclut leur déplacement.",
+    toric_sector_fitted: "Une bande du maillage forme un secteur de tore. Ses bords sont ajustés dans la tolérance indiquée.",
+    fitted_revolution:"Le profil cubique est ajusté au maillage dans la borne d’écart indiquée ; l’intention de conception originale n’est pas déduite.",
     linear_blend_endpoints_projected: 'Les extrémités du raccord sont ajustées à la géométrie reconstruite ; leur déplacement est inclus dans la borne d’écart.',
     workerBusy: "Un calcul isolé se termine encore. Réessayez dans un instant.",
     workerMemory: "Calcul arrêté au-delà de 4 Gio de mémoire ; la source est conservée.",

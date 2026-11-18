@@ -1,0 +1,101 @@
+{
+  "reference_volume_mm3": 264.31261025114605,
+  "positives": [
+    "nominal",
+    "oblique",
+    "mirrored",
+    "retessellated"
+  ],
+  "cases": {
+    "nominal": {
+      "triangles": 1960,
+      "triangles_per_family": {
+        "bottom": 96,
+        "outer_cylinder": 96,
+        "torus": 1536,
+        "top": 96,
+        "inner_cylinder": 96,
+        "start": 20,
+        "end": 20
+      },
+      "open_edges": 0
+    },
+    "oblique": {
+      "triangles": 1960,
+      "triangles_per_family": {
+        "bottom": 96,
+        "outer_cylinder": 96,
+        "torus": 1536,
+        "top": 96,
+        "inner_cylinder": 96,
+        "start": 20,
+        "end": 20
+      },
+      "open_edges": 0
+    },
+    "mirrored": {
+      "triangles": 1960,
+      "triangles_per_family": {
+        "bottom": 96,
+        "outer_cylinder": 96,
+        "torus": 1536,
+        "top": 96,
+        "inner_cylinder": 96,
+        "start": 20,
+        "end": 20
+      },
+      "open_edges": 0
+    },
+    "retessellated": {
+      "triangles": 3300,
+      "triangles_per_family": {
+        "bottom": 130,
+        "outer_cylinder": 130,
+        "torus": 2730,
+        "top": 130,
+        "inner_cylinder": 130,
+        "start": 25,
+        "end": 25
+      },
+      "open_edges": 0
+    },
+    "folded": {
+      "triangles": 1960,
+      "triangles_per_family": {
+        "bottom": 96,
+        "outer_cylinder": 96,
+        "torus": 1536,
+        "top": 96,
+        "inner_cylinder": 96,
+        "start": 20,
+        "end": 20
+      },
+      "open_edges": 0
+    },
+    "open": {
+      "triangles": 1940,
+      "triangles_per_family": {
+        "bottom": 96,
+        "outer_cylinder": 96,
+        "torus": 1536,
+        "top": 96,
+        "inner_cylinder": 96,
+        "start": 20
+      },
+      "open_edges": 20
+    },
+    "dented": {
+      "triangles": 1960,
+      "triangles_per_family": {
+        "bottom": 96,
+        "outer_cylinder": 96,
+        "torus": 1536,
+        "top": 96,
+        "inner_cylinder": 96,
+        "start": 20,
+        "end": 20
+      },
+      "open_edges": 0
+    }
+  }
+}

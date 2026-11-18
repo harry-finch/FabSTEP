@@ -65,7 +65,7 @@ fn recognize(
         }
         Err(e) => return Err(e),
     };
-    if result.model.smooth_revolution.is_some() {
+    if result.model.smooth_revolution.is_some() || !result.model.torus_sectors.is_empty() {
         return Ok(result);
     }
     if result.report.cylinders + result.report.cones + result.report.spheres + result.report.tori
@@ -111,6 +111,7 @@ fn planar(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
     let s = crate::planar::build_with_provenance(&a.mesh, &adj, o.plane_tolerance_mm)?;
     Ok(RoundedRecognition {
         model: RoundedModel {
+            torus_sectors: vec![],
             smooth_revolution: None,
             cross_drill: None,
             linear_blend: None,
@@ -536,7 +537,8 @@ pub fn recognize_automatic_guided(
         && (!result.model.octants.is_empty()
             || result.model.linear_blend.is_some()
             || result.model.cross_drill.is_some()
-            || result.model.smooth_revolution.is_some())
+            || result.model.smooth_revolution.is_some()
+            || !result.model.torus_sectors.is_empty())
     {
         return Err(unproven());
     }

@@ -71,6 +71,7 @@ fn shared_edges(
     mesh: &Mesh,
     geometry: &[([f64; 3], f64)],
     owners: &[RoundedFaceRef],
+    mut analytic_seams: Option<&mut std::io::BufWriter<fs::File>>,
 ) -> Vec<Neighbors> {
     let mut edges = Vec::with_capacity(mesh.triangles.len() * 3);
     for (i, t) in mesh.triangles.iter().enumerate() {
@@ -83,6 +84,24 @@ fn shared_edges(
     for uses in edges.chunk_by(|a, b| (a.0, a.1) == (b.0, b.1)) {
         assert_eq!(uses.len(), 2, "analysis must be a closed two-manifold");
         let pair = [uses[0].2, uses[1].2];
+        if let Some(output) = analytic_seams.as_mut() {
+            use std::io::Write as _;
+            for (plane, other) in [(pair[0], pair[1]), (pair[1], pair[0])] {
+                if matches!(owners[plane], RoundedFaceRef::Plane { .. })
+                    && !matches!(owners[other], RoundedFaceRef::Plane { .. })
+                {
+                    let (a, b, _) = uses[0];
+                    let tri = mesh.triangles[plane];
+                    let edge = (0..3)
+                        .find(|&i| {
+                            let (u, v) = (tri[i], tri[(i + 1) % 3]);
+                            (u.min(v), u.max(v)) == (a, b)
+                        })
+                        .unwrap();
+                    writeln!(output, "{plane}\t{edge}\t{:?}", owners[other]).unwrap();
+                }
+            }
+        }
         if pair
             .iter()
             .all(|&i| matches!(owners[i], RoundedFaceRef::Plane { .. }))
@@ -208,8 +227,14 @@ fn residual_planar_profile() {
         .iter()
         .map(|&t| normal_and_area(mesh, t))
         .collect();
-    let edges = shared_edges(mesh, &geometry, owners);
     fs::create_dir_all(&dir).unwrap();
+    let mut seams = std::env::var_os("FABSTEP_DUMP_ANALYTIC_SEAMS").map(|_| {
+        std::io::BufWriter::new(fs::File::create(dir.join("analytic-seams.tsv")).unwrap())
+    });
+    let edges = shared_edges(mesh, &geometry, owners, seams.as_mut());
+    if let Some(mut writer) = seams {
+        std::io::Write::flush(&mut writer).unwrap();
+    }
     let dump = std::env::var_os("FABSTEP_DUMP_PLANES").map(|_| dir.join("planes-3deg.bin"));
     let splits = [180., 12., 3.].map(|degrees| {
         let output = if degrees == 3. { dump.as_deref() } else { None };

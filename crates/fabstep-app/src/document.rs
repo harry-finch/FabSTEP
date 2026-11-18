@@ -1236,24 +1236,7 @@ fn rounded_source_faces(
     source: &BodySourceTriangles,
     recognized: &fabstep_core::RoundedRecognition,
 ) -> Result<Vec<ResultFaceSource>, FabError> {
-    let m = &recognized.model.revolved.mixed;
-    let counts = [
-        m.planes.len(),
-        m.cylinders.len(),
-        m.partial_cylinders.len(),
-        recognized.model.revolved.cones.len(),
-        recognized.model.spheres.len(),
-        recognized.model.tori.len(),
-        recognized.model.partial_cones.len(),
-        recognized.model.octants.len(),
-        usize::from(recognized.model.linear_blend.is_some()),
-        if recognized.model.cross_drill.is_some() {
-            3
-        } else {
-            0
-        },
-        usize::from(recognized.model.smooth_revolution.is_some()),
-    ];
+    let counts = crate::rounded_face_counts(&recognized.model);
     let count = counts.iter().sum::<usize>();
     let invalid = || {
         FabError::new(
@@ -1296,6 +1279,7 @@ fn rounded_source_faces(
             F::LinearBlend { index } => (8, index),
             F::CrossDrill { index } => (9, index),
             F::SmoothRevolution { index } => (10, index),
+            F::TorusSector { index } => (11, index),
         };
         if index >= counts[kind] {
             return Err(invalid());

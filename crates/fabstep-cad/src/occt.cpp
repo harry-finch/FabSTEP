@@ -106,6 +106,10 @@ struct CadMetrics {
   double bounds[6];
 };
 
+struct TorusSectorSolidData {
+  double origin[3], axis[3], start[3], height, inner_radius, major_radius, minor_radius, sweep;
+};
+
 struct SmoothRevolutionData {
   double origin[3], axis[3], height, radii[4];
 };
@@ -1436,6 +1440,7 @@ void check_edge_incidence(const TopoDS_Shape& shape, const TopTools_IndexedMapOf
 }
 
 #include "smooth_revolution.hxx"
+#include "torus_sector.hxx"
 
 struct RoundedBoxFrame {
   gp_Pnt center;
@@ -1450,6 +1455,7 @@ struct SolidMeasurement {
   std::optional<RoundedBoxFrame> rounded_box;
   std::optional<CrossDrillData> cross_drill;
   std::optional<SmoothRevolutionData> revolution;
+  std::optional<TorusSectorSolidData> sector;
 };
 
 bool quarter_turn(double span) {
@@ -1935,7 +1941,8 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
                               const SurfaceCounts* expected = nullptr,
                               const RoundedBoxFrame* expected_box = nullptr,
                               const CrossDrillData* expected_drill = nullptr,
-                              const SmoothRevolutionData* expected_revolution = nullptr) {
+                              const SmoothRevolutionData* expected_revolution = nullptr,
+                              const TorusSectorSolidData* expected_sector = nullptr) {
   TopTools_IndexedMapOfShape shells;
   TopExp::MapShapes(shape, TopAbs_SHELL, shells);
   if (shells.Extent() != 1 || !BRep_Tool::IsClosed(shells(1))) {
@@ -1949,6 +1956,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   }
   SurfaceCounts found{};
   size_t quarter_cylinders = 0;
+  bool partial_torus = false;
   for (int i = 1; i <= faces.Extent(); ++i) {
     const BRepAdaptor_Surface surface(TopoDS::Face(faces(i)));
     switch (surface.GetType()) {
@@ -1999,7 +2007,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
       case GeomAbs_Torus:
         ++found.toroidal;
         if (surface.LastUParameter() - surface.FirstUParameter() < 2.0 * std::acos(-1.0) - 1.0e-9) {
-          throw CadFailure{status, "Une face torique doit couvrir un tour complet."};
+          partial_torus = true;
         }
         break;
       default: throw CadFailure{status, "Une face du solide présente un type de surface hors périmètre."};
@@ -2027,6 +2035,9 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   }
   std::optional<SmoothRevolutionData> revolution;
   if (found.revolutions) revolution = verify_revolution(shape,expected_revolution,status).domain;
+  std::optional<TorusSectorSolidData> sector;
+  if (partial_torus || expected_sector)
+    sector = torus_sector::verify(shape,expected_sector,status).domain;
   check_edge_incidence(shape, faces, status);
   if (!BRepCheck_Analyzer(shape, true, false, true).IsValid()) {
     throw CadFailure{status, "Le contrôle géométrique du solide a échoué."};
@@ -2043,6 +2054,11 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     if (!std::isfinite(error) || error < 0. || !std::isfinite(ideal) ||
         std::abs(properties.Mass()-ideal) > ideal * 1.e-8)
       throw CadFailure{status, "Le volume du solide diffère de l’intégrale du profil cubique."};
+  } else if (sector) {
+    BRepGProp::VolumeProperties(shape, properties, 1.e-11, true);
+    const double expected_volume = torus_sector::Geometry(*sector).volume();
+    torus_sector::require(std::isfinite(expected_volume) &&
+      std::abs(expected_volume-properties.Mass()) < expected_volume*1e-8,status);
   } else if (found.linear_blends || found.cross_drills)
     BRepGProp::VolumeProperties(shape, properties, 1.e-11, true);
   else
@@ -2081,13 +2097,14 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     rounded_box = expected_box ? *expected_box : infer_rounded_box_frame(faces, status);
     check_rounded_box_geometry(shape, faces, result, *rounded_box, status);
   }
-  return {result, found, rounded_box, drill, revolution};
+  return {result, found, rounded_box, drill, revolution, sector};
 }
 
 CadMetrics measure(const TopoDS_Shape& shape, SurfaceCounts expected, Status status,
                    const RoundedBoxFrame* expected_box = nullptr,const CrossDrillData* expected_drill=nullptr,
-                   const SmoothRevolutionData* expected_revolution=nullptr) {
-  return measure_solid(shape, status, &expected, expected_box,expected_drill,expected_revolution).metrics;
+                   const SmoothRevolutionData* expected_revolution=nullptr,
+                   const TorusSectorSolidData* expected_sector=nullptr) {
+  return measure_solid(shape, status, &expected, expected_box,expected_drill,expected_revolution,expected_sector).metrics;
 }
 
 bool same_measurement(const CadMetrics& before, const CadMetrics& after) {
@@ -2457,7 +2474,8 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
     auto report = measure_solid(shape, stage, &before[i].report.surfaces,
                                 expected_box ? &*expected_box : nullptr,
                                 before[i].report.cross_drill ? &*before[i].report.cross_drill : nullptr,
-                                before[i].report.revolution ? &*before[i].report.revolution : nullptr);
+                                before[i].report.revolution ? &*before[i].report.revolution : nullptr,
+                                before[i].report.sector ? &*before[i].report.sector : nullptr);
     if (!same_measurement(before[i].report.metrics, report.metrics)) {
       throw CadFailure{mismatch, "Les dimensions, la position ou le volume d'un corps changent au réimport."};
     }
@@ -2560,7 +2578,12 @@ std::vector<RevolutionGrid> check_meshing_resolution(const TopoDS_Shape& shape, 
   std::vector<RevolutionGrid> grids;
   for (TopExp_Explorer body(shape,TopAbs_SOLID); body.More(); body.Next()) {
     for (TopExp_Explorer face(body.Current(),TopAbs_FACE); face.More(); face.Next()) {
-      if (BRepAdaptor_Surface(TopoDS::Face(face.Current())).GetType() != GeomAbs_SurfaceOfRevolution)
+      const BRepAdaptor_Surface native(TopoDS::Face(face.Current()));
+      if (torus_sector::partial_torus(native)) {
+        torus_sector::verify(body.Current(),nullptr,mesh_failed);
+        break;
+      }
+      if (native.GetType() != GeomAbs_SurfaceOfRevolution)
         continue;
       // Admit only the seam of a complete certified polynomial body. Bound
       // its angle/height grid with the Bernstein hulls of r, r' and r''.
@@ -3663,7 +3686,8 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
                    char* error, size_t error_capacity,
                    const RoundedBoxFrame* expected_box = nullptr,
                    FaceLabels* labels = nullptr,const CrossDrillData* expected_drill=nullptr,
-                   const SmoothRevolutionData* expected_revolution=nullptr) noexcept {
+                   const SmoothRevolutionData* expected_revolution=nullptr,
+                   const TorusSectorSolidData* expected_sector=nullptr) noexcept {
   *output = {};
   return with_occt(invalid_model, error, error_capacity, [&](Status& stage) {
     size_t face_count = 0;
@@ -3676,7 +3700,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     }
     const TopoDS_Solid solid = build();
     stage = invalid_solid;
-    const CadMetrics before = measure(solid, expected, stage, expected_box,expected_drill,expected_revolution);
+    const CadMetrics before = measure(solid, expected, stage, expected_box,expected_drill,expected_revolution,expected_sector);
 
     stage = write_failed;
     DESTEP_Parameters parameters;
@@ -3684,10 +3708,15 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     parameters.WriteUnit = UnitsMethods_LengthUnit_Millimeter;
     parameters.WriteTessellated = DESTEP_Parameters::RWMode_Tessellated_Off;
     STEPControl_Writer writer;
+    // The default STEP healing stage rewrites some swept profile faces. The
+    // sector was already checked above; transfer those exact TShapes so its
+    // face tokens reach the corresponding ADVANCED_FACE entities.
+    if (expected_sector) writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
     if (writer.Transfer(solid, STEPControl_ManifoldSolidBrep, parameters) != IFSelect_RetDone) {
       throw CadFailure{stage, "Impossible de traduire le solide en STEP."};
     }
-    if (labels) write_face_labels(writer, *labels);
+    if (labels && !write_face_labels(writer, *labels) && expected_sector)
+      throw CadFailure{write_failed,"Les sept identités de faces du secteur torique ne sont pas transférables."};
     std::stringstream stream;
     if (writer.WriteStream(stream) != IFSelect_RetDone || !stream.good()) {
       throw CadFailure{stage, "Impossible de sérialiser le fichier STEP."};
@@ -3695,7 +3724,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
 
     stage = read_failed;
     stream.seekg(0);
-    const CadMetrics after = measure(read_step(stream), expected, stage, expected_box,expected_drill,expected_revolution);
+    const CadMetrics after = measure(read_step(stream), expected, stage, expected_box,expected_drill,expected_revolution,expected_sector);
     if (!same_measurement(before, after)) {
       throw CadFailure{mismatch, "Les dimensions ou le volume changent après réimport du STEP."};
     }
@@ -3780,6 +3809,14 @@ extern "C" int fabstep_build_mixed_step(
       {plane_count, cylinder_count + partial_count, partial_count, cone_count + partial_cone_count,
        sphere_count, torus_count, 0, partial_cone_count},
       output, error, error_capacity);
+}
+
+extern "C" int fabstep_build_torus_sector_step(const TorusSectorSolidData* domain, const size_t* tokens,
+    StepOutput* output, char* error, size_t capacity) noexcept {
+  FaceLabels labels;
+  auto* tracked=tokens ? &labels : nullptr;
+  return validated_step([&]{return torus_sector::build(*domain,tokens,tracked);},
+      {4,2,2,0,0,1},output,error,capacity,nullptr,tracked,nullptr,nullptr,domain);
 }
 
 extern "C" int fabstep_build_smooth_revolution_step(const SmoothRevolutionData* domain,

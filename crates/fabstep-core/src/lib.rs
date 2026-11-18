@@ -425,11 +425,30 @@ pub struct SmoothRevolution {
     pub witness_tolerance_mm: f64,
 }
 
+/// A closed annular wedge with an exterior quarter-round. The axis points from
+/// the bottom to the top. Arc uses run around the toroidal rectangle starting
+/// at (u=0,v=0), along +u, +v, -u, -v respectively.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MixedTorusSector {
+    pub center: [f64; 3],
+    pub axis: [f64; 3],
+    pub start_direction: [f64; 3],
+    pub major_radius_mm: f64,
+    pub minor_radius_mm: f64,
+    pub height_mm: f64,
+    pub inner_radius_mm: f64,
+    pub sweep_rad: f64,
+    pub arc_uses: [(usize, bool); 4],
+    pub inner: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoundedModel {
     pub revolved: RevolvedModel,
     pub spheres: Vec<MixedSphere>,
     pub tori: Vec<MixedTorus>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub torus_sectors: Vec<MixedTorusSector>,
     #[serde(default)]
     pub partial_cones: Vec<MixedPartialCone>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -445,6 +464,9 @@ pub struct RoundedModel {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RoundedFaceRef {
+    TorusSector {
+        index: usize,
+    },
     SmoothRevolution {
         index: usize,
     },

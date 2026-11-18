@@ -132,7 +132,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    AUD-006 — Démontrer un gain sur plusieurs instances ; établir un contrat tenant compte des transformations, de l’arrondi, du soudage et de la provenance avant tout cache
 61. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
-62. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · Idée · jalon post-v1
+62. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon post-v1
    Commencer par les deux bandes de rayon 0,5 mm identifiées dans R-080. Qualifier les limites des secteurs, la continuité avec les faces voisines et la fidélité dans les deux sens sur un corpus public indépendant. Rejouer ensuite le fichier entier et mesurer les coûts natifs.
 
 ## Actions à faire
@@ -212,6 +212,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-081](roadmap/actions/A-081-examiner-les-revolutions-cubiques-dans-fabstep.md) Examiner les révolutions cubiques dans FabSTEP (tester, R-084)
 - [ ] [A-082](roadmap/actions/A-082-verifier-les-revolutions-cubiques-dans-fusion.md) Vérifier les révolutions cubiques dans Fusion (tester, R-084)
 - [ ] [A-083](roadmap/actions/A-083-examiner-le-diagnostic-des-faces-restantes-de.md) Examiner le diagnostic des faces restantes de Flansch (valider, R-080)
+- [ ] [A-084](roadmap/actions/A-084-essayer-le-conge-torique-partiel-dans-fabstep.md) Essayer le congé torique partiel dans FabSTEP (tester, R-085)
+- [ ] [A-085](roadmap/actions/A-085-controler-le-secteur-annulaire-dans-fusion.md) Contrôler le secteur annulaire dans Fusion (tester, R-085)
 
 ## Livré
 

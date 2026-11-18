@@ -15,6 +15,7 @@ mod linear_blend;
 mod octant;
 mod smooth_revolution;
 mod torus_cone;
+mod torus_sector;
 mod zone;
 
 type Edge = (usize, usize);
@@ -401,6 +402,19 @@ fn recognize_policy_with_proofs(
             Err(e) => return Err(e),
         }
     }
+    if rims.is_empty() {
+        if let Some(result) =
+            torus_sector::candidate(a, &segmentation, &adjacency, &edges, o, &mut work)?
+        {
+            if scope.is_some() {
+                return Err(FabError::new(
+                    "guidance.family_unproven",
+                    "Le secteur torique nécessite le corps complet.",
+                ));
+            }
+            return Ok(result);
+        }
+    }
     if rims.is_empty() && !automatic {
         return Err(unsupported());
     }
@@ -584,6 +598,7 @@ fn recognize_policy_with_proofs(
         }
     }
     let mut model = RoundedModel {
+        torus_sectors: vec![],
         smooth_revolution: None,
         cross_drill: None,
         linear_blend: None,
@@ -2310,6 +2325,9 @@ fn compact_rings(m: &mut RoundedModel) -> Result<(), FabError> {
     Ok(())
 }
 pub(crate) fn volume(m: &RoundedModel) -> Result<f64, FabError> {
+    if let [sector] = m.torus_sectors.as_slice() {
+        return Ok(torus_sector::volume(sector));
+    }
     if let Some(f) = &m.smooth_revolution {
         return smooth_revolution::volume(f);
     }

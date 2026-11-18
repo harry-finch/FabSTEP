@@ -5,7 +5,7 @@
 ## Version et validation courantes
 
 - `artifacts/release/1.0.0/FabSTEP.app` reste le paquet autonome signé ad hoc, accepté sur un autre Mac et dans Fusion le 9 novembre (V-1115). Pas de signature Developer ID ni notarisation revendiquée.
-- `artifacts/FabSTEP.app` est le build local de développement, dépendant du SDK installé. Dernière qualification **V-1206** : **579 tests workspace, 50 bureau, huit worker, 115 ciblés large-stl, un transfert réel, 234 UI, douze Python et quatre SDK réussis**. Formatage, Clippy strict, Svelte et builds passent ; deux exécutables du paquet vérifiés par SHA-256.
+- `artifacts/FabSTEP.app` est le build local de développement, dépendant du SDK installé. Dernière qualification **V-1208** : **588 tests workspace, 50 bureau, huit worker, 121 ciblés large-stl, un transfert réel, 235 UI, douze Python et quatre SDK réussis**. Formatage, Clippy strict, Svelte et builds passent ; deux exécutables du paquet vérifiés par SHA-256.
 - Seize tests opt-in workspace restent ignorés par la suite ordinaire. Les essais graphiques/Fusion des extensions restent ouverts dans FabBoard ; aucun succès automatique ne vaut acceptation utilisateur. Le pilotage du dialogue d’ouverture avait été bloqué, mais l’utilisateur a confirmé l’ouverture manuelle.
 
 ## Capacités développées
@@ -23,19 +23,21 @@ Les familles mécaniques qualifiées comprennent extrusions, cylindres et cônes
 
 - **R-083 / F1** : deux trous traversants centrés orthogonaux, quatre anneaux, six plans et trois parois cylindriques ; grand rayon au moins double du petit avec marge résolue. Partition source, courbes communes réimportées, volume, provenance et deux corps séparés contrôlés. Correction locale couplée et DXF non conique refusés.
 
-**R-084 / C2b** ajoute une révolution complète à profil cubique positif et deux disques source. Auto/Surfaces, profils bombés, étranglés et à inflexion, placements, miroir, fidélité et provenance contrôlés. Une tessellation paramétrique du domaine natif certifié corrige les triangles trop éloignés du mailleur générique sur ces profils. Les splines multisegments, pôles et raccords à d’autres familles restent hors domaine.
+- **R-084 / C2b** ajoute une révolution complète à profil cubique positif et deux disques source. Auto/Surfaces, profils bombés, étranglés et à inflexion, placements, miroir, fidélité et provenance contrôlés. Une tessellation paramétrique du domaine natif certifié corrige les triangles trop éloignés du mailleur générique sur ces profils. Les splines multisegments, pôles et raccords à d’autres familles restent hors domaine.
 
-Ces lots sont à tester dans FabBoard. Les détails de portée et de preuve sont dans V-1201/V-1203/V-1204/V-1205/V-1206. Les compteurs de la v1 ne sont pas confondus avec ces extensions.
+- **R-085** : Auto et Surfaces reconstruisent le congé extérieur d’un secteur de couronne fermé par deux plans radiaux. Famille Tore, sept faces. Essais A-084/A-085. Le volet Flansch reste en cours.
+
+Ces lots sont à tester dans FabBoard. Les détails de portée et de preuve sont dans V-1201/V-1203/V-1204/V-1205/V-1206/V-1208. Les compteurs de la v1 ne sont pas confondus avec ces extensions.
 
 ## Limites et fichier Flansch
 
 Import ordinaire : 32 corps, 64 Mio et 100 000 triangles après placement. Le mode gros STL accepté utilise un helper séparé `large-stl`, source jusqu’à 600 000 triangles et 1 800 000 sommets, annulation, surveillance RSS/empreinte physique à 4 Gio et délai de 30 minutes. Les plafonds résultat/tessellation et 3MF restent inchangés ; le bureau n’active jamais cette feature (ADR-0034).
 
-Le build V-1206 reproduit le refus de Flansch à **231 608 faces**, dont 231 584 plans (V-1207). Aucun STEP produit. Deux bandes de la bride expliquent 150 441 de ces faces par onze supports toriques candidats. Dans une troisième bande, 1 230 triangles dépassent le budget de 0,05 mm dès le barycentre. Les mesures et le rejeu de R-080 figurent dans [VALIDATION](docs/VALIDATION.md).
+Le helper R-085 reproduit le refus de Flansch à **231 608 faces**. En laboratoire, onze secteurs ont une partition source mesurée. La ceinture inférieure réelle (90 011 triangles) est reconstruite et réimportée en douze faces. Elle possède deux contours libres. Le résultat du document complet reste indisponible. Voir V-1208 dans [VALIDATION](docs/VALIDATION.md).
 
 ## Reprise après cette session
 
-Après la reprise autorisée, **R-084 / C2b est développé et qualifié automatiquement sous V-1206**, avec ADR-0039 approuvé. Aucun autre jalon n’est lancé à cette clôture ; les essais graphiques et Fusion restent ouverts dans A-081/A-082. La reprise ultérieure ne nécessite pas l’historique de conversation : lire les consignes et ce document, les réponses de `fabboard action list`, puis les éléments ci-dessous. Les accords A-045 (F) et A-068 (D/G) sont acquis ; ils ne valent pas acceptation des essais manuels.
+Le secteur annulaire de R-085 est intégré sous ADR-0040. L’assemblage local du pourtour de Flansch reste le travail actif. La reprise ultérieure ne nécessite pas l’historique de conversation : lire les consignes et ce document, les réponses de `fabboard action list`, puis les éléments ci-dessous. Les accords A-045 (F) et A-068 (D/G) sont acquis ; ils ne valent pas acceptation des essais manuels.
 
 | Chantier | Déjà développé | Travail restant avant généralisation |
 | --- | --- | --- |
@@ -48,6 +50,6 @@ Après la reprise autorisée, **R-084 / C2b est développé et qualifié automat
 
 Les parents C2/D/E/F/G sont **en cours** dans FabBoard : des sous-domaines sont développés, pas la généralisation entière. Les essais utilisateur restent dans leurs actions existantes, sans les dupliquer ni les marquer acceptés.
 
-**Reprise Flansch — R-085.** Construire un corpus indépendant des secteurs toriques du pourtour (rayon 0,5 mm), vérifier leurs limites communes et borner l’écart sur toute la paroi. L’estimation conditionnelle de 81 178 faces justifie cet essai. La validation native dense et le budget de tessellation restent à mesurer sur le fichier entier.
+**Reprise Flansch — R-085.** Partir des deux boucles de la ceinture inférieure qualifiée dans V-1208. Côté plan, partager le contour extérieur avec la ceinture et les cinq contours intérieurs avec les cinq cônes source identifiés. Côté flancs, quatre parois rejoignent les secteurs du haut, trois se prolongent jusqu’à X≈10 mm. Qualifier leurs autres bords et préparer un assemblage local qui conserve la partition du corps entier. Rejouer le helper pour mesurer les premières limites de résultat et de validation native réellement atteintes.
 
-Les commandes de validation/build sont dans README/AGENTS et `scripts/check.sh` / `scripts/build-macos-dev.sh`. Les preuves F1/C2b, les défauts corrigés et les limites sont consignés dans V-1205/V-1206 et ADR-0038/0039. Les journaux locaux sous `artifacts/f-next/` et `artifacts/c2-next/` sont ignorés par Git ; les tests, générateurs et corpus nécessaires à leur reproduction sont versionnés. Ne pas considérer ces journaux locaux comme une dépendance de reprise sur un autre poste.
+Les commandes de validation/build sont dans README/AGENTS et `scripts/check.sh` / `scripts/build-macos-dev.sh`. Les preuves F1/C2b/R-085 sont consignées dans V-1205/V-1206/V-1208 et ADR-0038/0039/0040. Les journaux locaux sous `artifacts/f-next/`, `artifacts/c2-next/` et `artifacts/r085-*/` sont ignorés par Git ; les tests, générateurs et corpus nécessaires à leur reproduction sont versionnés. Ne pas considérer ces journaux locaux comme une dépendance de reprise sur un autre poste.

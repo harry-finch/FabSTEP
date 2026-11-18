@@ -383,6 +383,13 @@ unsafe extern "C" {
         error: *mut c_char,
         error_capacity: usize,
     ) -> i32;
+    fn fabstep_build_torus_sector_step(
+        domain: *const torus_sector::NativeTorusSector,
+        tokens: *const usize,
+        output: *mut NativeStep,
+        error: *mut c_char,
+        capacity: usize,
+    ) -> i32;
     fn fabstep_build_smooth_revolution_step(
         domain: *const NativeSmoothRevolution,
         caps: *const usize,
@@ -1297,6 +1304,7 @@ struct SurfaceTokens<'a> {
     linear_blends: &'a [usize],
     cross_drill: &'a [usize],
     smooth_revolution: &'a [usize],
+    torus_sectors: &'a [usize],
 }
 
 /// Tracks construction identities for all complete rounded surface families.
@@ -1472,19 +1480,32 @@ pub fn build_rounded_step_with_smooth_revolution_provenance(
     cross_drill_tokens: &[usize],
     smooth_revolution_tokens: &[usize],
 ) -> Result<ValidatedStep, FabError> {
-    let arrays = [
-        plane_tokens,
-        cylinder_tokens,
-        partial_cylinder_tokens,
-        cone_tokens,
-        sphere_tokens,
-        torus_tokens,
-        partial_cone_tokens,
-        octant_tokens,
-        linear_blend_tokens,
-        cross_drill_tokens,
-        smooth_revolution_tokens,
-    ];
+    build_rounded_step_with_token_groups(
+        model,
+        [
+            plane_tokens,
+            cylinder_tokens,
+            partial_cylinder_tokens,
+            cone_tokens,
+            sphere_tokens,
+            torus_tokens,
+            partial_cone_tokens,
+            octant_tokens,
+            linear_blend_tokens,
+            cross_drill_tokens,
+            smooth_revolution_tokens,
+            &[],
+        ],
+    )
+}
+
+/// Groups follow the source owner family order; the last group labels torus sectors.
+pub fn build_rounded_step_with_token_groups(
+    model: &RoundedModel,
+    arrays: [&[usize]; 12],
+) -> Result<ValidatedStep, FabError> {
+    let [plane_tokens, cylinder_tokens, partial_cylinder_tokens, cone_tokens, sphere_tokens, torus_tokens, partial_cone_tokens, octant_tokens, linear_blend_tokens, cross_drill_tokens, smooth_revolution_tokens, sector_tokens] =
+        arrays;
     let counts = [
         model.revolved.mixed.planes.len(),
         model.revolved.mixed.cylinders.len(),
@@ -1497,6 +1518,7 @@ pub fn build_rounded_step_with_smooth_revolution_provenance(
         usize::from(model.linear_blend.is_some()),
         if model.cross_drill.is_some() { 3 } else { 0 },
         usize::from(model.smooth_revolution.is_some()),
+        model.torus_sectors.len(),
     ];
     let invalid = || {
         FabError::new(
@@ -1532,14 +1554,20 @@ pub fn build_rounded_step_with_smooth_revolution_provenance(
             linear_blends: linear_blend_tokens,
             cross_drill: cross_drill_tokens,
             smooth_revolution: smooth_revolution_tokens,
+            torus_sectors: sector_tokens,
         }),
     )
 }
+
+mod torus_sector;
 
 fn build_rounded_step_impl(
     model: &RoundedModel,
     tokens: Option<SurfaceTokens<'_>>,
 ) -> Result<ValidatedStep, FabError> {
+    if !model.torus_sectors.is_empty() {
+        return torus_sector::build(model, tokens);
+    }
     if let Some(f) = &model.smooth_revolution {
         return build_smooth_revolution(model, f, tokens);
     }
@@ -5140,6 +5168,7 @@ mod tests {
         revolved.mixed.rings[1].center[2] = height;
         RoundedModel {
             smooth_revolution: None,
+            torus_sectors: vec![],
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -5162,6 +5191,7 @@ mod tests {
     fn complete_sphere_model(center: [f64; 3], radius_mm: f64) -> RoundedModel {
         RoundedModel {
             smooth_revolution: None,
+            torus_sectors: vec![],
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -5528,6 +5558,7 @@ mod tests {
     fn rounded_provenance_tracks_all_surface_families_and_partial_cylinders() {
         let partial = RoundedModel {
             smooth_revolution: None,
+            torus_sectors: vec![],
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -5622,6 +5653,7 @@ mod tests {
         }
         let partial = RoundedModel {
             smooth_revolution: None,
+            torus_sectors: vec![],
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -5684,6 +5716,7 @@ mod tests {
         });
         let mut model = RoundedModel {
             smooth_revolution: None,
+            torus_sectors: vec![],
             revolved,
             spheres: vec![],
             cross_drill: None,
@@ -5792,6 +5825,7 @@ mod tests {
         });
         RoundedModel {
             smooth_revolution: None,
+            torus_sectors: vec![],
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -6519,6 +6553,7 @@ mod tests {
         ];
         RoundedModel {
             smooth_revolution: None,
+            torus_sectors: vec![],
             revolved: RevolvedModel {
                 mixed: MixedModel {
                     elliptic_arcs: vec![],
@@ -6622,6 +6657,7 @@ mod tests {
         }
         RoundedModel {
             smooth_revolution: None,
+            torus_sectors: vec![],
             revolved: RevolvedModel {
                 mixed: MixedModel {
                     elliptic_arcs: vec![],
@@ -6720,6 +6756,7 @@ mod tests {
         let q = (1. + 2. * slope * slope).sqrt();
         RoundedModel {
             smooth_revolution: None,
+            torus_sectors: vec![],
             revolved: RevolvedModel {
                 mixed: MixedModel {
                     vertices,

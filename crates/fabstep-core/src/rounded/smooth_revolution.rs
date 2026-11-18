@@ -433,7 +433,7 @@ pub(super) fn candidate(
         triangle_faces:owners,
         model:RoundedModel {
             revolved:RevolvedModel{mixed:MixedModel{vertices:a.mesh.vertices.clone(),rings,planes,cylinders:vec![],arcs:vec![],elliptic_arcs:vec![],partial_cylinders:vec![]},cones:vec![]},
-            spheres:vec![],tori:vec![],partial_cones:vec![],octants:vec![],linear_blend:None,cross_drill:None,smooth_revolution:Some(Box::new(f)),
+            spheres:vec![],tori:vec![],partial_cones:vec![],octants:vec![],linear_blend:None,cross_drill:None,torus_sectors: vec![], smooth_revolution:Some(Box::new(f)),
         },
         report:RecognitionReport {
             cylinders:0,cones:0,spheres:0,tori:0,toroidal_fillets:0,revolutions:1,

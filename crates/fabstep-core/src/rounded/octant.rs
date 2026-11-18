@@ -614,6 +614,7 @@ pub(super) fn candidate(
         spheres: vec![],
         tori: vec![],
         partial_cones: vec![],
+        torus_sectors: vec![],
         smooth_revolution: None,
         cross_drill: None,
         linear_blend: None,
