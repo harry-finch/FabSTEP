@@ -1,12 +1,40 @@
 ---
-id: "R-050"
+id: R-050
 titre: "I2 — élargir les familles guidées"
 resume: "Après Plan (R-056), ajouter le raccord torique guidé puis étudier les sphères."
-statut: "idee"
-jalon: "atelier"
-cree: "2026-11-13"
-maj: "2026-11-15"
+statut: a-tester
+jalon: atelier
+cree: 2026-11-13
+maj: 2026-11-18
+livree:
 ---
+## But
+
+Choisir une famille sur des faces STEP pour corriger la région source et contrôler la pièce reconstruite.
+
+## Inclus
+
+Plan, cylindre, cône, tore avec portée et sphère vérifiés dans leurs domaines. Pour Sphère, sélectionner une face d’une sphère complète, d’une calotte ou d’une zone sphérique terminée sur des plans. Le bouton Essayer relance la validation du document et de sa provenance. Le rapport conserve les triangles réellement reconstruits.
+
+## Hors périmètre
+
+Sélection traversant plusieurs familles, voisin courbe dont il faudrait modifier le raccord, octant d’un congé à trois branches et surface libre.
+
+## Dépendances
+
+R-056 et R-057 pour la préparation, les indications et leur recalcul. V-1230 pour la qualification de la sphère.
+
+## Critères d'acceptation
+
+- Sur les documents Plans et Auto, l’essai conserve les limites source et les propriétaires de triangles.
+- L’indication peut être recalculée puis retirée.
+- Un cylindre ou une sélection mixte donne un refus de famille.
+
+## Vérifications de l'utilisateur
+
+- Ouvrir le témoin de demi-sphère, sélectionner une face du dôme dans le STEP, choisir Sphère et utiliser Essayer. Vérifier le dôme, le disque et la possibilité de retirer l’indication.
+
+## Historique de la spécification
 
 **Note utilisateur du 10 novembre — choix explicite de la forme à reconnaître.** Prévoir la sélection d’un groupe de facettes du STEP, puis une action contextuelle permettant d’indiquer la famille géométrique à rechercher pour corriger cette zone : cylindre, cône, sphère ou autre famille effectivement prise en charge. Cette extension du lot I2 complète le bouton actuel « Essayer un cylindre » ; I2c ajoute les troncs de cône complets entre deux contours plans source. Les autres familles restent à développer. L’hypothèse doit être vérifiée sur la zone et ses raccords, avec aperçu du résultat, écart tracé et refus explicite si les preuves sont insuffisantes. La sélection ne force jamais une primitive. Ce chantier reprend après DXF2 avec I2c.
 

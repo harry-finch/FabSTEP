@@ -29,6 +29,8 @@ Auto et Surfaces reconnaissent aussi le congé torique extérieur d’un secteur
 
 ### Reconstruire et corriger dans le build de développement
 
+Pour corriger un dôme, cliquer sur une de ses faces STEP, choisir **Sphère**, puis **Essayer**. FabSTEP recherche la surface jusqu’à ses limites planes et indique les triangles concernés. Cette action couvre également une sphère entière.
+
 **Ouvrir STL / 3MF** affiche le maillage. **Reconstruire le STEP**, dans l’inspecteur, lance **Automatique** : le moteur recherche les familles compatibles, conserve les régions prouvées et garde les zones incertaines en facettes. Il ne modifie pas les tolérances en silence. Le document entier doit passer les contrôles source, solide réimporté, dimensions, volume et fidélité avant export. Un défaut du maillage, des corps en contact ou une limite de calcul dépassée restent bloquants.
 
 La vue passe au **Résultat STEP** après conversion. **Double-cliquer sur une face** sélectionne sa paroi prouvée, sans propager la sélection à tout le corps ; **Maj-clic** ajoute ou retire une face. En mode sélection STEP, **maintenir le clic gauche et glisser** ajoute les faces visibles survolées à la sélection ; repasser dessus ne les retire pas. Le bouton droit tourne la pièce, le bouton du milieu déplace la vue et la molette zoome. Sans paroi prouvée, la sélection reste limitée à une face ou un refus est expliqué. Les commandes de voisinage Agrandir/Réduire sont dans Avancé de la sélection. Le calcul de sélection est une lecture : il ne retire pas un export valide. Une demande active et la dernière demande en attente bornent les double-clics successifs.

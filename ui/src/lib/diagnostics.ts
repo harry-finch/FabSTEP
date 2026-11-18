@@ -20,6 +20,7 @@ const routineInfo = new Set([
   'auto.regions_faceted',
   'guidance.auto_applied',
   'guidance.torus_applied',
+  'guidance.sphere_applied',
   'validation.native_required',
   'recognition.rounded_box_coverage',
   'recognition.rounded_coverage',

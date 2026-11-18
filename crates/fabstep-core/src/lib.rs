@@ -644,6 +644,7 @@ pub use mixed::{
 #[serde(rename_all = "snake_case")]
 pub enum GuidanceFamily {
     Auto,
+    Sphere,
     Torus,
     Plane,
     Cylinder,

@@ -2425,3 +2425,7 @@ Reproduire avec `scripts/qualify-height-patch-freecad.py <sortie> --cli <chemin-
 ## V-1229 — Rebord en saillie et deux cavités dans un bac
 
 Le dessin indépendant possède un rebord de 2 mm, deux fonds à 2 et 4 mm et un perçage traversant le fond gauche. Les deux maillages de 1 256 et 2 052 triangles donnent vingt et un plans et dix-sept cylindres. FreeCAD retrouve les épaisseurs, la matière, le vide et les arêtes des dix-sept cylindres. Les volumes de 13 755,66055 et 13 755,66056 mm³ sont cohérents avec les 13 755,66058 mm³ du dessin. La suite `rimmed_tray` vérifie la provenance et le refus d’un maillage troué. Reproduire avec `scripts/qualify-rimmed-tray-freecad.py`.
+
+## V-1230 — Indication sphérique depuis une face STEP
+
+La suite `guided_sphere` part des faces du STEP réimporté. Elle vérifie une demi-sphère en mode Plans, une zone à deux bords et une sphère complète en Auto, l’égalité des propriétaires source avec la région reconstruite, le recalcul et le retrait. La calotte et une face du disque sélectionnées ensemble sont refusées, de même qu’une paroi cylindrique. Le raccordement à un voisin courbe reste hors du périmètre du bouton Sphère.

@@ -351,6 +351,7 @@ impl DocumentStep {
                 GuidanceFamily::Plane => "plane",
                 GuidanceFamily::Auto => "auto",
                 GuidanceFamily::Torus => "torus",
+                GuidanceFamily::Sphere => "sphere",
             },
             selected_face_ids,
             preview_body_id: first.preview_body_id.clone(),
@@ -1014,12 +1015,12 @@ fn convert_analyzed_document(
             let tokens: Vec<_> = (first..first+6).collect();
             convert_analysis_with_recognized(body.analysis, options, Some(&tokens),
                 Some(Recognized::HeightPatch(r)), control,body_index,source_proofs.as_deref_mut())
-        } else if options.reconstruction == ReconstructionMode::Auto || hints.iter().any(|hint| matches!(hint.family, "auto" | "torus")) {
+        } else if options.reconstruction == ReconstructionMode::Auto || hints.iter().any(|hint| matches!(hint.family, "auto" | "torus" | "sphere")) {
             let requests = hints.iter().map(|hint| {
                 let family = match hint.family {
                     "auto" => GuidanceFamily::Auto, "plane" => GuidanceFamily::Plane,
                     "cylinder" => GuidanceFamily::Cylinder, "cone" => GuidanceFamily::Cone,
-                    "torus" => GuidanceFamily::Torus,
+                    "torus" => GuidanceFamily::Torus, "sphere" => GuidanceFamily::Sphere,
                     _ => return Err(FabError::new("guidance.unsupported_family", "Famille guidée inconnue.")),
                 };
                 let selected = hint.selected_source_triangle_ids.iter().map(|triangle| source.analysis_to_source_triangles.binary_search(triangle).map_err(|_| FabError::new("guidance.invalid_selection", "Triangle absent de la composante."))).collect::<Result<Vec<_>,_>>()?;
@@ -1164,6 +1165,7 @@ fn convert_analyzed_document(
         }
         for (family, code, message) in [
             ("auto", "guidance.auto_applied", "La zone indiquée a été reconnue ; les autres régions prouvées sont conservées."),
+            ("sphere", "guidance.sphere_applied", "La surface sphérique indiquée et ses limites ont été vérifiées."),
             ("torus", "guidance.torus_applied", "Le raccord torique indiqué et sa portée cylindrique ont été prouvés."),
             ("plane", "guidance.plane_applied", "Les zones indiquées sont regroupées en plans vérifiés, sans déplacement des sommets source."),
             ("cylinder", "guidance.cylinder_applied", "Les parois cylindriques indiquées et leurs raccords ont été prouvés ; les régions indépendantes sont conservées."),
