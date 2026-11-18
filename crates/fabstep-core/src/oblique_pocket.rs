@@ -291,15 +291,20 @@ fn plane_loops(
                     .enumerate()
                     .find(|(_, g)| other == g.id && i == g.circle_plane)
                 {
-                    segments.push(MixedSegment::Arc {
-                        arc: index,
-                        reversed: ids[0] != geom.circle.vertices[0],
+                    let reversed = ids[0] != geom.circle.vertices[0];
+                    segments.push(if geom.near_ellipse.is_some() {
+                        MixedSegment::EllipticArc { arc: 0, reversed }
+                    } else {
+                        MixedSegment::Arc {
+                            arc: index,
+                            reversed,
+                        }
                     });
                 } else if let Some(geom) =
                     geoms.iter().find(|g| other == g.id && i == g.ellipse_plane)
                 {
                     segments.push(MixedSegment::EllipticArc {
-                        arc: 0,
+                        arc: usize::from(geom.near_ellipse.is_some()),
                         reversed: ids[0] != geom.ellipse.vertices[0],
                     });
                 } else {
@@ -415,6 +420,7 @@ fn candidate(
     o: &Options,
     adjacency: &[Vec<usize>],
     work: &mut Work,
+    automatic: bool,
 ) -> Result<RoundedRecognition, FabError> {
     let mesh = &a.mesh;
     let mut part = partition(mesh, adjacency, o.plane_tolerance_mm.min(1e-5), work)?;
@@ -462,6 +468,9 @@ fn candidate(
     let trim = points.max_corner.max(points.line_residual) + 2. * plane_error + rounding + 1e-5;
     let bound = o.weld_tolerance_mm + residual + chord + trim;
     if bound > o.max_deviation_mm {
+        if automatic && geoms[0].near_ellipse.is_some() {
+            return Err(unsupported());
+        }
         return Err(FabError::new(
             "recognition.deviation_exceeded",
             "La paroi cylindrique et son contour elliptique dépassent la borne d’écart.",
@@ -469,7 +478,14 @@ fn candidate(
     }
     let cylinders = geoms.len();
     let adjacent = cylinders == 2;
-    let (fitted, adjusted, description) = if adjacent {
+    let double_stop = geoms[0].near_ellipse.is_some();
+    let (fitted, adjusted, description) = if double_stop {
+        (
+            "recognition.double_oblique_pocket_fitted",
+            "recognition.oblique_pocket_adjusted",
+            "Le congé cylindrique est délimité par deux butées elliptiques mesurées.",
+        )
+    } else if adjacent {
         ("recognition.adjacent_pocket_fitted","recognition.adjacent_pocket_adjusted","Les deux congés adjacents sont interprétés comme des quarts de cylindre à arête elliptique commune.")
     } else {
         ("recognition.oblique_pocket_fitted","recognition.oblique_pocket_adjusted","Le congé de fond de poche est interprété comme un quart de cylindre arrêté par un plan oblique.")
@@ -486,16 +502,23 @@ fn candidate(
             message:"Les sommets de jonction ont été ajustés aux supports mesurés dans la borne d’écart.".into(),
         });
     }
+    let mut ellipses: Vec<_> = geoms[0].near_ellipse.clone().into_iter().collect();
+    ellipses.push(geoms[0].ellipse.clone());
     let mixed = MixedModel {
         vertices: points.vertices,
         planes,
         rings: vec![],
         cylinders: vec![],
-        elliptic_arcs: vec![geoms[0].ellipse.clone()],
-        arcs: geoms.into_iter().map(|g| g.circle).collect(),
+        elliptic_arcs: ellipses,
+        arcs: geoms
+            .into_iter()
+            .filter(|g| g.near_ellipse.is_none())
+            .map(|g| g.circle)
+            .collect(),
         partial_cylinders: (0..cylinders)
             .map(|index| MixedPartialCylinder {
-                arcs: [index, 0],
+                arcs: [index, usize::from(double_stop)],
+                elliptic_start: double_stop,
                 inner: true,
                 elliptic_end: true,
             })
@@ -589,11 +612,12 @@ pub(crate) fn recognize(
     o: &Options,
     adjacency: &[Vec<usize>],
     work: &mut Work,
+    automatic: bool,
 ) -> Result<Option<RoundedRecognition>, FabError> {
     if !(24..=4096).contains(&a.mesh.triangles.len()) {
         return Ok(None);
     }
-    let mut result = candidate(a, o, adjacency, work);
+    let mut result = candidate(a, o, adjacency, work, automatic);
     let discovery_tol = o.cylinder_fit_tolerance_mm.min(1e-5);
     if result.as_ref().is_err_and(inconclusive)
         && o.plane_tolerance_mm < discovery_tol
@@ -609,4 +633,34 @@ pub(crate) fn recognize(
         Err(error) if inconclusive(&error) => Ok(None),
         Err(error) => Err(error),
     }
+}
+
+/// Outward radial flux on the strip between two inclined planes. Integration
+/// in z contributes their height difference h + c*cos(t) + s*sin(t).
+pub(crate) fn double_stop_flux(
+    model: &MixedModel,
+    wall: &MixedPartialCylinder,
+    reference: V,
+) -> f64 {
+    let [lo, hi] = wall.arcs.map(|i| &model.elliptic_arcs[i]);
+    let separation = sub(hi.center, lo.center);
+    let h = norm(separation);
+    let axis = scale(separation, 1. / h);
+    let first = sub(model.vertices[lo.vertices[0]], lo.center);
+    let radial = sub(first, scale(axis, dot(first, axis)));
+    let x = scale(radial, 1. / norm(radial));
+    let y = cross(axis, x);
+    let r = lo.minor_mm;
+    let gradient = sub(
+        scale(lo.axis, r / dot(lo.axis, axis)),
+        scale(hi.axis, r / dot(hi.axis, axis)),
+    );
+    let (c, s) = (dot(gradient, x), dot(gradient, y));
+    // Quarter turn [0, pi/2]; both squared trigonometric integrals equal pi/4.
+    let half_sweep = FRAC_PI_2 / 2.;
+    let offset = sub(lo.center, reference);
+    let flux = r * (h * FRAC_PI_2 + c + s)
+        + dot(offset, x) * (h + c * half_sweep + s / 2.)
+        + dot(offset, y) * (h + c / 2. + s * half_sweep);
+    (if wall.inner { -1. } else { 1. }) * r * flux / 3.
 }

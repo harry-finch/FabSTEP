@@ -24,6 +24,7 @@ const fr = {
   engine: { toric_sector_endpoints_projected: "Les extrémités du secteur torique ont été ajustées. La borne d’écart inclut leur déplacement.",
     unequal_pocket_fitted: "Les deux congés de rayons différents partagent une arête courbe.",
     adjacent_pocket_fitted: "Les deux congés se rejoignent le long d’un arc d’ellipse.",
+    double_oblique_pocket_fitted: "Le congé de la poche rejoint les deux butées inclinées le long de deux arcs elliptiques.",
     oblique_pocket_fitted: "Le congé de la poche est reconstruit en quart de cylindre, avec un arc elliptique sur la paroi inclinée.",
     bored_prism_projection: "Les sommets de la plaque percée ont été ajustés aux faces reconstruites. Leur déplacement est inclus dans la borne d’écart.",
     oblique_pocket_adjusted: "Des sommets de la poche ont été ajustés aux parois reconstruites. Leur déplacement est inclus dans la borne d’écart.",

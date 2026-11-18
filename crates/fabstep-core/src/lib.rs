@@ -258,7 +258,10 @@ pub enum MixedSegment {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MixedPartialCylinder {
-    /// The near index addresses a circular arc. The far index addresses an
+    /// The near index addresses an ellipse for a cylinder trimmed by two oblique planes.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub elliptic_start: bool,
+    /// The far index addresses an
     /// elliptic arc when this flag is set, and a circular arc otherwise.
     /// Two adjacent fillets use the same elliptic index for their common edge.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]

@@ -452,7 +452,7 @@ fn recognize_policy_with_proofs(
             .any(|face| face.loops.len() == 2)
     {
         if let Some(pocket) =
-            crate::oblique_pocket::recognize(a, &segmentation.model, o, &adjacency, &mut work)?
+            crate::oblique_pocket::recognize(a, &segmentation.model, o, &adjacency, &mut work, automatic)?
         {
             if scope.is_some() {
                 return Err(FabError::new(

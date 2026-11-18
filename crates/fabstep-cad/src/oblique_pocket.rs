@@ -22,6 +22,21 @@ unsafe extern "C" {
         error: *mut c_char,
         capacity: usize,
     ) -> i32;
+    fn fabstep_build_double_oblique_pocket_step(
+        points: *const Point,
+        point_count: usize,
+        normals: *const Point,
+        plane_loops: *const usize,
+        loops: *const NativeMixedLoop,
+        segments: *const NativeMixedSegment,
+        circle: *const NativeMixedArc,
+        ellipse: *const NativeEllipse,
+        plane_tokens: *const usize,
+        wall_token: *const usize,
+        output: *mut NativeStep,
+        error: *mut c_char,
+        capacity: usize,
+    ) -> i32;
 }
 
 pub(super) fn invalid() -> FabError {
@@ -62,10 +77,29 @@ pub(super) fn check_curves(
     shared_by_cylinders: bool,
 ) -> Result<(), FabError> {
     let ids = [circle.vertices, ellipse.vertices].concat();
-    let (r, major) = (circle.radius_mm, ellipse.major_mm);
     if ids.iter().any(|&id| id >= vertices.len())
         || ids.iter().enumerate().any(|(i, id)| ids[..i].contains(id))
-        || !finite(&circle.center)
+    {
+        return Err(invalid());
+    }
+    check_section(
+        circle,
+        ellipse,
+        circle.vertices.map(|i| vertices[i]),
+        ellipse.vertices.map(|i| vertices[i]),
+        shared_by_cylinders,
+    )
+}
+
+fn check_section(
+    circle: &CircularArc,
+    ellipse: &EllipticArc,
+    low: [Point; 2],
+    high: [Point; 2],
+    shared_by_cylinders: bool,
+) -> Result<(), FabError> {
+    let (r, major) = (circle.radius_mm, ellipse.major_mm);
+    if !finite(&circle.center)
         || !finite(&ellipse.center)
         || !unit_direction(&circle.axis)
         || !unit_direction(&ellipse.axis)
@@ -107,7 +141,7 @@ pub(super) fn check_curves(
     {
         return Err(invalid());
     }
-    let start = sub(vertices[circle.vertices[0]], circle.center);
+    let start = sub(low[0], circle.center);
     let x = start.map(|v| v / r);
     if dot(start, z).abs() > GUARD || (norm(start) - r).abs() > GUARD {
         return Err(invalid());
@@ -130,8 +164,8 @@ pub(super) fn check_curves(
         }
     }
     for (i, t) in [0., circle.sweep_rad].into_iter().enumerate() {
-        let lo = vertices[circle.vertices[i]];
-        let hi = vertices[ellipse.vertices[i]];
+        let lo = low[i];
+        let hi = high[i];
         let near = offset(offset(circle.center, x, r * t.cos()), y, r * t.sin());
         let u = ellipse.start_rad + i as f64 * ellipse.sweep_rad;
         let far = offset(
@@ -185,12 +219,14 @@ pub(super) struct Stop {
     vertices: [usize; 2],
     normal: Point,
     area_adjustment: f64,
+    reversed: bool,
 }
 
 impl Stop {
     pub(super) fn circle(arc: usize, c: &CircularArc) -> Self {
         Self {
             arc,
+            reversed: false,
             ellipse: false,
             vertices: c.vertices,
             normal: c.axis,
@@ -201,6 +237,7 @@ impl Stop {
     fn ellipse(e: &EllipticArc) -> Self {
         Self {
             arc: 0,
+            reversed: true,
             ellipse: true,
             vertices: [e.vertices[1], e.vertices[0]],
             normal: e.axis.map(|v| -v),
@@ -278,21 +315,16 @@ impl Planes {
                             register_line(&mut edges, vertices, face)?;
                             (usize::MAX, vertices)
                         }
-                        MixedSegment::Arc {
-                            arc,
-                            reversed: false,
-                        }
-                        | MixedSegment::EllipticArc {
-                            arc,
-                            reversed: true,
-                        } => {
+                        MixedSegment::Arc { arc, reversed }
+                        | MixedSegment::EllipticArc { arc, reversed } => {
                             let elliptic = matches!(segment, MixedSegment::EllipticArc { .. });
                             let slot = curves
                                 .iter()
                                 .position(|curve| curve.arc == arc && curve.ellipse == elliptic)
                                 .ok_or_else(invalid)?;
                             let curve = &curves[slot];
-                            if stops[slot].replace(face).is_some()
+                            if reversed != curve.reversed
+                                || stops[slot].replace(face).is_some()
                                 || norm(sub(normal, curve.normal)) > 1e-7
                             {
                                 return Err(invalid());
@@ -300,7 +332,6 @@ impl Planes {
                             patch_area += dot(normal, curve.normal) * curve.area_adjustment;
                             (slot, curve.vertices)
                         }
-                        _ => return Err(invalid()),
                     };
                     let origin = *plane_origin.get_or_insert(points[vertices[0]]);
                     if dot(sub(points[vertices[0]], origin), normal).abs() > GUARD {
@@ -369,16 +400,12 @@ pub(super) fn build(
     model: &MixedModel,
     tokens: Option<SurfaceTokens<'_>>,
 ) -> Result<ValidatedStep, FabError> {
-    let ([wall], [circle], [ellipse]) = (
-        model.partial_cylinders.as_slice(),
-        model.arcs.as_slice(),
-        model.elliptic_arcs.as_slice(),
-    ) else {
+    let [wall] = model.partial_cylinders.as_slice() else {
         return Err(invalid());
     };
     if !wall.elliptic_end
         || !wall.inner
-        || wall.arcs != [0, 0]
+        || wall.arcs != [0, usize::from(wall.elliptic_start)]
         || model.planes.len() != 11
         || !model.rings.is_empty()
         || !model.cylinders.is_empty()
@@ -387,16 +414,48 @@ pub(super) fn build(
     {
         return Err(invalid());
     }
-    check_curves(&model.vertices, circle, ellipse, false)?;
-    let planes = Planes::encode(
-        model,
-        [Stop::circle(0, circle), Stop::ellipse(ellipse)],
-        &wall_rails(&model.vertices, circle, ellipse.vertices),
-    )?;
-    let c = native_circle(circle);
-    let e = native_ellipse(ellipse);
+    let double_stop = wall.elliptic_start;
+    let (circle, curves) = match (
+        model.arcs.as_slice(),
+        model.elliptic_arcs.as_slice(),
+        double_stop,
+    ) {
+        ([circle], [ellipse], false) => {
+            check_curves(&model.vertices, circle, ellipse, false)?;
+            (
+                circle.clone(),
+                [Stop::circle(0, circle), Stop::ellipse(ellipse)],
+            )
+        }
+        ([], [low, high], true) => {
+            let frame = double_frame(&model.vertices, low, high)?;
+            let mut near = Stop::ellipse(low);
+            near.vertices = low.vertices;
+            near.normal = low.axis;
+            near.reversed = false;
+            let mut far = Stop::ellipse(high);
+            far.arc = 1;
+            (frame, [near, far])
+        }
+        _ => return Err(invalid()),
+    };
+    let far = model.elliptic_arcs.last().ok_or_else(invalid)?;
+    let mut rails = wall_rails(&model.vertices, &circle, far.vertices);
+    if double_stop {
+        for rail in &mut rails {
+            rail.inward = offset(rail.inward, circle.axis, -dot(rail.inward, circle.axis));
+        }
+    }
+    let planes = Planes::encode(model, curves, &rails)?;
+    let c = native_circle(&circle);
+    let ellipses: Vec<_> = model.elliptic_arcs.iter().map(native_ellipse).collect();
+    let build = if double_stop {
+        fabstep_build_double_oblique_pocket_step
+    } else {
+        fabstep_build_oblique_pocket_step
+    };
     native_step(|output, error, capacity| unsafe {
-        fabstep_build_oblique_pocket_step(
+        build(
             model.vertices.as_ptr(),
             model.vertices.len(),
             planes.normals.as_ptr(),
@@ -404,7 +463,7 @@ pub(super) fn build(
             planes.loops.as_ptr(),
             planes.segments.as_ptr(),
             &c,
-            &e,
+            ellipses.as_ptr(),
             tokens.map_or(std::ptr::null(), |t| t.planes.as_ptr()),
             tokens.map_or(std::ptr::null(), |t| t.partial.as_ptr()),
             output,
@@ -412,6 +471,68 @@ pub(super) fn build(
             capacity,
         )
     })
+}
+
+/// Validate the two independent sections on a common transverse frame.
+/// For each section use a reference circle just below its complete ellipse
+/// and reuse the existing endpoint, incidence, basis and angular checks.
+fn double_frame(
+    points: &[Point],
+    low: &EllipticArc,
+    high: &EllipticArc,
+) -> Result<CircularArc, FabError> {
+    let ids = [low.vertices, high.vertices].concat();
+    if ids
+        .iter()
+        .enumerate()
+        .any(|(i, id)| *id >= points.len() || ids[..i].contains(id))
+    {
+        return Err(invalid());
+    }
+    let delta = sub(high.center, low.center);
+    let distance = norm(delta);
+    if !distance.is_finite() || distance <= GUARD {
+        return Err(invalid());
+    }
+    let axis = delta.map(|v| v / distance);
+    let r = low.minor_mm;
+    let ray = sub(points[low.vertices[0]], low.center);
+    let x = offset(ray, axis, -dot(ray, axis));
+    let length = norm(x);
+    if !length.is_finite() || (length - r).abs() > GUARD || length <= GUARD {
+        return Err(invalid());
+    }
+    let x = x.map(|v| v / length);
+    let y = cross(axis, x);
+    let frame = CircularArc {
+        axis,
+        center: low.center,
+        radius_mm: r,
+        sweep_rad: FRAC_PI_2,
+        vertices: low.vertices,
+    };
+    for e in [low, high] {
+        let center = offset(e.center, axis, -2. * e.major_mm - 1.);
+        let base = CircularArc {
+            center,
+            ..frame.clone()
+        };
+        check_section(
+            &base,
+            e,
+            [offset(center, x, r), offset(center, y, r)],
+            e.vertices.map(|i| points[i]),
+            false,
+        )?;
+    }
+    let grad = sub(
+        low.axis.map(|v| v * r / dot(low.axis, axis)),
+        high.axis.map(|v| v * r / dot(high.axis, axis)),
+    );
+    if distance <= dot(grad, x).hypot(dot(grad, y)) + GUARD {
+        return Err(invalid());
+    }
+    Ok(frame)
 }
 
 pub(super) fn native_circle(circle: &CircularArc) -> NativeMixedArc {

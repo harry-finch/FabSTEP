@@ -7,6 +7,7 @@ const technicalRemarks = new Set([
   'recognition.circular_intent_assumed',
   'recognition.conic_intent_assumed',
   'recognition.rounded_intent_assumed',
+  'recognition.double_oblique_pocket_fitted',
   'recognition.oblique_pocket_fitted',
   'recognition.adjacent_pocket_fitted',
   'recognition.unequal_pocket_fitted',

@@ -102,6 +102,7 @@ fn pocket() -> MixedModel {
         }],
         partial_cylinders: vec![MixedPartialCylinder {
             arcs: [0, 0],
+            elliptic_start: false,
             elliptic_end: true,
             inner: true,
         }],
@@ -188,6 +189,42 @@ fn cylinder_and_neighbors_must_agree_before_transfer() {
             build_mixed_step(&model).unwrap_err().code,
             "cad.invalid_model",
             "mutation {i}"
+        );
+    }
+}
+
+#[test]
+fn double_oblique_native_contract_rejects_malformed_and_nontransverse_stops() {
+    let o = fabstep_core::Options {
+        reconstruction: fabstep_core::ReconstructionMode::Auto,
+        ..Default::default()
+    };
+    let a = fabstep_core::analyze_stl(
+        include_bytes!("../../../fixtures/double_oblique_pocket/opposed.stl"),
+        &o,
+    )
+    .unwrap();
+    let model = fabstep_core::recognize_automatic(&a, &o)
+        .unwrap()
+        .model
+        .revolved
+        .mixed;
+    assert!(model.partial_cylinders[0].elliptic_start);
+    for mutate in [
+        (|m: &mut MixedModel| m.partial_cylinders[0].elliptic_end = false) as fn(&mut MixedModel),
+        |m| m.partial_cylinders[0].elliptic_start = false,
+        |m| m.elliptic_arcs[0].axis = [1., 0., 0.],
+        |m| m.elliptic_arcs[1].center = m.elliptic_arcs[0].center,
+        |m| m.elliptic_arcs[0].major_mm += 0.01,
+        |m| m.elliptic_arcs[1].start_rad += 0.01,
+        |m| m.elliptic_arcs[1].vertices.reverse(),
+        |m| m.partial_cylinders[0].arcs = [1, 0],
+    ] {
+        let mut bad = model.clone();
+        mutate(&mut bad);
+        assert_eq!(
+            build_mixed_step(&bad).unwrap_err().code,
+            "cad.invalid_model"
         );
     }
 }

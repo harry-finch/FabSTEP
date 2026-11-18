@@ -99,6 +99,7 @@ fn pocket() -> MixedModel {
         partial_cylinders: (0..2)
             .map(|i| MixedPartialCylinder {
                 arcs: [i, 0],
+                elliptic_start: false,
                 elliptic_end: true,
                 inner: true,
             })

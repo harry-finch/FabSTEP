@@ -777,6 +777,7 @@ fn augment_policy(
         }
         model.arcs.extend(patch.arcs);
         model.partial_cylinders.push(MixedPartialCylinder {
+            elliptic_start: false,
             elliptic_end: false,
             arcs: [arc0, arc0 + 1],
             inner: patch.inner,
@@ -1560,6 +1561,9 @@ pub(crate) fn cylinder_flux(
     cylinder: &MixedPartialCylinder,
     reference: V,
 ) -> f64 {
+    if cylinder.elliptic_start {
+        return crate::oblique_pocket::double_stop_flux(model, cylinder, reference);
+    }
     let a = &model.arcs[cylinder.arcs[0]];
 
     let x = scale(

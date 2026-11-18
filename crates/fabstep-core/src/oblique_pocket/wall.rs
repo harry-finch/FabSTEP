@@ -6,6 +6,8 @@ pub(super) struct Geometry {
     pub ellipse_plane: usize,
     pub circle: CircularArc,
     pub ellipse: EllipticArc,
+    pub near_ellipse: Option<EllipticArc>,
+    near_slope: [f64; 2],
     rails: [usize; 2],
     x: V,
     y: V,
@@ -13,6 +15,9 @@ pub(super) struct Geometry {
     slope: [f64; 2],
 }
 impl Geometry {
+    fn low(&self, theta: f64) -> f64 {
+        self.near_slope[0] * theta.cos() + self.near_slope[1] * theta.sin()
+    }
     fn height(&self, theta: f64) -> f64 {
         self.h + self.slope[0] * theta.cos() + self.slope[1] * theta.sin()
     }
@@ -27,7 +32,7 @@ impl Geometry {
     pub fn corner(&self, id: usize) -> Option<V> {
         for (k, theta) in [0., FRAC_PI_2].into_iter().enumerate() {
             if self.circle.vertices[k] == id {
-                return Some(self.point(theta, 0.));
+                return Some(self.point(theta, self.low(theta)));
             }
             if self.ellipse.vertices[k] == id {
                 return Some(self.point(theta, self.height(theta)));
@@ -125,7 +130,11 @@ pub(super) fn fit_between(
     ))
     .ok_or_else(unsupported)?;
     let near = p.planes[circle_plane].support;
-    checked(dot(axis, near.normal).abs() > 1. - 1e-10)?;
+    let square_stop = dot(axis, near.normal).abs() > 1. - 1e-10;
+    checked(
+        square_stop
+            || (shared_radius.is_none() && (0.1..0.99999).contains(&dot(axis, near.normal).abs())),
+    )?;
     let near_chain = &p.cuts[&pair(circle_plane, wall)];
     let far_chain = &p.cuts[&pair(ellipse_plane, wall)];
     checked(near_chain.len() >= 7 && far_chain.len() >= 7)?;
@@ -137,11 +146,13 @@ pub(super) fn fit_between(
     }
     // Choose the order of the rails so that x × y points from the circle
     // to the ellipse. Both are inward normals of the cylindrical cavity.
-    checked(dot(near.normal, axis) > 1. - 1e-10 && dot(far.normal, axis) < -0.1)?;
+    checked(dot(near.normal, axis) > 0.1 && dot(far.normal, axis) < -0.1)?;
     let x = scale(p.planes[rails[0]].support.normal, -1.);
     let y = cross(axis, x);
     p.planes[rails[1]].support.normal = scale(y, -1.);
-    p.planes[circle_plane].support.normal = scale(axis, dot(axis, near.normal).signum());
+    if square_stop {
+        p.planes[circle_plane].support.normal = axis;
+    }
     let cap_ends = |cap: &[usize]| -> Result<[usize; 2], FabError> {
         let mut ids = [0; 2];
         for (k, &i) in rails.iter().enumerate() {
@@ -171,7 +182,17 @@ pub(super) fn fit_between(
         / 4.;
     let radius = shared_radius.unwrap_or(radius);
     checked(radius.is_finite() && radius > 8. * tol)?;
-    let center = add(base, scale(add(x, y), -radius));
+    let mut center = add(base, scale(add(x, y), -radius));
+    let near_slope = if square_stop {
+        [0., 0.]
+    } else {
+        let cosine = dot(near.normal, axis);
+        center = add(center, scale(axis, -near.distance(center) / cosine));
+        [
+            -radius * dot(near.normal, x) / cosine,
+            -radius * dot(near.normal, y) / cosine,
+        ]
+    };
     let normal = scale(far.normal, dot(far.normal, axis).signum());
     let cosine = dot(normal, axis);
     checked((0.1..0.99999).contains(&cosine))?;
@@ -187,7 +208,7 @@ pub(super) fn fit_between(
         checked(h + minimum_quarter_offset(slope) > tol)?;
     } else {
         // Keep the historical clearance of an isolated oblique stop.
-        checked(h > slope[0].hypot(slope[1]) + tol)?;
+        checked(h > (slope[0] - near_slope[0]).hypot(slope[1] - near_slope[1]) + tol)?;
     }
     let circle = CircularArc {
         center,
@@ -196,22 +217,31 @@ pub(super) fn fit_between(
         sweep_rad: FRAC_PI_2,
         vertices: low,
     };
-    let ellipse_center = add(center, scale(axis, h));
-    let major_direction = unit(sub(axis, scale(normal, cosine))).ok_or_else(unsupported)?;
-    let minor_direction = cross(normal, major_direction);
-    let first_radius = add(scale(x, radius), scale(axis, slope[0]));
-    let major_mm = radius / cosine;
-    let start_rad = (dot(first_radius, minor_direction) / radius)
-        .atan2(dot(first_radius, major_direction) / major_mm);
-    let ellipse = EllipticArc {
-        center: ellipse_center,
-        axis: normal,
-        major_direction,
-        major_mm,
-        minor_mm: radius,
-        start_rad,
-        sweep_rad: FRAC_PI_2,
-        vertices: high,
+    let section =
+        |origin: V, normal: V, slope: [f64; 2], vertices| -> Result<EllipticArc, FabError> {
+            let cosine = dot(normal, axis);
+            let major_direction = unit(sub(axis, scale(normal, cosine))).ok_or_else(unsupported)?;
+            let minor_direction = cross(normal, major_direction);
+            let first_radius = add(scale(x, radius), scale(axis, slope[0]));
+            let major_mm = radius / cosine;
+            let start_rad = (dot(first_radius, minor_direction) / radius)
+                .atan2(dot(first_radius, major_direction) / major_mm);
+            Ok(EllipticArc {
+                center: origin,
+                axis: normal,
+                major_direction,
+                major_mm,
+                minor_mm: radius,
+                start_rad,
+                sweep_rad: FRAC_PI_2,
+                vertices,
+            })
+        };
+    let ellipse = section(add(center, scale(axis, h)), normal, slope, high)?;
+    let near_ellipse = if square_stop {
+        None
+    } else {
+        Some(section(center, near.normal, near_slope, low)?)
     };
     Ok(Geometry {
         id: wall,
@@ -219,6 +249,8 @@ pub(super) fn fit_between(
         ellipse_plane,
         circle,
         ellipse,
+        near_ellipse,
+        near_slope,
         rails,
         x,
         y,
@@ -257,7 +289,7 @@ pub(super) fn prove(
             chart[id][0] = angle;
         }
     }
-    let mut stop_samples = Vec::new();
+    let mut stop_samples = [Vec::new(), Vec::new()];
     for (&cap, is_ellipse) in [&g.circle_plane, &g.ellipse_plane]
         .into_iter()
         .zip([false, true])
@@ -266,7 +298,11 @@ pub(super) fn prove(
         let mut samples = Vec::with_capacity(path.len());
         for &id in path {
             let theta = chart[id][0];
-            let z = if is_ellipse { g.height(theta) } else { 0. };
+            let z = if is_ellipse {
+                g.height(theta)
+            } else {
+                g.low(theta)
+            };
             chart[id][1] = z;
             samples.push([theta, z]);
         }
@@ -279,9 +315,7 @@ pub(super) fn prove(
                 .windows(2)
                 .all(|w| w[0][0] < w[1][0] && w[1][0] - w[0][0] <= FRAC_PI_2 / 2.),
         )?;
-        if is_ellipse {
-            stop_samples = samples;
-        }
+        stop_samples[usize::from(is_ellipse)] = samples;
     }
     for &rail in &g.rails {
         let path = &part.cuts[&pair(rail, g.id)];
@@ -296,22 +330,37 @@ pub(super) fn prove(
     }
     let mut residual = 0_f64;
     let mut cap_area = 0.;
-    let mut span = 0_f64;
-    for w in stop_samples.windows(2) {
-        let interval = w[1][0] - w[0][0];
-        cap_area += interval * (w[1][1] + w[0][1]) / 2.;
-        span = span.max(interval);
+    let mut span = [0_f64; 2];
+    for (i, samples) in stop_samples.iter().enumerate() {
+        for w in samples.windows(2) {
+            let interval = w[1][0] - w[0][0];
+            let trapezium = interval * (w[1][1] + w[0][1]) / 2.;
+            cap_area += if i == 0 { -trapezium } else { trapezium };
+            span[i] = span[i].max(interval);
+        }
     }
+    let height_at = |samples: &[[f64; 2]], theta: f64| {
+        let i = samples
+            .partition_point(|p| p[0] < theta)
+            .clamp(1, samples.len() - 1);
+        let [l, r] = [samples[i - 1], samples[i]];
+        l[1] + (r[1] - l[1]) * (theta - l[0]) / (r[0] - l[0])
+    };
     let eps = 128. * f64::EPSILON * (g.h + g.circle.radius_mm).max(1.);
+    // Independent end samplings can have different knots. Their interpolants
+    // are linear between consecutive knots of the union.
+    for sample in stop_samples.iter().flatten() {
+        checked(
+            height_at(&stop_samples[1], sample[0]) > height_at(&stop_samples[0], sample[0]) + eps,
+        )?;
+    }
     for &id in &wall_vertices {
         let [theta, z] = chart[id];
-        checked((0. ..=FRAC_PI_2).contains(&theta) && z >= -eps)?;
-        let index = stop_samples
-            .partition_point(|p| p[0] < theta)
-            .clamp(1, stop_samples.len() - 1);
-        let [l, r] = [stop_samples[index - 1], stop_samples[index]];
-        let ceiling = l[1] + (r[1] - l[1]) * (theta - l[0]) / (r[0] - l[0]);
-        checked(z <= ceiling + eps)?;
+        checked(
+            (0. ..=FRAC_PI_2).contains(&theta)
+                && z >= height_at(&stop_samples[0], theta) - eps
+                && z <= height_at(&stop_samples[1], theta) + eps,
+        )?;
         residual = residual.max(norm(sub(raw[id], g.point(theta, z))));
     }
     checked(residual <= o.cylinder_fit_tolerance_mm.min(1e-5))?;
@@ -338,14 +387,19 @@ pub(super) fn prove(
         )?;
     }
     checked(max_span <= FRAC_PI_2 / 2. && (area.get() - cap_area).abs() <= cap_area * 1e-9)?;
-    // P is the piecewise-linear stop height through the cap witnesses.
-    // The map z -> z*H(theta)/P(theta) is onto the exact strip and moves
-    // axially by at most ||H-P||. The independent radial chord bound comes
-    // from Taylor interpolation of the unit circle on each chart triangle.
-    let axial = g.slope[0].hypot(g.slope[1]) * span.powi(2) / 8.;
+    // Rescale each vertical interval affinely between its two stop curves.
+    // The displacement is a convex combination of the two interpolation errors.
+    let axial = (g.slope[0].hypot(g.slope[1]) * span[1].powi(2))
+        .max(g.near_slope[0].hypot(g.near_slope[1]) * span[0].powi(2))
+        / 8.;
+    let near_radius = g
+        .near_ellipse
+        .as_ref()
+        .map_or(g.circle.radius_mm, |e| e.major_mm);
     let chord = (g.circle.radius_mm * max_span.powi(2) / 8.)
         .hypot(axial)
-        .max(g.ellipse.major_mm * span.powi(2) / 8.);
+        .max(g.ellipse.major_mm * span[1].powi(2) / 8.)
+        .max(near_radius * span[0].powi(2) / 8.);
     Ok(ErrorBound { residual, chord })
 }
 

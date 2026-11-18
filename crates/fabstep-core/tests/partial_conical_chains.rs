@@ -189,6 +189,7 @@ fn family_witness_does_not_merge_independent_chain_identities() {
             .partial_cylinders
             .iter()
             .map(|c| MixedPartialCylinder {
+                elliptic_start: false,
                 elliptic_end: false,
                 arcs: c.arcs.map(|i| i + arc_offset),
                 inner: c.inner,
