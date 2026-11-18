@@ -16,51 +16,85 @@ gp_Pnt revolution_center(const SmoothRevolutionData &d, double t) {
   return point_at(d.origin, 0).Translated(gp_Vec(direction(d.axis)) * (d.height * t));
 }
 
-// A clamped single-span cubic B-spline is exactly its Bernstein polynomial.
-// Check sizes before asking an adaptor to copy OCCT's transformed geometry.
-std::array<gp_Pnt, 4> cubic_poles(const Adaptor3d_Curve &adaptor, double first, double last,
-                                  const CadFailure &invalid) {
-  std::array<gp_Pnt, 4> poles;
+// A clamped cubic with an optional internal knot of multiplicity two.
+// Expanding that knot once yields the two adjacent Bernstein polygons.
+struct MeridianPoles {
+  std::vector<gp_Pnt> points;
+  double knot = 0.;
+  double parameter(size_t i) const {
+    if (!knot)
+      return i / 3.;
+    return i <= 3 ? knot * i / 3. : knot + (1. - knot) * (i - 3) / 3.;
+  }
+  void reverse() {
+    std::reverse(points.begin(), points.end());
+    if (knot)
+      knot = 1. - knot;
+  }
+};
+
+MeridianPoles cubic_poles(const Adaptor3d_Curve &adaptor, double first, double last,
+                          const CadFailure &invalid) {
+  MeridianPoles result;
+  auto &poles = result.points;
   const auto kind = adaptor.GetType();
   if ((kind != GeomAbs_BezierCurve && kind != GeomAbs_BSplineCurve) || adaptor.Degree() != 3 ||
-      adaptor.NbPoles() != 4 || adaptor.IsRational())
+      (adaptor.NbPoles() != 4 && adaptor.NbPoles() != 6) || adaptor.IsRational())
     throw invalid;
   double low, high;
   if (kind == GeomAbs_BezierCurve) {
     const auto c = adaptor.Bezier();
-    for (int i = 0; i < 4; ++i)
-      poles[i] = c->Pole(i + 1);
+    for (int i = 1; i <= 4; ++i)
+      poles.push_back(c->Pole(i));
     low = c->FirstParameter();
     high = c->LastParameter();
   } else {
-    if (adaptor.NbKnots() != 2)
+    const int n = adaptor.NbKnots();
+    if (n != 2 && n != 3)
       throw invalid;
     const auto c = adaptor.BSpline();
-    if (c->IsPeriodic() || c->Multiplicity(1) != 4 || c->Multiplicity(2) != 4)
+    if (c->IsPeriodic() || c->Multiplicity(1) != 4 || c->Multiplicity(n) != 4 || c->NbPoles() != 2 * n ||
+        (n == 3 && c->Multiplicity(2) != 2))
       throw invalid;
-    for (int i = 0; i < 4; ++i)
-      poles[i] = c->Pole(i + 1);
     low = c->Knot(1);
-    high = c->Knot(2);
+    high = c->Knot(n);
+    if (n == 3) {
+      result.knot = (c->Knot(2) - low) / (high - low);
+      if (!(result.knot >= .125 - 1e-12 && result.knot <= .875 + 1e-12))
+        throw invalid;
+    }
+    for (int i = 1; i <= c->NbPoles(); ++i) {
+      if (n == 3 && i == 4)
+        poles.push_back(c->Pole(3).Translated(gp_Vec(c->Pole(3), c->Pole(4)) * result.knot));
+      poles.push_back(c->Pole(i));
+    }
   }
-  // This constructor always writes a chart on [0,1]. A trimmed meridian
-  // cannot borrow the full polynomial's volume or end-circle certificate.
   double speed = 1.;
-  for (int i = 1; i < 4; ++i)
-    speed = std::max(speed, 3. * poles[i].Distance(poles[i - 1]));
+  for (size_t i = 1; i < poles.size(); ++i)
+    speed =
+        std::max(speed, poles[i].Distance(poles[i - 1]) / (result.parameter(i) - result.parameter(i - 1)));
   const double parameter_error =
       std::max({std::abs(low), std::abs(high - 1.), std::abs(first), std::abs(last - 1.)});
   if (parameter_error > 1.e-12 || parameter_error * speed > revolution_precision)
     throw invalid;
-  return poles;
+  return result;
+}
+
+double radius_control(const SmoothRevolutionData &d, size_t i) {
+  return i <= 3 ? d.radii[i] : d.next_radii[i - 4];
 }
 
 double revolution_volume(const SmoothRevolutionData &d) {
   constexpr double c3[]{1, 3, 3, 1}, c6[]{1, 6, 15, 20, 15, 6, 1};
   double square_integral = 0.;
-  for (size_t i = 0; i < 4; ++i)
-    for (size_t j = 0; j < 4; ++j)
-      square_integral += d.radii[i] * d.radii[j] * c3[i] * c3[j] / (7. * c6[i + j]);
+  const int spans = d.knot ? 2 : 1;
+  for (int span = 0; span < spans; ++span) {
+    const double width = spans == 1 ? 1. : (span ? 1. - d.knot : d.knot);
+    for (size_t i = 0; i < 4; ++i)
+      for (size_t j = 0; j < 4; ++j)
+        square_integral += width * radius_control(d, 3 * span + i) * radius_control(d, 3 * span + j) *
+                           c3[i] * c3[j] / (7. * c6[i + j]);
+  }
   return (revolution_period / 2.) * d.height * square_integral;
 }
 
@@ -98,67 +132,84 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
     throw invalid;
   const BRepAdaptor_Surface wall(proof.wall);
   const auto native_axis = wall.AxeOfRevolution();
-  auto poles = cubic_poles(*wall.BasisCurve(), wall.FirstVParameter(), wall.LastVParameter(), invalid);
+  auto meridian = cubic_poles(*wall.BasisCurve(), wall.FirstVParameter(), wall.LastVParameter(), invalid);
   // Anchor the certificate to the physical axis and endpoint. STEP may reverse
   // the basis or the axis; neither changes the cap-to-pole correspondence.
+  auto &poles = meridian.points;
   gp_Vec axis(native_axis.Direction());
   if (expected && axis.Dot(gp_Vec(direction(expected->axis))) < 0.)
     axis.Reverse();
-  const bool reverse_basis = gp_Vec(poles[0], poles[3]).Dot(axis) < 0.;
+  const bool reverse_basis = gp_Vec(poles.front(), poles.back()).Dot(axis) < 0.;
   proof.reverse_basis = reverse_basis;
   if (reverse_basis)
-    std::reverse(poles.begin(), poles.end());
+    meridian.reverse();
   const auto origin =
       native_axis.Location().Translated(axis * gp_Vec(native_axis.Location(), poles[0]).Dot(axis));
   auto &d = proof.domain;
-  d.height = gp_Vec(poles[0], poles[3]).Dot(axis);
+  d.height = gp_Vec(poles.front(), poles.back()).Dot(axis);
   origin.Coord(d.origin[0], d.origin[1], d.origin[2]);
   axis.Coord(d.axis[0], d.axis[1], d.axis[2]);
   if (!(d.height > revolution_precision))
     throw invalid;
   const gp_Vec radial = gp_Vec(origin, poles[0]).Normalized();
-  for (int i = 0; i < 4; ++i) {
-    const auto center = revolution_center(d, i / 3.);
-    d.radii[i] = gp_Vec(center, poles[i]).Dot(radial);
-    if (!(d.radii[i] > revolution_precision) ||
-        center.Translated(radial * d.radii[i]).Distance(poles[i]) > revolution_precision)
-      throw invalid;
-  }
-  // Bound the Hessian of the actual reimported wall, including any axial
-  // or tangential displacement of its knots/poles during STEP transfer.
-  // Each knot and V endpoint is within 1e-12 of 0 or 1. Reparameterizing
-  // the trimmed V interval to [0,1] scales either derivative by <1+1e-11.
+  d.knot = meridian.knot;
+  if (expected && (bool(d.knot) != bool(expected->knot) ||
+                   std::abs(d.knot - expected->knot) * d.height > revolution_precision))
+    throw invalid;
   constexpr double derivative_margin = 1. + 1.e-11;
-  for (int i = 0; i < 4; ++i) {
+  for (size_t i = 0; i < poles.size(); ++i) {
+    const double t = meridian.parameter(i);
+    const auto center = revolution_center(d, t);
+    const double r = gp_Vec(center, poles[i]).Dot(radial);
+    if (!(r > revolution_precision) ||
+        center.Translated(radial * r).Distance(poles[i]) > revolution_precision)
+      throw invalid;
+    if (i <= 3)
+      d.radii[i] = r;
+    else
+      d.next_radii[i - 4] = r;
     proof.max_radius = std::max(proof.max_radius, gp_Vec(origin, poles[i]).Crossed(axis).Magnitude());
-    if (i >= 1) {
-      const gp_Vec first(poles[i - 1], poles[i]);
-      proof.max_mixed_derivative =
-          std::max(proof.max_mixed_derivative, 3. * derivative_margin * first.Crossed(axis).Magnitude());
-      if (i >= 2)
-        proof.max_axial_second_derivative =
-            std::max(proof.max_axial_second_derivative,
-                     6. * derivative_margin * (first - gp_Vec(poles[i - 2], poles[i - 1])).Magnitude());
+    if (expected) {
+      const double expected_t =
+          !expected->knot
+              ? i / 3.
+              : (i <= 3 ? expected->knot * i / 3. : expected->knot + (1. - expected->knot) * (i - 3) / 3.);
+      const double expected_r = radius_control(*expected, i);
+      if (std::abs(r - expected_r) > revolution_precision ||
+          revolution_center(*expected, expected_t).Translated(radial * expected_r).Distance(poles[i]) >
+              revolution_precision)
+        throw invalid;
     }
   }
-  const double max_radius = *std::max_element(d.radii, d.radii + 4);
+  // The double internal knot makes the derivative continuous, including
+  // after STEP transfer. On the complete chart its Lipschitz constant is at
+  // most the larger span Hessian scaled to the global parameter.
+  for (size_t off = 0; off + 3 < poles.size(); off += 3) {
+    const double inv = derivative_margin / (meridian.parameter(off + 3) - meridian.parameter(off));
+    for (size_t i = off + 1; i <= off + 3; ++i) {
+      const gp_Vec first(poles[i - 1], poles[i]);
+      proof.max_mixed_derivative =
+          std::max(proof.max_mixed_derivative, 3. * inv * first.Crossed(axis).Magnitude());
+      if (i >= off + 2)
+        proof.max_axial_second_derivative =
+            std::max(proof.max_axial_second_derivative,
+                     6. * inv * inv * (first - gp_Vec(poles[i - 2], poles[i - 1])).Magnitude());
+    }
+    const double a = radius_control(d, off), b = radius_control(d, off + 1), c = radius_control(d, off + 2),
+                 e = radius_control(d, off + 3);
+    if (std::max(std::abs(3 * b - 2 * a - e), std::abs(3 * c - a - 2 * e)) <= revolution_precision)
+      throw invalid;
+  }
+  const double max_radius = proof.max_radius;
   if (std::abs(wall.LastUParameter() - wall.FirstUParameter() - revolution_period) *
-              std::max(1., max_radius) >
-          revolution_precision ||
-      std::max(std::abs(3 * d.radii[1] - 2 * d.radii[0] - d.radii[3]),
-               std::abs(3 * d.radii[2] - d.radii[0] - 2 * d.radii[3])) <= revolution_precision)
+          std::max(1., max_radius) >
+      revolution_precision)
     throw invalid;
   if (expected) {
     if (axis.Crossed(gp_Vec(direction(expected->axis))).Magnitude() * std::max(1., max_radius) >
-        revolution_precision)
+            revolution_precision ||
+        std::abs(d.knot - expected->knot) * proof.max_mixed_derivative > revolution_precision)
       throw invalid;
-    for (int i = 0; i < 4; ++i) {
-      if (std::abs(d.radii[i] - expected->radii[i]) > revolution_precision ||
-          revolution_center(*expected, i / 3.)
-                  .Translated(radial * expected->radii[i])
-                  .Distance(poles[i]) > revolution_precision)
-        throw invalid;
-    }
     if (origin.Distance(revolution_center(*expected, 0)) > revolution_precision ||
         revolution_center(d, 1).Distance(revolution_center(*expected, 1)) > revolution_precision)
       throw invalid;
@@ -186,13 +237,11 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
     const auto c = pc.Location();
     if (cap_surface.Value(c.X(), c.Y()).Distance(circle.Location()) > revolution_precision ||
         std::abs(pc.Radius() - circle.Radius()) > revolution_precision ||
-        std::abs(trim.FirstParameter() - curve.FirstParameter()) * circle.Radius() >
-            revolution_precision ||
+        std::abs(trim.FirstParameter() - curve.FirstParameter()) * circle.Radius() > revolution_precision ||
         std::abs(trim.LastParameter() - curve.LastParameter()) * circle.Radius() > revolution_precision)
       throw invalid;
     for (double fraction : {0., .25, .5, .75}) {
-      const double t =
-          curve.FirstParameter() + fraction * (curve.LastParameter() - curve.FirstParameter());
+      const double t = curve.FirstParameter() + fraction * (curve.LastParameter() - curve.FirstParameter());
       const auto xy = trim.Value(t);
       if (cap_surface.Value(xy.X(), xy.Y()).Distance(curve.Value(t)) > revolution_precision)
         throw invalid;
@@ -206,11 +255,10 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
       normal.Reverse();
     if (!rims[end].IsNull() || normal.Dot(axis) * (end ? 1. : -1.) <= 0. ||
         normal.Crossed(axis).Magnitude() * max_radius > revolution_precision ||
-        gp_Vec(circle.Axis().Direction()).Crossed(axis).Magnitude() * max_radius >
-            revolution_precision ||
+        gp_Vec(circle.Axis().Direction()).Crossed(axis).Magnitude() * max_radius > revolution_precision ||
         plane.Distance(circle.Location()) > revolution_precision ||
         circle.Location().Distance(revolution_center(d, end)) > revolution_precision ||
-        std::abs(circle.Radius() - d.radii[3 * end]) > revolution_precision ||
+        std::abs(circle.Radius() - radius_control(d, end ? poles.size() - 1 : 0)) > revolution_precision ||
         std::abs(curve.LastParameter() - curve.FirstParameter() - revolution_period) *
                 std::max(1., max_radius) >
             revolution_precision)
@@ -222,9 +270,7 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
   // rectangle. Scaling tolerances by derivative bounds charges the trim in
   // millimetres, including levels near a steep portion of the meridian.
   const double u_scale = std::max(1., max_radius);
-  double slope = 0.;
-  for (int i = 0; i < 3; ++i)
-    slope = std::max(slope, 3. * std::abs(d.radii[i + 1] - d.radii[i]));
+  const double slope = proof.max_mixed_derivative;
   const double v_scale = std::max(1., std::hypot(d.height, slope));
   const auto u0 = wall.FirstUParameter(), u1 = wall.LastUParameter();
   const auto full_span = [](double a, double b, double low, double high, double scale) {
@@ -241,8 +287,7 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
     const auto a = trim.Value(trim.FirstParameter()), b = trim.Value(trim.LastParameter());
     const BRepAdaptor_Curve curve(edge);
     const double first = curve.FirstParameter(), last = curve.LastParameter();
-    if (std::abs(trim.FirstParameter() - first) > 1.e-12 ||
-        std::abs(trim.LastParameter() - last) > 1.e-12)
+    if (std::abs(trim.FirstParameter() - first) > 1.e-12 || std::abs(trim.LastParameter() - last) > 1.e-12)
       throw invalid;
     // At one interior point the physical curve selects the angular direction
     // (opposite directions have identical full-circle endpoints).
@@ -276,14 +321,17 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
     }
     proof.seam = edge;
     auto seam = cubic_poles(curve, curve.FirstParameter(), curve.LastParameter(), invalid);
-    if (gp_Vec(seam[0], seam[3]).Dot(axis) < 0.)
-      std::reverse(seam.begin(), seam.end());
-    const auto seam_radial = gp_Vec(origin, seam[0]).Normalized();
+    if (gp_Vec(seam.points.front(), seam.points.back()).Dot(axis) < 0.)
+      seam.reverse();
+    if (seam.points.size() != poles.size() || std::abs(seam.knot - d.knot) * v_scale > revolution_precision)
+      throw invalid;
+    const auto seam_radial = gp_Vec(origin, seam.points.front()).Normalized();
     if (std::abs(seam_radial.Dot(axis)) * max_radius > revolution_precision)
       throw invalid;
-    for (int i = 0; i < 4; ++i)
-      if (revolution_center(d, i / 3.).Translated(seam_radial * d.radii[i]).Distance(seam[i]) >
-          revolution_precision)
+    for (size_t i = 0; i < poles.size(); ++i)
+      if (revolution_center(d, meridian.parameter(i))
+              .Translated(seam_radial * radius_control(d, i))
+              .Distance(seam.points[i]) > revolution_precision)
         throw invalid;
   }
   if (uses[0] != 1 || uses[1] != 1 || uses[2] != 2)
@@ -291,18 +339,38 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
   return proof;
 }
 
-TopoDS_Solid build_smooth_revolution(const SmoothRevolutionData &d, const size_t *caps,
-                                     const size_t *wall, FaceLabels *labels) {
+TopoDS_Solid build_smooth_revolution(const SmoothRevolutionData &d, const size_t *caps, const size_t *wall,
+                                     FaceLabels *labels) {
   const gp_Vec radial(gp_Ax2(point_at(d.origin, 0), direction(d.axis)).XDirection());
-  TColgp_Array1OfPnt poles(1, 4);
-  for (int i = 0; i < 4; ++i)
-    poles(i + 1) = revolution_center(d, i / 3.).Translated(radial * d.radii[i]);
-  Handle(Geom_BezierCurve) curve = new Geom_BezierCurve(poles);
+  TColgp_Array1OfPnt poles(1, d.knot ? 6 : 4);
+  Handle(Geom_Curve) curve;
+  if (d.knot) {
+    // Removing the shared Bernstein control yields a six-control B-spline;
+    // its double interior knot enforces a single C1 wall by construction.
+    for (int i = 0; i < 6; ++i) {
+      const int control = i < 3 ? i : i + 1;
+      const double t = i < 3 ? d.knot * i / 3. : d.knot + (1. - d.knot) * (i - 2) / 3.;
+      poles(i + 1) = revolution_center(d, t).Translated(radial * radius_control(d, control));
+    }
+    TColStd_Array1OfReal knots(1, 3);
+    knots(1) = 0.;
+    knots(2) = d.knot;
+    knots(3) = 1.;
+    TColStd_Array1OfInteger mult(1, 3);
+    mult(1) = 4;
+    mult(2) = 2;
+    mult(3) = 4;
+    curve = new Geom_BSplineCurve(poles, knots, mult, 3);
+  } else {
+    for (int i = 0; i < 4; ++i)
+      poles(i + 1) = revolution_center(d, i / 3.).Translated(radial * d.radii[i]);
+    curve = new Geom_BezierCurve(poles);
+  }
   const auto bottom = revolution_center(d, 0), top = revolution_center(d, 1);
   BRepBuilderAPI_MakeWire wire;
   wire.Add(BRepBuilderAPI_MakeEdge(bottom, poles(1)).Edge());
   wire.Add(BRepBuilderAPI_MakeEdge(curve).Edge());
-  wire.Add(BRepBuilderAPI_MakeEdge(poles(4), top).Edge());
+  wire.Add(BRepBuilderAPI_MakeEdge(poles(poles.Upper()), top).Edge());
   wire.Add(BRepBuilderAPI_MakeEdge(top, bottom).Edge());
   BRepBuilderAPI_MakeFace face(wire.Wire(), true);
   BRepPrimAPI_MakeRevol revol(face.Face(), gp_Ax1(bottom, direction(d.axis)), revolution_period, true);

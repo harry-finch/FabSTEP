@@ -260,6 +260,8 @@ struct NativeSmoothRevolution {
     axis: [f64; 3],
     height: f64,
     radii: [f64; 4],
+    knot: f64,
+    next_radii: [f64; 3],
 }
 
 #[repr(C)]
@@ -1740,22 +1742,37 @@ fn build_smooth_revolution(
     {
         return Err(invalid());
     }
-    let scale = f
-        .origin
-        .iter()
-        .chain(&f.radii_mm)
-        .chain([&f.height_mm])
-        .map(|x| x.abs())
-        .fold(1., f64::max);
+    let (knot, next_radii) = match &f.second_span {
+        None => (0., [0.; 3]),
+        Some(span) => {
+            if !(0.125..=0.875).contains(&span.start_fraction)
+                || span.next_radii_mm.iter().any(|r| !r.is_finite() || *r <= 0.)
+            {
+                return Err(invalid());
+            }
+            (span.start_fraction, span.next_radii_mm)
+        }
+    };
+    let radii = || f.radii_mm.iter().copied().chain(
+        f.second_span.iter().flat_map(|span| span.next_radii_mm.iter().copied()),
+    );
+    let scale = f.origin.into_iter().chain(radii()).chain([f.height_mm])
+        .map(f64::abs).fold(1., f64::max);
     let roundoff = 512. * f64::EPSILON * scale;
-    let min_feature = f.radii_mm.into_iter().fold(f.height_mm, f64::min);
+    let shortest_span = if f.second_span.is_some() { knot.min(1. - knot) } else { 1. };
+    let min_feature = radii().fold(f.height_mm * shortest_span, f64::min);
     if roundoff > 5e-8 || f.witness_tolerance_mm >= min_feature / 2. {
         return Err(invalid());
     }
-    // These are already corrected supports, so source fit tolerance must not
-    // license contradictory metadata. Source witnesses stay unchanged.
-    let support_tolerance = (roundoff * 2.).max(1e-9);
-    let feature_extent = f.radii_mm.into_iter().fold(f.height_mm, f64::max).max(1.);
+    // Corrected controls must already define a C1 spline. The absolute cap
+    // also bounds any displacement when the native split is evaluated.
+    let support_tolerance = (roundoff * 2.).clamp(1e-9, 5e-8);
+    if f.second_span.is_some()
+        && ((1. - knot) * f.radii_mm[2] + knot * next_radii[0] - f.radii_mm[3]).abs() > support_tolerance
+    {
+        return Err(invalid());
+    }
+    let feature_extent = radii().fold(f.height_mm, f64::max).max(1.);
     let axis_norm = f.axis.iter().map(|v| v * v).sum::<f64>().sqrt();
     if (axis_norm - 1.).abs() * feature_extent > 5e-8 {
         return Err(invalid());
@@ -1766,7 +1783,7 @@ fn build_smooth_revolution(
         let plane = &m.planes[end];
         let expected_center: [f64; 3] =
             std::array::from_fn(|i| f.origin[i] + end as f64 * f.height_mm * f.axis[i]);
-        let expected_radius = f.radii_mm[if end == 0 { 0 } else { 3 }];
+        let expected_radius = if end == 0 { f.radii_mm[0] } else { f.second_span.as_ref().map_or(f.radii_mm[3], |s| s.next_radii_mm[2]) };
         let expected_sign = if end == 0 { -1. } else { 1. };
         if !finite(&ring.center)
             || !unit_direction(&ring.axis)
@@ -1788,6 +1805,8 @@ fn build_smooth_revolution(
         axis: f.axis,
         height: f.height_mm,
         radii: f.radii_mm,
+        knot,
+        next_radii,
     };
     native_step(|output, error, capacity| unsafe {
         fabstep_build_smooth_revolution_step(

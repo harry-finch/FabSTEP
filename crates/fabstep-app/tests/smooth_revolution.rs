@@ -168,7 +168,7 @@ fn cubic_walls_reimport_with_their_caps_volume_bounds_and_fidelity() {
             }
 
             if mode == ReconstructionMode::Auto {
-                if name == "bulge" {
+                if name == "bulge" || name == "two_span" {
                     let error = converted
                         .step
                         .guided_surface(&[wall.id], GuidanceFamily::Auto)
@@ -212,7 +212,7 @@ fn invalid_or_over_budget_sources_never_receive_a_cubic_wall() {
             "bulge",
         ] {
             let mut o = options.clone();
-            if name == "bulge" {
+            if name == "bulge" || name == "two_span" {
                 o.max_deviation_mm = 1e-4;
             }
             match convert_document_with_provenance(&fixture(name), InputFormat::Stl, &o) {

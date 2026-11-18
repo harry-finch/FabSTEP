@@ -117,7 +117,7 @@ struct UnequalPocketData {
 };
 
 struct SmoothRevolutionData {
-  double origin[3], axis[3], height, radii[4];
+  double origin[3], axis[3], height, radii[4], knot, next_radii[3];
 };
 
 struct StepOutput {

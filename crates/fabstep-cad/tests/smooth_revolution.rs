@@ -200,6 +200,8 @@ fn inflected_and_mirrored_walls_keep_the_requested_chart_tessellation_accuracy()
     for raw in [
         include_bytes!("../../../fixtures/smooth_revolution/inflection.stl").as_slice(),
         include_bytes!("../../../fixtures/smooth_revolution/mirrored.stl").as_slice(),
+        include_bytes!("../../../fixtures/smooth_revolution/two_span.stl").as_slice(),
+        include_bytes!("../../../fixtures/smooth_revolution/two_span_mirror.stl").as_slice(),
     ] {
         let analysis = analyze_stl(raw, &options).unwrap();
         let recognized = recognize_rounded(&analysis, &options).unwrap();
@@ -217,12 +219,26 @@ fn inflected_and_mirrored_walls_keep_the_requested_chart_tessellation_accuracy()
                 return (rho - f.radii_mm[0]).max(0.);
             }
             if (z - f.height_mm).abs() < 1e-6 {
-                return (rho - f.radii_mm[3]).max(0.);
+                return (rho
+                    - f.second_span
+                        .as_ref()
+                        .map_or(f.radii_mm[3], |s| s.next_radii_mm[2]))
+                .max(0.);
             }
             assert!(z > 0. && z < f.height_mm);
-            let t = z / f.height_mm;
+            let global_t = z / f.height_mm;
+            let (b, t) = match &f.second_span {
+                None => (f.radii_mm, global_t),
+                Some(s) if global_t < s.start_fraction => (f.radii_mm, global_t / s.start_fraction),
+                Some(s) => {
+                    let [a, b, c] = s.next_radii_mm;
+                    (
+                        [f.radii_mm[3], a, b, c],
+                        (global_t - s.start_fraction) / (1. - s.start_fraction),
+                    )
+                }
+            };
             let s = 1. - t;
-            let b = f.radii_mm;
             (rho - (b[0] * s * s * s
                 + 3. * b[1] * s * s * t
                 + 3. * b[2] * s * t * t
@@ -241,5 +257,53 @@ fn inflected_and_mirrored_walls_keep_the_requested_chart_tessellation_accuracy()
                 error(center)
             );
         }
+    }
+}
+
+#[test]
+fn second_span_refuses_inconsistent_knot_tangent_and_cap() {
+    let o = Options {
+        reconstruction: ReconstructionMode::Surfaces,
+        ..Options::default()
+    };
+    let a = analyze_stl(
+        include_bytes!("../../../fixtures/smooth_revolution/two_span.stl"),
+        &o,
+    )
+    .unwrap();
+    let base = recognize_rounded(&a, &o).unwrap().model;
+    // Moving only one internal knot changes the meridian represented by the
+    // seam without changing its two end circles, order, or multiplicities.
+    let step = build_rounded_step(&base).unwrap();
+    let text = std::str::from_utf8(&step.bytes).unwrap();
+    let knot = "(0.,0.375,1.)";
+    assert_eq!(text.matches(knot).count(), 2);
+    let changed = text.replacen(knot, "(0.,0.38,1.)", 1);
+    assert_eq!(
+        tessellate_step(changed.as_bytes(), 0.01).unwrap_err().code,
+        "cad.tessellation_failed"
+    );
+    for change in [
+        (|f: &mut fabstep_core::CubicRevolutionSpan| f.start_fraction = 0.)
+            as fn(&mut fabstep_core::CubicRevolutionSpan),
+        |f| f.start_fraction = f64::NAN,
+        |f| f.next_radii_mm[0] += 0.005,
+        |f| f.next_radii_mm[1] = -0.25,
+        |f| f.next_radii_mm[2] += 0.005,
+    ] {
+        let mut model = base.clone();
+        change(
+            model
+                .smooth_revolution
+                .as_mut()
+                .unwrap()
+                .second_span
+                .as_mut()
+                .unwrap(),
+        );
+        assert_eq!(
+            build_rounded_step(&model).unwrap_err().code,
+            "cad.invalid_model"
+        );
     }
 }

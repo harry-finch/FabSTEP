@@ -226,3 +226,23 @@ fn near_quadratic_circular_meridian_is_not_relabelled_as_a_cubic() {
     let r = recognize_rounded(&a, &o);
     assert!(r.is_err() || r.unwrap().model.smooth_revolution.is_none());
 }
+
+#[test]
+fn two_span_meridian_requires_a_unique_witnessed_tangent_joint() {
+    let o = opts(ReconstructionMode::Surfaces);
+    let a = analyze_stl(&fixture("two_span"), &o).unwrap();
+    let r = recognize_rounded(&a, &o).unwrap();
+    let f = r.model.smooth_revolution.as_ref().unwrap();
+    let s = f.second_span.as_ref().unwrap();
+    // The fitted axis can point in either direction.
+    let k = s.start_fraction;
+    assert!((k - 0.375).abs().min((k - 0.625).abs()) < 1e-6);
+    assert!(((1. - k) * f.radii_mm[2] + k * s.next_radii_mm[0] - f.radii_mm[3]).abs() < 1e-10);
+    assert!(r.report.max_deviation_bound_mm <= o.max_deviation_mm);
+    assert_eq!(r.report.revolutions, 1);
+
+    let bad = analyze_stl(&fixture("kinked_span"), &o).unwrap();
+    assert!(recognize_rounded(&bad, &o).map_or(true, |r| r.model.smooth_revolution.is_none()));
+    let fallback = recognize_automatic(&bad, &opts(ReconstructionMode::Auto)).unwrap();
+    assert!(fallback.model.smooth_revolution.is_none());
+}

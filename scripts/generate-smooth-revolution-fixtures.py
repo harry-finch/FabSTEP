@@ -148,15 +148,20 @@ def analytic_bounds(radii, height, axis, translation):
 
 
 def generate(name, radii, height, *, divisions=32, angles=64, axes=IDENTITY,
-             translation=(0., 0., 0.), scale=1., phase=0., defect=None):
+             translation=(0., 0., 0.), scale=1., phase=0., defect=None, second_span=None):
     radii = tuple(r * scale for r in radii)
     height *= scale
+    if second_span:
+        knot, tail = second_span
+        right = (radii[-1], *(scale * r for r in tail))
     mirrored = dot(cross(axes[0], axes[1]), axes[2]) < 0.
 
     def placed(point):
         return tuple(origin + dot(point, components) for origin, components in zip(translation, zip(*axes)))
 
     def radius(t):
+        if second_span:
+            return cubic_radius(radii, t / knot) if t <= knot else cubic_radius(right, (t - knot) / (1. - knot))
         r = cubic_radius(radii, t)
         return r + 64. * t**2 * (1. - t)**2 if defect == "quartic" else r
 
@@ -224,9 +229,16 @@ def generate(name, radii, height, *, divisions=32, angles=64, axes=IDENTITY,
     weighted = (weight * radius(i / intervals)**2 for i in range(intervals + 1)
                 for weight in [1 if i in (0, intervals) else 4 if i % 2 else 2])
     volume = math.pi * height * math.fsum(weighted) / (3. * intervals)
+    bounds = analytic_bounds(radii, height, axes[2], translation)
+    if second_span:
+        start = placed((0.,0.,height*knot))
+        left_box = analytic_bounds(radii, height*knot, axes[2], translation)
+        right_box = analytic_bounds(right, height*(1.-knot), axes[2], start)
+        bounds = [[op(a,b) for a,b in zip(left_box[i],right_box[i])] for i,op in enumerate((min,max))]
+        case["second_span"] = {"start_fraction": knot, "next_radii_mm": right[1:]}
     case.update({"parameters": {"radii_mm": radii, "height_mm": height, "origin_mm": translation,
                                 "axis": axes[2], "volume_mm3": volume},
-                 "analytic_bounds_mm": analytic_bounds(radii, height, axes[2], translation),
+                 "analytic_bounds_mm": bounds,
                  "material_probes": [
                      {"point_mm": placed((radius(t) + gap * scale, 0., height * t)), "material": gap < 0.}
                      for t in [0.17, 0.39, 0.65, 0.89] for gap in [-0.25, 0.25]
@@ -245,7 +257,15 @@ def main():
         "mirrored": generate("mirrored", INFLECTION, 24., axes=MIRROR, translation=(4., -3., 2.)),
         "retessellated": generate("retessellated", NECK, 20., divisions=40, angles=80, phase=0.013),
     }
+    # The two spans have the same physical tangent at the 3/8 source ring.
+    controls = (6., 4.5, 7.5, 8.)
+    span = (.375, (8. + 5. / 6., 4., 6.))
+    cases["two_span"] = generate("two_span", controls, 24., divisions=48, second_span=span)
+    cases["two_span_mirror"] = generate("two_span_mirror", controls, 24., divisions=40, angles=72,
+        axes=MIRROR, translation=(2., -4., 5.), phase=.024, second_span=span)
     negative_cases = {
+        "kinked_span": generate("kinked_span", controls, 24., divisions=48,
+            second_span=(.375, (7., 4., 6.)), defect="kinked_span"),
         "missing_cap": generate("missing_cap", BULGE, 20., defect="missing_cap"),
         "folded": generate("folded", BULGE, 20., defect="folded"),
         "incomplete_level": generate("incomplete_level", BULGE, 20., defect="incomplete_level"),

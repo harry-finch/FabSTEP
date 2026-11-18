@@ -418,6 +418,14 @@ pub struct CrossDrill {
     pub branches: [Vec<usize>; 2],
 }
 
+/// An additional positive Bernstein span, joined C1 to the first at a witnessed level.
+/// The first control radius is the last radius in SmoothRevolution::radii_mm.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CubicRevolutionSpan {
+    pub start_fraction: f64,
+    pub next_radii_mm: [f64; 3],
+}
+
 /// One full exterior turn of the fitted positive Bernstein radius r(t),
 /// with axial distance height_mm*t. The two end circles are witnessed.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -426,6 +434,8 @@ pub struct SmoothRevolution {
     pub axis: [f64; 3],
     pub height_mm: f64,
     pub radii_mm: [f64; 4],
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub second_span: Option<CubicRevolutionSpan>,
     pub rings: [usize; 2],
     pub witness_tolerance_mm: f64,
 }
