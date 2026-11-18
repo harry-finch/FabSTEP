@@ -133,7 +133,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 61. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
 62. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon post-v1
-   Commencer par les deux bandes de rayon 0,5 mm identifiées dans R-080. Qualifier les limites des secteurs, la continuité avec les faces voisines et la fidélité dans les deux sens sur un corpus public indépendant. Rejouer ensuite le fichier entier et mesurer les coûts natifs.
+   Le laboratoire réimporte 34 faces de Flansch et retrouve 79 879 faces sur la partition du corps entier. Raccorder les 16 contours libres aux surfaces conservées, puis vérifier le solide complet et son export depuis FabSTEP.
 
 ## Actions à faire
 

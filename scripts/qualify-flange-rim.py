@@ -1,6 +1,7 @@
 """Offline qualification of the lower flange rim using the measured R-085 source partition."""
 import argparse
 import json
+import re
 from pathlib import Path
 import runpy
 import tempfile
@@ -10,6 +11,7 @@ import numpy as np
 partition = runpy.run_path(str(Path(__file__).with_name("qualify-sector-partition.py")))
 boundary = partition["boundary"]
 TOL = partition["TOL"]
+plane = runpy.run_path(str(Path(__file__).with_name("qualify-flange-plane.py")))
 
 
 def rim_edges(mesh, ids):
@@ -201,7 +203,7 @@ def outer_loops(mesh, ids):
     return sorted(loops,key=lambda loop:loop["axial_station_mm"])
 
 
-def profile_bottom_plane(mesh, belt, seams):
+def profile_bottom_plane(mesh, belt, seams, face_indices, sectors, tubes, cones):
     loops = list(outline(mesh, belt))
     lo_keys,ix,near = min(loops,key=lambda rim: np.median(mesh.rows["points"][belt[rim[1]//3],rim[1]%3,0]))
     if (near < 0).any():
@@ -214,14 +216,33 @@ def profile_bottom_plane(mesh, belt, seams):
         raise ValueError("Non-planar underside")
     holes, outer = [], None
     circles = []
+    measured_holes = []
+    outer_native_area = outer_bound = None
     for keys,ix,near in outline(mesh, ids):
         yz = points[ix//3,ix%3,1:]
         if np.array_equal(np.sort(keys),np.sort(lo_keys)):
             if outer is not None:
                 raise ValueError("Repeated exterior contour")
             outer = yz
+            if (near < 0).any():
+                raise ValueError("Missing exterior belt neighbor")
+            outer_native_area, outer_bound = plane["exterior"](outer, near, face_indices, sectors, tubes)
             continue
         center,radius = partition["residual"]["circle"](yz)
+        seam_counts = None
+        if seams is not None:
+            uses = [(int(mesh.rows["triangle"][ids[i//3]]),int(i%3)) for i in ix]
+            owners, counts = np.unique([seams[k] for k in uses], return_counts=True)
+            seam_counts = {str(k): int(n) for k,n in zip(owners,counts)}
+        if cones is not None:
+            if seam_counts is None or len(seam_counts) != 1:
+                raise ValueError("Missing unique source incidence on the circular rail")
+            match = re.fullmatch(r"Cone \{ index: (\d+) \}", next(iter(seam_counts)))
+            if not match or int(match[1]) not in cones:
+                raise ValueError("Source hole has no measured cone")
+            hole = plane["cone_hole"](cones[int(match[1])], plane_owner, origin_x)
+            measured_holes.append(hole)
+            center, radius = np.array(hole["center_yz_mm"]), hole["radius_mm"]
         rho = np.linalg.norm(yz-center,axis=1)
         residual = abs(rho-radius).max()
         theta = np.arctan2(yz[:,1]-center[1], yz[:,0]-center[0])
@@ -235,10 +256,8 @@ def profile_bottom_plane(mesh, belt, seams):
             raise ValueError("Inner contour is not a resolved circle")
         row = dict(edges=len(ix), planar_neighbors=int((near>=0).sum()), radius_mm=radius,
                    radial_residual_mm=residual, degree=int(round(degree)), chord_bound_mm=error)
-        if seams is not None:
-            uses = [(int(mesh.rows["triangle"][ids[i//3]]),int(i%3)) for i in ix]
-            owners, counts = np.unique([seams[k] for k in uses],return_counts=True)
-            row["analytic_seams"] = {str(k):int(n) for k,n in zip(owners,counts)}
+        if seam_counts is not None:
+            row["analytic_seams"] = seam_counts
         holes.append(row)
         circles.append((center, radius))
     if outer is None:
@@ -257,11 +276,33 @@ def profile_bottom_plane(mesh, belt, seams):
                 or holes[i]["degree"]*outer_area>=0
                 or any(np.linalg.norm(c-d)<=r+q+2*TOL for d,q in circles[:i])):
             raise ValueError("Inconsistent planar nesting")
-    return dict(triangles=len(ids),outer_edges=len(outer),holes=holes,
-                disjoint_circular_holes=len(holes),outer_loop_matches_belt=True)
+    # The sign of every projected triangle agrees with the outside loop. Signed
+    # winding can therefore describe membership in the source planar region.
+    yz = points[:, :, 1:]
+    twice_areas = plane["cross"](yz[:, 1] - yz[:, 0], yz[:, 2] - yz[:, 0])
+    if (twice_areas * outer_area <= 0).any() or outer_area * outer_native_area <= 0:
+        raise ValueError("Inconsistent winding of the projected plane")
+    net_area = abs(outer_native_area) - sum(np.pi*r*r for _, r in circles)
+    # Linear homotopy of corresponding boundary points preserves winding
+    # away from their swept band. Both boundaries are within this distance
+    # of every affected point. Native checking supplies target wire validity.
+    distance = np.hypot(max(outer_bound, *(h["chord_bound_mm"] for h in holes)),
+                        abs(points[:,:,0] - origin_x).max()) + plane["TRANSFER_TOL"]
+    if net_area <= 0 or distance > plane["DISTANCE_LIMIT"]:
+        raise ValueError("Plane area or contour bound outside domain")
+    report = dict(triangles=len(ids), outer_edges=len(outer), holes=holes,
+                  disjoint_circular_holes=len(holes), outer_loop_matches_belt=True,
+                  outer_rail_bound_mm=outer_bound, planar_region_bound_mm=distance,
+                  measured_plane_area_mm2=net_area, source_projected_area_mm2=abs(twice_areas.sum())/2)
+    native = None
+    if cones is not None:
+        if len(measured_holes) != 5 or {h["cone_index"] for h in measured_holes} != cones.keys():
+            raise ValueError("Five distinct base cones required")
+        native = dict(station_mm=origin_x, holes=measured_holes, area_mm2=net_area)
+    return report, native, ids
 
 
-def qualify(mesh, supports, patches, labels, incidences, native_path=None, seams=None):
+def qualify(mesh, supports, patches, labels, incidences, native_path=None, seams=None, cones=None, groups=None):
     sections, rails = prepare(mesh, supports, patches, labels, incidences)
     edges, failures = discover(mesh, sections, rails, labels)
     joints = []
@@ -325,19 +366,48 @@ def qualify(mesh, supports, patches, labels, incidences, native_path=None, seams
     if np.isin(mesh.rows["owner"],owners).sum() != len(combined):
         failures.append("incomplete planar owner")
     loops = outer_loops(mesh,combined)
+    report = dict(source_cycle=loop, order=path, failures=failures, joints=joints,
+                  torus_proofs=proof, triangles=len(combined), owners=len(owners), boundary_loops=loops)
+    if (failures or not loop or len(loops) != 2 or set(native_sectors) != set(range(7))
+            or any(j["common_line"]["reason"] != "within_budget" or not j["common_line"]["complete_rails"]
+                   for j, *_ in tubes) or len(tubes) != 5):
+        if native_path or cones is not None:
+            raise ValueError("Incomplete belt for the base plane")
+        return report
+    native_tubes = [dict(sector=a[0],end=a[1],
+                         extrusion_vector_world_mm=[0.,-length*np.sin(angle),length*np.cos(angle)])
+                    for _,a,_,_,angle,length in tubes]
+    domains = [native_sectors[i] for i in range(7)]
+    face_indices = np.full(len(mesh.rows), -1)
+    for tag, (_, ids, _, _) in sections.items():
+        face_indices[ids] = tag
+    for tag, (_, _, _, ids, _, _) in enumerate(tubes, start=len(sections)):
+        face_indices[ids] = tag
+    bottom, native_bottom, base_ids = profile_bottom_plane(mesh, combined, seams, face_indices, domains, native_tubes, cones)
+    if groups is not None:
+        groups["base-plane"] = base_ids
+        for tag, (_, ids, _, _) in sections.items():
+            groups[f"torus-{tag}"] = ids
+        for i, (_, _, _, ids, _, _) in enumerate(tubes):
+            groups[f"lower-tube-{i}"] = ids
     if native_path:
-        if (failures or not loop or len(loops) != 2 or set(native_sectors) != set(range(7))
-                or any(j["common_line"]["reason"] != "within_budget" or not j["common_line"]["complete_rails"]
-                       for j, *_ in tubes) or len(tubes) != 5):
-            raise ValueError("Incomplete native belt reference")
-        native_tubes = [dict(sector=a[0],end=a[1],
-                             extrusion_vector_world_mm=[0.,-length*np.sin(angle),length*np.cos(angle)])
-                        for _,a,_,_,angle,length in tubes]
-        native_path.write_text(json.dumps(dict(sectors=[native_sectors[i] for i in range(7)],
-                                               tubes=native_tubes),indent=2,allow_nan=False) + "\n")
-    return dict(source_cycle=loop,order=path,failures=failures,joints=joints,
-                torus_proofs=proof,triangles=len(combined),owners=len(owners),
-                boundary_loops=loops, bottom_plane=profile_bottom_plane(mesh,combined,seams))
+        data = dict(sectors=domains, tubes=native_tubes)
+        if native_bottom is not None:
+            data["bottom_plane"] = native_bottom
+        native_path.write_text(json.dumps(data,indent=2,allow_nan=False) + "\n")
+    return dict(**report, bottom_plane=bottom)
+
+
+def read_seams(path):
+    seams = {}
+    with path.open() as stream:
+        for line in stream:
+            tri, edge, family = line.rstrip().split("\t")
+            key = (int(tri), int(edge))
+            if key in seams:
+                raise ValueError("Duplicate analytic incidence")
+            seams[key] = family
+    return seams
 
 
 if __name__ == "__main__":
@@ -345,17 +415,17 @@ if __name__ == "__main__":
     parser.add_argument("dump", type=Path)
     parser.add_argument("--native-parameters", type=Path, help="Write the qualified belt to a local file")
     parser.add_argument("--analytic-seams", type=Path, help="Optional R-080 plane/analytic interface table")
+    parser.add_argument("--cones", type=Path, help="Exact R-080 cone rings for the five plane holes")
     args = parser.parse_args()
-    seams = None
-    if args.analytic_seams:
-        seams = {}
-        with args.analytic_seams.open() as stream:
-            for line in stream:
-                tri, edge, family = line.rstrip().split("\t")
-                key = (int(tri),int(edge))
-                if key in seams:
-                    raise ValueError("Duplicate analytic incidence")
-                seams[key] = family
+    cones = None
+    if args.cones:
+        if not args.analytic_seams or args.cones.stat().st_size > 32768:
+            parser.error("Cone qualification requires a small ring table and the analytic seams")
+        cone_rows = json.loads(args.cones.read_text())["cones"]
+        cones = {c["cone_index"]: c for c in cone_rows}
+        if len(cones) != 5 or len(cone_rows) != 5:
+            parser.error("Expected five distinct base cones")
+    seams = read_seams(args.analytic_seams) if args.analytic_seams else None
 
     record = partition["residual"]["RECORD"]
     size = args.dump.stat().st_size
@@ -363,5 +433,5 @@ if __name__ == "__main__":
         parser.error("Invalid planar dump")
     report = {}
     partition["qualify"](np.fromfile(args.dump, dtype=record),
-                         visit_partition=lambda *data: report.update(qualify(*data, native_path=args.native_parameters, seams=seams)))
+                         visit_partition=lambda *data: report.update(qualify(*data, native_path=args.native_parameters, seams=seams, cones=cones)))
     print(json.dumps(report, indent=2, allow_nan=False))

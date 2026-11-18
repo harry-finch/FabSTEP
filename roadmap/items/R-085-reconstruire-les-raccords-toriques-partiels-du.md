@@ -1,7 +1,7 @@
 ---
 id: R-085
 titre: "Reconstruire les raccords toriques partiels du pourtour de Flansch"
-resume: "Commencer par les deux bandes de rayon 0,5 mm identifiées dans R-080. Qualifier les limites des secteurs, la continuité avec les faces voisines et la fidélité dans les deux sens sur un corpus public indépendant. Rejouer ensuite le fichier entier et mesurer les coûts natifs."
+resume: "Le laboratoire réimporte 34 faces de Flansch et retrouve 79 879 faces sur la partition du corps entier. Raccorder les 16 contours libres aux surfaces conservées, puis vérifier le solide complet et son export depuis FabSTEP."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-18
@@ -35,4 +35,6 @@ Essayer le secteur public dans FabSTEP et vérifier le solide exporté dans Fusi
 
 ## État vérifié
 
-Le domaine à plans radiaux est intégré dans Auto et Surfaces. A-084 et A-085 portent les essais du build. Le laboratoire retrouve sur Flansch onze secteurs à partition source vérifiée et réimporte la ceinture inférieure réelle constituée de sept tores et cinq bandes cylindriques. Les deux contours libres de cette ceinture doivent encore être raccordés au plan de base et aux parois du corps. Le helper refuse toujours le document à 231 608 faces. Le jalon global reste en cours.
+Le domaine à plans radiaux est intégré dans Auto et Surfaces. Les essais A-084 et A-085 restent ouverts. Sur Flansch, le laboratoire réimporte une coque connexe de 34 faces comprenant le dessous de la bride, les raccords haut et bas, cinq entrées de perçage et le flanc à dix découpes. Les 34 faces couvrent 164 392 triangles. En les substituant à leurs propriétaires actuels, la partition du document entier compte 79 879 faces. Le helper de l’application refuse encore le fichier à 231 608 faces.
+
+Il reste à raccorder cinq anneaux de perçage, dix contours du marquage et le contour principal de 20 arêtes aux surfaces conservées, puis à valider le solide entier. Les 692 arêtes source de ce dernier contour sont attribuées à leurs voisines. La prochaine difficulté géométrique porte sur les trois flancs cylindriques longs à bord supérieur irrégulier. Les preuves et commandes de reprise figurent dans V-1209.

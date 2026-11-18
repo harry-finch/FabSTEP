@@ -5,6 +5,12 @@
 #include <BRepBuilderAPI_MakeFace.hxx>
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <BRepPrimAPI_MakePrism.hxx>
+#include <BRepBuilderAPI_MakeWire.hxx>
+#include <BRepBuilderAPI_MakePolygon.hxx>
+#include <BRepTools.hxx>
+#include <BRepTools_WireExplorer.hxx>
+#include <BRep_Builder.hxx>
+#include <TopoDS_Shell.hxx>
 #include <BRepBuilderAPI_Sewing.hxx>
 #include <BRepCheck_Analyzer.hxx>
 #include <BRepGProp.hxx>
@@ -51,26 +57,27 @@ Sector read(std::istream& input) {
 struct Tube {int sector, end; gp_Vec extrusion;};
 using Sectors=std::vector<Sector>;
 using Tubes=std::vector<Tube>;
+TopoDS_Shape buildTube(const Sectors& sectors,const Tube& t) {
+    const auto& s=sectors.at(t.sector);
+    const gp_Dir radial=s.radial(t.end*s.u);
+    check(t.extrusion.Magnitude()>eps && t.extrusion.Crossed(gp_Vec(s.axis.Crossed(radial))).Magnitude()<eps,
+          "tube leaves tangent plane");
+    const gp_Circ circle(gp_Ax2(s.center.Translated(gp_Vec(radial)*s.R),radial.Crossed(s.axis),radial),s.r);
+    return BRepPrimAPI_MakePrism(BRepBuilderAPI_MakeEdge(circle,s.v0,s.v1).Edge(),t.extrusion).Shape();
+}
 TopoDS_Shape build(const Sectors& sectors,const Tubes& tubes) {
     BRepBuilderAPI_Sewing sew(eps);
     for(const auto& s:sectors) {
         const gp_Torus torus(gp_Ax3(s.center,s.axis,s.start),s.R,s.r);
         sew.Add(BRepBuilderAPI_MakeFace(torus,0,s.u,s.v0,s.v1).Face());
     }
-    for(const auto& t:tubes) {
-        const auto& s=sectors.at(t.sector);
-        const gp_Dir radial=s.radial(t.end*s.u);
-        check(t.extrusion.Magnitude()>eps && t.extrusion.Crossed(gp_Vec(s.axis.Crossed(radial))).Magnitude()<eps,
-              "tube leaves tangent plane");
-        const gp_Circ circle(gp_Ax2(s.center.Translated(gp_Vec(radial)*s.R),radial.Crossed(s.axis),radial),s.r);
-        sew.Add(BRepPrimAPI_MakePrism(BRepBuilderAPI_MakeEdge(circle,s.v0,s.v1).Edge(),t.extrusion).Shape());
-    }
+    for(const auto& t:tubes)sew.Add(buildTube(sectors,t));
     sew.Perform();return sew.SewedShape();
 }
-TopoDS_Shape roundtrip(const TopoDS_Shape& shape, const std::filesystem::path& output) {
+TopoDS_Shape roundtrip(const TopoDS_Shape& shape, const std::filesystem::path& output,size_t maxBytes=1024*1024) {
     STEPControl_Writer writer;
     check(writer.Transfer(shape,STEPControl_ShellBasedSurfaceModel)==IFSelect_RetDone &&
-          writer.Write(output.c_str())==IFSelect_RetDone && std::filesystem::file_size(output)<1024*1024,
+          writer.Write(output.c_str())==IFSelect_RetDone && std::filesystem::file_size(output)<maxBytes,
           "shell STEP write");
     STEPControl_Reader reader;
     check(reader.ReadFile(output.c_str())==IFSelect_RetDone && reader.TransferRoots()>0,"shell STEP read");
@@ -143,8 +150,24 @@ int chartBorder(const TopoDS_Face& face,const TopoDS_Edge& edge,bool constantU,d
               trim.FirstParameter()>=line->Knot(1)-1e-12 && trim.LastParameter()<=line->Knot(2)+1e-12 &&
               trim.LastParameter()>trim.FirstParameter(),"unbounded linear spline trim");
     }
+    const BRepAdaptor_Curve physical(edge);
+    for(double fraction:{0.,.5,1.}) {
+        const double t=trim.FirstParameter()+fraction*(trim.LastParameter()-trim.FirstParameter());
+        const auto uv=trim.Value(t);
+        const double u=physical.FirstParameter()+fraction*(physical.LastParameter()-physical.FirstParameter());
+        check(surf.Value(uv.X(),uv.Y()).Distance(physical.Value(u))<eps,"misplaced rectangular pcurve");
+    }
     const auto a=trim.Value(trim.FirstParameter()), b=trim.Value(trim.LastParameter());
-    const double uScale=(surf.GetType()==GeomAbs_Torus) ? surf.Torus().MajorRadius()+surf.Torus().MinorRadius() : surf.Cylinder().Radius();
+    double uScale;
+    if(surf.GetType()==GeomAbs_Torus)uScale=surf.Torus().MajorRadius()+surf.Torus().MinorRadius();
+    else if(surf.GetType()==GeomAbs_Cylinder)uScale=surf.Cylinder().Radius();
+    else {
+        check(surf.GetType()==GeomAbs_Cone,"unexpected rectangular chart support");
+        const auto cone=surf.Cone();
+        const double slope=std::sin(cone.SemiAngle());
+        uScale=std::max(std::abs(cone.RefRadius()+surf.FirstVParameter()*slope),
+                        std::abs(cone.RefRadius()+surf.LastVParameter()*slope));
+    }
     const double vScale=(surf.GetType()==GeomAbs_Torus) ? surf.Torus().MinorRadius() : 1.;
     if(constantU) {
         check(std::abs(b.X()-a.X())*uScale<eps &&
@@ -158,6 +181,27 @@ int chartBorder(const TopoDS_Face& face,const TopoDS_Edge& edge,bool constantU,d
         if(std::abs(a.Y()-surf.LastVParameter())*vScale<eps) return 3;
     }
     throw std::runtime_error("wrong rectangular border");
+}
+void rejectExchangedMeridian(const Sector& s) {
+    const gp_Torus torus(gp_Ax3(s.center,s.axis,s.start),s.R,s.r);
+    const auto face=BRepBuilderAPI_MakeFace(torus,0,s.u,s.v0,s.v1).Face();
+    Limits limits;
+    for(TopExp_Explorer it(face,TopAbs_EDGE);it.More();it.Next()) {
+        const auto edge=TopoDS::Edge(it.Current());
+        if(match(s,BRepAdaptor_Curve(edge),limits)!=0)continue;
+        check(chartBorder(face,edge,true,s.u,s.v1-s.v0)==0,"missing original west meridian");
+        double lo,hi;
+        const auto pc=BRep_Tool::CurveOnSurface(edge,face,lo,hi);
+        const auto moved=Handle(Geom2d_Curve)::DownCast(pc->Copy());
+        moved->Translate(gp_Vec2d(s.u,0.));
+        BRep_Builder builder;builder.UpdateEdge(edge,moved,face,eps);
+        bool refused=false;
+        try{chartBorder(face,edge,true,s.u,s.v1-s.v0);}
+        catch(const std::runtime_error& e){refused=std::string(e.what())=="misplaced rectangular pcurve";}
+        check(refused,"incorrect opposite meridian parameter curve accepted");
+        return;
+    }
+    throw std::runtime_error("negative control meridian missing");
 }
 // Test the four boundaries independently from face traversal order.
 int tubeIndex(const TopoDS_Face& face,const Sectors& sectors,const Tubes& tubes,Limits& limits) {
@@ -241,6 +285,24 @@ int boundaryLoops(const std::vector<TopoDS_Edge>& boundary,bool belt) {
     return loops;
 }
 
+double verifySector(const TopoDS_Face& face,const Sector& s,Limits& limits) {
+    const BRepAdaptor_Surface surf(face);
+    check(number(face,TopAbs_WIRE)==1 && number(face,TopAbs_EDGE)==4 &&
+          std::abs(surf.LastUParameter()-surf.FirstUParameter()-s.u)*(s.R+s.r)<eps &&
+          std::abs(surf.LastVParameter()-surf.FirstVParameter()-s.v1+s.v0)*s.r<eps,"chart extents");
+    std::array<int,4> physical{},chart{};
+    for(TopExp_Explorer edges(face,TopAbs_EDGE);edges.More();edges.Next()) {
+        auto edge=TopoDS::Edge(edges.Current());
+        const BRepAdaptor_Curve c(edge);
+        const int side=match(s,c,limits);
+        ++physical[side];
+        ++chart[chartBorder(face,edge,side<2,s.u,s.v1-s.v0)];
+    }
+    check(physical==std::array<int,4>{1,1,1,1} && chart==physical,"incomplete rectangle");
+    GProp_GProps prop; BRepGProp::SurfaceProperties(face,prop,1e-12);
+    return std::abs(prop.Mass()-s.area());
+}
+
 Limits verify(const TopoDS_Shape& shape,const Sectors& sectors,const Tubes& tubes) {
     Limits limits;
     const bool belt=!tubes.empty();
@@ -258,21 +320,7 @@ Limits verify(const TopoDS_Shape& shape,const Sectors& sectors,const Tubes& tube
         check(++known[id]==1,"repeated domain");
         if(!torus)continue;
         const auto& s=sectors[id];
-        const BRepAdaptor_Surface surf(face);
-        check(number(face,TopAbs_WIRE)==1 && number(face,TopAbs_EDGE)==4 &&
-              std::abs(surf.LastUParameter()-surf.FirstUParameter()-s.u)*(s.R+s.r)<eps &&
-              std::abs(surf.LastVParameter()-surf.FirstVParameter()-s.v1+s.v0)*s.r<eps,"chart extents");
-        std::array<int,4> physical{},chart{};
-        for(TopExp_Explorer edges(face,TopAbs_EDGE);edges.More();edges.Next()) {
-            auto edge=TopoDS::Edge(edges.Current());
-            const BRepAdaptor_Curve c(edge);
-            const int side=match(s,c,limits);
-            ++physical[side];
-            ++chart[chartBorder(face,edge,side<2,s.u,s.v1-s.v0)];
-        }
-        check(physical==std::array<int,4>{1,1,1,1} && chart==physical,"incomplete rectangle");
-        GProp_GProps prop; BRepGProp::SurfaceProperties(face,prop,1e-12);
-        limits.faceAreaErrors[id]=std::abs(prop.Mass()-s.area());
+        limits.faceAreaErrors[id]=verifySector(face,s,limits);
         limits.areaError=std::max(limits.areaError,limits.faceAreaErrors[id]);
     }
     check(number(shape,TopAbs_SHELL)==1 && number(shape,TopAbs_EDGE)==(belt?36:10) &&
@@ -315,6 +363,7 @@ Limits verify(const TopoDS_Shape& shape,const Sectors& sectors,const Tubes& tube
     check(limits.loops==(belt?2:1),"unexpected boundary cycles");
     return limits;
 }
+#include "qualify-flange-base.hxx"
 } // namespace
 int main(int argc,char** argv) {
     try {
@@ -332,8 +381,13 @@ int main(int argc,char** argv) {
                   (end==0 || end==1) && std::isfinite(dx) && std::isfinite(dy) && std::isfinite(dz),"tube vector");
             tubes.push_back({sector,end,gp_Vec(dx,dy,dz)});
         }
-        std::cin>>std::ws;check(std::cin.eof(),"unexpected parameters");
+        rejectExchangedMeridian(sectors.front());
         const std::filesystem::path dir=argv[1];
+        std::cin>>std::ws;
+        if(!std::cin.eof()) {
+            check(belt,"base requires the complete belt");
+            return qualifyBase(dir,sectors,tubes,readBase(std::cin));
+        }
         const auto source=build(sectors,tubes);
         const auto before=verify(source,sectors,tubes);
         const auto after=verify(roundtrip(source,dir/"shared-tori.step"),sectors,tubes);

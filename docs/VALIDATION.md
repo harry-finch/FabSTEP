@@ -1917,3 +1917,55 @@ Le propriétaire plan à X=0 comporte 2 314 triangles. Son contour extérieur es
 `sh scripts/check.sh` termine avec code 0. Les 588 tests workspace, 50 bureau, huit worker, 121 ciblés large-stl, un transfert réel, 235 UI, douze Python et quatre SDK passent. Formatage, Clippy strict workspace/bureau/worker et Svelte réussissent. Seize tests opt-in workspace et quatre large-stl restent ignorés dans cette suite. Le transfert bureau est rejoué explicitement. La sonde privée R-080 actualisée a été exécutée séparément sur Flansch.
 
 Le build macOS de développement a été reconstruit avec `sh scripts/build-macos-dev.sh`. Les fichiers livrés sont identiques aux sorties Cargo (SHA-256 bureau `9f313a182398074677a98f1a4c6f3990cbd7f5be8d12e3a34ee729317f0b8fa6`, helper `e6cce2638258af49eed68227a94fac984901ce4a965387d43c6ccc94e2448bda`). L’avertissement existant de taille de chunk Vite demeure. Les essais manuels du bureau et de Fusion restent ouverts dans A-084/A-085. Windows et Linux n’ont pas été qualifiés dans ce lot.
+
+## V-1209 — R-085, assemblage du pourtour de Flansch
+
+### Assemblage source et réimport natif
+
+Le plan inférieur rejoint les douze faces de la ceinture V-1208 sur son contour extérieur. Ses cinq trous reprennent les anneaux du modèle Auto. La somme orientée des aires des sept arcs et cinq segments, diminuée des cinq disques, donne une aire nette de **2 876,916048013662 mm²**. Les limites sont parcourues une fois. La distance bornée entre régions planes atteint au plus **0,001676 mm**. Les cinq parois coniques occupent 3 602 triangles. La preuve vérifie les deux anneaux de chaque cône, leurs voisins orientés dans la source et une borne continue de **0,002494 mm** sur les triangles.
+
+| Faces mesurées et assemblées | Triangles source | Faces après STEP |
+| --- | ---: | ---: |
+| Ceinture inférieure | 90 011 | 12 |
+| Plan de base et cinq cônes | 5 916 | 6 |
+| Quatre cylindres de flanc et quatre secteurs toriques supérieurs | 65 628 | 8 |
+| Cinq bandes cylindriques supérieures | 1 727 | 5 |
+| Deux flancs plans simples et flanc marqué | 1 110 | 3 |
+| **Total** | **164 392** | **34** |
+
+Les quatre flancs courts ont chacun deux interfaces de 90 arêtes source. Leurs cartes cylindriques restent à moins de 0,000349 mm du maillage. Les quatre secteurs toriques hauts sont revérifiés avec les mêmes centres et angles. Les cinq bandes hautes utilisent les tangentes ajustées du bas. Les deux flancs plans simples possèdent chacun deux triangles, quatre coins et les quatre voisins attendus. La borne mesurée sur les bandes hautes reste inférieure à 0,000026 mm.
+
+Le troisième flanc plan comprend **dix boucles intérieures**. Les 1 106 triangles couvrent le rectangle extérieur privé de ces dix découpes. Le contrôle compare l’orientation, la séparation des contours, les quatre chaînes de bord et l’aire nette de **448,078923812396 mm²**. Le déplacement maximal par projection est inférieur à 0,000002900 mm. Après STEP, le contrôle retrouve les 1 004 segments des boucles, leurs sommets ordonnés et les quatre arêtes partagées avec le pourtour.
+
+Sur les 34 faces, OCCT 7.9.3 relit **une coque connexe, zéro solide et 16 contours libres**. L’écart maximal d’aire par face est inférieur à 8,64×10⁻¹⁰ mm². Les courbes paramétriques rectangulaires sont contrôlées dans l’espace aux deux extrémités et à mi-parcours. Les témoins natifs refusent un trou déplacé à aire constante, un congé décalé, une bande écourtée, une face posée sur la mauvaise fenêtre et une découpe comblée après transfert. Un méridien placé du mauvais côté en coordonnées paramétriques est refusé dans le contrôle avant transfert.
+
+### Document entier et interfaces restantes
+
+La sonde lit les propriétaires réellement attribués par Auto aux **540 170 triangles**. Les 34 groupes ci-dessus prennent l’intégralité de **151 763 propriétaires**. Les **375 778 autres triangles** conservent chacun leur attribution parmi 79 845 propriétaires. En recomptant chaque triangle, la partition résultante comporte **79 879 faces**, soit 20 121 sous le plafond de suivi. Les contre-exemples couvrent une répétition, un propriétaire amputé ou scindé, un singleton oublié et deux cônes intervertis. Ce décompte est une qualification de la partition avant construction du solide.
+
+Les 16 cycles sont retrouvés dans les arêtes orientées de la source. Quatre sorties de cônes rejoignent chacune un cylindre existant et la cinquième un tore. Les dix découpes latérales rejoignent des faces planes le long de leurs segments. Le cycle principal relie **692 arêtes source à 320 propriétaires plans**. Dans le STEP relu, ces arêtes suivent une fois **11 segments et neuf arcs**, avec une borne maximale de **0,001693 mm** entre les polylignes et les courbes. Un arc déplacé, un bord dupliqué et un retour en arrière sur la source sont refusés. La table locale `interface-map.json` associe à chaque intervalle sa position en millimètres sur la courbe réimportée et les deux incidences orientées dans le maillage analysé. Le partage natif de ces bords avec les voisins restants est le prochain travail d’assemblage.
+
+Trois des voisins sont des flancs cylindriques longs de 409 triangles au total. Leurs domaines en angle et hauteur ont des contours supérieurs variables, avec deux ressauts axiaux par flanc. La preuve source couvre les 274 arêtes des limites supérieures et borne la distance à 0,001694 mm. Ces trois cylindres sont extérieurs à la coque native des 34 faces. Leur raccordement aux surfaces du dessus demande de conserver ces limites mesurées. Les sept flancs refusent les 28 mutations de rayon, d’azimut, de station et d’orientation de triangle.
+
+Le helper du paquet de développement refuse de nouveau Flansch à **231 608 faces** avant construction native de la pièce. Temps de ce passage **67,843 s**, RSS maximale échantillonnée **573 014 016 octets**, empreinte **480 789 536 octets**. Aucun STEP du document. Les mesures concernent le laboratoire hors application. L’intégration dans Auto, la validation du solide entier, son volume et le coût de sa tessellation restent ouverts.
+
+### Reproduction depuis le STL d’origine
+
+Depuis la racine, utiliser le SDK OCCT 7.9.3 et un Python avec NumPy/SciPy. Le STL reste sur le poste de qualification. Les listes de sommets, les paramètres mesurés et les STEP de laboratoire sont écrits sous `artifacts/`, ignoré par Git. Les stations de recherche et les familles de faces attendues sont spécifiques à cette qualification.
+
+```sh
+export FABSTEP_PROFILE_STL="$HOME/Downloads/FlanschTurboLuftfilter_REV02.STL"
+export FABSTEP_PROFILE_DIR="$PWD/artifacts/r085-replay/source"
+assembly="$PWD/artifacts/r085-replay/assembly"
+FABSTEP_DUMP_PLANES=1 FABSTEP_DUMP_CONES=1 FABSTEP_DUMP_ANALYTIC_SEAMS=1 FABSTEP_DUMP_OWNERS=1 cargo test -p fabstep-core --features large-stl --target-dir artifacts/r080/target --release --offline --locked --test residual_planar_profile -- --ignored --exact residual_planar_profile
+python3 scripts/qualify-flange-assembly.py --check-negatives "$FABSTEP_PROFILE_DIR" "$assembly"
+python3 scripts/qualify-flange-ownership.py --check-negatives "$FABSTEP_PROFILE_DIR" "$assembly/patches.tsv" "$assembly/counts.json"
+sh scripts/qualify-torus-sectors.sh --pierced-side "$assembly/base.json" "$assembly/flanks.json" "$assembly/upper.json" "$assembly/pierced.json"
+python3 scripts/qualify-flange-interface.py --check-negatives --map "$assembly/interface-map.json" "$assembly/source-contour.json" artifacts/r085-native/pierced-side/main-contour.json
+```
+
+Le rejeu depuis le STL reproduit à l’octet les paramètres, les groupes de triangles et les rapports de partition et d’interface. Les essais graphiques FabSTEP/Fusion de la configuration publique de V-1208 sont toujours suivis dans A-084 et A-085.
+
+### Non-régression
+
+`sh scripts/check.sh` termine avec le code 0. Les suites Rust totalisent 772 réussites, dont 588 dans le workspace et un transfert réel bureau/helper. Vingt et une occurrences de tests sont ignorées lors des passages par défaut, dont le transfert rejoué explicitement. Les 235 tests UI réussissent. Svelte signale zéro erreur et zéro avertissement. Formatage, Clippy strict et builds passent. Les douze tests Python historiques passent dans la suite globale. Après ajout des deux cas publics du contour, un rejeu avec NumPy réussit les quatorze tests Python. Avec le Python sans NumPy, seuls ces deux nouveaux tests sont ignorés. La sonde Rust privée `large-stl` et son contrôle Clippy ciblé passent aussi séparément. Le paquet de développement utilisé pour le rejeu Flansch est celui de V-1208.

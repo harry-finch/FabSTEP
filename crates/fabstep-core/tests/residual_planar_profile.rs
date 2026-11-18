@@ -2,7 +2,8 @@
 //! input or working-directory convention enters the ordinary test suite.
 #![cfg(feature = "large-stl")]
 use fabstep_core::{
-    analyze_stl, recognize_automatic, Mesh, Options, ReconstructionMode, RoundedFaceRef,
+    analyze_stl, recognize_automatic, Mesh, MixedLoop, Options, ReconstructionMode, RoundedFaceRef,
+    RoundedModel,
 };
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -72,6 +73,7 @@ fn shared_edges(
     geometry: &[([f64; 3], f64)],
     owners: &[RoundedFaceRef],
     mut analytic_seams: Option<&mut std::io::BufWriter<fs::File>>,
+    mut cone_seams: Option<&mut std::io::BufWriter<fs::File>>,
 ) -> Vec<Neighbors> {
     let mut edges = Vec::with_capacity(mesh.triangles.len() * 3);
     for (i, t) in mesh.triangles.iter().enumerate() {
@@ -84,22 +86,32 @@ fn shared_edges(
     for uses in edges.chunk_by(|a, b| (a.0, a.1) == (b.0, b.1)) {
         assert_eq!(uses.len(), 2, "analysis must be a closed two-manifold");
         let pair = [uses[0].2, uses[1].2];
-        if let Some(output) = analytic_seams.as_mut() {
-            use std::io::Write as _;
-            for (plane, other) in [(pair[0], pair[1]), (pair[1], pair[0])] {
-                if matches!(owners[plane], RoundedFaceRef::Plane { .. })
-                    && !matches!(owners[other], RoundedFaceRef::Plane { .. })
-                {
-                    let (a, b, _) = uses[0];
-                    let tri = mesh.triangles[plane];
-                    let edge = (0..3)
-                        .find(|&i| {
-                            let (u, v) = (tri[i], tri[(i + 1) % 3]);
-                            (u.min(v), u.max(v)) == (a, b)
-                        })
-                        .unwrap();
-                    writeln!(output, "{plane}\t{edge}\t{:?}", owners[other]).unwrap();
+        for (side, other) in [(pair[0], pair[1]), (pair[1], pair[0])] {
+            let output = match (owners[side], owners[other]) {
+                (RoundedFaceRef::Plane { .. }, RoundedFaceRef::Plane { .. }) => None,
+                (RoundedFaceRef::Plane { .. }, _) => analytic_seams.as_deref_mut(),
+                (RoundedFaceRef::Cone { .. }, neighbor) if neighbor != owners[side] => {
+                    cone_seams.as_deref_mut()
                 }
+                _ => None,
+            };
+            if let Some(output) = output {
+                use std::io::Write as _;
+                let (lo, hi, _) = uses[0];
+                let tri = mesh.triangles[side];
+                let edge = (0..3)
+                    .find(|&i| {
+                        let (a, b) = (tri[i], tri[(i + 1) % 3]);
+                        (a.min(b), a.max(b)) == (lo, hi)
+                    })
+                    .unwrap();
+                let (a, b) = (tri[edge], tri[(edge + 1) % 3]);
+                let adjacent = mesh.triangles[other];
+                assert!(
+                    (0..3).any(|i| adjacent[i] == b && adjacent[(i + 1) % 3] == a),
+                    "analytic interface must have opposite oriented incidences"
+                );
+                writeln!(output, "{side}\t{edge}\t{:?}", owners[other]).unwrap();
             }
         }
         if pair
@@ -114,6 +126,74 @@ fn shared_edges(
         }
     }
     neighbors
+}
+
+// Export the actual recognition parameters. The independent checker compares
+// ring references with the source triangle boundary at each end of a cone.
+fn dump_cones(dir: &std::path::Path, model: &RoundedModel, mesh: &Mesh, owners: &[RoundedFaceRef]) {
+    use std::io::{BufWriter, Write};
+    let mixed = &model.revolved.mixed;
+    let mut rings = BufWriter::new(fs::File::create(dir.join("rings.tsv")).unwrap());
+    for (i, ring) in mixed.rings.iter().enumerate() {
+        writeln!(
+            rings,
+            "{i}\t{:?}\t{:?}\t{}",
+            ring.center, ring.axis, ring.radius_mm
+        )
+        .unwrap();
+    }
+    rings.flush().unwrap();
+    let mut usage = BufWriter::new(fs::File::create(dir.join("ring-uses.tsv")).unwrap());
+    for (i, face) in mixed.planes.iter().enumerate() {
+        for boundary in &face.loops {
+            if let MixedLoop::Circle { ring } = boundary {
+                writeln!(usage, "{ring}\tplane\t{i}").unwrap();
+            }
+        }
+    }
+    let mut add = |kind: &str, index: usize, rings: [usize; 2]| {
+        for ring in rings {
+            writeln!(usage, "{ring}\t{kind}\t{index}").unwrap();
+        }
+    };
+    for (i, face) in model.revolved.cones.iter().enumerate() {
+        add("cone", i, face.rings);
+    }
+    for (i, face) in mixed.cylinders.iter().enumerate() {
+        add("cylinder", i, face.rings);
+    }
+    for (i, face) in model.tori.iter().enumerate() {
+        if let Some(rings) = face.rings {
+            add("torus", i, rings);
+        }
+    }
+    usage.flush().unwrap();
+    let mut cones = BufWriter::new(fs::File::create(dir.join("cones.tsv")).unwrap());
+    for (i, cone) in model.revolved.cones.iter().enumerate() {
+        writeln!(
+            cones,
+            "{i}\t{}\t{}\t{}",
+            cone.rings[0], cone.rings[1], cone.inner
+        )
+        .unwrap();
+    }
+    cones.flush().unwrap();
+    let mut faces = BufWriter::new(fs::File::create(dir.join("cone-source.bin")).unwrap());
+    for (triangle, owner) in owners.iter().enumerate() {
+        if let RoundedFaceRef::Cone { index } = owner {
+            for id in [triangle, *index] {
+                faces
+                    .write_all(&u32::try_from(id).unwrap().to_le_bytes())
+                    .unwrap();
+            }
+            for vertex in mesh.triangles[triangle] {
+                for coordinate in mesh.vertices[vertex] {
+                    faces.write_all(&coordinate.to_le_bytes()).unwrap();
+                }
+            }
+        }
+    }
+    faces.flush().unwrap();
 }
 
 fn root(parents: &mut [usize], mut i: usize) -> usize {
@@ -228,10 +308,39 @@ fn residual_planar_profile() {
         .map(|&t| normal_and_area(mesh, t))
         .collect();
     fs::create_dir_all(&dir).unwrap();
+    if std::env::var_os("FABSTEP_DUMP_OWNERS").is_some() {
+        use std::io::Write;
+        // One little-endian u32 per analysis triangle in original order.
+        // Plane ids are unchanged; other ids follow the sorted analytic
+        // owner labels already emitted in residual-planar.json.
+        let analytic_ids: BTreeMap<_, _> = analytic
+            .keys()
+            .enumerate()
+            .map(|(i, label)| (label, planar_usage.len() + i))
+            .collect();
+        let mut output = std::io::BufWriter::new(fs::File::create(dir.join("owners.bin")).unwrap());
+        for owner in owners {
+            let id = match owner {
+                RoundedFaceRef::Plane { index } => *index,
+                other => analytic_ids[&format!("{other:?}")],
+            };
+            output
+                .write_all(&u32::try_from(id).unwrap().to_le_bytes())
+                .unwrap();
+        }
+        output.flush().unwrap();
+    }
     let mut seams = std::env::var_os("FABSTEP_DUMP_ANALYTIC_SEAMS").map(|_| {
         std::io::BufWriter::new(fs::File::create(dir.join("analytic-seams.tsv")).unwrap())
     });
-    let edges = shared_edges(mesh, &geometry, owners, seams.as_mut());
+    let mut cone_seams = std::env::var_os("FABSTEP_DUMP_CONES").map(|_| {
+        dump_cones(&dir, &r.model, mesh, owners);
+        std::io::BufWriter::new(fs::File::create(dir.join("cone-seams.tsv")).unwrap())
+    });
+    let edges = shared_edges(mesh, &geometry, owners, seams.as_mut(), cone_seams.as_mut());
+    if let Some(mut writer) = cone_seams {
+        std::io::Write::flush(&mut writer).unwrap();
+    }
     if let Some(mut writer) = seams {
         std::io::Write::flush(&mut writer).unwrap();
     }

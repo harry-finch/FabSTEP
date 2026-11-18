@@ -5,7 +5,7 @@
 ## Version et validation courantes
 
 - `artifacts/release/1.0.0/FabSTEP.app` reste le paquet autonome signé ad hoc, accepté sur un autre Mac et dans Fusion le 9 novembre (V-1115). Pas de signature Developer ID ni notarisation revendiquée.
-- `artifacts/FabSTEP.app` est le build local de développement, dépendant du SDK installé. Dernière qualification **V-1208** : **588 tests workspace, 50 bureau, huit worker, 121 ciblés large-stl, un transfert réel, 235 UI, douze Python et quatre SDK réussis**. Formatage, Clippy strict, Svelte et builds passent ; deux exécutables du paquet vérifiés par SHA-256.
+- `artifacts/FabSTEP.app` est le build local de développement, dépendant du SDK installé. Qualification du paquet **V-1208** : **588 tests workspace, 50 bureau, huit worker, 121 ciblés large-stl, un transfert réel, 235 UI, douze Python et quatre SDK réussis**. Formatage, Clippy strict, Svelte et builds passent ; deux exécutables du paquet vérifiés par SHA-256.
 - Seize tests opt-in workspace restent ignorés par la suite ordinaire. Les essais graphiques/Fusion des extensions restent ouverts dans FabBoard ; aucun succès automatique ne vaut acceptation utilisateur. Le pilotage du dialogue d’ouverture avait été bloqué, mais l’utilisateur a confirmé l’ouverture manuelle.
 
 ## Capacités développées
@@ -33,7 +33,7 @@ Ces lots sont à tester dans FabBoard. Les détails de portée et de preuve sont
 
 Import ordinaire : 32 corps, 64 Mio et 100 000 triangles après placement. Le mode gros STL accepté utilise un helper séparé `large-stl`, source jusqu’à 600 000 triangles et 1 800 000 sommets, annulation, surveillance RSS/empreinte physique à 4 Gio et délai de 30 minutes. Les plafonds résultat/tessellation et 3MF restent inchangés ; le bureau n’active jamais cette feature (ADR-0034).
 
-Le helper R-085 reproduit le refus de Flansch à **231 608 faces**. En laboratoire, onze secteurs ont une partition source mesurée. La ceinture inférieure réelle (90 011 triangles) est reconstruite et réimportée en douze faces. Elle possède deux contours libres. Le résultat du document complet reste indisponible. Voir V-1208 dans [VALIDATION](docs/VALIDATION.md).
+Le helper refuse actuellement Flansch à **231 608 faces**. En laboratoire, une coque de **34 faces** couvre **164 392 triangles** de cette pièce. La partition vérifiée sur le fichier entier compterait **79 879 faces** après ce remplacement. Les 16 contours libres de la coque doivent être partagés avec le reste du corps pour produire un solide. Mesures, contre-exemples et reproduction dans [V-1209](docs/VALIDATION.md#v-1209--r-085-assemblage-du-pourtour-de-flansch).
 
 ## Reprise après cette session
 
@@ -50,6 +50,6 @@ Le secteur annulaire de R-085 est intégré sous ADR-0040. L’assemblage local 
 
 Les parents C2/D/E/F/G sont **en cours** dans FabBoard : des sous-domaines sont développés, pas la généralisation entière. Les essais utilisateur restent dans leurs actions existantes, sans les dupliquer ni les marquer acceptés.
 
-**Reprise Flansch — R-085.** Partir des deux boucles de la ceinture inférieure qualifiée dans V-1208. Côté plan, partager le contour extérieur avec la ceinture et les cinq contours intérieurs avec les cinq cônes source identifiés. Côté flancs, quatre parois rejoignent les secteurs du haut, trois se prolongent jusqu’à X≈10 mm. Qualifier leurs autres bords et préparer un assemblage local qui conserve la partition du corps entier. Rejouer le helper pour mesurer les premières limites de résultat et de validation native réellement atteintes.
+**Reprise Flansch — R-085.** Rejouer V-1209 pour obtenir la partition du corps et les correspondances de son pourtour. Les 16 contours libres se répartissent en cinq sorties de perçage, dix contours de marquage et un contour principal. Les cinq sorties ont chacune un voisin analytique connu. Les contours du marquage conservent leurs 1 004 segments. Sur le contour principal, relier les 20 arêtes natives aux 320 faces voisines de la source. Commencer par les trois parois cylindriques longues dont le bord supérieur comporte deux ressauts. Préserver les triangles des autres propriétaires, contrôler les arêtes partagées, la fidélité et le volume après réimport, puis rejouer le helper sur le corps entier.
 
-Les commandes de validation/build sont dans README/AGENTS et `scripts/check.sh` / `scripts/build-macos-dev.sh`. Les preuves F1/C2b/R-085 sont consignées dans V-1205/V-1206/V-1208 et ADR-0038/0039/0040. Les journaux locaux sous `artifacts/f-next/`, `artifacts/c2-next/` et `artifacts/r085-*/` sont ignorés par Git ; les tests, générateurs et corpus nécessaires à leur reproduction sont versionnés. Ne pas considérer ces journaux locaux comme une dépendance de reprise sur un autre poste.
+Les commandes de validation/build sont dans README/AGENTS et `scripts/check.sh` / `scripts/build-macos-dev.sh`. Les preuves F1/C2b/R-085 sont consignées dans V-1205/V-1206/V-1208/V-1209 et ADR-0038/0039/0040. Les journaux locaux sous `artifacts/f-next/`, `artifacts/c2-next/` et `artifacts/r085-*/` sont ignorés par Git ; les tests, générateurs et corpus nécessaires à leur reproduction sont versionnés. Ne pas considérer ces journaux locaux comme une dépendance de reprise sur un autre poste.
