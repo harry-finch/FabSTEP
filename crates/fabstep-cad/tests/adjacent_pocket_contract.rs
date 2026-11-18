@@ -130,6 +130,7 @@ fn both_ellipse_orientations_and_wall_orders_preserve_geometry_and_provenance() 
             linear_blend: None,
             cross_drill: None,
             smooth_revolution: None,
+            unequal_pocket: None,
         };
         let plane_tokens: Vec<_> = (31..42).collect();
         // Source tokens 90 and 91 track the X and Y cylinder, independently

@@ -492,3 +492,9 @@ Les deux cylindres partagent désormais une arête elliptique après réimport. 
 ## 2026-11-18 — R-090, qualification des congés adjacents de rayons différents
 
 Deux maillages FreeCAD donnent encore 69 et 155 plans. La pièce de référence porte une arête non plane entre les deux cylindres et un arc circulaire supplémentaire sur la paroi latérale. Le laboratoire construit une quartique rationnelle pour la jonction et borne l’interpolation des tracés sur les deux supports. Les témoins, le repli actuel et les contrôles de transfert sont décrits dans V-1217. A-092 porte sur l’extension du contrat.
+
+## 2026-11-18 — R-090 intégré après l’accord A-092
+
+Le parcours STL → STEP reconnaît les deux congés de rayons différents au coin d’une poche rectangulaire. La couverture des bandes et des onze plans est vérifiée avant construction. Une représentation paramétrique dédiée fixe la courbe commune et ses deux tracés. La CAO contrôle les cinq pôles de la quartique et les deux domaines après réimport. La sélection Auto conserve la provenance de chaque face et le DXF de la paroi comporte un arc circulaire.
+
+Un essai supplémentaire sur un STL incliné et réécrit en f32 a révélé une fragmentation des plans. Une seconde recherche bornée et l’ajustement des supports sur leurs triangles ont permis de reconstruire la pièce aux tolérances initiales. Le fond volontairement déformé est couvert par un test de refus. Résultats et reproduction dans V-1218, vérification manuelle dans A-093.

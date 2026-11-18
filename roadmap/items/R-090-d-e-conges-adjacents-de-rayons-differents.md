@@ -1,8 +1,8 @@
 ---
 id: R-090
 titre: "D/E — congés adjacents de rayons différents"
-resume: "Qualifier le coin entre un petit et un grand congé, leur courbe commune et l’arc qui termine le grand congé sur la paroi du petit."
-statut: en-cours
+resume: "Deux congés adjacents de rayons distincts dans une poche rectangulaire à butées droites. Auto produit deux faces cylindriques sélectionnables et conserve l’arc de prolongement en DXF."
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-18
 maj: 2026-11-18
@@ -22,7 +22,7 @@ Rayon variable le long d’une arête, surface de lissage ajoutée au coin, inte
 
 ## Dépendances
 
-R-089 décrit le coin de même rayon. R-090 demande un arbitrage sur le contrat core/CAO pour la branche commune et le contour à cinq bords.
+R-089 décrit le coin de même rayon. L’accord A-092 autorise le nouveau domaine du contrat core/CAO pour la branche commune et le contour à cinq bords.
 
 ## Critères d'acceptation
 
@@ -34,4 +34,8 @@ R-089 décrit le coin de même rayon. R-090 demande un arbitrage sur le contrat 
 
 ## Qualification initiale
 
-Les maillages publics et une autre pièce créée dans FreeCAD confirment le contour à cinq arêtes du grand cylindre. La courbe spatiale admet une quartique rationnelle à cinq pôles. La conversion depuis les STL est encore facettisée. Voir [ADR-0043](../../docs/adr/0043-unequal-adjacent-pocket-fillets.md) et [V-1217](../../docs/VALIDATION.md#v-1217--qualification-du-coin-à-deux-rayons-distincts-r-090).
+Les maillages publics et une autre pièce créée dans FreeCAD confirment le contour à cinq arêtes du grand cylindre. La courbe spatiale admet une quartique rationnelle à cinq pôles. Avant intégration, la conversion depuis les STL livrait une pièce facettisée. Voir [ADR-0043](../../docs/adr/0043-unequal-adjacent-pocket-fillets.md) et [V-1217](../../docs/VALIDATION.md#v-1217--qualification-du-coin-à-deux-rayons-distincts-r-090).
+
+## Intégration
+
+Le build de développement reconstruit deux cylindres sélectionnables et leur jonction non plane. Le cinquième bord du grand congé apparaît comme arc dans le DXF de la paroi voisine. Les contrôles portent sur les maillages publics, deux triangulations FreeCAD, un STL incliné, un coin déformé et plusieurs corps. Le reconnaisseur traite les poches à onze plans sur les corps de 24 à 4 096 triangles. [Validation V-1218](../../docs/VALIDATION.md#v-1218--conversion-stl-des-deux-congés-adjacents-de-rayons-différents-r-090)

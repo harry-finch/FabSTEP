@@ -242,7 +242,7 @@ fn rounded_face_counts(model: &fabstep_core::RoundedModel) -> [usize; 12] {
     [
         m.planes.len(),
         m.cylinders.len(),
-        m.partial_cylinders.len(),
+        model.partial_cylinder_count(),
         model.revolved.cones.len(),
         model.spheres.len(),
         model.tori.len(),

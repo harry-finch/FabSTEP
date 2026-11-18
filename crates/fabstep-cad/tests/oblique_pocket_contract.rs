@@ -135,6 +135,7 @@ fn one_circle_and_one_ellipse_reimport_as_a_single_concave_fillet() {
         linear_blend: None,
         cross_drill: None,
         smooth_revolution: None,
+        unequal_pocket: None,
     };
     let tokens: Vec<_> = (21..=31).rev().collect();
     let tracked = |wall: &[usize]| {

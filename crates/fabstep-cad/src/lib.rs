@@ -1509,7 +1509,7 @@ pub fn build_rounded_step_with_token_groups(
     let counts = [
         model.revolved.mixed.planes.len(),
         model.revolved.mixed.cylinders.len(),
-        model.revolved.mixed.partial_cylinders.len(),
+        model.partial_cylinder_count(),
         model.revolved.cones.len(),
         model.spheres.len(),
         model.tori.len(),
@@ -1562,11 +1562,15 @@ pub fn build_rounded_step_with_token_groups(
 mod adjacent_pocket;
 mod oblique_pocket;
 mod torus_sector;
+mod unequal_pocket;
 
 fn build_rounded_step_impl(
     model: &RoundedModel,
     tokens: Option<SurfaceTokens<'_>>,
 ) -> Result<ValidatedStep, FabError> {
+    if let Some(pocket) = &model.unequal_pocket {
+        return unequal_pocket::build(model, pocket, tokens);
+    }
     if model
         .revolved
         .mixed
@@ -5198,6 +5202,7 @@ mod tests {
         revolved.mixed.rings[1].center[2] = height;
         RoundedModel {
             smooth_revolution: None,
+            unequal_pocket: None,
             torus_sectors: vec![],
             cross_drill: None,
             linear_blend: None,
@@ -5221,6 +5226,7 @@ mod tests {
     fn complete_sphere_model(center: [f64; 3], radius_mm: f64) -> RoundedModel {
         RoundedModel {
             smooth_revolution: None,
+            unequal_pocket: None,
             torus_sectors: vec![],
             cross_drill: None,
             linear_blend: None,
@@ -5588,6 +5594,7 @@ mod tests {
     fn rounded_provenance_tracks_all_surface_families_and_partial_cylinders() {
         let partial = RoundedModel {
             smooth_revolution: None,
+            unequal_pocket: None,
             torus_sectors: vec![],
             cross_drill: None,
             linear_blend: None,
@@ -5683,6 +5690,7 @@ mod tests {
         }
         let partial = RoundedModel {
             smooth_revolution: None,
+            unequal_pocket: None,
             torus_sectors: vec![],
             cross_drill: None,
             linear_blend: None,
@@ -5746,6 +5754,7 @@ mod tests {
         });
         let mut model = RoundedModel {
             smooth_revolution: None,
+            unequal_pocket: None,
             torus_sectors: vec![],
             revolved,
             spheres: vec![],
@@ -5855,6 +5864,7 @@ mod tests {
         });
         RoundedModel {
             smooth_revolution: None,
+            unequal_pocket: None,
             torus_sectors: vec![],
             cross_drill: None,
             linear_blend: None,
@@ -6588,6 +6598,7 @@ mod tests {
         ];
         RoundedModel {
             smooth_revolution: None,
+            unequal_pocket: None,
             torus_sectors: vec![],
             revolved: RevolvedModel {
                 mixed: MixedModel {
@@ -6695,6 +6706,7 @@ mod tests {
         }
         RoundedModel {
             smooth_revolution: None,
+            unequal_pocket: None,
             torus_sectors: vec![],
             revolved: RevolvedModel {
                 mixed: MixedModel {
@@ -6794,6 +6806,7 @@ mod tests {
         let q = (1. + 2. * slope * slope).sqrt();
         RoundedModel {
             smooth_revolution: None,
+            unequal_pocket: None,
             torus_sectors: vec![],
             revolved: RevolvedModel {
                 mixed: MixedModel {

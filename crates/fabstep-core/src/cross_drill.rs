@@ -779,6 +779,7 @@ pub(crate) fn candidate(
         linear_blend: None,
         torus_sectors: vec![],
         smooth_revolution: None,
+        unequal_pocket: None,
         cross_drill: Some(Box::new(seed.model)),
     };
     let triangle_faces = own

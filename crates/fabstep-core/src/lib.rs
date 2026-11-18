@@ -447,8 +447,27 @@ pub struct MixedTorusSector {
     pub inner: bool,
 }
 
+/// Rectangular blind pocket with two concave quarter cylinders of distinct
+/// radii. All lengths are measured along the local frame, in millimetres.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UnequalPocket {
+    /// Intersection of the untrimmed pocket floor and its two tangent walls.
+    pub origin: [f64; 3],
+    /// Inward normals of the large and small fillet sides, then the floor.
+    /// Both handednesses are valid for this ordered orthonormal frame.
+    pub axes: [[f64; 3]; 3],
+    pub outer_min: [f64; 3],
+    pub outer_max: [f64; 3],
+    /// Opposite pocket stops at positive local x and y.
+    pub pocket_spans: [f64; 2],
+    /// Small then large. Their source owners are PartialCylinder 0 and 1.
+    pub radii: [f64; 2],
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoundedModel {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unequal_pocket: Option<Box<UnequalPocket>>,
     pub revolved: RevolvedModel,
     pub spheres: Vec<MixedSphere>,
     pub tori: Vec<MixedTorus>,
@@ -464,6 +483,17 @@ pub struct RoundedModel {
     pub cross_drill: Option<Box<CrossDrill>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub smooth_revolution: Option<Box<SmoothRevolution>>,
+}
+
+impl RoundedModel {
+    /// Number of partial cylindrical faces addressable by the source owners.
+    pub fn partial_cylinder_count(&self) -> usize {
+        if self.unequal_pocket.is_some() {
+            2
+        } else {
+            self.revolved.mixed.partial_cylinders.len()
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -6,6 +6,7 @@
 #include <BRepAlgoAPI_Section.hxx>
 #include <BRepAlgoAPI_Splitter.hxx>
 #include <Geom_BSplineCurve.hxx>
+#include <Geom_Circle.hxx>
 #include <Geom_CylindricalSurface.hxx>
 #include <Geom_BezierCurve.hxx>
 #include <BRepPrimAPI_MakeRevol.hxx>
@@ -109,6 +110,10 @@ struct CadMetrics {
 
 struct TorusSectorSolidData {
   double origin[3], axis[3], start[3], height, inner_radius, major_radius, minor_radius, sweep;
+};
+
+struct UnequalPocketData {
+  double origin[3], axes[3][3], radii[2], outer_min[3], outer_max[3], pocket_spans[2];
 };
 
 struct SmoothRevolutionData {
@@ -1456,6 +1461,7 @@ void check_edge_incidence(const TopoDS_Shape& shape, const TopTools_IndexedMapOf
 
 #include "smooth_revolution.hxx"
 #include "torus_sector.hxx"
+#include "unequal_pocket.hxx"
 
 struct RoundedBoxFrame {
   gp_Pnt center;
@@ -1472,6 +1478,7 @@ struct SolidMeasurement {
   std::optional<SmoothRevolutionData> revolution;
   std::optional<TorusSectorSolidData> sector;
   std::optional<pocket::Domain> pocket;
+  std::optional<UnequalPocketData> unequal;
 };
 
 bool quarter_turn(double span) {
@@ -1959,7 +1966,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
                               const CrossDrillData* expected_drill = nullptr,
                               const SmoothRevolutionData* expected_revolution = nullptr,
                               const TorusSectorSolidData* expected_sector = nullptr,
-                              const pocket::Domain* expected_pocket = nullptr) {
+                              const pocket::Domain* expected_pocket = nullptr, const UnequalPocketData* expected_unequal = nullptr) {
   TopTools_IndexedMapOfShape shells;
   TopExp::MapShapes(shape, TopAbs_SHELL, shells);
   if (shells.Extent() != 1 || !BRep_Tool::IsClosed(shells(1))) {
@@ -1974,6 +1981,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   SurfaceCounts found{};
   size_t quarter_cylinders = 0;
   bool partial_torus = false;
+  bool cylinder_spline = false;
   for (int i = 1; i <= faces.Extent(); ++i) {
     const BRepAdaptor_Surface surface(TopoDS::Face(faces(i)));
     switch (surface.GetType()) {
@@ -1981,11 +1989,11 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
       case GeomAbs_SurfaceOfRevolution: ++found.revolutions; break;
       case GeomAbs_Cylinder:
         ++found.cylindrical;
-        if (!found.cross_drills && (!expected || expected->cross_drills)) {
+        if (!cylinder_spline) {
           for (TopExp_Explorer it(faces(i),TopAbs_EDGE); it.More(); it.Next()) {
             const auto edge=TopoDS::Edge(it.Current());
             if (!BRep_Tool::Degenerated(edge) && BRepAdaptor_Curve(edge).GetType()==GeomAbs_BSplineCurve) {
-              found.cross_drills=1;
+              cylinder_spline=true;
               break;
             }
           }
@@ -2038,6 +2046,12 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
       default: throw CadFailure{status, "Une face du solide présente un type de surface hors périmètre."};
     }
   }
+  std::optional<UnequalPocketData> unequal;
+  if (cylinder_spline && found.planar==11 && found.cylindrical==2 && found.partial==2 && faces.Extent()==13) {
+    unequal=unequal_pocket::verify(shape,expected_unequal,status).data;
+  } else if (cylinder_spline) found.cross_drills=1;
+  if (expected_unequal && !unequal)
+    throw CadFailure{status,"La jonction des deux rayons a disparu."};
   const bool trihedron=found.spherical_octants==1 && found.spherical==1 &&
       found.planar==6 && found.cylindrical==3 && quarter_cylinders==3 &&
       found.conical==0 && found.toroidal==0;
@@ -2088,7 +2102,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     const double expected_volume = torus_sector::Geometry(*sector).volume();
     torus_sector::require(std::isfinite(expected_volume) &&
       std::abs(expected_volume-properties.Mass()) < expected_volume*1e-8,status);
-  } else if (found.linear_blends || found.cross_drills || found.elliptic_cylinders)
+  } else if (found.linear_blends || found.cross_drills || found.elliptic_cylinders || unequal)
     BRepGProp::VolumeProperties(shape, properties, 1.e-11, true);
   else
     BRepGProp::VolumeProperties(shape, properties, true);
@@ -2126,14 +2140,15 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     rounded_box = expected_box ? *expected_box : infer_rounded_box_frame(faces, status);
     check_rounded_box_geometry(shape, faces, result, *rounded_box, status);
   }
-  return {result, found, rounded_box, drill, revolution, sector, pocket_geometry};
+  if (unequal) unequal_pocket::volume(expected_unequal ? *expected_unequal : *unequal,result.volume,status);
+  return {result, found, rounded_box, drill, revolution, sector, pocket_geometry, unequal};
 }
 
 CadMetrics measure(const TopoDS_Shape& shape, SurfaceCounts expected, Status status,
                    const RoundedBoxFrame* expected_box = nullptr,const CrossDrillData* expected_drill=nullptr,
                    const SmoothRevolutionData* expected_revolution=nullptr,
-                   const TorusSectorSolidData* expected_sector=nullptr, const pocket::Domain* expected_pocket=nullptr) {
-  return measure_solid(shape, status, &expected, expected_box,expected_drill,expected_revolution,expected_sector,expected_pocket).metrics;
+                   const TorusSectorSolidData* expected_sector=nullptr, const pocket::Domain* expected_pocket=nullptr, const UnequalPocketData* expected_unequal=nullptr) {
+  return measure_solid(shape, status, &expected, expected_box,expected_drill,expected_revolution,expected_sector,expected_pocket,expected_unequal).metrics;
 }
 
 bool same_measurement(const CadMetrics& before, const CadMetrics& after) {
@@ -2505,7 +2520,8 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
                                 before[i].report.cross_drill ? &*before[i].report.cross_drill : nullptr,
                                 before[i].report.revolution ? &*before[i].report.revolution : nullptr,
                                 before[i].report.sector ? &*before[i].report.sector : nullptr,
-                                before[i].report.pocket ? &*before[i].report.pocket : nullptr);
+                                before[i].report.pocket ? &*before[i].report.pocket : nullptr,
+                                before[i].report.unequal ? &*before[i].report.unequal : nullptr);
     if (!same_measurement(before[i].report.metrics, report.metrics)) {
       throw CadFailure{mismatch, "Les dimensions, la position ou le volume d'un corps changent au réimport."};
     }
@@ -2670,6 +2686,15 @@ std::vector<RevolutionGrid> check_meshing_resolution(const TopoDS_Shape& shape, 
                    BRepAdaptor_Curve(e).GetType()==GeomAbs_BSplineCurve;
           }
           if(spline) try {
+            TopTools_IndexedMapOfShape faces;
+            TopExp::MapShapes(solid,TopAbs_FACE,faces);
+            if (faces.Extent()==13) {
+              // The perçages sécants have six planes and three cylinders.
+              // Admit this other spline only after certifying the complete pocket.
+              const auto pocket=unequal_pocket::verify(solid,nullptr,mesh_failed);
+              junctions.emplace(edges.FindIndex(pocket.seam),unequal_pocket::mesh_segments(pocket.data,deflection,mesh_angle));
+              continue;
+            }
             const auto proof=verify_cross_drill(solid,nullptr,deflection);
             for(const auto& [e,n]:proof.mesh_edges)junctions.emplace(edges.FindIndex(e),n);
           } catch(const std::exception& ex){throw CadFailure{mesh_failed,ex.what()};}
@@ -3717,7 +3742,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
                    const RoundedBoxFrame* expected_box = nullptr,
                    FaceLabels* labels = nullptr,const CrossDrillData* expected_drill=nullptr,
                    const SmoothRevolutionData* expected_revolution=nullptr,
-                   const TorusSectorSolidData* expected_sector=nullptr, const pocket::Domain* expected_pocket=nullptr) noexcept {
+                   const TorusSectorSolidData* expected_sector=nullptr, const pocket::Domain* expected_pocket=nullptr, const UnequalPocketData* expected_unequal=nullptr) noexcept {
   *output = {};
   return with_occt(invalid_model, error, error_capacity, [&](Status& stage) {
     size_t face_count = 0;
@@ -3730,7 +3755,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     }
     const TopoDS_Solid solid = build();
     stage = invalid_solid;
-    const CadMetrics before = measure(solid, expected, stage, expected_box,expected_drill,expected_revolution,expected_sector,expected_pocket);
+    const CadMetrics before = measure(solid, expected, stage, expected_box,expected_drill,expected_revolution,expected_sector,expected_pocket,expected_unequal);
 
     stage = write_failed;
     DESTEP_Parameters parameters;
@@ -3741,11 +3766,11 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     // The default STEP healing stage rewrites some swept profile faces. The
     // sector was already checked above; transfer those exact TShapes so its
     // face tokens reach the corresponding ADVANCED_FACE entities.
-    if (expected_sector || expected_pocket) writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
+    if (expected_sector || expected_pocket || expected_unequal) writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
     if (writer.Transfer(solid, STEPControl_ManifoldSolidBrep, parameters) != IFSelect_RetDone) {
       throw CadFailure{stage, "Impossible de traduire le solide en STEP."};
     }
-    if (labels && !write_face_labels(writer, *labels) && (expected_sector || expected_pocket))
+    if (labels && !write_face_labels(writer, *labels) && (expected_sector || expected_pocket || expected_unequal))
       throw CadFailure{write_failed,"Les identités de faces analytiques ne sont pas transférables."};
     std::stringstream stream;
     if (writer.WriteStream(stream) != IFSelect_RetDone || !stream.good()) {
@@ -3754,7 +3779,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
 
     stage = read_failed;
     stream.seekg(0);
-    const CadMetrics after = measure(read_step(stream), expected, stage, expected_box,expected_drill,expected_revolution,expected_sector,expected_pocket);
+    const CadMetrics after = measure(read_step(stream), expected, stage, expected_box,expected_drill,expected_revolution,expected_sector,expected_pocket,expected_unequal);
     if (!same_measurement(before, after)) {
       throw CadFailure{mismatch, "Les dimensions ou le volume changent après réimport du STEP."};
     }
@@ -3866,6 +3891,14 @@ extern "C" int fabstep_build_cross_drill_step(const CrossDrillData* domain,
   auto* tracked=wall_tokens?&labels:nullptr;
   return validated_step([&]{return build_cross_drill(*domain,plane_tokens,wall_tokens,tracked);},
     {6,3,0,0,0,0,0,0,0,1},output,error,capacity,nullptr,tracked,domain);
+}
+
+extern "C" int fabstep_build_unequal_pocket_step(const UnequalPocketData* domain,
+    const size_t* plane_tokens,const size_t* wall_tokens,StepOutput* output,char* error,size_t capacity) noexcept {
+  FaceLabels labels;
+  auto* tracked=wall_tokens ? &labels : nullptr;
+  return validated_step([&]{return unequal_pocket::build(*domain,plane_tokens,wall_tokens,tracked);},
+      {11,2,2},output,error,capacity,nullptr,tracked,nullptr,nullptr,nullptr,nullptr,domain);
 }
 
 // Circular stops come first. The final (single) elliptic arc belongs to a

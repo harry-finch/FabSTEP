@@ -148,6 +148,7 @@ pub fn recognize_complete_sphere(
     Ok(RoundedRecognition {
         model: RoundedModel {
             torus_sectors: vec![], smooth_revolution: None,
+            unequal_pocket: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],

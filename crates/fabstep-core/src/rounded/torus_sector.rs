@@ -589,6 +589,7 @@ fn assemble(
         partial_cones: vec![],
         octants: vec![],
         linear_blend: None,
+        unequal_pocket: None,
         cross_drill: None,
         smooth_revolution: None,
     };

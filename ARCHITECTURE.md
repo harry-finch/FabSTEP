@@ -286,3 +286,9 @@ Le chemin Auto/Surfaces identifie onze régions planes et une bande cylindrique 
 Avec onze régions planes, le moteur recherche aussi deux bandes concaves qui atteignent ensemble cinq supports plans. Le plan bissecteur sépare les bandes. Chaque bande doit couvrir le quart de cylindre attendu, et leur frontière doit suivre la même chaîne d’arêtes de la source. Les deux cylindres partiels référencent deux cercles d’arrêt et le même indice dans `elliptic_arcs`. La hauteur minimale de la bande est contrôlée sur l’arc de jonction.
 
 La CAO crée une seule arête 3D et deux tracés paramétriques, chacun dans le repère de son cylindre. Après réimport, elle retrouve le partage de cette arête, ses deux propriétaires, le fond commun et les deux autres plans tangents. Les identités des faces et des corps sont conservées lors du transfert d’un document à plusieurs corps. Voir [ADR-0042](docs/adr/0042-adjacent-pocket-fillets.md).
+
+### Coin de poche à deux rayons distincts (R-090)
+
+Les onze plans délimitent le bloc rectangulaire, son rebord et la poche borgne. Le moteur mesure les rayons à partir des tangences, retrouve les deux bandes de triangles et contrôle leurs frontières dans le repère de chaque cylindre. Le domaine optionnel `UnequalPocket` conserve le repère, les dimensions et les rayons. Les deux propriétaires `PartialCylinder` correspondent au petit puis au grand rayon. Le guidage local peut sélectionner ces faces séparément. Reconstruire leur arête commune exige la vérification du corps entier.
+
+La jonction spatiale est une courbe rationnelle de degré quatre. Chaque cylindre porte son propre tracé paramétrique pour la même arête. Le cinquième bord du grand cylindre est un arc de cercle partagé avec la paroi du petit congé. Ce contrat concerne deux congés orthogonaux à butées droites. [ADR-0043](docs/adr/0043-unequal-adjacent-pocket-fillets.md)

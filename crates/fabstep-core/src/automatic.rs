@@ -65,7 +65,8 @@ fn recognize(
         }
         Err(e) => return Err(e),
     };
-    if result.model.smooth_revolution.is_some()
+    if result.model.unequal_pocket.is_some()
+        || result.model.smooth_revolution.is_some()
         || !result.model.torus_sectors.is_empty()
         || result
             .model
@@ -122,6 +123,7 @@ fn planar(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
         model: RoundedModel {
             torus_sectors: vec![],
             smooth_revolution: None,
+            unequal_pocket: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -386,6 +388,9 @@ fn partial_chain_group(
     r: &RoundedRecognition,
     owner: RoundedFaceRef,
 ) -> Option<Vec<RoundedFaceRef>> {
+    if r.model.unequal_pocket.is_some() {
+        return None;
+    }
     let mixed = &r.model.revolved.mixed;
     let arcs = |face| match face {
         RoundedFaceRef::PartialCylinder { index }
@@ -550,6 +555,7 @@ pub fn recognize_automatic_guided(
         && (!result.model.octants.is_empty()
             || result.model.linear_blend.is_some()
             || result.model.cross_drill.is_some()
+            || result.model.unequal_pocket.is_some()
             || result.model.smooth_revolution.is_some()
             || !result.model.torus_sectors.is_empty()
             || result

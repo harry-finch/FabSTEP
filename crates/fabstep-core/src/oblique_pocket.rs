@@ -14,6 +14,8 @@ use std::f64::consts::FRAC_PI_2;
 
 #[path = "adjacent_pocket.rs"]
 mod adjacent;
+#[path = "unequal_pocket.rs"]
+mod unequal;
 mod wall;
 const WALL: usize = 11;
 type Edge = (usize, usize);
@@ -68,7 +70,7 @@ struct Partition {
 fn partition(
     mesh: &Mesh,
     adjacency: &[Vec<usize>],
-    o: &Options,
+    plane_tolerance: f64,
     work: &mut Work,
 ) -> Result<Partition, FabError> {
     let triangles = &mesh.triangles;
@@ -105,9 +107,9 @@ fn partition(
             for &next in &adjacency[t] {
                 if !assigned[next]
                     && dot(normals[next], support.normal) > 0.
-                    && triangles[next].iter().all(|&v| {
-                        support.distance(mesh.vertices[v]).abs() <= o.plane_tolerance_mm.min(1e-5)
-                    })
+                    && triangles[next]
+                        .iter()
+                        .all(|&v| support.distance(mesh.vertices[v]).abs() <= plane_tolerance)
                 {
                     assigned[next] = true;
                     stack.push(next);
@@ -415,9 +417,23 @@ fn candidate(
     work: &mut Work,
 ) -> Result<RoundedRecognition, FabError> {
     let mesh = &a.mesh;
-    let mut part = partition(mesh, adjacency, o, work)?;
+    let mut part = partition(mesh, adjacency, o.plane_tolerance_mm.min(1e-5), work)?;
     let neighbor_count = part.cuts.keys().filter(|(_, j)| *j == WALL).count();
     let geoms = if neighbor_count == 5 {
+        // The small fillet's side shares both a straight rail and the
+        // continuation of the large cylinder. Only one entire side interface
+        // stays straight. Equal-radius corners have two straight interfaces.
+        let tol = o.cylinder_fit_tolerance_mm.min(1e-5);
+        let straight_sides = part
+            .cuts
+            .iter()
+            .filter(|((_, j), cut)| {
+                *j == WALL && straight(cut, &mesh.vertices, &mesh.vertices, tol).is_some()
+            })
+            .count();
+        if straight_sides == 1 {
+            return unequal::candidate(a, o, adjacency, work, part);
+        }
         adjacent::fit(mesh, adjacency, &mut part, o, work)?
     } else {
         vec![wall::fit(mesh, &mut part, o)?]
@@ -495,6 +511,7 @@ fn candidate(
         partial_cones: vec![],
         torus_sectors: vec![],
         smooth_revolution: None,
+        unequal_pocket: None,
         cross_drill: None,
         linear_blend: None,
         octants: vec![],
@@ -531,8 +548,44 @@ fn candidate(
     })
 }
 
+// Cheap necessary condition before repeating patch discovery on rounded STL
+// coordinates. The outer rim of a rectangular block supplies the frame even
+// if the STL subdivides each of its sides into many collinear edges.
+fn rectangular_supports(model: &crate::PlanarModel) -> bool {
+    let Some(rim) = model.faces.iter().find(|face| face.loops.len() == 2) else {
+        return false;
+    };
+    let outline = &rim.loops[0];
+    let rail = outline
+        .iter()
+        .zip(outline.iter().cycle().skip(1))
+        .map(|(&a, &b)| sub(model.vertices[b], model.vertices[a]))
+        .max_by(|a, b| dot(*a, *a).total_cmp(&dot(*b, *b)))
+        .and_then(unit);
+    let Some(x) = rail else {
+        return false;
+    };
+    let axes = [x, cross(rim.normal, x), rim.normal];
+    axes.into_iter().all(|axis| {
+        [-1., 1.].into_iter().all(|sign| {
+            model
+                .faces
+                .iter()
+                .any(|f| sign * dot(f.normal, axis) > 1. - 1e-6)
+        })
+    })
+}
+
+fn inconclusive(error: &FabError) -> bool {
+    matches!(
+        error.code.as_str(),
+        "recognition.oblique_pocket_unproven" | "planar.invalid_contour"
+    )
+}
+
 pub(crate) fn recognize(
     a: &Analysis,
+    segmented: &crate::PlanarModel,
     o: &Options,
     adjacency: &[Vec<usize>],
     work: &mut Work,
@@ -540,16 +593,20 @@ pub(crate) fn recognize(
     if !(24..=4096).contains(&a.mesh.triangles.len()) {
         return Ok(None);
     }
-    match candidate(a, o, adjacency, work) {
+    let mut result = candidate(a, o, adjacency, work);
+    let discovery_tol = o.cylinder_fit_tolerance_mm.min(1e-5);
+    if result.as_ref().is_err_and(inconclusive)
+        && o.plane_tolerance_mm < discovery_tol
+        && rectangular_supports(segmented)
+    {
+        // Only the discovery radius changes. The final plane distances,
+        // incidence, cylindrical fits and deviation use the requested limits.
+        result = partition(&a.mesh, adjacency, discovery_tol, work)
+            .and_then(|part| unequal::candidate(a, o, adjacency, work, part));
+    }
+    match result {
         Ok(value) => Ok(Some(value)),
-        Err(error)
-            if matches!(
-                error.code.as_str(),
-                "recognition.oblique_pocket_unproven" | "planar.invalid_contour"
-            ) =>
-        {
-            Ok(None)
-        }
+        Err(error) if inconclusive(&error) => Ok(None),
         Err(error) => Err(error),
     }
 }

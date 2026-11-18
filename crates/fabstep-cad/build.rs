@@ -11,6 +11,7 @@ fn main() {
         "smooth_revolution.hxx",
         "torus_sector.hxx",
         "oblique_pocket.hxx",
+        "unequal_pocket.hxx",
         "cross_drill_build.hxx",
         "cross_drill_verify.cpp",
         "cross_drill_certificate.hxx",

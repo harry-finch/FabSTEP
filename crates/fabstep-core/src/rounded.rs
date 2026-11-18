@@ -422,11 +422,13 @@ fn recognize_policy_with_proofs(
             .iter()
             .any(|face| face.loops.len() == 2)
     {
-        if let Some(pocket) = crate::oblique_pocket::recognize(a, o, &adjacency, &mut work)? {
+        if let Some(pocket) =
+            crate::oblique_pocket::recognize(a, &segmentation.model, o, &adjacency, &mut work)?
+        {
             if scope.is_some() {
                 return Err(FabError::new(
                     "guidance.family_unproven",
-                    "Le congé de poche à bord elliptique nécessite la reconstruction du corps complet.",
+                    "Le raccord entre les faces de cette poche nécessite la reconstruction du corps complet.",
                 ));
             }
             return Ok(pocket);
@@ -617,6 +619,7 @@ fn recognize_policy_with_proofs(
     let mut model = RoundedModel {
         torus_sectors: vec![],
         smooth_revolution: None,
+        unequal_pocket: None,
         cross_drill: None,
         linear_blend: None,
         octants: vec![],
@@ -2341,7 +2344,44 @@ fn compact_rings(m: &mut RoundedModel) -> Result<(), FabError> {
     m.revolved.mixed.rings = rings;
     Ok(())
 }
+/// Integrate the overlap of the two circular insets once. Substituting
+/// h = small * (1 - cos(t)) removes the square-root endpoint singularity.
+/// The independently constructed solid's volume is checked again after STEP.
+fn unequal_pocket_volume(f: &crate::UnequalPocket) -> Result<f64, FabError> {
+    let [small, large] = f.radii;
+    let [x, y] = f.pocket_spans;
+    let outer = sub(f.outer_max, f.outer_min);
+    let block = outer.into_iter().product::<f64>();
+    let sharp = block - x * y * f.outer_max[2];
+    let retained = (1. - std::f64::consts::FRAC_PI_4) * (x * small * small + y * large * large);
+    let overlap = |bins| {
+        let step = std::f64::consts::FRAC_PI_2 / bins as f64;
+        let mut sum = Sum::default();
+        for i in 1..bins {
+            let t = i as f64 * step;
+            let h = 2. * small * (t * 0.5).sin().powi(2);
+            let inset = |r: f64| (r - h).powi(2) / (r + (h * (2. * r - h)).sqrt());
+            let weight = if i % 2 == 0 { 2. } else { 4. };
+            sum.add(weight * inset(small) * inset(large) * small * t.sin());
+        }
+        sum.get() * step / 3.
+    };
+    let fine = overlap(256);
+    let result = sharp + retained - fine;
+    if result.is_finite() && result > 0. && (fine - overlap(128)).abs() <= 1e-9 * result {
+        Ok(result)
+    } else {
+        Err(FabError::new(
+            "recognition.surface_unproven",
+            "Le volume de la poche à deux congés n’a pas pu être vérifié.",
+        ))
+    }
+}
+
 pub(crate) fn volume(m: &RoundedModel) -> Result<f64, FabError> {
+    if let Some(f) = &m.unequal_pocket {
+        return unequal_pocket_volume(f);
+    }
     if let [sector] = m.torus_sectors.as_slice() {
         return Ok(torus_sector::volume(sector));
     }

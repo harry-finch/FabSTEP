@@ -9,6 +9,7 @@ const technicalRemarks = new Set([
   'recognition.rounded_intent_assumed',
   'recognition.oblique_pocket_fitted',
   'recognition.adjacent_pocket_fitted',
+  'recognition.unequal_pocket_fitted',
   'recognition.rounded_box_intent_assumed',
 ]);
 const routineInfo = new Set([

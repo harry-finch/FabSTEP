@@ -127,9 +127,25 @@ fn two_analytic_faces_meet_and_keep_their_own_triangles() {
 
 #[test]
 fn two_different_pocket_domains_remain_separate_on_reimport() {
-    let adjacent = fixture("nominal.stl");
+    check_adjacent_and_oblique(
+        &fixture("nominal.stl"),
+        [40..104, 240..304],
+        5781.551628287691,
+    );
+}
+
+#[test]
+fn unequal_and_oblique_pockets_preserve_interleaved_source_owners() {
+    check_adjacent_and_oblique(
+        include_bytes!("../../../fixtures/unequal_pocket/nominal.stl"),
+        [40..112, 296..384],
+        5791.67320308558,
+    );
+}
+
+fn check_adjacent_and_oblique(adjacent: &[u8], bands: [std::ops::Range<usize>; 2], volume: f64) {
     let oblique = include_bytes!("../../../fixtures/oblique_pocket/nominal.stl");
-    let sources: [&[u8]; 2] = [&adjacent, oblique];
+    let sources: [&[u8]; 2] = [adjacent, oblique];
     let counts = sources.map(|b| u32::from_le_bytes(b[80..84].try_into().unwrap()));
     let mut combined = adjacent[..80].to_vec();
     combined.extend((counts[0] + counts[1]).to_le_bytes());
@@ -161,7 +177,7 @@ fn two_different_pocket_domains_remain_separate_on_reimport() {
         (cad.solids, cad.planar_faces, cad.cylindrical_faces),
         (2, 22, 3)
     );
-    assert!((cad.volume_mm3 - 11553.331868144).abs() < 0.0005);
+    assert!((cad.volume_mm3 - volume - 5771.780239856).abs() < 0.0005);
     let faces = doc.step.result_faces().unwrap();
     assert_eq!(faces.source_correspondence.status, "exact");
     let mut actual: Vec<_> = faces
@@ -178,9 +194,10 @@ fn two_different_pocket_domains_remain_separate_on_reimport() {
             r.source_triangle_ids.clone()
         })
         .collect();
+    let [small, large] = bands;
     let mut expected = [
-        positions[0][40..104].to_vec(),
-        positions[0][240..304].to_vec(),
+        positions[0][small].to_vec(),
+        positions[0][large].to_vec(),
         positions[1][34..98].to_vec(),
     ];
     actual.sort();

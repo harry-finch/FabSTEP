@@ -2258,3 +2258,34 @@ sh scripts/qualify-unequal-pocket-transfer.sh artifacts/r090/transfer
 ```
 
 L’option `--require-analytic` du contrôle FreeCAD demande la quartique et les deux supports sur le résultat de la conversion STL. Avant intégration, elle échoue à la première pièce facettisée. Le script de transfert contrôle un solide synthétique indépendant de la CLI. Les scripts `qualify-unequal-pocket-curve.py` et `qualify-unequal-pocket-traces.py` permettent de rejouer les vérifications des courbes seules avec l’interpréteur de FreeCAD.
+
+## V-1218 — Conversion STL des deux congés adjacents de rayons différents (R-090)
+
+La CLI de FabSTEP a converti les deux maillages indépendants de V-1217 en mode Auto. Le contrôle strict dans FreeCAD 1.1.1 a réimporté les fichiers STEP produits par la CLI. Sur chaque fichier il a retrouvé un solide, onze plans, deux cylindres concaves de rayons 1,75 et 3,25 mm et une seule arête commune non plane. Le petit cylindre a quatre bords, le grand en a cinq. Les dimensions sont 46 × 38 × 14 mm. Les 18 points témoins de matière et de vide sont classés correctement sur chaque solide.
+
+| STL de référence | Ancien STEP | Nouveau STEP | Borne continue source/forme | Écart échantillonné source → tessellation / retour |
+| --- | --- | --- | --- | --- |
+| Grossier, 116 triangles | 69 plans | 13 faces | 0,016128 mm | 0,004756 / 0,005916 mm |
+| Fin, 246 triangles | 155 plans | 13 faces | 0,002725 mm | 0,002476 / 0,002326 mm |
+
+FreeCAD mesure 21 015,076001589 mm³ sur les deux STEP. L’intégration indépendante des sections donne 21 015,076001588 mm³. La courbe commune transférée est une quartique rationnelle à cinq pôles. Les deux tracés sur les cylindres s’en écartent de moins de 1,8 × 10⁻¹² mm sur 257 échantillons par face. La tolérance de l’arête est de 10⁻⁷ mm. Les mesures échantillonnées du tableau utilisent la tessellation du solide avec une déflexion de 0,005 mm.
+
+Les tests `unequal_pocket` de l’application contrôlent les pièces publiques de rayons 2 et 3 mm, puis 1,5 et 3,5 mm en miroir, en modes Auto et Surfaces. En Auto, les groupes de triangles source correspondent exactement aux treize faces. Le DXF de la paroi adjacente contient l’arc supplémentaire au rayon du grand congé. Le témoin à jonction déformée garde son solide facettisé. Le test CAO `unequal_pocket_contract` vérifie les jetons dans un STEP à deux racines et le refus d’une quartique aux poids altérés.
+
+Un STL tourné de 0,31 rad autour de Z puis 0,52 rad autour de X et réécrit en coordonnées f32 produisait 416 plans lors du premier essai. La recherche des onze régions peut désormais reprendre avec la tolérance cylindrique, plafonnée à 0,00001 mm. Les supports sont ensuite mesurés sur les triangles et vérifiés à la tolérance de planéité demandée (0,000001 mm par défaut). Le même fichier donne 13 faces et une borne de 0,006913 mm. Un sommet du fond déplacé de 0,000005 mm empêche la reconnaissance analytique. Le moteur livré dans le paquet macOS a reconverti les deux témoins publics et le STL incliné en 13 faces. Le témoin déformé y donne un solide de 55 faces planes.
+
+Deux couples de rayons supplémentaires, 1,25/4,25 mm et 2,25/2,5 mm, donnent également 13 faces en Auto. Le test de document avec les triangles de deux pièces entrelacés vérifie la provenance d'une poche à deux rayons et d'une poche à un congé à butée oblique dans le même STEP.
+
+Sur Flansch (540 170 triangles), le moteur isolé de ce build retrouve 231 608 faces. Le plafond de suivi du résultat est de 100 000 faces. Il renvoie `step.invalid_source_provenance` et ne produit aucun STEP.
+
+Pour rejouer le contrôle indépendant depuis la racine du dépôt :
+
+```sh
+cargo build --locked --offline -p fabstep-cli
+PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
+  /Applications/FreeCAD.app/Contents/Resources/bin/python \
+  scripts/qualify-unequal-pocket-freecad.py artifacts/r090/product-reference \
+  --cli target/debug/fabstep --require-analytic
+```
+
+**Contrôles de développement.** Le passage général des exécutables de test du workspace compte 626 tests réussis et 16 ignorés. La phase rustdoc de ce passage a rencontré des dépendances de compilation périmées après reconstruction des binaires pendant les tests. Le rejeu isolé de `cargo test --workspace --doc --offline --locked` passe pour tous les crates. Les suites ciblées ont été rejouées après les ajustements finaux, y compris les sept tests R-090 du noyau et les profils ordinaires et `large-stl`. Format Rust, Clippy strict, 236 tests d’interface, contrôle Svelte, compilation bureau/helper et essai du helper embarqué passent. Le contrôle interactif dans Fusion est ouvert dans A-093.

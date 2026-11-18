@@ -617,6 +617,7 @@ pub(super) fn candidate(
         partial_cones: vec![],
         torus_sectors: vec![],
         smooth_revolution: None,
+        unequal_pocket: None,
         cross_drill: None,
         linear_blend: None,
         octants: vec![MixedSphericalOctant {

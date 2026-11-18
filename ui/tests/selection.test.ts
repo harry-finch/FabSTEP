@@ -241,3 +241,16 @@ test('torus sector owners use their own index range independently of full tori',
   body.rounded_recognition!.triangle_faces[1]={kind:'torus',index:0};
   assert.deepEqual(attributions([body])[0].families,['torus','torus']);
 });
+
+test('both bounded cylinders in an unequal pocket have selectable source owners', () => {
+  const body = {
+    id:'pocket',analysis:{ mesh:{ triangles:[[0,1,2],[1,2,3]] } },
+    rounded_recognition:{
+      model:{ unequal_pocket:{},revolved:{ mixed:{ planes:[],cylinders:[],partial_cylinders:[] },cones:[] },spheres:[],tori:[] },
+      triangle_faces:[{ kind:'partial_cylinder',index:0 },{ kind:'partial_cylinder',index:1 }]
+    }
+  } as unknown as BodyResult;
+  assert.deepEqual(attributions([body])[0].families,['partial_cylinder','partial_cylinder']);
+  body.rounded_recognition!.triangle_faces[1].index = 2;
+  assert.equal(attributions([body])[0].families,null);
+});

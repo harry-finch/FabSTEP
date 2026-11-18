@@ -5,7 +5,7 @@
 ## Version et validation courantes
 
 - `artifacts/release/1.0.0/FabSTEP.app` reste le paquet autonome signé ad hoc, accepté sur un autre Mac et dans Fusion le 9 novembre (V-1115). Pas de signature Developer ID ni notarisation revendiquée.
-- `artifacts/FabSTEP.app` est le build local de développement, dépendant du SDK installé. Ce paquet comprend les congés de fond de poche R-086 à R-089. Les essais de la butée oblique, des congés opposés et du coin à deux congés figurent dans V-1213, V-1214 et V-1216.
+- `artifacts/FabSTEP.app` est le build local de développement, dépendant du SDK installé. Ce paquet comprend les congés de fond de poche R-086 à R-090. Les essais de la butée oblique, des congés opposés et du coin à deux congés figurent dans V-1213, V-1214, V-1216 et V-1218.
 - Seize tests opt-in workspace restent ignorés par la suite ordinaire. Les essais graphiques/Fusion des extensions restent ouverts dans FabBoard ; aucun succès automatique ne vaut acceptation utilisateur. Le pilotage du dialogue d’ouverture avait été bloqué, mais l’utilisateur a confirmé l’ouverture manuelle.
 
 ## Capacités développées
@@ -45,14 +45,14 @@ Le helper de l’application refuse Flansch à **231 608 faces**. Le laboratoi
 
 ## Reprise après cette session
 
-Le secteur annulaire de R-085 est intégré sous ADR-0040. R-086 couvre le cas d’un congé droit de poche entre deux butées planes perpendiculaires. R-087 ajoute une butée oblique (accord A-087). R-088 qualifie deux congés opposés partageant le fond plan. R-089 intègre le coin à deux congés adjacents de même rayon (ADR-0042). R-090 qualifie le coin à rayons différents. La référence FreeCAD et les commandes de reproduction sont dans V-1217. La décision sur le contrat est suivie dans A-092 (ADR-0043). Les réseaux plus étendus et les congés du rebord restent ouverts. La couture des 267 facettes sur Flansch reste, à ce stade, une preuve de laboratoire. La reprise ultérieure ne nécessite pas l’historique de conversation : lire les consignes et ce document, les réponses de `fabboard action list`, puis les éléments ci-dessous. Les accords A-045 (F) et A-068 (D/G) sont acquis ; ils ne valent pas acceptation des essais manuels.
+Le secteur annulaire de R-085 est intégré sous ADR-0040. R-086 couvre le cas d’un congé droit de poche entre deux butées planes perpendiculaires. R-087 ajoute une butée oblique (accord A-087). R-088 qualifie deux congés opposés partageant le fond plan. R-089 intègre le coin à deux congés adjacents de même rayon (ADR-0042). R-090 intègre la jonction de deux rayons différents dans une poche rectangulaire (A-092, ADR-0043). Les conversions depuis STL sont vérifiées dans V-1218. Les réseaux plus étendus et les congés du rebord restent ouverts. La couture des 267 facettes sur Flansch reste, à ce stade, une preuve de laboratoire. La reprise ultérieure ne nécessite pas l’historique de conversation : lire les consignes et ce document, les réponses de `fabboard action list`, puis les éléments ci-dessous. Les accords A-045 (F) et A-068 (D/G) sont acquis ; ils ne valent pas acceptation des essais manuels.
 
 | Chantier | Déjà développé | Travail restant avant généralisation |
 | --- | --- | --- |
 | C1b2 | R-078 : chaînes adjacentes et mixtes de deux à huit cônes | Extensions hors des témoins et limites actuellement prouvés ; essais A-073/A-074 |
 | C2 / R-033 | R-061/R-075/R-076 et R-084 : profils toriques composés et méridienne cubique unique | Méridiennes multisegments, pôles, retours axiaux et raccords à des familles voisines ; contrats de preuve encore nécessaires |
-| D / R-034 | R-062 et R-081 : configurations locales constantes, coin triédrique sphérique ; R-086/R-087 : congé isolé à deux butées droites ou à une butée oblique. R-088/R-089 : congés opposés ou adjacents à 90° de même rayon | Jonctions de rayons différents, autres réseaux de congés, supports et coins ; ne pas extrapoler le cas orthogonal |
-| E / R-035 | R-062/R-077 : bac ouvert arrondi, fond traversé ; R-086/R-087 : poche borgne à un congé de fond, butée droite ou oblique. R-088/R-089 : deux congés opposés ou deux congés adjacents de même rayon | Deux arrêts obliques, autres combinaisons, congés du rebord, autres combinaisons de cavités |
+| D / R-034 | R-062 et R-081 : configurations locales constantes, coin triédrique sphérique ; R-086/R-087 : congé isolé à deux butées droites ou à une butée oblique. R-088 à R-090 : congés opposés ou adjacents à 90°, de rayons égaux ou distincts | Autres réseaux de congés, supports et coins ; ne pas extrapoler le cas orthogonal |
+| E / R-035 | R-062/R-077 : bac ouvert arrondi, fond traversé ; R-086/R-087 : poche borgne à un congé de fond, butée droite ou oblique. R-088 à R-090 : deux congés opposés ou adjacents, y compris de rayons distincts | Deux arrêts obliques, autres combinaisons, congés du rebord, autres combinaisons de cavités |
 | F / R-036 | R-063 : certificat natif ; R-083 : reconnaissance source et intégration qualifiées automatiquement | Hors F1 : axes décentrés/obliques, rapports de rayons plus larges, intersections multiples et guidage couplé |
 | G / R-037 | R-082 : un raccord convexe linéaire à limites elliptiques | Autres configurations, raccords multiples et lois de rayon non linéaires |
 
