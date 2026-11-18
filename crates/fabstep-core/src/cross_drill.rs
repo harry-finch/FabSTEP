@@ -81,9 +81,16 @@ fn delta_angle(a: f64, b: f64) -> f64 {
     }
 }
 
+fn bore_direction(first: &Rim, last: &Rim, tolerance: f64) -> Option<V> {
+    let delta = sub(last.center, first.center);
+    let length = norm(delta);
+    (length > 2. * tolerance).then(|| positive(scale(delta, 1. / length)))
+}
+
 struct Seed {
     model: CrossDrill,
     regions: [usize; 6],
+    plane_by_region: Vec<usize>,
     roundoff: f64,
 }
 fn seed(
@@ -116,11 +123,15 @@ fn seed(
         || r <= 1e-4
         || big - 1.5 * r <= 4. * eps.max(1e-7)
         || norm(sub(c0, c1)) > 2. * fit
+        || dot(s0.axis, b0.axis).abs() > 1e-6
     {
         return Ok(None);
     }
-    let z = positive(s0.axis);
-    let raw_x = positive(b0.axis);
+    // Opposite centers measure the direction across the entire block. An
+    // individual mouth normal may come from a thin binary STL triangle.
+    let (Some(z), Some(raw_x)) = (bore_direction(s0, s1, fit), bore_direction(b0, b1, fit)) else {
+        return Ok(None);
+    };
     if dot(z, raw_x).abs() > 1e-6 {
         return Ok(None);
     }
@@ -162,6 +173,53 @@ fn seed(
         }
         model.half_lengths[i] = (hi[i] - lo[i]) * 0.5;
     }
+    let longest = model.half_lengths.into_iter().fold(0., f64::max);
+    let mut regions = [usize::MAX; 6];
+    for (region, face) in s.model.faces.iter().enumerate() {
+        let q = local(&model, a.mesh.vertices[face.loops[0][0]]);
+        for (i, slot) in regions.iter_mut().enumerate() {
+            if (q[i % 3] - height(&model, i)).abs() > fit
+                || norm(sub(face.normal, scale(model.axes[i % 3], side(i)))) * longest > fit
+            {
+                continue;
+            }
+            if *slot != usize::MAX || face.loops.len() != if mouth(i).is_some() { 2 } else { 1 } {
+                return Ok(None);
+            }
+            *slot = region;
+        }
+    }
+    if regions.contains(&usize::MAX) {
+        return Ok(None);
+    }
+    // The bounding box locates candidate supports, but its outermost sample
+    // systematically inflates a measured block. Place each plane halfway
+    // between its two extreme source projections, the minimax parallel fit.
+    work.spend(s.model.faces.len() + a.mesh.triangles.len() * 4)?;
+    let mut plane_by_region = vec![usize::MAX; s.model.faces.len()];
+    for (i, region) in regions.into_iter().enumerate() {
+        plane_by_region[region] = i;
+    }
+    let mut low = [f64::INFINITY; 6];
+    let mut high = [f64::NEG_INFINITY; 6];
+    for (triangle, &region) in a.mesh.triangles.iter().zip(&s.triangle_regions) {
+        let i = plane_by_region[region];
+        if i == usize::MAX {
+            continue;
+        }
+        for &v in triangle {
+            let d = dot(
+                sub(a.mesh.vertices[v], model.center),
+                model.axes[face_axis(i)],
+            );
+            low[i] = low[i].min(d);
+            high[i] = high[i].max(d);
+        }
+    }
+    let heights: [f64; 6] = std::array::from_fn(|i| (low[i] + high[i]) * 0.5);
+    let offset = std::array::from_fn(|i| (heights[i + 3] + heights[i]) * 0.5);
+    model.center = world(&model, offset);
+    model.half_lengths = std::array::from_fn(|i| (heights[i + 3] - heights[i]) * 0.5);
     let l = model.half_lengths;
     if l[0] <= r + 8. * eps || l[1] <= big + 8. * eps || l[2] <= big + 8. * eps {
         return Ok(None);
@@ -175,26 +233,6 @@ fn seed(
             .map(f64::abs)
             .fold(1., f64::max);
     if roundoff > fit.min(5e-8) {
-        return Ok(None);
-    }
-    let mut regions = [usize::MAX; 6];
-    for (region, face) in s.model.faces.iter().enumerate() {
-        let q = local(&model, a.mesh.vertices[face.loops[0][0]]);
-        for (i, slot) in regions.iter_mut().enumerate() {
-            if (q[i % 3] - height(&model, i)).abs() > fit
-                || norm(sub(face.normal, scale(model.axes[i % 3], side(i))))
-                    * l.into_iter().fold(0., f64::max)
-                    > fit
-            {
-                continue;
-            }
-            if *slot != usize::MAX || face.loops.len() != if mouth(i).is_some() { 2 } else { 1 } {
-                return Ok(None);
-            }
-            *slot = region;
-        }
-    }
-    if regions.contains(&usize::MAX) {
         return Ok(None);
     }
     for rim in rims {
@@ -215,6 +253,7 @@ fn seed(
     Ok(Some(Seed {
         model,
         regions,
+        plane_by_region,
         roundoff,
     }))
 }
@@ -245,11 +284,7 @@ fn owners(
     fit: f64,
     work: &mut Work,
 ) -> Result<Option<Vec<usize>>, FabError> {
-    work.spend(s.model.faces.len() + a.mesh.triangles.len() * 13)?;
-    let mut region = vec![usize::MAX; s.model.faces.len()];
-    for (i, r) in seed.regions.into_iter().enumerate() {
-        region[r] = i
-    }
+    work.spend(a.mesh.triangles.len() * 13)?;
     let [r, big] = seed.model.radii;
     let owners: Vec<_> = a
         .mesh
@@ -257,8 +292,8 @@ fn owners(
         .iter()
         .zip(&s.triangle_regions)
         .map(|(ids, &rgn)| {
-            if region[rgn] != usize::MAX {
-                return region[rgn];
+            if seed.plane_by_region[rgn] != usize::MAX {
+                return seed.plane_by_region[rgn];
             }
             let p = ids.map(|v| points[v]);
             let small = p.iter().all(|q| (q[0].hypot(q[1]) - r).abs() <= fit);

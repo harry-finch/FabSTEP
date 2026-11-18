@@ -75,3 +75,20 @@ fn explicit_fit_still_enforces_the_independent_deviation_budget() {
         .expect("radial tolerance must not relax the chord/deviation budget");
     assert_eq!(error.code, "recognition.deviation_exceeded");
 }
+
+#[test]
+fn a_perforated_plate_retains_its_two_valid_top_faces_in_planar_mode() {
+    // The right half of the plate rises by 1.6e-6 mm. Its two planes can each
+    // be built exactly, while their union exceeds native contour tolerance.
+    let source = include_bytes!("../../../fixtures/precision_perforated_crease.stl");
+    let options = Options {
+        reconstruction: ReconstructionMode::Planar,
+        ..Options::default()
+    };
+    let document = convert_document(source, InputFormat::Stl, &options).unwrap();
+    let cad = &document.report.cad;
+    assert_eq!((cad.solids, cad.faces, cad.planar_faces), (1, 11, 11));
+    // (20*20 - 16*8) mm² at a millimetre thickness, plus the shallow wedge.
+    let expected = 272. + (1000. - 256.) * 1.6e-7;
+    assert!((cad.volume_mm3 - expected).abs() < 1e-6);
+}

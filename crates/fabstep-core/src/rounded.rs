@@ -290,6 +290,42 @@ fn recognize_policy(
     recognize_policy_with_proofs(a, o, automatic, scope, AutoProofMode::Retain)
 }
 
+fn segmented_rims(
+    a: &Analysis,
+    o: &Options,
+    segmentation: &crate::planar::Segmentation,
+    work: &mut Work,
+) -> Result<Vec<Rim>, FabError> {
+    let mut rims = Vec::new();
+    for (region, face) in segmentation.model.faces.iter().enumerate() {
+        for lp in &face.loops {
+            if lp.len() < 12 {
+                continue;
+            }
+            work.spend(lp.len())?;
+            let frame = Frame::new(a.mesh.vertices[lp[0]], face.normal);
+            let points: Vec<_> = lp
+                .iter()
+                .map(|&v| {
+                    let p = frame.project(a.mesh.vertices[v]);
+                    [p[0], p[1]]
+                })
+                .collect();
+            let Some(fit) = fit_circle(&points, o.cylinder_fit_tolerance_mm) else {
+                continue;
+            };
+            rims.push(Rim {
+                vertices: lp.clone(),
+                region,
+                center: frame.lift([fit.center[0], fit.center[1], 0.]),
+                axis: frame.axis,
+                radius: fit.radius,
+            });
+        }
+    }
+    Ok(rims)
+}
+
 fn recognize_policy_with_proofs(
     a: &Analysis,
     o: &Options,
@@ -327,40 +363,33 @@ fn recognize_policy_with_proofs(
             edges.entry(edge(u, v)).or_default().push(t);
         }
     }
-    let mut rims = Vec::new();
-    let mut cuts = BTreeSet::new();
-    for (region, face) in segmentation.model.faces.iter().enumerate() {
-        for lp in &face.loops {
-            if lp.len() < 12 {
-                continue;
-            }
-            work.spend(lp.len())?;
-            let frame = Frame::new(a.mesh.vertices[lp[0]], face.normal);
-            let points: Vec<_> = lp
-                .iter()
-                .map(|&v| {
-                    let p = frame.project(a.mesh.vertices[v]);
-                    [p[0], p[1]]
-                })
-                .collect();
-            let Some(fit) = fit_circle(&points, o.cylinder_fit_tolerance_mm) else {
-                continue;
-            };
-            cuts.extend(boundary(lp));
-            rims.push(Rim {
-                vertices: lp.clone(),
-                region,
-                center: frame.lift([fit.center[0], fit.center[1], 0.]),
-                axis: frame.axis,
-                radius: fit.radius,
-            });
-        }
-    }
-    if rims.len() == 4 {
+    let rims = segmented_rims(a, o, &segmentation, &mut work)?;
+    // A larger segmentation tolerance can split a mouth when it changes the
+    // seed order. Try to reassemble it only when there are already witnessed
+    // bore openings. The ordinary segmentation remains in force for every
+    // other family and for a faceted fallback.
+    let alternate = if (1..4).contains(&rims.len())
+        && rims.iter().all(|rim| {
+            let loops = &segmentation.model.faces[rim.region].loops;
+            loops.len() == 2 && loops[1] == rim.vertices
+        }) {
+        crate::planar::retry_perforations(&segmentation, &a.mesh, &adjacency, tol)?
+    } else {
+        None
+    };
+    let alternate_rims = match &alternate {
+        Some(partition) => segmented_rims(a, o, partition, &mut work)?,
+        None => Vec::new(),
+    };
+    let (bore_partition, bore_rims) = match &alternate {
+        Some(p) => (p, &alternate_rims),
+        None => (&segmentation, &rims),
+    };
+    if bore_rims.len() == 4 {
         match crate::cross_drill::candidate(
             a,
-            &segmentation,
-            &rims,
+            bore_partition,
+            bore_rims,
             &adjacency,
             &edges,
             o,
@@ -443,6 +472,10 @@ fn recognize_policy_with_proofs(
             "Plus de 128 contours circulaires candidats.",
         ));
     }
+    let cuts = rims
+        .iter()
+        .flat_map(|rim| boundary(&rim.vertices))
+        .collect();
     let mut components: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
     for rim in &rims {
         work.spend(components.len())?;

@@ -2319,3 +2319,36 @@ sh scripts/qualify-cross-drill.sh
 ```
 
 **Vérifications finales.** Le passage intégral sur les sources finales dans une cible isolée (`CARGO_PROFILE_TEST_OPT_LEVEL=2`) compte 634 tests Rust réussis et 16 ignorés, avec succès des doctests. Formatage et Clippy strict passent. Les suites ciblées sur le profil ordinaire et le profil `large-stl` couvrent le noyau, la CAO, la conversion et les documents à deux corps. Les 236 tests d’interface, le contrôle Svelte et la compilation passent. Le build macOS local contient le helper testé sur trois fichiers, dont le STL FreeCAD à 884 triangles et le témoin de repli au seuil. L’essai manuel dans Fusion figure dans A-094.
+
+## V-1220 — R-092, bloc percé incliné avant maillage en STL binaire
+
+Le bloc de 24 × 20 × 18 mm de V-1219 est percé à Ø6 et Ø10 mm. Sur le build R-091, ses deux maillages inclinés échouaient en Auto avec `planar.invalid_contour`. En élargissant manuellement les tolérances, le maillage de 884 triangles donnait neuf faces, mais une erreur de volume de 0,01468 mm³. R-092 produit les neuf faces aux réglages par défaut. Le script de qualification dessine le solide dans FreeCAD, le place avant maillage et vérifie les STEP exportés par la CLI dans leur repère d’origine.
+
+| Pose du bloc | Triangles | Borne de fidélité maximale en mm¹ | Écart absolu de volume FreeCAD en mm³¹ |
+| --- | ---: | ---: | ---: |
+| Pose de V-1219 | 884 | 0,021399 | 0,000089 |
+| Pose de V-1219 | 1 766 | 0,003349 | 0,000094 |
+| Rotation de 24° autour de (1, 2, 3) | 884 | 0,021398 | 0,000028 |
+| Même rotation de 24° | 1 766 | 0,003348 | 0,000053 |
+
+¹ Arrondi par excès. Le volume indépendant attendu est de 6 515,476725493 mm³. La borne de fidélité mesure la distance entre le maillage source et le modèle reconstruit. L’écart de volume compare la relecture FreeCAD à l’intégrale des sections.
+
+Les onze STEP du corpus (quatre maillages inclinés et sept témoins de V-1219) contiennent chacun un solide fermé à six plans et trois faces cylindriques. Les deux courbes communes sont fermées, les axes, les rayons et les dimensions sont contrôlés. Les 132 sondes de matière et de vide passent. Seize permutations de l’ordre des facettes des quatre sources inclinées donnent également les deux perçages dans le contrôle du noyau.
+
+**Protection du mode Plans.** Une plaque percée portant un pli de 0,0000016 mm constitue le contre-exemple. Son regroupement initial en deux pans donne un solide de onze faces et de 272,00011904 mm³. Une tentative systématique de fusion avait rendu son contour inconstructible en CAO. Le test d’intégration sur `fixtures/precision_perforated_crease.stl` exige désormais le résultat historique. Deux trous qui se touchent, un sommet intérieur hors plan, une couture déformée et un budget trop serré sont couverts par les tests du noyau.
+
+**Reproduction sur macOS.** Le fichier de 884 triangles à ouvrir dans FabSTEP est `fixtures/cross_drill/freecad_mid_rotated.stl`. Les deux poses, leurs deux résolutions et la relecture se reproduisent depuis la racine du dépôt.
+
+```sh
+cargo build --locked --offline -p fabstep-cli
+PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
+  /Applications/FreeCAD.app/Contents/Resources/bin/python \
+  scripts/validate-cross-drill-ratios-freecad.py artifacts/r092/reference --mesh --cli target/debug/fabstep
+cmp fixtures/cross_drill/freecad_mid_rotated.stl artifacts/r092/reference/freecad_rotated_coarse.stl
+```
+
+**Autres pièces.** Sur une plaque de 24 × 20 × 6 mm portant un seul trou de Ø6 mm, maillée dans la pose de V-1219, le refus initial de contour disparaît. Auto réimporte un solide de 252 faces planes. Le mode explicite Cylindres donne un solide à sept faces, dont le cylindre du trou. Cette différence de choix entre les modes est suivie dans R-093. Le helper embarqué a également rejoué Flansch (540 170 triangles). Il retrouve 231 608 faces et retourne `step.invalid_source_provenance` au plafond existant de 100 000 faces, sans produire de STEP.
+
+**Tests de développement.** Le passage complet de `cargo test --workspace --offline --locked` en profil de test optimisé compte 638 réussites et 16 tests optionnels ignorés. Les doctests, le formatage, Clippy strict et les 236 tests d’interface passent. Les tests ciblés de segmentation, perçages et précision passent aussi en profil ordinaire. Le helper compilé avec `large-stl` passe ses tests et le STEP du témoin incliné produit par le helper de FabSTEP.app passe la même relecture FreeCAD. Le build du bureau et le test de dialogue avec son helper passent. L’essai interactif Fusion reste ouvert dans A-095.
+
+Sur le boîtier arrondi de 28 700 triangles, six passages alternés de la commande `check --mode planar` donnent des médianes de temps CPU de 2,99 s avant et 2,89 s après, sous charge concurrente. Le nombre de faces reste de 27 989. Pour le bloc droit à 884 triangles, les médianes sont de 0,093 et 0,107 s. Ces mesures caractérisent le coût local du contrôle.

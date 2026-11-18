@@ -57,9 +57,11 @@ def reference(case, *, local=False, subdivided=False):
     return shape
 
 
-def inspect(path, case, *, local=False, boolean=False):
+def inspect(path, case, *, local=False, boolean=False, to_local=None):
     p = case["parameters"]
     shape = Part.read(str(path))
+    if to_local is not None:
+        shape.Placement = to_local.multiply(shape.Placement)
     if len(shape.Solids) != 1 or len(shape.Faces) != 9:
         raise ValueError(f"{path}: expected a single nine-face solid")
     solid = shape.Solids[0]
@@ -182,14 +184,21 @@ def convert(cli, source, output):
 
 def independent_meshes(directory, cli, case):
     results = {}
-    for topology, subdivided in [("plain", False), ("subdivided", True)]:
-        reference_path = directory / f"freecad_{topology}.step"
-        reference(case, local=True, subdivided=subdivided).exportStep(
-            str(reference_path)
-        )
+    second_pose = App.Placement(V(3, -2, 4), App.Rotation(V(1, 2, 3), 24))
+    for variant, local, subdivided, pose in [
+        ("plain", True, False, None),
+        ("subdivided", True, True, None),
+        ("rotated", False, False, None),
+        ("rotated_24", True, False, second_pose),
+    ]:
+        reference_path = directory / f"freecad_{variant}.step"
+        shape = reference(case, local=local, subdivided=subdivided)
+        if pose is not None:
+            shape.Placement = pose.multiply(shape.Placement)
+        shape.exportStep(str(reference_path))
         # Mesh the reread CAD file, independently from the analytical STL generator.
         for name, angle in [("coarse", 0.20), ("fine", 0.10)]:
-            stem = f"freecad_{topology}_{name}"
+            stem = f"freecad_{variant}_{name}"
             source = directory / f"{stem}.stl"
             mesh = MeshPart.meshFromShape(
                 Shape=Part.read(str(reference_path)),
@@ -202,7 +211,8 @@ def independent_meshes(directory, cli, case):
             if cli:
                 output = directory / f"{stem}-auto.step"
                 convert(cli, source, output)
-                entry.update(inspect(output, case, local=True))
+                to_local = pose.inverse() if pose is not None else None
+                entry.update(inspect(output, case, local=local, to_local=to_local))
                 conversion = json.loads(output.with_suffix(".json").read_text())
                 entry["deviation_bound_mm"] = conversion["rounded_recognition"][
                     "report"

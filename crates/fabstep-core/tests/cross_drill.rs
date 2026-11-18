@@ -265,6 +265,46 @@ fn independent_single_strip_freecad_mesh_keeps_its_two_seams() {
 }
 
 #[test]
+fn rotated_binary_bores_center_the_outer_planes_within_the_requested_tolerance() {
+    let options = opts(ReconstructionMode::Surfaces);
+    let source = analyze_stl(&fixture("freecad_mid_rotated"), &options).unwrap();
+    let result = recognize_rounded(&source, &options).unwrap();
+    let bore = result.model.cross_drill.as_ref().unwrap();
+    assert_eq!(result.model.revolved.mixed.planes.len(), 6);
+    assert_eq!(result.report.cylinders, 3);
+    assert!(result.report.max_deviation_bound_mm < 0.022);
+    assert!((result.report.expected_volume_mm3 - 6515.476725492639).abs() < 0.0002);
+    for (measured, expected) in bore.half_lengths.iter().zip([12., 10., 9.]) {
+        assert!((measured - expected).abs() < 1e-6);
+    }
+
+    // A tighter plane budget excludes some actual source vertices even when
+    // the fitted bore axes and four mouths still satisfy the radial budget.
+    let tight = Options {
+        plane_tolerance_mm: 3e-7,
+        ..options.clone()
+    };
+    let error = recognize_rounded(&source, &tight).unwrap_err();
+    assert_eq!(error.code, "recognition.surface_unproven");
+    assert!(error.message.contains("triangle hors du plan canonique"));
+
+    // Move a single seam sample along the small axis, keeping its radius
+    // and every mouth intact. The shared boundary must no longer be admitted.
+    let mut mesh = source.mesh;
+    for (v, axis) in mesh.vertices[bore.branches[0][5]]
+        .iter_mut()
+        .zip(bore.axes[2])
+    {
+        *v += 0.002 * axis;
+    }
+    let warped = analyze_mesh(&mesh, &options).unwrap();
+    assert_eq!(
+        recognize_rounded(&warped, &options).unwrap_err().code,
+        "recognition.surface_unproven"
+    );
+}
+
+#[test]
 fn strip_vertices_on_radius_or_a_single_sector_cannot_prove_the_wall() {
     let o = opts(ReconstructionMode::Surfaces);
     let a = analyze_stl(&fixture("f_ratio_strip"), &o).unwrap();

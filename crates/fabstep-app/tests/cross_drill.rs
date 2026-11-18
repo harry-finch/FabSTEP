@@ -474,19 +474,62 @@ fn separate_blind_drills_still_convert_through_the_historical_surface_path() {
 fn freecad_bore_strips_keep_both_openings_and_every_source_face() {
     // Independent FreeCAD tessellation of a 24 x 20 x 18 block. The two
     // small walls span from rim to intersection without interior vertices.
-    let bytes = fixture("freecad_mid_coarse.stl");
+    let cases: Value = serde_json::from_slice(&fixture("manifest.json")).unwrap();
+    let case = &cases["cases"]["f_ratio_mid"];
+    let volume = case["parameters"]["volume_mm3"].as_f64().unwrap();
+    let local_probes = [
+        ([0., 0., 0.], false),
+        ([0., 0., 7.], false),
+        ([10., 0., 0.], false),
+        ([5., 1., 6.], true),
+        ([5., 1., -6.], true),
+    ];
+    check_freecad_bores("freecad_mid_coarse.stl", volume, 0.0001, &local_probes);
+
+    let rotated_probes: Vec<_> = case["material_probes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|probe| {
+            (
+                vector(&probe["point_mm"]),
+                probe["material"].as_bool().unwrap(),
+            )
+        })
+        .collect();
+    check_freecad_bores(
+        "freecad_mid_rotated.stl",
+        volume,
+        volume * 1e-7,
+        &rotated_probes,
+    );
+}
+
+fn check_freecad_bores(
+    name: &str,
+    volume: f64,
+    volume_tolerance: f64,
+    probes: &[([f64; 3], bool)],
+) {
+    let bytes = fixture(name);
     let o = options(ReconstructionMode::Auto);
-    let doc = convert_document_with_provenance(&bytes, InputFormat::Stl, &o).unwrap();
+    let doc = convert_document_with_provenance(&bytes, InputFormat::Stl, &o)
+        .unwrap_or_else(|err| panic!("{name}: {err}"));
     let cad = &doc.report.cad;
     assert_eq!(
-        (cad.solids, cad.planar_faces, cad.cylindrical_faces),
-        (1, 6, 3)
+        (
+            cad.solids,
+            cad.faces,
+            cad.planar_faces,
+            cad.cylindrical_faces
+        ),
+        (1, 9, 6, 3),
+        "{name}"
     );
-    let cases: Value = serde_json::from_slice(&fixture("manifest.json")).unwrap();
-    let reference = cases["cases"]["f_ratio_mid"]["parameters"]["volume_mm3"]
-        .as_f64()
-        .unwrap();
-    assert!((cad.volume_mm3 - reference).abs() < 0.0001);
+    assert!(
+        (cad.volume_mm3 - volume).abs() < volume_tolerance,
+        "{name}: {cad:?}"
+    );
     let conversion = &doc.report.bodies[0].conversion;
     let proof = conversion.rounded_recognition.as_ref().unwrap();
     assert!(proof.model.cross_drill.is_some());
@@ -505,13 +548,7 @@ fn freecad_bore_strips_keep_both_openings_and_every_source_face() {
         .eq(0..conversion.analysis.mesh.triangles.len()));
 
     let mesh = &inspection.result.mesh;
-    for (point, material) in [
-        ([0., 0., 0.], false),
-        ([0., 0., 7.], false),
-        ([10., 0., 0.], false),
-        ([5., 1., 6.], true),
-        ([5., 1., -6.], true),
-    ] {
+    for &(point, material) in probes {
         assert!((winding(mesh, point).abs() - f64::from(u8::from(material))).abs() < 1e-6);
     }
 }

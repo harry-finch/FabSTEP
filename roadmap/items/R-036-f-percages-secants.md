@@ -1,7 +1,7 @@
 ---
 id: R-036
 titre: "F — perçages sécants"
-resume: "F1 et F2 intégrés. Deux perçages centrés et orthogonaux sont reconnus jusqu’au rapport de rayons strictement inférieur à deux tiers avec marge. Axes décentrés, obliques et intersections multiples restent ouverts."
+resume: "Les perçages centrés et orthogonaux sont reconnus dans les blocs droits et inclinés (R-083, R-091, R-092). Les perçages décentrés, obliques entre eux ou multiples restent ouverts."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13
@@ -83,4 +83,4 @@ Le certificat d’intervalles devra conserver les options numériques du laborat
 
 R-083 a intégré F1. R-091 élargit le rapport de rayons aux couples dont l’enveloppe de mesure reste strictement sous deux tiers. Un contrôle supplémentaire couvre les maillages reliant directement bouches et jonctions. Le corpus contient une pièce dessinée et maillée dans FreeCAD. Les résultats, y compris le repli au seuil, figurent dans V-1219. Les axes décentrés ou obliques et les intersections multiples restent à qualifier.
 
-À reprendre également sur la pièce FreeCAD inclinée avant maillage binaire. L’analyse des facettes planes échoue aux réglages par défaut sur une région pincée. Des tolérances explicites donnent neuf faces mais dépassent le critère de comparaison des volumes du corpus. Sur les six plans du bloc, les sommets des 272 triangles mesurés restent à moins de 0,000001 mm des plans de référence. La normale d’un triangle mince s’écarte pourtant jusqu’à 0,000384°. Tester un ajustement sur plusieurs triangles et la conservation de chaque contour, avec des contre-exemples réellement pincés. Reproduction et mesures dans V-1219.
+R-092 traite le contour fragmenté du bloc incliné décrit dans V-1219. Les deux densités de maillage dans les deux poses sont reconstruites aux seuils initiaux. Qualification et témoin de non-régression du mode Plans dans V-1220. Pour étendre F, restent les axes décentrés ou obliques entre eux, les rapports hors du domaine prouvé et les intersections multiples.

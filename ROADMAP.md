@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 91** (25 %)
+**Avancement : 23 livrés sur 93** (25 %)
 
 ## Restant à faire
 
@@ -105,7 +105,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 46. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · En cours · jalon post-v1
    Bac ouvert, fond percé et poches à un ou deux congés contrôlés, y compris deux congés adjacents de rayons différents. Restent les rebords et les combinaisons de cavités.
 47. **[R-036 F — perçages sécants](roadmap/items/R-036-f-percages-secants.md)** · En cours · jalon post-v1
-   F1 et F2 intégrés. Deux perçages centrés et orthogonaux sont reconnus jusqu’au rapport de rayons strictement inférieur à deux tiers avec marge. Axes décentrés, obliques et intersections multiples restent ouverts.
+   Les perçages centrés et orthogonaux sont reconnus dans les blocs droits et inclinés (R-083, R-091, R-092). Les perçages décentrés, obliques entre eux ou multiples restent ouverts.
 48. **[R-037 G — congés variables](roadmap/items/R-037-g-conges-variables.md)** · En cours · jalon post-v1
    Premier raccord à rayon linéaire intégré ; restent les autres configurations et raccords variables multiples.
 49. **[R-059 C1b2 — chaînes coniques sans portée intermédiaire](roadmap/items/R-059-c1b2-chaines-coniques-sans-portee-intermediaire.md)** · Idée · jalon post-v1
@@ -148,6 +148,10 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Deux congés adjacents de rayons distincts dans une poche rectangulaire à butées droites. Auto produit deux faces cylindriques sélectionnables et conserve l’arc de prolongement en DXF.
 68. **[R-091 F2 — perçages orthogonaux de rayons plus proches](roadmap/items/R-091-f2-percages-orthogonaux-de-rayons-plus-proches.md)** · À tester · jalon post-v1
    Deux trous orthogonaux de rayons plus proches reconstruits. Sept STEP contrôlés dans FreeCAD, y compris quatre maillages indépendants. Essai FabSTEP et Fusion ouvert.
+69. **[R-092 F3 — reconnaître les perçages du bloc incliné en STL binaire](roadmap/items/R-092-f3-reconnaitre-les-percages-du-bloc-incline-en.md)** · À tester · jalon post-v1
+   Deux poses et deux densités de STL binaire inclinés donnent six plans et trois cylindres aux réglages par défaut. Vérification Fusion ouverte.
+70. **[R-093 Auto — reconnaître le trou traversant d’une plaque inclinée](roadmap/items/R-093-auto-reconnaitre-le-trou-traversant-d-une-plaque.md)** · Idée · jalon post-v1
+   Sur la plaque inclinée à un perçage de V-1220, Cylindres donne sept faces, dont le cylindre du trou. Auto choisit encore 252 faces planes.
 
 ## Actions à faire
 
@@ -234,6 +238,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-091](roadmap/actions/A-091-controler-le-coin-a-deux-conges-adjacents-dans.md) Contrôler le coin à deux congés adjacents dans FabSTEP et Fusion (tester, R-089)
 - [ ] [A-093](roadmap/actions/A-093-verifier-les-deux-conges-de-rayons-differents.md) Vérifier les deux congés de rayons différents dans FabSTEP et Fusion (tester, R-090)
 - [ ] [A-094](roadmap/actions/A-094-verifier-les-percages-secants-de-rayons-3-et-5.md) Vérifier les perçages sécants de rayons 3 et 5 mm dans Fusion (tester, R-091)
+- [ ] [A-095](roadmap/actions/A-095-verifier-le-bloc-incline-a-deux-percages-dans.md) Vérifier le bloc incliné à deux perçages dans Fusion (tester, R-092)
 
 ## Livré
 

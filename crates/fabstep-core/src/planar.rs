@@ -5,8 +5,12 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 // Bounding worst-case contour validation matters for hostile/very intricate STL.
 const MAX_SEGMENT_CHECKS: usize = 5_000_000;
 const NORMAL_DOT_MIN: f64 = 1.0 - 1e-10;
+fn aligned(a: V, b: V) -> bool {
+    dot(a, b) >= NORMAL_DOT_MIN
+}
 type P2 = [f64; 2];
 mod broad_phase;
+mod perforated;
 
 const EXHAUSTIVE_EDGE_LIMIT: usize = 64;
 
@@ -25,6 +29,9 @@ pub(crate) struct Segmentation {
     pub approximate_faces: usize,
     /// Exact source-triangle membership; index is the original triangle index.
     pub triangle_regions: Vec<usize>,
+    // When a seed split a nearly parallel region, a qualified recognizer can
+    // request one alternate segmentation with the remaining contour budget.
+    checks_used_before_retry: Option<usize>,
 }
 
 pub(crate) fn build_with_provenance(
@@ -32,8 +39,21 @@ pub(crate) fn build_with_provenance(
     adjacency: &[Vec<usize>],
     tolerance: f64,
 ) -> Result<Segmentation, FabError> {
-    let normals: Vec<V> = mesh
-        .triangles
+    let normals = triangle_normals(mesh);
+    let mut checks = 0;
+    match segment(mesh, adjacency, &normals, tolerance, &mut checks, false) {
+        Err(e)
+            if e.code == "planar.invalid_contour"
+                && mesh.triangles.len() <= perforated::MAX_TRIANGLES =>
+        {
+            segment(mesh, adjacency, &normals, tolerance, &mut checks, true)
+        }
+        other => other,
+    }
+}
+
+fn triangle_normals(mesh: &Mesh) -> Vec<V> {
+    mesh.triangles
         .iter()
         .map(|t| {
             let n = cross(
@@ -43,12 +63,59 @@ pub(crate) fn build_with_provenance(
             let length = norm(n);
             n.map(|component| component / length)
         })
-        .collect();
+        .collect()
+}
+
+/// Alternate candidates never replace the validated faceted model. A caller
+/// must prove its analytic result independently before using the partition.
+pub(crate) fn retry_perforations(
+    previous: &Segmentation,
+    mesh: &Mesh,
+    adjacency: &[Vec<usize>],
+    tolerance: f64,
+) -> Result<Option<Segmentation>, FabError> {
+    let Some(mut checks) = previous.checks_used_before_retry else {
+        return Ok(None);
+    };
+    match segment(
+        mesh,
+        adjacency,
+        &triangle_normals(mesh),
+        tolerance,
+        &mut checks,
+        true,
+    ) {
+        Ok(result) => Ok(Some(result)),
+        // A validated partition remains available when this optional proof
+        // exhausts its remaining budget. No further contour pass is allowed.
+        Err(e)
+            if matches!(
+                e.code.as_str(),
+                "planar.invalid_contour" | "planar.too_complex"
+            ) =>
+        {
+            Ok(None)
+        }
+        Err(e) => Err(e),
+    }
+}
+
+fn segment(
+    mesh: &Mesh,
+    adjacency: &[Vec<usize>],
+    normals: &[V],
+    tolerance: f64,
+    checks: &mut usize,
+    recover_perforations: bool,
+) -> Result<Segmentation, FabError> {
+    // Speculative annular fits are bounded to small/medium documents. The
+    // first rejected seed distance allocates this per-triangle visit marker.
+    let mut attempted = Vec::new();
     let mut assigned = vec![false; mesh.triangles.len()];
     let mut faces = Vec::new();
     let mut triangle_regions = vec![usize::MAX; mesh.triangles.len()];
     let mut approximate_faces = 0;
-    let mut checks = 0;
+    let mut split_observed = false;
     for seed in 0..mesh.triangles.len() {
         if assigned[seed] {
             continue;
@@ -56,6 +123,7 @@ pub(crate) fn build_with_provenance(
         let n = normals[seed];
         let origin = mesh.vertices[mesh.triangles[seed][0]];
         let mut region = BTreeSet::new();
+        let mut split_by_distance = false;
         let mut pending = VecDeque::from([seed]);
         assigned[seed] = true;
         let mut max_residual: f64 = 0.0;
@@ -69,22 +137,46 @@ pub(crate) fn build_with_provenance(
             }
             for &next in &adjacency[face] {
                 // Compare to the immutable seed, never a drifting local/average plane.
-                if !assigned[next]
-                    && dot(normals[next], n) >= NORMAL_DOT_MIN
-                    && mesh.triangles[next]
-                        .iter()
-                        .all(|&v| dot(sub(mesh.vertices[v], origin), n).abs() <= tolerance)
+                if assigned[next] || !aligned(normals[next], n) {
+                    continue;
+                }
+                if mesh.triangles[next]
+                    .iter()
+                    .all(|&v| dot(sub(mesh.vertices[v], origin), n).abs() <= tolerance)
                 {
                     assigned[next] = true;
                     pending.push_back(next);
+                } else {
+                    split_by_distance = true;
                 }
+            }
+        }
+        split_observed |= split_by_distance;
+        if split_by_distance && recover_perforations {
+            let ctx = perforated::Search {
+                mesh,
+                adjacency,
+                normals,
+                assigned: &assigned,
+                tolerance,
+            };
+            if let Some((patch, face, approximate)) =
+                ctx.recover(&region, &mut attempted, checks)?
+            {
+                for t in patch {
+                    assigned[t] = true;
+                    triangle_regions[t] = faces.len();
+                }
+                approximate_faces += usize::from(approximate);
+                faces.push(face);
+                continue;
             }
         }
         if max_residual > extent * f64::EPSILON * 128.0 {
             approximate_faces += 1;
         }
         let loops = boundaries(mesh, &region)?;
-        let loops = validate_loops(mesh, loops, origin, n, &mut checks)?;
+        let loops = validate_loops(mesh, loops, origin, n, checks)?;
         for &triangle in &region {
             triangle_regions[triangle] = faces.len();
         }
@@ -97,6 +189,10 @@ pub(crate) fn build_with_provenance(
         },
         approximate_faces,
         triangle_regions,
+        checks_used_before_retry: (split_observed
+            && !recover_perforations
+            && mesh.triangles.len() <= perforated::MAX_TRIANGLES)
+            .then_some(*checks),
     })
 }
 
@@ -127,20 +223,7 @@ pub(crate) fn guided_face(
     if reached.len() != region.len() {
         return Err(unproven());
     }
-    let mut normal = [Sum::default(), Sum::default(), Sum::default()];
-    for &triangle in region {
-        let [a, b, c] = mesh.triangles[triangle].map(|i| mesh.vertices[i]);
-        let cross = cross(sub(b, a), sub(c, a));
-        for axis in 0..3 {
-            normal[axis].add(cross[axis]);
-        }
-    }
-    let normal = normal.map(|sum| sum.get());
-    let length = norm(normal);
-    if !length.is_finite() || length <= 0. {
-        return Err(unproven());
-    }
-    let normal = scale(normal, 1. / length);
+    let normal = region_normal(mesh, region).ok_or_else(unproven)?;
     let loops = boundaries(mesh, region)?;
     let origin = mesh.vertices[loops[0][0]];
     for &triangle in region {
@@ -174,6 +257,23 @@ pub(crate) fn guided_face(
         return Err(unproven());
     }
     Ok(PlanarFace { loops, normal })
+}
+
+fn region_normal(mesh: &Mesh, region: &BTreeSet<usize>) -> Option<V> {
+    let mut normal = [Sum::default(), Sum::default(), Sum::default()];
+    for &triangle in region {
+        let [a, b, c] = mesh.triangles[triangle].map(|i| mesh.vertices[i]);
+        let cross = cross(sub(b, a), sub(c, a));
+        for axis in 0..3 {
+            normal[axis].add(cross[axis]);
+        }
+    }
+    let normal = normal.map(|sum| sum.get());
+    let length = norm(normal);
+    if !length.is_finite() || length <= 0. {
+        return None;
+    }
+    Some(scale(normal, 1. / length))
 }
 
 pub(crate) fn boundaries(
@@ -489,6 +589,62 @@ mod tests {
             .faces
             .iter()
             .all(|f| f.loops[0].contains(&4) && f.loops[0].contains(&5)));
+    }
+
+    #[test]
+    fn binary_tilted_perforations_keep_both_contours_and_all_source_triangles() {
+        let source = include_bytes!("../../../fixtures/cross_drill/freecad_mid_rotated.stl");
+        let analysis = crate::analyze_stl(source, &crate::Options::default()).unwrap();
+        let mut mesh = analysis.mesh;
+        for _ in 0..2 {
+            let adjacency = crate::pipeline::validate_topology(&mesh).unwrap();
+            let normals = triangle_normals(&mesh);
+            for tolerance in [1e-6, 1e-5] {
+                let mut first = build_with_provenance(&mesh, &adjacency, tolerance).unwrap();
+                let alternate = retry_perforations(&first, &mesh, &adjacency, tolerance).unwrap();
+                let result = alternate.as_ref().unwrap_or(&first);
+                assert_eq!(result.model.vertices, mesh.vertices);
+                let mut perforations = 0;
+                for (id, face) in result.model.faces.iter().enumerate() {
+                    if face.loops.len() != 2 {
+                        continue;
+                    }
+                    perforations += 1;
+                    assert_eq!((face.loops[0].len(), face.loops[1].len()), (4, 63));
+                    let seed = result
+                        .triangle_regions
+                        .iter()
+                        .position(|&r| r == id)
+                        .unwrap();
+                    // Unmodified historical faces are checked against their
+                    // seed plane. Recovered faces use the outer-loop anchor.
+                    let anchor = if face.normal == normals[seed] {
+                        mesh.triangles[seed][0]
+                    } else {
+                        face.loops[0][0]
+                    };
+                    let origin = mesh.vertices[anchor];
+                    let mut count = 0;
+                    for (t, &region) in mesh.triangles.iter().zip(&result.triangle_regions) {
+                        if region == id {
+                            count += 1;
+                            for &v in t {
+                                let distance =
+                                    dot(sub(mesh.vertices[v], origin), face.normal).abs();
+                                assert!(distance <= tolerance);
+                            }
+                        }
+                    }
+                    assert_eq!(count, 67);
+                }
+                assert_eq!(perforations, 4);
+                first.checks_used_before_retry = Some(MAX_SEGMENT_CHECKS);
+                assert!(retry_perforations(&first, &mesh, &adjacency, tolerance)
+                    .unwrap()
+                    .is_none());
+            }
+            mesh.triangles.reverse();
+        }
     }
 
     #[test]

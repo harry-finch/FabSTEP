@@ -32,7 +32,7 @@ Le générateur relit les STL, puis vérifie la connexité, les incidences d’a
 | `f_fold` | Sommet intérieur de la petite paroi positive déplacé sur son propre cylindre au-delà de la colonne angulaire suivante. Des triangles inversent leur orientation géométrique, tandis que les incidences et les deux coutures demeurent. |
 | `f_missing_mouth` | Plan d’entrée Z positif absent. La relecture trouve deux contours ouverts, de 4 et 64 arêtes. |
 
-Les cas en pose inclinée emploient le STL ASCII. Les autres sont binaires. Les cas de domaine et de pli restent fermés au sens topologique. Le pli introduit un recouvrement local et sert à vérifier un refus géométrique.
+Les poses inclinées du générateur analytique emploient le STL ASCII. Les témoins FreeCAD décrits ci-dessous sont binaires. Les cas de domaine et de pli restent fermés au sens topologique. Le pli introduit un recouvrement local et sert à vérifier un refus géométrique.
 
 ## Références
 
@@ -51,17 +51,22 @@ Les bornes mondiales sont calculées à partir des huit coins placés. Douze son
 `../historical_four_blind_drills.stl` conserve les mêmes quatre entrées mais termine chaque perçage séparément par une pointe conique. Ce n’est pas un positif F : les quatre cavités sont disjointes. `python3 scripts/generate-blind-drill-fixture.py` régénère ses 1 044 facettes et vérifie fermeture, orientation, connexité, χ=2 et sondes de matière. Les anciens parcours Primitives et Surfaces doivent continuer à reconstruire six plans, quatre cylindres et quatre cônes ; la nouvelle hypothèse F ne doit pas les intercepter.
 
 
-## Témoin FreeCAD indépendant
+## Témoins FreeCAD indépendants
 
-`freecad_mid_coarse.stl` vient d’un bloc de 24 × 20 × 18 mm percé par deux soustractions booléennes dans FreeCAD 1.1.1. La référence analytique a des rayons de 3 et 5 mm sur Z et X. Le mailleur triangule le STEP relu avec une déflexion linéaire de 0,025 mm et une déflexion angulaire de 0,20 rad. Les 884 triangles du STL ont leurs sommets cylindriques sur les bouches et les jonctions. Ce témoin possède sa propre procédure de génération.
+`freecad_mid_coarse.stl` vient d’un bloc de 24 × 20 × 18 mm percé par deux soustractions booléennes dans FreeCAD 1.1.1. La référence analytique a des rayons de 3 et 5 mm sur Z et X. Le mailleur triangule le STEP relu avec une déflexion linéaire de 0,025 mm et une déflexion angulaire de 0,20 rad. Les 884 triangles du STL ont leurs sommets cylindriques sur les bouches et les jonctions.
+
+`freecad_mid_rotated.stl` utilise la même pièce, orientée et déplacée comme `f_ratio_mid` **avant le maillage**. Les coordonnées du STL binaire arrondies en simple précision peuvent fragmenter les plans percés lors de la reconstruction. Les deux fichiers ci-dessous sont reproductibles avec FreeCAD 1.1.1.
 
 ```sh
 PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
   /Applications/FreeCAD.app/Contents/Resources/bin/python \
-  scripts/validate-cross-drill-ratios-freecad.py artifacts/r091/reference --mesh
-cmp fixtures/cross_drill/freecad_mid_coarse.stl artifacts/r091/reference/freecad_plain_coarse.stl
+  scripts/validate-cross-drill-ratios-freecad.py artifacts/cross-drill-reference --mesh
+cmp fixtures/cross_drill/freecad_mid_coarse.stl artifacts/cross-drill-reference/freecad_plain_coarse.stl
+cmp fixtures/cross_drill/freecad_mid_rotated.stl artifacts/cross-drill-reference/freecad_rotated_coarse.stl
 ```
 
-Le script produit aussi une tessellation à 0,10 rad et deux maillages de la même pièce où chaque outil de perçage est constitué de trois sections coaxiales. Ces sections ajoutent des cercles de subdivision sur les parois. L’option `--cli target/debug/fabstep` lance la conversion Auto puis vérifie le STEP réimporté dans FreeCAD. Les contrôles couvrent les deux boucles communes, les supports cylindriques, les douze sondes matière/vide, les dimensions, le volume et les écarts échantillonnés des coutures. Les tests d’incidence et les bornes de fidélité de FabSTEP sont distincts de ces contrôles.
+Le script produit une seconde tessellation à 0,10 rad dans chaque pose. Il teste également une rotation de 24° autour de l’axe (1, 2, 3), avec le centre du bloc placé en (3, −2, 4) mm. Pour cette pose, FreeCAD applique le placement inverse au STEP relu afin de vérifier les dimensions, les axes et les sondes dans le repère du bloc. Le corpus comporte aussi deux maillages dans le repère du bloc où chaque outil de perçage comprend trois sections coaxiales. Ces sections ajoutent des cercles de subdivision sur les parois. L’option `--cli target/debug/fabstep` lance la conversion Auto aux réglages par défaut puis vérifie le STEP réimporté dans FreeCAD. Les contrôles couvrent les deux boucles communes, les supports cylindriques, les douze sondes matière/vide, les dimensions, le volume et les écarts échantillonnés des coutures, dans le repère de chaque pièce.
 
 En mode Auto, les STL FreeCAD des perçages sans subdivision (884 et 1 766 triangles) donnent chacun un solide à six plans et trois cylindres. Les bornes continues calculées sont respectivement de 0,021398 et 0,003347 mm, arrondies par excès. Avec subdivisions (1 388 et 2 774 triangles), les bornes sont de 0,021439 et 0,003366 mm. Les 48 sondes de matière et de vide donnent le résultat attendu après réimport des quatre STEP.
+
+Sur les STL binaires inclinés à 884 et 1 766 triangles, les bornes continues obtenues sont de 0,021399 et 0,003349 mm, arrondies par excès. Les deux solides réimportés dans FreeCAD comportent six plans et trois faces cylindriques. Les 24 sondes matière/vide passent et l’écart de volume par rapport à l’intégrale des sections est inférieur à 0,00010 mm³ sur chaque solide.

@@ -502,3 +502,7 @@ Un essai supplémentaire sur un STL incliné et réécrit en f32 a révélé une
 ## 2026-11-18 — R-091, perçages sécants de rayons plus proches
 
 Le témoin historique de rayons 3 et 5,5 mm passe de 306 plans à six plans et trois faces cylindriques. La vérification du rapport de rayons tient compte des deux incertitudes. Une seconde pièce construite par soustractions dans FreeCAD a révélé un cas fréquent de maillage où tous les sommets d’une paroi se trouvent sur ses bords. Les arêtes internes permettent de retrouver la paroi lorsque deux témoins suffisamment espacés confirment son rayon. Quatre maillages de cette pièce et trois témoins à rapports différents ont été convertis et relus dans FreeCAD. Voir V-1219.
+
+## 2026-11-18 — R-092, perçages dans un bloc incliné avant maillage binaire
+
+La normale d’un triangle mince pouvait diviser la face plane autour d’un trou. Les deux moitiés formaient alors un contour que le moteur refusait. L’ajustement sur toute la face et la mesure des directions entre les centres des bouches permettent de reconstruire le solide aux réglages initiaux. La revue a identifié un contre-exemple important pour le mode Plans, une plaque dont les deux pans peuvent chacun être construits exactement. La partition initiale garde la priorité, et cette plaque conserve ses onze faces. Les résultats des deux poses, des deux densités de maillage et du test de réimport sont consignés dans V-1220.
