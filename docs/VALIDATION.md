@@ -2216,3 +2216,45 @@ PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
 Le rejeu des pièces privées avec le helper du jalon donne toujours 10 869 faces pour `body 26mm.stl`, dont 14 cylindres et 7 cônes, et un volume de 17 053,652458876 mm³. Sur Flansch, le helper indique 231 608 faces pour un plafond de 100 000 et aucun STEP exportable.
 
 Le 18 novembre 2026, la suite `sh scripts/check.sh` a terminé avec succès. Elle compte 815 exécutions de tests Rust réussies sur les différents profils et 21 ignorées. Les 235 tests d’interface, les contrôles Svelte et Clippy, les builds et le passage du bureau au helper réel ont réussi. Les 23 tests Python passent avec NumPy, l’interpréteur sans NumPy en ignore 11. Après la correction des poches courtes, le contrôle de hauteur et les tests core, CAO et application du jalon ont aussi été rejoués séparément. Les essais manuels R-088 et R-089 sont suivis par A-090 et A-091.
+
+## V-1217 — Qualification du coin à deux rayons distincts (R-090)
+
+Le corpus public et la pièce construite indépendamment dans FreeCAD 1.1.1 portent sur les deux congés adjacents d’une poche. Les deux rayons sont différents. La branche commune est non plane. Elle se termine à la hauteur du petit rayon, où le grand cylindre rejoint la paroi verticale du petit le long d’un autre arc de cercle. Le solide de référence a onze plans et deux cylindres.
+
+| Témoin | Géométrie de référence | Auto avant intégration |
+| --- | --- | --- |
+| `nominal.stl`, 416 triangles | Rayons 2 et 3 mm, volume 5 791,673203086 mm³ | 51 plans |
+| `reflected.stl`, 912 triangles | Rayons échangés, 3,5 et 1,5 mm, pièce réfléchie, volume 5 308,068388490 mm³ | 69 plans |
+| `warped_seam.stl`, jonction déformée | Maillage fermé. Un sommet quitte les deux supports cylindriques attendus. | 55 plans |
+| Autre poche, FreeCAD, 116 et 246 triangles | Rayons 1,75 et 3,25 mm, volume de référence 21 015,076001588 mm³ | 69 et 155 plans, volumes 21 015,481149277 et 21 015,139973474 mm³ |
+
+Les 18 sondes de matière et de vide passent sur la référence FreeCAD et ses deux conversions. Sur sa jonction, la distance maximale échantillonnée au plan passant par trois points est de 0,031214 mm. Le grand cylindre a cinq arêtes et le petit en a quatre. Le troisième arc circulaire mesure 1,559118 mm. Un test de régression du core vérifie que ces trois STL publics ne se voient pas attribuer l’ellipse commune du cas de même rayon.
+
+### Courbe spatiale et tracés sur les cylindres
+
+Avec `q = 1 − r/R`, le dénominateur commun est `D = (1 − qt²)² + 4t²`. Les identités des deux cylindres sont vérifiées en substituant les coefficients donnés dans le script de courbe. Le dénominateur reste positif et les cinq poids de Bézier sont positifs. Le STEP de l’arête seule, relu sur trois couples de rayons (3/2, 7/1 et 4/3,99 mm), conserve le degré quatre et cinq pôles. L’écart maximal aux points de référence échantillonnés est inférieur à 2,85 × 10⁻¹³ mm.
+
+Dans le paramètre de la courbe 3D, les deux tracés cylindriques utilisent des cubiques d’Hermite. Les dérivées angulaires et les positions axiales ont le même dénominateur `D ≥ 1`. La formule du reste d’Hermite et la majoration des dérivées donnent, en arithmétique réelle, des bornes d’interpolation de 9,18 × 10⁻⁹, 1,34 × 10⁻⁹ et 7,65 × 10⁻¹⁰ mm, respectivement, avec 256, 512 et 512 intervalles. Les tracés 2D construits dans FreeCAD donnent un écart maximal échantillonné inférieur à 3,05 × 10⁻¹¹ mm sur ces trois exemples. Les arrondis du noyau et les transformations dues au STEP sont contrôlés séparément.
+
+### Transfert sur le solide de référence
+
+La sonde OCCT 7.9.3 remplace l’arête de la pièce construite en CAO par la quartique exacte, en conservant les deux sommets et les faces voisines. Poser uniquement l’arête 3D laisse les deux cylindres sans tracé paramétrique. La projection générique rétablit le solide, mais le contrôle natif retrouve un écart allant jusqu’à 1,71 × 10⁻⁶ mm après transfert.
+
+En attachant les deux tracés d’Hermite au même paramètre, le solide reste valide avant et après réimport, avec 256 intervalles par support. OCCT mesure au plus 2,26 × 10⁻¹¹ mm après transfert pour une tolérance d’arête de 10⁻⁷ mm. FreeCAD retrouve la quartique à cinq pôles, les 18 sondes passent et le volume est de 21 015,076001598 mm³. Ce parcours part des faces et sommets d’une référence CAO. Il restera à reconstruire le solide à partir des triangles du STL.
+
+Pour reprendre la reconnaissance, le sondage source a utilisé les cinq plans qui touchent la zone résiduelle. Le fond est orthogonal aux quatre autres. La hauteur des interfaces au-dessus du fond distingue les deux butées et les deux plans tangents. Les rayons mesurés permettent de classer les triangles de chaque bande par leurs sommets. Sur les STL FreeCAD, les chaînes communes comptent 14 et 35 segments et les arcs supplémentaires 4 et 10 segments. Sur le témoin déformé, certains triangles ne satisfont aucun des deux cylindres. Il reste à démontrer la couverture continue, l’orientation et la fidélité de chaque bande avant toute conversion.
+
+### Reproduction
+
+```sh
+python3 scripts/generate-unequal-pocket-fixtures.py artifacts/r090/public-corpus
+diff -r -x README.md fixtures/unequal_pocket artifacts/r090/public-corpus
+cargo test --locked --offline -p fabstep-core --test adjacent_pocket
+cargo build --locked --offline -p fabstep-cli
+PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
+  /Applications/FreeCAD.app/Contents/Resources/bin/python \
+  scripts/qualify-unequal-pocket-freecad.py artifacts/r090/reference --cli target/debug/fabstep
+sh scripts/qualify-unequal-pocket-transfer.sh artifacts/r090/transfer
+```
+
+L’option `--require-analytic` du contrôle FreeCAD demande la quartique et les deux supports sur le résultat de la conversion STL. Avant intégration, elle échoue à la première pièce facettisée. Le script de transfert contrôle un solide synthétique indépendant de la CLI. Les scripts `qualify-unequal-pocket-curve.py` et `qualify-unequal-pocket-traces.py` permettent de rejouer les vérifications des courbes seules avec l’interpréteur de FreeCAD.

@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 89** (26 %)
+**Avancement : 23 livrés sur 90** (26 %)
 
 ## Restant à faire
 
@@ -144,6 +144,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Reconstruire et mesurer séparément les deux arrondis parallèles d’une poche borgne, y compris lorsque leurs rayons diffèrent.
 66. **[R-089 D/E — jonction de deux congés adjacents de même rayon](roadmap/items/R-089-d-e-jonction-de-deux-conges-adjacents-de-meme.md)** · À tester · jalon post-v1
    Dans un coin de poche à 90°, Auto reconstruit les deux congés de même rayon et conserve leur arête elliptique commune.
+67. **[R-090 D/E — congés adjacents de rayons différents](roadmap/items/R-090-d-e-conges-adjacents-de-rayons-differents.md)** · En cours · jalon post-v1
+   Qualifier le coin entre un petit et un grand congé, leur courbe commune et l’arc qui termine le grand congé sur la paroi du petit.
 
 ## Actions à faire
 
@@ -228,6 +230,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-088](roadmap/actions/A-088-verifier-la-butee-elliptique-de-la-poche-dans.md) Vérifier la butée elliptique de la poche dans FabSTEP et Fusion (tester, R-087)
 - [ ] [A-090](roadmap/actions/A-090-mesurer-separement-les-deux-conges-opposes-dans.md) Mesurer séparément les deux congés opposés dans Fusion (tester, R-088)
 - [ ] [A-091](roadmap/actions/A-091-controler-le-coin-a-deux-conges-adjacents-dans.md) Contrôler le coin à deux congés adjacents dans FabSTEP et Fusion (tester, R-089)
+- [ ] [A-092](roadmap/actions/A-092-autoriser-la-jonction-de-deux-conges-adjacents.md) Autoriser la jonction de deux congés adjacents de rayons différents (decider, R-090)
 
 ## Livré
 

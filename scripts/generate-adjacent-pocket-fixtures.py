@@ -26,10 +26,9 @@ def ring(x0, x1, y0, y1, z, subdivisions):
     return points
 
 
-def write(out, name, d, n, bands, rotate=False, warped=False):
-    length, width, radius = d.pocket_length, d.pocket_width, d.radius
-    x0, y0, z0 = -length / 2, -width / 2, d.floor
-    cx, cy, cz = x0 + radius, y0 + radius, z0 + radius
+def pocket_shell(d, bands, rows, curved_sides):
+    """Triangulate a pocket from nested horizontal sections, from floor to mouth."""
+    x0, y0, z0 = -d.pocket_length / 2, -d.pocket_width / 2, d.floor
     groups = defaultdict(list)
 
     def quad(group, a, b, c, e, alternate):
@@ -37,13 +36,9 @@ def write(out, name, d, n, bands, rotate=False, warped=False):
             [(a, b, e), (b, c, e)] if alternate else [(a, b, c), (a, c, e)]
         )
 
-    def place(p):
-        x, y, z = p
-        return (z + 6, x - 4, y + 2) if rotate else p
-
     outer_base = ring(-d.length / 2, d.length / 2, -d.width / 2, d.width / 2, 0, bands)
     outer_top = [(x, y, d.height) for x, y, _ in outer_base]
-    mouth = ring(x0, -x0, y0, -y0, d.height, bands)
+    mouth = rows[-1]
     count = len(mouth)
     for i in range(count):
         j = (i + 1) % count
@@ -52,23 +47,13 @@ def write(out, name, d, n, bands, rotate=False, warped=False):
         quad(side, outer_base[i], outer_base[j], outer_top[j], outer_top[i], i % 2)
         quad("rim", outer_top[i], outer_top[j], mouth[j], mouth[i], i % 2)
 
-    # Above the floor the removed cross-section is a rectangle whose two
-    # minimum coordinates move together. Its lower-left vertex traces the
-    # exact ellipse shared by the two cylindrical walls.
-    rows = [ring(cx, -x0, cy, -y0, z0, bands)]
-    for k in range(1, n):
-        t = math.pi * k / (2 * n)
-        q = radius * (1 - math.sin(t))
-        z = cz - radius * math.cos(t)
-        rows.append(ring(x0 + q, -x0, y0 + q, -y0, z, bands))
-    rows.append(ring(x0, -x0, y0, -y0, cz, bands))
-    rows.append(mouth)
     for k, (bottom, top) in enumerate(zip(rows, rows[1:])):
+        fillet_x, fillet_y = curved_sides[k]
         groups_here = (
-            "fillet_x" if k < n else "wall_y_min",
+            "fillet_x" if fillet_x else "wall_y_min",
             "stop_x_max",
             "stop_y_max",
-            "fillet_y" if k < n else "wall_x_min",
+            "fillet_y" if fillet_y else "wall_x_min",
         )
         for i in range(count):
             j = (i + 1) % count
@@ -80,9 +65,35 @@ def write(out, name, d, n, bands, rotate=False, warped=False):
                 bottom[j],
                 (k + i) % 2,
             )
+    cx, cy, _ = rows[0][0]
     center = ((cx - x0) / 2, (cy - y0) / 2, z0)
     for i in range(count):
         groups["floor"].append((center, rows[0][i], rows[0][(i + 1) % count]))
+
+    return groups
+
+
+def write(out, name, d, n, bands, rotate=False, warped=False):
+    length, width, radius = d.pocket_length, d.pocket_width, d.radius
+    x0, y0, z0 = -length / 2, -width / 2, d.floor
+    cx, cy, cz = x0 + radius, y0 + radius, z0 + radius
+
+    def place(p):
+        x, y, z = p
+        return (z + 6, x - 4, y + 2) if rotate else p
+
+    # Above the floor the removed cross-section is a rectangle whose two
+    # minimum coordinates move together. Its lower-left vertex traces the
+    # exact ellipse shared by the two cylindrical walls.
+    rows = [ring(cx, -x0, cy, -y0, z0, bands)]
+    for k in range(1, n):
+        t = math.pi * k / (2 * n)
+        q = radius * (1 - math.sin(t))
+        z = cz - radius * math.cos(t)
+        rows.append(ring(x0 + q, -x0, y0 + q, -y0, z, bands))
+    rows.append(ring(x0, -x0, y0, -y0, cz, bands))
+    rows.append(ring(x0, -x0, y0, -y0, d.height, bands))
+    groups = pocket_shell(d, bands, rows, [(k < n, k < n) for k in range(n + 1)])
 
     damaged = rows[n // 2][0]
 

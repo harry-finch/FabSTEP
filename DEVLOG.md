@@ -488,3 +488,7 @@ Sur deux maillages indépendants d’une même poche, Auto donne 71 et 159 plans
 ## 2026-11-18 — R-089, reconstruction du coin dans Auto et Surfaces
 
 Les deux cylindres partagent désormais une arête elliptique après réimport. Sur deux STL dessinés dans FreeCAD, les 71 et 159 faces planes de V-1215 deviennent onze plans et deux cylindres. La revue indépendante a identifié un refus excessif sur les poches courtes. Le contrôle porte désormais sur le quart de cylindre que contient la pièce. Un essai de régression à 3,75 mm de longueur pour un rayon de 2 mm protège ce cas. Voir V-1216.
+
+## 2026-11-18 — R-090, qualification des congés adjacents de rayons différents
+
+Deux maillages FreeCAD donnent encore 69 et 155 plans. La pièce de référence porte une arête non plane entre les deux cylindres et un arc circulaire supplémentaire sur la paroi latérale. Le laboratoire construit une quartique rationnelle pour la jonction et borne l’interpolation des tracés sur les deux supports. Les témoins, le repli actuel et les contrôles de transfert sont décrits dans V-1217. A-092 porte sur l’extension du contrat.

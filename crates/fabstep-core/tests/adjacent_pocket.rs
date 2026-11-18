@@ -72,3 +72,27 @@ fn a_rigid_mirror_keeps_the_seam_while_a_one_axis_stretch_rejects_it() {
     let fallback = recognize_automatic(&analyze_mesh(&stretched, &o).unwrap(), &o).unwrap();
     assert!(fallback.model.revolved.mixed.elliptic_arcs.is_empty());
 }
+
+#[test]
+fn unequal_adjacent_fillet_radii_never_receive_the_equal_radius_ellipse() {
+    let options = Options {
+        reconstruction: ReconstructionMode::Auto,
+        ..Options::default()
+    };
+    for mesh in [
+        include_bytes!("../../../fixtures/unequal_pocket/nominal.stl").as_slice(),
+        include_bytes!("../../../fixtures/unequal_pocket/reflected.stl").as_slice(),
+        include_bytes!("../../../fixtures/unequal_pocket/warped_seam.stl").as_slice(),
+    ] {
+        let analysis = analyze_stl(mesh, &options).unwrap();
+        let result = recognize_automatic(&analysis, &options).unwrap();
+        let mixed = &result.model.revolved.mixed;
+        let mut elliptic_ends = std::collections::BTreeSet::new();
+        for wall in mixed.partial_cylinders.iter().filter(|c| c.elliptic_end) {
+            assert!(
+                elliptic_ends.insert(wall.arcs[1]),
+                "Two different radii cannot share an elliptical stop"
+            );
+        }
+    }
+}
