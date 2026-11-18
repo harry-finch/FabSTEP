@@ -74,6 +74,7 @@ fn shared_edges(
     owners: &[RoundedFaceRef],
     mut analytic_seams: Option<&mut std::io::BufWriter<fs::File>>,
     mut cone_seams: Option<&mut std::io::BufWriter<fs::File>>,
+    mut bore_seams: Option<&mut std::io::BufWriter<fs::File>>,
 ) -> Vec<Neighbors> {
     let mut edges = Vec::with_capacity(mesh.triangles.len() * 3);
     for (i, t) in mesh.triangles.iter().enumerate() {
@@ -92,6 +93,11 @@ fn shared_edges(
                 (RoundedFaceRef::Plane { .. }, _) => analytic_seams.as_deref_mut(),
                 (RoundedFaceRef::Cone { .. }, neighbor) if neighbor != owners[side] => {
                     cone_seams.as_deref_mut()
+                }
+                (RoundedFaceRef::Cylinder { .. } | RoundedFaceRef::Torus { .. }, neighbor)
+                    if neighbor != owners[side] =>
+                {
+                    bore_seams.as_deref_mut()
                 }
                 _ => None,
             };
@@ -194,6 +200,49 @@ fn dump_cones(dir: &std::path::Path, model: &RoundedModel, mesh: &Mesh, owners: 
         }
     }
     faces.flush().unwrap();
+}
+
+// Complete revolved wall parameters and source witnesses for the bore joins.
+fn dump_bores(dir: &std::path::Path, model: &RoundedModel, mesh: &Mesh, owners: &[RoundedFaceRef]) {
+    use std::io::{BufWriter, Write};
+    let mut refs = BufWriter::new(fs::File::create(dir.join("bore-surfaces.tsv")).unwrap());
+    for (i, wall) in model.revolved.mixed.cylinders.iter().enumerate() {
+        writeln!(refs, "cylinder\t{i}\t{:?}\t{}", wall.rings, wall.inner).unwrap();
+    }
+    for (i, wall) in model.tori.iter().enumerate() {
+        if let Some(rings) = wall.rings {
+            writeln!(
+                refs,
+                "torus\t{i}\t{rings:?}\t{}\t{:?}\t{}\t{}\t{:?}",
+                wall.inner,
+                wall.center,
+                wall.major_radius_mm,
+                wall.minor_radius_mm,
+                wall.meridian_rad
+            )
+            .unwrap();
+        }
+    }
+    refs.flush().unwrap();
+    let mut points = BufWriter::new(fs::File::create(dir.join("bore-source.bin")).unwrap());
+    for (id, owner) in owners.iter().enumerate() {
+        let (kind, index) = match owner {
+            RoundedFaceRef::Cylinder { index } => (0, *index),
+            RoundedFaceRef::Torus { index } => (1, *index),
+            _ => continue,
+        };
+        for entry in [id, kind, index] {
+            points
+                .write_all(&u32::try_from(entry).unwrap().to_le_bytes())
+                .unwrap();
+        }
+        for p in mesh.triangles[id].map(|v| mesh.vertices[v]) {
+            for x in p {
+                points.write_all(&x.to_le_bytes()).unwrap();
+            }
+        }
+    }
+    points.flush().unwrap();
 }
 
 fn root(parents: &mut [usize], mut i: usize) -> usize {
@@ -337,7 +386,21 @@ fn residual_planar_profile() {
         dump_cones(&dir, &r.model, mesh, owners);
         std::io::BufWriter::new(fs::File::create(dir.join("cone-seams.tsv")).unwrap())
     });
-    let edges = shared_edges(mesh, &geometry, owners, seams.as_mut(), cone_seams.as_mut());
+    let mut bore_seams = std::env::var_os("FABSTEP_DUMP_BORES").map(|_| {
+        dump_bores(&dir, &r.model, mesh, owners);
+        std::io::BufWriter::new(fs::File::create(dir.join("bore-seams.tsv")).unwrap())
+    });
+    let edges = shared_edges(
+        mesh,
+        &geometry,
+        owners,
+        seams.as_mut(),
+        cone_seams.as_mut(),
+        bore_seams.as_mut(),
+    );
+    if let Some(mut writer) = bore_seams {
+        std::io::Write::flush(&mut writer).unwrap();
+    }
     if let Some(mut writer) = cone_seams {
         std::io::Write::flush(&mut writer).unwrap();
     }
