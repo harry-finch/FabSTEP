@@ -28,7 +28,7 @@
   {#if canguide}
     <fieldset class="family-choices" disabled={pending}>
       <Segmented
-        options={[{id:'auto' as const,label:t('guidance.autoChoice'),hint:t('guidance.autoScope')},{id:'plane' as const,label:t('inspection.plane'),hint:t('guidance.planeScope')},{id:'cylinder' as const,label:t('inspection.cylinder'),hint:t('guidance.cylinderScope')},{id:'cone' as const,label:t('inspection.cone'),hint:t('guidance.coneScope')},{id:'torus' as const,label:t('inspection.torus'),hint:t('guidance.torusScope')}]}
+        options={[{id:'auto' as const,label:t('guidance.autoChoice'),hint:t('guidance.autoScope')},{id:'plane' as const,label:t('inspection.plane'),hint:t('guidance.planeScope')},{id:'cylinder' as const,label:t('inspection.cylinder'),hint:t('guidance.cylinderScope')},{id:'cone' as const,label:t('inspection.cone'),hint:t('guidance.coneScope')},{id:'sphere' as const,label:t('inspection.sphere'),hint:t('guidance.sphereScope')},{id:'torus' as const,label:t('inspection.torus'),hint:t('guidance.torusScope')}]}
         value={family}
         onchange={value => family=value}
         label={t('guidance.family')}

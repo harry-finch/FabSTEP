@@ -747,6 +747,7 @@ fn parse_guidance_family(family: Option<&str>) -> Result<fabstep_core::GuidanceF
     match family.unwrap_or("cylinder") {
         "auto" => Ok(fabstep_core::GuidanceFamily::Auto),
         "torus" => Ok(fabstep_core::GuidanceFamily::Torus),
+        "sphere" => Ok(fabstep_core::GuidanceFamily::Sphere),
         "plane" => Ok(fabstep_core::GuidanceFamily::Plane),
         "cylinder" => Ok(fabstep_core::GuidanceFamily::Cylinder),
         "cone" => Ok(fabstep_core::GuidanceFamily::Cone),
@@ -1180,11 +1181,15 @@ mod tests {
             super::parse_guidance_family(Some("torus")).unwrap(),
             GuidanceFamily::Torus
         );
+        assert_eq!(
+            super::parse_guidance_family(Some("sphere")).unwrap(),
+            GuidanceFamily::Sphere
+        );
         let mut cache = CacheState::default();
         install_guidance_base(&mut cache, 300);
         let (_, epoch) = cache.begin_guidance(301, 300, 300).unwrap();
         assert_eq!(
-            super::parse_guidance_family(Some("sphere"))
+            super::parse_guidance_family(Some("freeform"))
                 .unwrap_err()
                 .code,
             "guidance.unsupported_family"

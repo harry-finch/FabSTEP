@@ -435,6 +435,22 @@ fn partial_chain_group(
     }
     Some(group)
 }
+// A spherical correction can end at an observed pole or on a source
+// plane. A seam shared with another curved face needs its own joint proof.
+fn independent_sphere(r: &RoundedRecognition, index: usize) -> bool {
+    let sphere = &r.model.spheres[index];
+    let mixed = &r.model.revolved.mixed;
+    match sphere.rings {
+        None => r.triangle_faces.iter().all(|&face| face == (RoundedFaceRef::Sphere {index})),
+        Some(rings) => rings.iter().all(|&id| {
+            mixed.rings.get(id).is_some_and(|ring| ring.radius_mm == 0. ||
+                mixed.planes.iter().flat_map(|p| &p.loops)
+                    .filter(|face_loop| matches!(face_loop, MixedLoop::Circle {ring} if *ring == id))
+                    .count() == 1)
+        }),
+    }
+}
+
 pub fn guided_rounded_region(
     r: &RoundedRecognition,
     family: GuidanceFamily,
@@ -476,6 +492,10 @@ pub fn guided_rounded_region(
         GuidanceFamily::Auto => partial_chain_group(r, owner)
             .or_else(|| torus_group(r, owner))
             .unwrap_or_else(|| vec![owner]),
+        GuidanceFamily::Sphere if matches!(owner, RoundedFaceRef::Sphere { index } if independent_sphere(r,index)) =>
+        {
+            vec![owner]
+        }
         GuidanceFamily::Torus => torus_group(r, owner).ok_or_else(unproven)?,
         GuidanceFamily::Cylinder
             if matches!(

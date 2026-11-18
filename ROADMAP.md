@@ -118,7 +118,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Patch bicubique de type hauteur, quatre limites source sur un solide fermé
 53. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · Idée · jalon atelier
    Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
-54. **[R-050 I2 — élargir les familles guidées](roadmap/items/R-050-i2-elargir-les-familles-guidees.md)** · Idée · jalon atelier
+54. **[R-050 I2 — élargir les familles guidées](roadmap/items/R-050-i2-elargir-les-familles-guidees.md)** · À tester · jalon atelier
    Après Plan (R-056), ajouter le raccord torique guidé puis étudier les sphères.
 55. **[R-024 Préserver les caractères composés dans les noms de produits tronqués](roadmap/items/R-024-preserver-les-caracteres-composes-dans-les-noms-de-produits-tronques.md)** · Idée · jalon audit
    AUD-011 — Reproduire les cas Unicode utiles ; conserver le nom source et éviter une dépendance disproportionnée pour ce seul besoin
@@ -262,6 +262,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-104](roadmap/actions/A-104-inspecter-la-pointe-de-revolution-dans-fusion.md) Inspecter la pointe de révolution dans Fusion (tester, R-099)
 - [ ] [A-105](roadmap/actions/A-105-verifier-les-deux-reliefs-bicubiques-dans-fusion.md) Vérifier les deux reliefs bicubiques dans Fusion (tester, R-038)
 - [ ] [A-106](roadmap/actions/A-106-verifier-le-rebord-et-la-cloison-dans-fusion.md) Vérifier le rebord et la cloison dans Fusion (tester, R-100)
+- [ ] [A-107](roadmap/actions/A-107-essayer-la-correction-spherique-sur-un-dome.md) Essayer la correction sphérique sur un dôme (tester, R-050)
 
 ## Livré
 

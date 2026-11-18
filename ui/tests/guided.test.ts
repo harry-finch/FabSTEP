@@ -85,5 +85,6 @@ test('automatic results never require destructive preparation and new families r
  const settings={input_unit:'mm' as const,reconstruction:'auto' as const,weld_tolerance_mm:1e-6,plane_tolerance_mm:1e-6,cylinder_fit_tolerance_mm:1e-5,max_deviation_mm:0.05};
  assert.equal(canPrepareCorrection({request_id:4,settings},4,'auto',true,false),false);
  assert.equal(guidedFamilyLabel('auto'),'guidance.autoLabel');
+ assert.equal(guidedFamilyLabel('sphere'),'guidance.sphereLabel');
  assert.equal(guidedFamilyLabel('torus'),'guidance.torusLabel');
 });

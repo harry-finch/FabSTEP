@@ -22,8 +22,8 @@ export function acceptsGuidedResult(requestId:number, sourceId:number, current:n
 }
 
 /** Accepted hints are labelled from the native report, never the current selector. */
-export function guidedFamilyLabel(family:GuidedFamily):'guidance.autoLabel'|'guidance.torusLabel'|'guidance.planeLabel'|'guidance.cylinderLabel'|'guidance.coneLabel' {
-  return family === 'auto' ? 'guidance.autoLabel' : family === 'torus' ? 'guidance.torusLabel' : family === 'plane' ? 'guidance.planeLabel' : family === 'cone' ? 'guidance.coneLabel' : 'guidance.cylinderLabel';
+export function guidedFamilyLabel(family:GuidedFamily):'guidance.sphereLabel'|'guidance.autoLabel'|'guidance.torusLabel'|'guidance.planeLabel'|'guidance.cylinderLabel'|'guidance.coneLabel' {
+  return family === 'sphere' ? 'guidance.sphereLabel' : family === 'auto' ? 'guidance.autoLabel' : family === 'torus' ? 'guidance.torusLabel' : family === 'plane' ? 'guidance.planeLabel' : family === 'cone' ? 'guidance.coneLabel' : 'guidance.cylinderLabel';
 }
 
 /** A refusal belongs to a guided attempt only while its request is current. */
