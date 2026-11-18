@@ -168,3 +168,12 @@ test('paint batches add visible face IDs without toggles and reject invalid batc
   assert.throws(()=>g.add([3,99]));assert.deepEqual(g.inspect().faces,[0,1,2]);
   g.clear();assert.deepEqual(g.add([2]).faces,[2]);
 });
+
+
+test('certified revolution faces keep their own STEP family through selection and adjacency', () => {
+  const d=structuredClone(document);d.faces[1].family='revolution';
+  const g=new StepSelectionGraph();g.prepare(d);
+  assert.deepEqual(g.pick(1,false).families,{revolution:1});
+  assert.deepEqual(g.grow().families,{plane:1,revolution:1,cone:1});
+  assert.deepEqual(g.shrink().families,{revolution:1});
+});

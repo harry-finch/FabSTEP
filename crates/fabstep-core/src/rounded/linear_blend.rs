@@ -655,6 +655,7 @@ pub(super) fn candidate(
             },
             cones: vec![],
         },
+        smooth_revolution: None,
         cross_drill: None,
         linear_blend: Some(Box::new(blend)),
         octants: vec![],
@@ -701,6 +702,7 @@ pub(super) fn candidate(
         message:"Les extrémités partagées ont été projetées sur les ellipses et les génératrices. Le déplacement est inclus dans la borne.".into()});
     }
     let report = RecognitionReport {
+        revolutions: 0,
         cylinders: 0,
         cones: 1,
         spheres: 0,

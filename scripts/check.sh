@@ -31,13 +31,13 @@ cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features 
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib revolved::adjacent_chain
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib rounded::zone::tests
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --lib partial::tests
-cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --test source_size_profiles --test analysis --test selection --test dense_planar_contours --test torus_cone_cylinder --test revolution_chains --test adjacent_chains --test local_trihedral --test linear_blend --test cross_drill
+cargo test --target-dir crates/fabstep-worker/target -p fabstep-core --features large-stl --offline --locked --test source_size_profiles --test analysis --test selection --test dense_planar_contours --test torus_cone_cylinder --test revolution_chains --test adjacent_chains --test local_trihedral --test linear_blend --test cross_drill --test smooth_revolution
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-app --features large-stl --offline --locked --test source_size_profiles
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-app --features large-stl --offline --locked --lib rounded_face_limit_reports_the_count_separately_from_invalid_attribution
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-cad --features large-stl --offline --locked --lib size_profile_tests
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-cad --features large-stl --offline --locked --lib trihedral_octant
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-cad --features large-stl --offline --locked --lib linear_blend_
-cargo test --target-dir crates/fabstep-worker/target -p fabstep-cad --features large-stl --offline --locked --test cross_drill
+cargo test --target-dir crates/fabstep-worker/target -p fabstep-cad --features large-stl --offline --locked --test cross_drill --test smooth_revolution
 cargo test --target-dir crates/fabstep-worker/target -p fabstep-verify --features large-stl --offline --locked --lib
 if [ "$(uname -s)" = Darwin ]; then
     cargo build --manifest-path crates/fabstep-worker/Cargo.toml --offline --locked

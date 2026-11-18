@@ -13,6 +13,7 @@ use std::f64::consts::{PI, TAU};
 mod block;
 mod linear_blend;
 mod octant;
+mod smooth_revolution;
 mod torus_cone;
 mod zone;
 
@@ -446,7 +447,44 @@ fn recognize_policy_with_proofs(
             continue;
         }
         match classify(a, triangles, &boundary_rims, &edges, o, &mut work) {
-            Ok(p) => {
+            Ok(Classified::Meridian {
+                frame,
+                nodes,
+                previous,
+            }) => {
+                // All historical classifiers, including the toroidal and adjoining
+                // cone chains, declined this patch. Only a complete body qualifies.
+                if rims.len() == 2 {
+                    match smooth_revolution::candidate(
+                        a,
+                        &segmentation,
+                        &rims,
+                        &nodes,
+                        &frame,
+                        o,
+                        &mut work,
+                    ) {
+                        Ok(Some(_)) if scope.is_some() => {
+                            return Err(FabError::new(
+                                "guidance.family_unproven",
+                                "La révolution ajustée exige le corps entier.",
+                            ))
+                        }
+                        Ok(Some(result)) => return Ok(result),
+                        Ok(None) => (),
+                        Err(e)
+                            if automatic
+                                && matches!(
+                                    e.code.as_str(),
+                                    "recognition.surface_unproven"
+                                        | "recognition.deviation_exceeded"
+                                ) => {}
+                        Err(e) => return Err(e),
+                    }
+                }
+                failure = Some(previous);
+            }
+            Ok(Classified::Existing(p)) => {
                 rounded |= p.sphere.is_some()
                     || p.sections
                         .iter()
@@ -546,6 +584,7 @@ fn recognize_policy_with_proofs(
         }
     }
     let mut model = RoundedModel {
+        smooth_revolution: None,
         cross_drill: None,
         linear_blend: None,
         octants: vec![],
@@ -826,7 +865,7 @@ fn recognize_policy_with_proofs(
         Diagnostic { code: "recognition.rounded_intent_assumed".into(), severity: Severity::Warning,
             count: spheres+tori, message: "Les patchs admissibles sont interprétés comme sphères ou raccords toriques dans le mode explicitement activé.".into() }
     };
-    let mut result = RoundedRecognition{model,triangle_faces:owners.into_iter().map(Option::unwrap).collect(),report:RecognitionReport{cylinders,cones,spheres,tori,toroidal_fillets:tori,max_radial_residual_mm:errors.radial,max_chord_error_mm:errors.chord,max_wall_residual_mm:errors.wall,max_deviation_bound_mm:bound,expected_volume_mm3:volume,diagnostics:vec![intent,Diagnostic{code:"recognition.rounded_coverage".into(),severity:Severity::Info,count:a.mesh.triangles.len(),message:format!("Tous les triangles sont attribués : {spheres} sphères, {tori} tores, {cones} cônes, {cylinders} cylindres et {planes} plans. Frontières, raccords et éventuels pôles issus de la source.")},Diagnostic{code:"recognition.bound_scope".into(),severity:Severity::Info,count:1,message:"Borne composée : soudage, résidus de projection, flèche sphérique ou borne paramétrique des triangles. Validation native et audit bidirectionnel requis ; pas une mesure Hausdorff globale.".into()}]}};
+    let mut result = RoundedRecognition{model,triangle_faces:owners.into_iter().map(Option::unwrap).collect(),report:RecognitionReport{revolutions: 0,cylinders,cones,spheres,tori,toroidal_fillets:tori,max_radial_residual_mm:errors.radial,max_chord_error_mm:errors.chord,max_wall_residual_mm:errors.wall,max_deviation_bound_mm:bound,expected_volume_mm3:volume,diagnostics:vec![intent,Diagnostic{code:"recognition.rounded_coverage".into(),severity:Severity::Info,count:a.mesh.triangles.len(),message:format!("Tous les triangles sont attribués : {spheres} sphères, {tori} tores, {cones} cônes, {cylinders} cylindres et {planes} plans. Frontières, raccords et éventuels pôles issus de la source.")},Diagnostic{code:"recognition.bound_scope".into(),severity:Severity::Info,count:1,message:"Borne composée : soudage, résidus de projection, flèche sphérique ou borne paramétrique des triangles. Validation native et audit bidirectionnel requis ; pas une mesure Hausdorff globale.".into()}]}};
     if automatic && rejected > 0 {
         result.report.diagnostics.push(Diagnostic{code:"auto.regions_faceted".into(),severity:Severity::Info,count:rejected,message:"Les candidats locaux non prouvés restent facettisés ; aucun relâchement des tolérances.".into()});
     }
@@ -917,6 +956,15 @@ fn topology(
     Ok(())
 }
 
+enum Classified {
+    Existing(Patch),
+    Meridian {
+        frame: Frame,
+        nodes: Vec<Node>,
+        previous: FabError,
+    },
+}
+
 fn classify(
     a: &Analysis,
     triangles: Vec<usize>,
@@ -924,7 +972,7 @@ fn classify(
     edges: &BTreeMap<Edge, Vec<usize>>,
     o: &Options,
     work: &mut Work,
-) -> Result<Patch, FabError> {
+) -> Result<Classified, FabError> {
     let tol = o.plane_tolerance_mm.max(o.cylinder_fit_tolerance_mm);
     let frame = Frame::new(rims[0].center, rims[0].axis);
     let vertices: BTreeSet<_> = triangles
@@ -981,7 +1029,7 @@ fn classify(
                     z,
                     radius: 0.,
                 });
-                return Ok(Patch {
+                return Ok(Classified::Existing(Patch {
                     frame,
                     nodes,
                     sections: Vec::new(),
@@ -991,7 +1039,7 @@ fn classify(
                         radius,
                     }),
                     triangles,
-                });
+                }));
             }
             // A planar circle and a real axial pole determine a unique sphere:
             // R=(a²+h²)/(2h), C_z=P_z-sign(h)*R. Keep both demonstrated
@@ -1044,7 +1092,7 @@ fn classify(
                         z,
                         radius: 0.,
                     });
-                    return Ok(Patch {
+                    return Ok(Classified::Existing(Patch {
                         frame,
                         nodes,
                         sections: Vec::new(),
@@ -1054,7 +1102,7 @@ fn classify(
                             radius: cap_radius,
                         }),
                         triangles,
-                    });
+                    }));
                 }
             }
             nodes.push(Node {
@@ -1068,13 +1116,13 @@ fn classify(
     }
     if nodes.len() == 2 && nodes.iter().all(|n| n.radius > 0.) {
         if let Some(sphere) = zone::candidate(&nodes, &projected, o, work)? {
-            return Ok(Patch {
+            return Ok(Classified::Existing(Patch {
                 frame,
                 nodes,
                 sections: Vec::new(),
                 sphere: Some(sphere),
                 triangles,
-            });
+            }));
         }
     }
     // Discover genuine complete intermediate circles from horizontal source edges.
@@ -1173,18 +1221,25 @@ fn classify(
             {
                 sections
             } else {
+                if (5..=128).contains(&nodes.len()) {
+                    return Ok(Classified::Meridian {
+                        frame,
+                        nodes,
+                        previous,
+                    });
+                }
                 return Err(previous);
             }
         }
         Err(error) => return Err(error),
     };
-    Ok(Patch {
+    Ok(Classified::Existing(Patch {
         frame,
         nodes,
         sections,
         sphere: None,
         triangles,
-    })
+    }))
 }
 
 fn adjacent_sections(
@@ -2255,6 +2310,9 @@ fn compact_rings(m: &mut RoundedModel) -> Result<(), FabError> {
     Ok(())
 }
 pub(crate) fn volume(m: &RoundedModel) -> Result<f64, FabError> {
+    if let Some(f) = &m.smooth_revolution {
+        return smooth_revolution::volume(f);
+    }
     if let Some(f) = &m.cross_drill {
         return crate::cross_drill::volume(f);
     }

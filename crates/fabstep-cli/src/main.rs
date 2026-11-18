@@ -260,7 +260,7 @@ fn run() -> Result<(), FabError> {
             }
             print_json(&report)?;
         } else {
-            println!("STEP validé et réimporté : {} solide(s), {} plans, {} cylindres, {} cônes, {} sphères, {} tores ; volume total {:.6} mm³.\n{}", result.report.cad.solids, result.report.cad.planar_faces, result.report.cad.cylindrical_faces, result.report.cad.conical_faces, result.report.cad.spherical_faces, result.report.cad.toroidal_faces, result.report.cad.volume_mm3, path.display());
+            println!("STEP validé et réimporté : {} solide(s), {} plans, {} cylindres, {} cônes, {} sphères, {} tores, {} révolutions ; volume total {:.6} mm³.\n{}", result.report.cad.solids, result.report.cad.planar_faces, result.report.cad.cylindrical_faces, result.report.cad.conical_faces, result.report.cad.spherical_faces, result.report.cad.toroidal_faces, result.report.cad.revolution_faces, result.report.cad.volume_mm3, path.display());
             for body in result.report.bodies {
                 let recognition_report = body
                     .conversion

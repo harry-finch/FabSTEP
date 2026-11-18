@@ -614,6 +614,7 @@ pub(super) fn candidate(
         spheres: vec![],
         tori: vec![],
         partial_cones: vec![],
+        smooth_revolution: None,
         cross_drill: None,
         linear_blend: None,
         octants: vec![MixedSphericalOctant {
@@ -668,6 +669,7 @@ pub(super) fn candidate(
         },
     ];
     let report = RecognitionReport {
+        revolutions: 0,
         cylinders: 3,
         cones: 0,
         spheres: 1,

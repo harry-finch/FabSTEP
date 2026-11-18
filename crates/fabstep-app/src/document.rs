@@ -1252,6 +1252,7 @@ fn rounded_source_faces(
         } else {
             0
         },
+        usize::from(recognized.model.smooth_revolution.is_some()),
     ];
     let count = counts.iter().sum::<usize>();
     let invalid = || {
@@ -1294,6 +1295,7 @@ fn rounded_source_faces(
             F::SphericalOctant { index } => (7, index),
             F::LinearBlend { index } => (8, index),
             F::CrossDrill { index } => (9, index),
+            F::SmoothRevolution { index } => (10, index),
         };
         if index >= counts[kind] {
             return Err(invalid());

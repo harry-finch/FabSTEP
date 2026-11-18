@@ -6,7 +6,7 @@ L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée i
 
 L’ordre des lots restants reprend le document d’origine ; les priorités et dépendances exprimées dans leurs textes restent applicables. Aucun nouveau développement n’est autorisé par cette migration.
 
-**Avancement : 23 livrés sur 83** (28 %)
+**Avancement : 23 livrés sur 84** (27 %)
 
 ## Restant à faire
 
@@ -93,7 +93,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 41. **[R-083 F1 — reconnaître les perçages sécants depuis le STL](roadmap/items/R-083-f1-reconnaitre-les-percages-secants-depuis-le.md)** · À tester · jalon post-v1
    Prouver deux perçages centrés orthogonaux, leurs limites communes et leur reconstruction STEP, dans le domaine déjà autorisé par A-045.
 42. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · En cours · jalon post-v1
-   Partiellement intégré : révolutions toriques composées ; reste la méridienne courbe générale.
+   Révolutions toriques composées et première méridienne cubique bornée ; la généralisation reste ouverte.
 43. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · En cours · jalon post-v1
    Coin à trois arrondis intégré ; reste la généralisation des congés partiels et de leurs combinaisons.
 44. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · En cours · jalon post-v1
@@ -130,6 +130,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    AUD-006 — Démontrer un gain sur plusieurs instances ; établir un contrat tenant compte des transformations, de l’arrondi, du soudage et de la provenance avant tout cache
 60. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
+61. **[R-084 C2b — reconstruire une révolution à profil cubique](roadmap/items/R-084-c2b-reconstruire-une-revolution-a-profil-cubique.md)** · À tester · jalon post-v1
+   Un profil lisse cubique borné, deux disques source et un tour complet ; preuve continue, STEP contrôlé et famille Révolution explicite.
 
 ## Actions à faire
 
@@ -205,6 +207,8 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 - [ ] [A-078](roadmap/actions/A-078-verifier-les-raccords-elliptiques-dans-fusion.md) Vérifier les raccords elliptiques dans Fusion (tester, R-082)
 - [ ] [A-079](roadmap/actions/A-079-examiner-les-percages-secants-dans-fabstep.md) Examiner les perçages sécants dans FabSTEP (tester, R-083)
 - [ ] [A-080](roadmap/actions/A-080-verifier-les-percages-secants-dans-fusion.md) Vérifier les perçages sécants dans Fusion (tester, R-083)
+- [ ] [A-081](roadmap/actions/A-081-examiner-les-revolutions-cubiques-dans-fabstep.md) Examiner les révolutions cubiques dans FabSTEP (tester, R-084)
+- [ ] [A-082](roadmap/actions/A-082-verifier-les-revolutions-cubiques-dans-fusion.md) Vérifier les révolutions cubiques dans Fusion (tester, R-084)
 
 ## Livré
 

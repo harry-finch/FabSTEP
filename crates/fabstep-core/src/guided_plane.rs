@@ -103,6 +103,7 @@ pub(crate) fn recognize(
                 .map(|index| RevolvedFaceRef::Plane { index })
                 .collect(),
             report: RecognitionReport {
+                revolutions: 0,
                 cylinders: 0,
                 cones: 0,
                 spheres: 0,

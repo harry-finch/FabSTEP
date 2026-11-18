@@ -18,6 +18,8 @@ Le premier **arrondi à rayon variable linéaire** est également reconnu en Aut
 
 Le développement reconnaît aussi **deux perçages traversants centrés et orthogonaux** dans un bloc, avec quatre entrées circulaires complètes et un grand rayon au moins double du petit, avec marge résolue. Auto et Surfaces reconstruisent six plans et trois parois cylindriques ; leurs courbes communes sont contrôlées après réimport STEP. Les trous décentrés, obliques, tangents ou triples et la correction locale de ce groupe restent hors domaine. Voir [ADR-0038](docs/adr/0038-centered-cross-drill-domains.md) et [R-083](roadmap/items/R-083-f1-reconnaitre-les-percages-secants-depuis-le.md).
 
+Le développement ajoute une première **révolution à profil cubique ajusté** : un tour complet autour d’un axe, deux disques plans et un rayon positif variant avec la hauteur. Les anneaux source, la couverture de la paroi et son écart sont vérifiés ; l’ajustement est signalé et la face est nommée Révolution. Les formes historiques gardent la priorité. Les profils à plusieurs segments, les pôles et la correction locale de cette paroi restent hors périmètre. Voir [ADR-0039](docs/adr/0039-bounded-cubic-revolution.md) et [R-084](roadmap/items/R-084-c2b-reconstruire-une-revolution-a-profil-cubique.md).
+
 ### Reconstruire et corriger dans le build de développement
 
 **Ouvrir STL / 3MF** affiche le maillage. **Reconstruire le STEP**, dans l’inspecteur, lance **Automatique** : le moteur recherche les familles compatibles, conserve les régions prouvées et garde les zones incertaines en facettes. Il ne modifie pas les tolérances en silence. Le document entier doit passer les contrôles source, solide réimporté, dimensions, volume et fidélité avant export. Un défaut du maillage, des corps en contact ou une limite de calcul dépassée restent bloquants.
@@ -30,7 +32,7 @@ Dans la barre contextuelle, choisir **Auto, Plan, Cylindre, Cône ou Tore**, pui
 
 **Avancé** conserve les stratégies historiques (facettes, cylindres, cônes et surfaces arrondies), les tolérances et la recherche de paramètres. La première ouverture du nouveau parcours sélectionne Auto tout en conservant unité et tolérances enregistrées ; les choix explicites suivants restent mémorisés. Les anciens résultats sans provenance exacte proposent encore une préparation explicite vers les facettes. **Détails techniques** rassemble les diagnostics de routine, sans cacher les erreurs ni les avertissements géométriques.
 
-Limites : Auto ne reconnaît pas les formes libres ; certains arcs ouverts partageant des contours ambigus restent facettisés par prudence. Le reconnaisseur spécifique des boîtiers arrondis reste dans la stratégie avancée Surfaces arrondies : son modèle dédié n’entre pas encore dans la correction locale. Voir [ADR-0029](docs/adr/0029-automatic-local-reconstruction.md), [R-057](roadmap/items/R-057-ux5-reconstruction-automatique-et-selection-des.md) et [VALIDATION](docs/VALIDATION.md).
+Limites : Auto ne reconnaît pas les surfaces libres arbitraires ; certains arcs ouverts partageant des contours ambigus restent facettisés par prudence. Le reconnaisseur spécifique des boîtiers arrondis reste dans la stratégie avancée Surfaces arrondies : son modèle dédié n’entre pas encore dans la correction locale. Voir [ADR-0029](docs/adr/0029-automatic-local-reconstruction.md), [R-057](roadmap/items/R-057-ux5-reconstruction-automatique-et-selection-des.md) et [VALIDATION](docs/VALIDATION.md).
 
 ### Essayer un gros STL — build de développement
 

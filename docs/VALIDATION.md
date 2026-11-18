@@ -1777,3 +1777,54 @@ La revue indépendante CAO confirme les certificats des branches/paramètres apr
 La qualification est automatisée sur macOS avec le SDK local. Les essais graphiques et les réimports manuels Fusion restent ouverts ; Windows/Linux et l’option de compilation MSVC ne sont pas validés ici. Aucun benchmark avant/après ni nouvel essai de Flansch n’est revendiqué.
 
 Le rejeu CAO final (`cargo test -p fabstep-cad --test cross_drill --offline --locked`) réussit ses deux tests, y compris le refus scalaire r/2, puis le formatage est contrôlé à nouveau. `scripts/build-macos-dev.sh` termine avec succès et actualise `artifacts/FabSTEP.app`. Correspondance SHA-256 des exécutables copiés avec leurs builds : bureau `d534b15f8f9a1fc173d57207eb4f4412ba72079ef043dba8ee5129190cafa8a0`, worker `3beec03d1a31e0f621bba05bb1adc3d0e84a5d7e91a3fcd8f14c58e15f8f8d7c`. Journaux : `cad-final-replay.log`, `build-app.log`, `bundle-hashes.json` dans `artifacts/f-next/`. Paquet de développement dépendant du SDK local ; release 1.0.0 inchangée.
+
+
+## V-1206 — C2b : révolution à méridienne cubique (18 novembre 2026)
+
+### Qualification native préalable
+
+`sh scripts/qualify-smooth-revolution.sh` termine avec code 0 sur OCCT 7.9.3. Cinq références synthétiques indépendantes du moteur : profil bombé, resserré, à inflexion, placement oblique et mise à l’échelle. Avant/après STEP : un solide valide, deux plans, une surface de révolution, axe et tour complet, génératrice cubique non rationnelle mono-travée et quatre pôles physiques conservés. Trente sondes matière/vide par forme et par passage, soit 300 contrôles ; intégration native adaptative comparée à l’intégrale polynomiale indépendante. Écart absolu de volume maximal au réimport : 3.0177e-09 mm³. Ce volume mesuré et les sondes ne sont pas une preuve continue de fidélité au STL.
+
+Deux adversaires passent : le contrôle rejette la méridienne physiquement renversée malgré un volume théorique identique, et un rayon de contrôle nul est hors du domaine positif. Les cinq STEP, journaux et `report.json` sont dans `artifacts/smooth-revolution-lab/`. Les scripts sont versionnés ; ce laboratoire n’est pas appelé par l’application et ne reconnaît pas de source STL.
+
+### Autorisation et intégration
+
+Le contrat ADR-0039 a été approuvé explicitement après cette qualification. R-084 développe la reconnaissance source bornée, l’adaptateur natif et le parcours complet. La suite UI préliminaire passe 234 tests ; Svelte ne signale aucune erreur ni avertissement. Les résultats de production et les limites restantes seront consignés à la fin de l’intégration, sans déduire leur succès du laboratoire.
+
+
+### Preuve source et revue
+
+Les cinq tests core ciblés passent sur sept positifs et six négatifs : transformation, miroir, échelle, retessellation, attribution complète, volume, bornes, budget, guidage refusé et priorité historique. Douze tests ciblés de chaînes existantes et Clippy strict core passent. Le générateur indépendant est rejoué par l’orchestrateur dans `artifacts/c2-next/corpus-replay` : treize STL et manifeste identiques à l’octet près.
+
+La revue indépendante a fait séparer les tolérances de hauteur des disques et d’ajustement radial : un centre de disque légèrement déplacé doit respecter la tolérance de planéité, même si la tolérance d’ajustement est plus large. Un autre test refuse de rebaptiser cubique une méridienne circulaire indiscernable. Le négatif historique `adjacent_chains/smooth` est exactement r(z)=10+0,04z² : il entre désormais dans C2 en Surfaces, avec zéro cône, mais demeure refusé en Primitives. Le corpus peu échantillonné peut conserver une reconstruction historique prouvée ; le test interdit une révolution ajustée, pas toute ancienne famille.
+
+### Défaut de tessellation identifié pendant l’intégration
+
+La première conversion `mirrored/Auto` est correctement bloquée par `validation.distance_exceeded`. Le diagnostic direct de l’orchestrateur confirme les pôles natifs et des sommets de tessellation proches de la surface à environ 1e−12 mm, mais des barycentres de triangles s’écartent radialement de **0,05086968 mm**, malgré une déflexion demandée de 0,005 mm. L’audit mesure **0,06024749 mm source→résultat et 0,05971518 mm résultat→source**, au-delà du budget de 0,055 mm. La variante non réfléchie mesure 0,01426108/0,01463523 mm. Journaux et maillages : `artifacts/c2-next/probe.log`, `*-probe.step`, `*-mesh.json`.
+
+Changer arbitrairement la déflexion n’est pas un correctif fiable : des essais indépendants constatent une qualité non monotone du mailleur OCCT sur ce profil à inflexion. La correction choisie est une tessellation déterministe du domaine natif certifié, avec grille angle–hauteur bornée par les dérivées du profil et le plafond existant. Aucun relèvement de la tolérance d’audit. Son résultat final est à consigner après rejeu.
+
+
+### Correction et contrôles ciblés de production
+
+Le mailleur paramétrique évalue les faces natives réimportées sur une grille angle–hauteur calculée avec les quatre pôles physiques et leurs dérivées, y compris le terme mixte. Les disques reprennent les mêmes points de bord. Les corps ordinaires conservent le mailleur historique. Le test CAO compare sommets et barycentres des variantes à inflexion directe/réfléchie au profil nominal et exige un écart radial inférieur à 0,005001 mm pour une déflexion de 0,005 mm ; il passe. Le banc natif séparé mesure environ 0,001394 mm aux barycentres pour 34 440 triangles. Ce correctif vise la fidélité, sans promesse d’accélération.
+
+Trois tests CAO passent : modèles scalaires incohérents refusés avant construction, provenance exacte et compatibilité des wrappers, bornes de tessellation, mutation d’un pôle intérieur du STEP réimporté refusée par le certificat, contrôle du maillage après le correctif. Quatre tests application réussissent (quatorze conversions Auto/Surfaces), ainsi que les trois tests de chaînes adjacentes et deux tests multisolides. Les nouveaux champs absents restent lisibles dans les anciens modèles et rapports. La première compilation du test JSON dans le crate CAO a signalé sa dépendance absente : le test a été déplacé dans l’application qui dispose déjà de serde_json, sans ajouter de dépendance. Les constructeurs de tests historiques ont été actualisés avec le champ optionnel absent.
+
+Le contact des deux maillages source du test comporte 4 224 faces par corps : les 17 842 176 paires dépassent le budget existant de dix millions, donc `cad.bodies_separation_budget` refuse correctement l’export. Le second cas a des sources séparées mais des solides reconstruits qui se recouvrent ; les trois faces par corps permettent le contrôle et `cad.bodies_not_separated` le refuse. Les assertions distinguent ces deux motifs, sans modifier le comportement de séparation.
+
+La revue indépendante finale valide la réserve native débitée de **1e−6 mm**, soit vingt fois le garde géométrique de 5e−8 mm. Par transfert, les centres, rayons et axes imposent une dérive canonique inférieure à quatre gardes ; deux transferts en consomment moins de huit. Les supports et limites paramétriques finaux, ainsi que les marges numériques, restent dans les douze gardes restants. Les courbes paramétriques des disques sont des cercles physiques contrôlés ; les quatre coarêtes de la paroi bornent son rectangle et les usages opposés sont vérifiés. Ce contrôle analytique borné ne prétend pas être un certificat d’arithmétique d’intervalles. Les seuils d’audit et d’export n’ont pas été augmentés.
+
+Formatage et Clippy strict workspace passent avant la suite complète. Les journaux ciblés sont sous `artifacts/c2-next/` ; la suite complète doit encore être consignée ci-dessous à son terme.
+
+
+### Clôture V-1206
+
+`sh scripts/check.sh` termine avec code 0 : **579 tests workspace, 50 bureau, huit worker, 115 ciblés large-stl, un transfert réel, 234 UI, douze Python et quatre SDK réussis**. Formatage, Clippy strict workspace/bureau/worker, Svelte (zéro erreur, zéro avertissement), compilation UI et bureau réussissent. Seize tests opt-in workspace et quatre tests ciblés large-stl restent ignorés ; le test de transfert bureau ignoré dans la passe ordinaire est ensuite exécuté explicitement et réussit. Aucun échec final.
+
+`sh scripts/build-macos-dev.sh` termine avec code 0 et reconstruit `artifacts/FabSTEP.app`. Les exécutables inclus sont identiques aux sorties Cargo :
+
+- FabSTEP SHA-256 : `cbe5b5efa4ad0840a20c1f459aa502c7c3891871c0c9fe765032a437b6c374da`.
+- Worker SHA-256 : `ac74427f748083ceaafa705f4b9b136cac4d5b72d3bd048daf58069aa910759f`.
+
+Journaux locaux : `artifacts/c2-next/check.log`, `build-app.log`, `app-sha256.json`. Tests, corpus et générateurs sont versionnés et permettent de reproduire les contrôles sans ces journaux. L’avertissement Vite de taille de chunk reste présent ; aucun benchmark de vitesse ni gain global sur Flansch n’est revendiqué. Pas de nouvel essai graphique/Fusion, Windows/Linux ou d’installation autonome : A-081/A-082 portent les vérifications manuelles. La release 1.0.0 reste inchangée.

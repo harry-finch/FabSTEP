@@ -432,3 +432,15 @@ Les parents C2/D/E/F/G affichaient à tort « idée » malgré leurs tranches d�
 À la demande de l’utilisateur, aucun nouveau chantier n’est lancé après F1 : préparation d’une reprise autonome dans STATUS et la roadmap, puis commit et push du travail validé sur la branche existante. R-080 reste une piste de diagnostic pour Flansch ; aucun nouvel essai ni conversion de ce fichier n’est revendiqué. La release 1.0.0 demeure inchangée.
 
 Clôture validée : suite complète code 0 (565 workspace, 50 bureau, huit worker, 107 large-stl, un transfert réel, 232 UI, douze Python, quatre SDK), deux tests CAO rejoués après le dernier garde et formatage réussi. Paquet de développement reconstruit ; les deux exécutables sont vérifiés par SHA-256, valeurs dans V-1205. Aucun essai graphique/Fusion nouveau ; les actions F1 restent à faire.
+
+
+## 2026-11-18 — Reprise autorisée et C2b
+
+Après clôture et push F1, l’utilisateur demande de poursuivre puis approuve le nouveau type de surface pour terminer le jalon pendant son absence. R-084/ADR-0039 bornent la portée : une révolution complète à profil cubique positif, deux disques source, aucune spline multisegment. Un laboratoire natif préalable valide cinq références ; le corpus STL indépendant comprend sept positifs et six négatifs.
+
+La reconnaissance conserve la priorité historique et certifie les cartes de la paroi et des disques. La revue fait séparer tolérance de planéité et tolérance radiale, refuser les profils circulaires non distinguables et composer une réserve native de 1e−6 mm. Le résultat expose une famille Révolution distincte, une provenance complète et un avertissement d’ajustement. Les anciens documents restent lisibles.
+
+L’audit a effectivement bloqué la variante miroir avec le maillage OCCT générique : sommets corrects mais triangles trop éloignés. Une grille paramétrique évaluée sur les faces natives réimportées corrige ce défaut, sous le même plafond de ressources. Les contrôles de séparation restent inchangés, notamment le refus par budget lorsque des sources denses se touchent. Preuves, mesures et limites dans V-1206. Aucun nouveau chantier au-delà de ce jalon n’est lancé à la clôture.
+
+
+Clôture C2b : suite complète réussie (579 workspace, 50 bureau, huit worker, 115 large-stl, un transfert réel, 234 UI, douze Python et quatre SDK), formatage et analyses statiques sans échec. Application locale reconstruite, deux exécutables comparés par SHA-256 (V-1206). R-084 passe à tester avec A-081/A-082 ; le parent C2 conserve les domaines restants et le statut en cours. Documentation de reprise actualisée, puis commit et push sur la branche existante ; pas de publication release ni de nouvel essai Flansch.

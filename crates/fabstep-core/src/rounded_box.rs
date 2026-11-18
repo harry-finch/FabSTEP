@@ -434,6 +434,6 @@ fn prove(
         return Err(unproven("volume analytique non positif ou non fini"));
     }
     Ok(RoundedBoxRecognition {model:RoundedBoxModel{vertices:a.mesh.vertices.clone(),center,axes,core_half_extents:core,radius_mm:radius},triangle_faces:owners,
-        report:RecognitionReport{cylinders:12,cones:0,spheres:8,tori:0,toroidal_fillets:0,max_radial_residual_mm:residual,max_chord_error_mm:chord,max_wall_residual_mm:0.,max_deviation_bound_mm:bound,expected_volume_mm3:volume,
+        report:RecognitionReport{revolutions: 0,cylinders:12,cones:0,spheres:8,tori:0,toroidal_fillets:0,max_radial_residual_mm:residual,max_chord_error_mm:chord,max_wall_residual_mm:0.,max_deviation_bound_mm:bound,expected_volume_mm3:volume,
         diagnostics:vec![Diagnostic{code:"recognition.rounded_box_intent_assumed".into(),severity:Severity::Warning,count:1,message:"Les six supports rectangulaires et leurs raccords sont interprétés comme un boîtier convexe à rayon uniforme dans le mode explicitement activé.".into()},Diagnostic{code:"recognition.rounded_box_coverage".into(),severity:Severity::Info,count:a.mesh.triangles.len(),message:"Tous les triangles sont attribués aux 6 plans, 12 quarts de cylindre et 8 octants sphériques ; coutures communes, orientation et couverture de degré un prouvées.".into()},Diagnostic{code:"recognition.bound_scope".into(),severity:Severity::Info,count:1,message:"Borne composée : soudage, déplacements vectoriels des sommets et flèche exacte par domaine. Validation native et audit bidirectionnel requis.".into()}]}})
 }

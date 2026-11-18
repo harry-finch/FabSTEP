@@ -204,3 +204,23 @@ test('cross-drill attribution bounds all three cylinder domains and preserves le
   body.rounded_recognition!.triangle_faces=Array.from({length:3},()=>({kind:'plane' as const,index:0}));
   assert.deepEqual(attributions([body])[0].families,['plane','plane','plane']);
 });
+
+
+test('smooth revolution attribution requires its single explicit domain and preserves legacy planes', () => {
+  const body = {
+    id:'stl/component/0',analysis:{mesh:{triangles:[[0,1,2],[2,3,0],[3,4,5]]}},
+    rounded_recognition:{
+      model:{revolved:{mixed:{planes:[{},{}],cylinders:[],partial_cylinders:[]},cones:[]},
+        spheres:[],tori:[],smooth_revolution:{}},
+      triangle_faces:[{kind:'plane',index:0},{kind:'smooth_revolution',index:0},{kind:'plane',index:1}]
+    }
+  } as unknown as BodyResult;
+  assert.deepEqual(attributions([body])[0].families,['plane','smooth_revolution','plane']);
+  body.rounded_recognition!.triangle_faces[1].index=1;
+  assert.equal(attributions([body])[0].families,null);
+  body.rounded_recognition!.triangle_faces[1].index=0;
+  delete body.rounded_recognition!.model.smooth_revolution;
+  assert.equal(attributions([body])[0].families,null);
+  body.rounded_recognition!.triangle_faces[1]={kind:'plane',index:0};
+  assert.deepEqual(attributions([body])[0].families,['plane','plane','plane']);
+});

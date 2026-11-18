@@ -182,6 +182,7 @@ pub fn recognize_complete_torus(a: &Analysis, o: &Options) -> Result<RoundedReco
     }
     Ok(RoundedRecognition {
         model: RoundedModel {
+            smooth_revolution: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -191,7 +192,7 @@ pub fn recognize_complete_torus(a: &Analysis, o: &Options) -> Result<RoundedReco
             tori: vec![MixedTorus { rings: None, axis: Some(torus.axis), center: torus.center, major_radius_mm: torus.major, minor_radius_mm: torus.minor, meridian_rad: [0., TAU], inner: false }],
         },
         triangle_faces: vec![RoundedFaceRef::Torus { index: 0 }; triangle_count],
-        report: RecognitionReport { cylinders: 0, cones: 0, spheres: 0, tori: 1, toroidal_fillets: 0, max_radial_residual_mm: residual, max_chord_error_mm: chord, max_wall_residual_mm: 0., max_deviation_bound_mm: bound, expected_volume_mm3: volume, diagnostics: vec![
+        report: RecognitionReport { revolutions: 0, cylinders: 0, cones: 0, spheres: 0, tori: 1, toroidal_fillets: 0, max_radial_residual_mm: residual, max_chord_error_mm: chord, max_wall_residual_mm: 0., max_deviation_bound_mm: bound, expected_volume_mm3: volume, diagnostics: vec![
             Diagnostic { code: "recognition.rounded_intent_assumed".into(), severity: Severity::Warning, count: 1, message: "Le corps admissible est interprété comme un tore entier dans le mode explicitement activé.".into() },
             Diagnostic { code: "recognition.rounded_coverage".into(), severity: Severity::Info, count: triangle_count, message: "Tous les triangles couvrent une fois le domaine torique périodique (2π)², sans anneau source ajouté.".into() },
             Diagnostic { code: "recognition.bound_scope".into(), severity: Severity::Info, count: 1, message: "Borne composée : soudage, résidu de projection et borne paramétrique des triangles. Validation native et audit bidirectionnel requis.".into() },

@@ -34,6 +34,8 @@ pub struct CadReport {
     pub spherical_faces: usize,
     #[serde(default)]
     pub toroidal_faces: usize,
+    #[serde(default)]
+    pub revolution_faces: usize,
     pub volume_mm3: f64,
     pub bounds_mm: [[f64; 3]; 2],
     pub kernel: String,
@@ -86,6 +88,7 @@ struct Metrics {
     conical_faces: usize,
     spherical_faces: usize,
     toroidal_faces: usize,
+    revolution_faces: usize,
     volume: f64,
     bounds: [[f64; 3]; 2],
 }
@@ -193,6 +196,7 @@ pub enum ResultFaceFamily {
     Sphere,
     Torus,
     Other,
+    Revolution,
 }
 
 /// IDs are zero-based and scoped to this read of the final STEP, not the source.
@@ -248,6 +252,14 @@ struct NativeEllipse {
     start: f64,
     sweep: f64,
     vertices: [usize; 2],
+}
+
+#[repr(C)]
+struct NativeSmoothRevolution {
+    origin: [f64; 3],
+    axis: [f64; 3],
+    height: f64,
+    radii: [f64; 4],
 }
 
 #[repr(C)]
@@ -370,6 +382,14 @@ unsafe extern "C" {
         output: *mut NativeStep,
         error: *mut c_char,
         error_capacity: usize,
+    ) -> i32;
+    fn fabstep_build_smooth_revolution_step(
+        domain: *const NativeSmoothRevolution,
+        caps: *const usize,
+        wall: *const usize,
+        output: *mut NativeStep,
+        error: *mut c_char,
+        capacity: usize,
     ) -> i32;
     fn fabstep_build_cross_drill_step(
         domain: *const NativeCrossDrill,
@@ -1276,6 +1296,7 @@ struct SurfaceTokens<'a> {
     octants: &'a [usize],
     linear_blends: &'a [usize],
     cross_drill: &'a [usize],
+    smooth_revolution: &'a [usize],
 }
 
 /// Tracks construction identities for all complete rounded surface families.
@@ -1419,6 +1440,38 @@ pub fn build_rounded_step_with_cross_drill_provenance(
     linear_blend_tokens: &[usize],
     cross_drill_tokens: &[usize],
 ) -> Result<ValidatedStep, FabError> {
+    build_rounded_step_with_smooth_revolution_provenance(
+        model,
+        plane_tokens,
+        cylinder_tokens,
+        partial_cylinder_tokens,
+        cone_tokens,
+        sphere_tokens,
+        torus_tokens,
+        partial_cone_tokens,
+        octant_tokens,
+        linear_blend_tokens,
+        cross_drill_tokens,
+        &[],
+    )
+}
+
+/// The eleventh group labels the single certified cubic surface of revolution.
+#[allow(clippy::too_many_arguments)]
+pub fn build_rounded_step_with_smooth_revolution_provenance(
+    model: &RoundedModel,
+    plane_tokens: &[usize],
+    cylinder_tokens: &[usize],
+    partial_cylinder_tokens: &[usize],
+    cone_tokens: &[usize],
+    sphere_tokens: &[usize],
+    torus_tokens: &[usize],
+    partial_cone_tokens: &[usize],
+    octant_tokens: &[usize],
+    linear_blend_tokens: &[usize],
+    cross_drill_tokens: &[usize],
+    smooth_revolution_tokens: &[usize],
+) -> Result<ValidatedStep, FabError> {
     let arrays = [
         plane_tokens,
         cylinder_tokens,
@@ -1430,6 +1483,7 @@ pub fn build_rounded_step_with_cross_drill_provenance(
         octant_tokens,
         linear_blend_tokens,
         cross_drill_tokens,
+        smooth_revolution_tokens,
     ];
     let counts = [
         model.revolved.mixed.planes.len(),
@@ -1442,6 +1496,7 @@ pub fn build_rounded_step_with_cross_drill_provenance(
         model.octants.len(),
         usize::from(model.linear_blend.is_some()),
         if model.cross_drill.is_some() { 3 } else { 0 },
+        usize::from(model.smooth_revolution.is_some()),
     ];
     let invalid = || {
         FabError::new(
@@ -1476,6 +1531,7 @@ pub fn build_rounded_step_with_cross_drill_provenance(
             octants: octant_tokens,
             linear_blends: linear_blend_tokens,
             cross_drill: cross_drill_tokens,
+            smooth_revolution: smooth_revolution_tokens,
         }),
     )
 }
@@ -1484,6 +1540,9 @@ fn build_rounded_step_impl(
     model: &RoundedModel,
     tokens: Option<SurfaceTokens<'_>>,
 ) -> Result<ValidatedStep, FabError> {
+    if let Some(f) = &model.smooth_revolution {
+        return build_smooth_revolution(model, f, tokens);
+    }
     if let Some(f) = &model.cross_drill {
         return build_cross_drill(model, f, tokens);
     }
@@ -1590,6 +1649,109 @@ fn build_rounded_step_impl(
         &model.octants,
         tokens,
     )
+}
+
+/// Validate the additive scalar domain; source coverage remains a core proof.
+fn build_smooth_revolution(
+    model: &RoundedModel,
+    f: &fabstep_core::SmoothRevolution,
+    tokens: Option<SurfaceTokens<'_>>,
+) -> Result<ValidatedStep, FabError> {
+    let invalid = || {
+        FabError::new(
+            "cad.invalid_model",
+            "Les supports et les limites de la révolution cubique sont incohérents.",
+        )
+    };
+    let m = &model.revolved.mixed;
+    let finite = |v: &[f64; 3]| v.iter().all(|x| x.is_finite());
+    if m.planes.len() != 2
+        || m.rings.len() != 2
+        || m.vertices.len() > MAX_SOURCE_VERTICES
+        || !m.vertices.iter().all(finite)
+        || !m.cylinders.is_empty()
+        || !m.partial_cylinders.is_empty()
+        || !m.arcs.is_empty()
+        || !m.elliptic_arcs.is_empty()
+        || !model.revolved.cones.is_empty()
+        || !model.spheres.is_empty()
+        || !model.tori.is_empty()
+        || !model.partial_cones.is_empty()
+        || !model.octants.is_empty()
+        || model.linear_blend.is_some()
+        || model.cross_drill.is_some()
+        || !finite(&f.origin)
+        || !unit_direction(&f.axis)
+        || !f.height_mm.is_finite()
+        || f.height_mm <= 0.
+        || f.radii_mm.iter().any(|r| !r.is_finite() || *r <= 0.)
+        || f.rings[0] >= 2
+        || f.rings[1] >= 2
+        || f.rings[0] == f.rings[1]
+        || !f.witness_tolerance_mm.is_finite()
+        || f.witness_tolerance_mm < 0.
+    {
+        return Err(invalid());
+    }
+    let scale = f
+        .origin
+        .iter()
+        .chain(&f.radii_mm)
+        .chain([&f.height_mm])
+        .map(|x| x.abs())
+        .fold(1., f64::max);
+    let roundoff = 512. * f64::EPSILON * scale;
+    let min_feature = f.radii_mm.into_iter().fold(f.height_mm, f64::min);
+    if roundoff > 5e-8 || f.witness_tolerance_mm >= min_feature / 2. {
+        return Err(invalid());
+    }
+    // These are already corrected supports, so source fit tolerance must not
+    // license contradictory metadata. Source witnesses stay unchanged.
+    let support_tolerance = (roundoff * 2.).max(1e-9);
+    let feature_extent = f.radii_mm.into_iter().fold(f.height_mm, f64::max).max(1.);
+    let axis_norm = f.axis.iter().map(|v| v * v).sum::<f64>().sqrt();
+    if (axis_norm - 1.).abs() * feature_extent > 5e-8 {
+        return Err(invalid());
+    }
+    let direction_tolerance = 5e-8 / feature_extent;
+    for end in 0..2 {
+        let ring = &m.rings[f.rings[end]];
+        let plane = &m.planes[end];
+        let expected_center: [f64; 3] =
+            std::array::from_fn(|i| f.origin[i] + end as f64 * f.height_mm * f.axis[i]);
+        let expected_radius = f.radii_mm[if end == 0 { 0 } else { 3 }];
+        let expected_sign = if end == 0 { -1. } else { 1. };
+        if !finite(&ring.center)
+            || !unit_direction(&ring.axis)
+            || !ring.radius_mm.is_finite()
+            || (ring.radius_mm - expected_radius).abs() > support_tolerance
+            || (0..3).any(|i| {
+                (ring.center[i] - expected_center[i]).abs() > support_tolerance
+                    || (ring.axis[i] - f.axis[i]).abs() > direction_tolerance
+                    || (plane.normal[i] - expected_sign * f.axis[i]).abs() > direction_tolerance
+            })
+            || !unit_direction(&plane.normal)
+            || !matches!(plane.loops.as_slice(), [MixedLoop::Circle {ring}] if *ring == f.rings[end])
+        {
+            return Err(invalid());
+        }
+    }
+    let domain = NativeSmoothRevolution {
+        origin: f.origin,
+        axis: f.axis,
+        height: f.height_mm,
+        radii: f.radii_mm,
+    };
+    native_step(|output, error, capacity| unsafe {
+        fabstep_build_smooth_revolution_step(
+            &domain,
+            tokens.map_or(std::ptr::null(), |t| t.planes.as_ptr()),
+            tokens.map_or(std::ptr::null(), |t| t.smooth_revolution.as_ptr()),
+            output,
+            error,
+            capacity,
+        )
+    })
 }
 
 /// Validate the six stock planes, four mouths and two witnessed branches
@@ -2644,6 +2806,7 @@ fn cad_report(metrics: &Metrics) -> CadReport {
         conical_faces: metrics.conical_faces,
         spherical_faces: metrics.spherical_faces,
         toroidal_faces: metrics.toroidal_faces,
+        revolution_faces: metrics.revolution_faces,
         volume_mm3: metrics.volume,
         bounds_mm: metrics.bounds,
         kernel,
@@ -2929,6 +3092,7 @@ pub fn result_faces(bytes: &[u8]) -> Result<ResultFaces, FabError> {
             3 => ResultFaceFamily::Sphere,
             4 => ResultFaceFamily::Torus,
             5 => ResultFaceFamily::Other,
+            6 => ResultFaceFamily::Revolution,
             _ => return Err(invalid()),
         };
         faces.push(ResultFace {
@@ -4975,6 +5139,7 @@ mod tests {
         revolved.cones.clear();
         revolved.mixed.rings[1].center[2] = height;
         RoundedModel {
+            smooth_revolution: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -4996,6 +5161,7 @@ mod tests {
 
     fn complete_sphere_model(center: [f64; 3], radius_mm: f64) -> RoundedModel {
         RoundedModel {
+            smooth_revolution: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -5361,6 +5527,7 @@ mod tests {
     #[test]
     fn rounded_provenance_tracks_all_surface_families_and_partial_cylinders() {
         let partial = RoundedModel {
+            smooth_revolution: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -5454,6 +5621,7 @@ mod tests {
             );
         }
         let partial = RoundedModel {
+            smooth_revolution: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -5515,6 +5683,7 @@ mod tests {
             inner: false,
         });
         let mut model = RoundedModel {
+            smooth_revolution: None,
             revolved,
             spheres: vec![],
             cross_drill: None,
@@ -5622,6 +5791,7 @@ mod tests {
             inner: false,
         });
         RoundedModel {
+            smooth_revolution: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -6348,6 +6518,7 @@ mod tests {
             },
         ];
         RoundedModel {
+            smooth_revolution: None,
             revolved: RevolvedModel {
                 mixed: MixedModel {
                     elliptic_arcs: vec![],
@@ -6450,6 +6621,7 @@ mod tests {
             });
         }
         RoundedModel {
+            smooth_revolution: None,
             revolved: RevolvedModel {
                 mixed: MixedModel {
                     elliptic_arcs: vec![],
@@ -6547,6 +6719,7 @@ mod tests {
             .collect();
         let q = (1. + 2. * slope * slope).sqrt();
         RoundedModel {
+            smooth_revolution: None,
             revolved: RevolvedModel {
                 mixed: MixedModel {
                     vertices,

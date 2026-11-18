@@ -751,7 +751,7 @@ pub(crate) fn candidate(
             "Le perçage sécant dépasse la borne d’écart.",
         ));
     }
-    let report=RecognitionReport{cylinders:3,cones:0,spheres:0,tori:0,toroidal_fillets:0,max_radial_residual_mm:err.projection,
+    let report=RecognitionReport{revolutions: 0,cylinders:3,cones:0,spheres:0,tori:0,toroidal_fillets:0,max_radial_residual_mm:err.projection,
         max_chord_error_mm:err.wall,max_wall_residual_mm:wall,max_deviation_bound_mm:deviation,expected_volume_mm3:volume(f)?,
         diagnostics:vec![
         Diagnostic{code:"recognition.circular_intent_assumed".into(),severity:Severity::Warning,count:3,message:"Trois parois sont interprétées comme deux perçages cylindriques sécants.".into()},
@@ -777,6 +777,7 @@ pub(crate) fn candidate(
         partial_cones: vec![],
         octants: vec![],
         linear_blend: None,
+        smooth_revolution: None,
         cross_drill: Some(Box::new(seed.model)),
     };
     let triangle_faces = own

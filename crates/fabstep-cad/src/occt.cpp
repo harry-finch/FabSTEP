@@ -1,10 +1,13 @@
 #include <BRepAdaptor_Curve.hxx>
+#include <BRepAdaptor_Curve2d.hxx>
 #include <BRepAdaptor_Surface.hxx>
 #include <BRepAlgoAPI_Check.hxx>
 #include <BRepAlgoAPI_Common.hxx>
 #include <BRepAlgoAPI_Section.hxx>
 #include <BRepAlgoAPI_Splitter.hxx>
 #include <Geom_BSplineCurve.hxx>
+#include <Geom_BezierCurve.hxx>
+#include <BRepPrimAPI_MakeRevol.hxx>
 #include "cross_drill.hxx"
 #include <BRepClass_FaceClassifier.hxx>
 #include <BRepLProp_SLProps.hxx>
@@ -98,8 +101,13 @@ struct CadMetrics {
   size_t conical_faces;
   size_t spherical_faces;
   size_t toroidal_faces;
+  size_t revolution_faces;
   double volume;
   double bounds[6];
+};
+
+struct SmoothRevolutionData {
+  double origin[3], axis[3], height, radii[4];
 };
 
 struct StepOutput {
@@ -296,6 +304,7 @@ struct SurfaceCounts {
   size_t partial_conical = 0;
   size_t linear_blends = 0;
   size_t cross_drills = 0;
+  size_t revolutions = 0;
 };
 
 constexpr SurfaceCounts trihedral_surfaces{6, 3, 3, 0, 1, 0, 1};
@@ -1426,6 +1435,8 @@ void check_edge_incidence(const TopoDS_Shape& shape, const TopTools_IndexedMapOf
   }
 }
 
+#include "smooth_revolution.hxx"
+
 struct RoundedBoxFrame {
   gp_Pnt center;
   std::array<gp_Dir, 3> axes;
@@ -1438,6 +1449,7 @@ struct SolidMeasurement {
   SurfaceCounts surfaces;
   std::optional<RoundedBoxFrame> rounded_box;
   std::optional<CrossDrillData> cross_drill;
+  std::optional<SmoothRevolutionData> revolution;
 };
 
 bool quarter_turn(double span) {
@@ -1922,7 +1934,8 @@ void check_linear_blend_geometry(const TopoDS_Shape& shape, const TopTools_Index
 SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
                               const SurfaceCounts* expected = nullptr,
                               const RoundedBoxFrame* expected_box = nullptr,
-                              const CrossDrillData* expected_drill = nullptr) {
+                              const CrossDrillData* expected_drill = nullptr,
+                              const SmoothRevolutionData* expected_revolution = nullptr) {
   TopTools_IndexedMapOfShape shells;
   TopExp::MapShapes(shape, TopAbs_SHELL, shells);
   if (shells.Extent() != 1 || !BRep_Tool::IsClosed(shells(1))) {
@@ -1931,7 +1944,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   TopTools_IndexedMapOfShape faces;
   TopExp::MapShapes(shape, TopAbs_FACE, faces);
   if (expected && static_cast<size_t>(faces.Extent()) != expected->planar + expected->cylindrical +
-                      expected->conical + expected->spherical + expected->toroidal) {
+                      expected->conical + expected->spherical + expected->toroidal + expected->revolutions) {
     throw CadFailure{status, "Le nombre de faces ne correspond pas à la reconstruction."};
   }
   SurfaceCounts found{};
@@ -1940,6 +1953,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     const BRepAdaptor_Surface surface(TopoDS::Face(faces(i)));
     switch (surface.GetType()) {
       case GeomAbs_Plane: ++found.planar; break;
+      case GeomAbs_SurfaceOfRevolution: ++found.revolutions; break;
       case GeomAbs_Cylinder:
         ++found.cylindrical;
         if (!found.cross_drills && (!expected || expected->cross_drills)) {
@@ -2008,9 +2022,11 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
                    found.spherical_octants != expected->spherical_octants ||
                    found.partial_conical != expected->partial_conical ||
                    found.linear_blends != expected->linear_blends ||
-                   found.cross_drills != expected->cross_drills)) {
+                   found.revolutions != expected->revolutions || found.cross_drills != expected->cross_drills)) {
     throw CadFailure{status, "Les types de surfaces diffèrent de la reconstruction."};
   }
+  std::optional<SmoothRevolutionData> revolution;
+  if (found.revolutions) revolution = verify_revolution(shape,expected_revolution,status).domain;
   check_edge_incidence(shape, faces, status);
   if (!BRepCheck_Analyzer(shape, true, false, true).IsValid()) {
     throw CadFailure{status, "Le contrôle géométrique du solide a échoué."};
@@ -2021,12 +2037,18 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   }
 
   GProp_GProps properties;
-  if (found.linear_blends || found.cross_drills)
+  if (revolution) {
+    const double error = BRepGProp::VolumePropertiesGK(shape, properties, 1.e-11, true, true);
+    const double ideal = revolution_volume(expected_revolution ? *expected_revolution : *revolution);
+    if (!std::isfinite(error) || error < 0. || !std::isfinite(ideal) ||
+        std::abs(properties.Mass()-ideal) > ideal * 1.e-8)
+      throw CadFailure{status, "Le volume du solide diffère de l’intégrale du profil cubique."};
+  } else if (found.linear_blends || found.cross_drills)
     BRepGProp::VolumeProperties(shape, properties, 1.e-11, true);
   else
     BRepGProp::VolumeProperties(shape, properties, true);
   CadMetrics result{1, static_cast<size_t>(faces.Extent()), found.planar, found.cylindrical,
-                    found.conical, found.spherical, found.toroidal, properties.Mass(), {}};
+                    found.conical, found.spherical, found.toroidal, found.revolutions, properties.Mass(), {}};
   if (!std::isfinite(result.volume) || result.volume <= 0.0) {
     throw CadFailure{status, "Le volume du solide n'est pas strictement positif."};
   }
@@ -2059,12 +2081,13 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     rounded_box = expected_box ? *expected_box : infer_rounded_box_frame(faces, status);
     check_rounded_box_geometry(shape, faces, result, *rounded_box, status);
   }
-  return {result, found, rounded_box, drill};
+  return {result, found, rounded_box, drill, revolution};
 }
 
 CadMetrics measure(const TopoDS_Shape& shape, SurfaceCounts expected, Status status,
-                   const RoundedBoxFrame* expected_box = nullptr,const CrossDrillData* expected_drill=nullptr) {
-  return measure_solid(shape, status, &expected, expected_box,expected_drill).metrics;
+                   const RoundedBoxFrame* expected_box = nullptr,const CrossDrillData* expected_drill=nullptr,
+                   const SmoothRevolutionData* expected_revolution=nullptr) {
+  return measure_solid(shape, status, &expected, expected_box,expected_drill,expected_revolution).metrics;
 }
 
 bool same_measurement(const CadMetrics& before, const CadMetrics& after) {
@@ -2433,7 +2456,8 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
     const auto& expected_box = before[i].report.rounded_box;
     auto report = measure_solid(shape, stage, &before[i].report.surfaces,
                                 expected_box ? &*expected_box : nullptr,
-                                before[i].report.cross_drill ? &*before[i].report.cross_drill : nullptr);
+                                before[i].report.cross_drill ? &*before[i].report.cross_drill : nullptr,
+                                before[i].report.revolution ? &*before[i].report.revolution : nullptr);
     if (!same_measurement(before[i].report.metrics, report.metrics)) {
       throw CadFailure{mismatch, "Les dimensions, la position ou le volume d'un corps changent au réimport."};
     }
@@ -2455,6 +2479,7 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
     total.conical_faces += m.conical_faces;
     total.spherical_faces += m.spherical_faces;
     total.toroidal_faces += m.toroidal_faces;
+    total.revolution_faces += m.revolution_faces;
     total.volume += m.volume;
     for (size_t axis = 0; axis < 3; ++axis) {
       total.bounds[axis] = std::min(total.bounds[axis], m.bounds[axis]);
@@ -2475,12 +2500,90 @@ double mesh_angular_step(double radius, double deflection) {
   return std::min(step, mesh_angle);
 }
 
-void check_meshing_resolution(const TopoDS_Shape& shape, double deflection) {
+struct RevolutionGrid {
+  RevolutionProof proof;
+  TopoDS_Shape body;
+  int u_count, v_count;
+};
+
+// Generic OCCT triangulation of an inflected cubic can skip a lobe. Evaluate
+// the certified chart of the reimported wall directly at bounded spacings.
+// Both disk fans use the identical cyclic boundary nodes.
+Handle(Poly_Triangulation) revolution_face_mesh(const RevolutionGrid& grid, const TopoDS_Face& face) {
+  const auto& proof = grid.proof;
+  const auto& d = proof.domain;
+  const int nu = grid.u_count, nv = grid.v_count;
+  const BRepAdaptor_Surface wall(proof.wall);
+  const auto point = [&](int i, int j) {
+    const double u = wall.FirstUParameter() + (wall.LastUParameter()-wall.FirstUParameter()) * i / nu;
+    const double v = wall.FirstVParameter() + (wall.LastVParameter()-wall.FirstVParameter()) * j / nv;
+    return wall.Value(u,v);
+  };
+  if (face.IsSame(proof.wall)) {
+    Handle(Poly_Triangulation) mesh = new Poly_Triangulation(nu*(nv+1),2*nu*nv,false);
+    const auto node = [nu](int i,int j) { return j*nu + i%nu + 1; };
+    int triangle = 0;
+    for (int j = 0; j <= nv; ++j) {
+      for (int i = 0; i < nu; ++i) {
+        mesh->SetNode(node(i,j),point(i,j));
+        if (j == nv) continue;
+        mesh->SetTriangle(++triangle,Poly_Triangle(node(i,j),node(i+1,j),node(i+1,j+1)));
+        mesh->SetTriangle(++triangle,Poly_Triangle(node(i,j),node(i+1,j+1),node(i,j+1)));
+      }
+    }
+    return mesh;
+  }
+  const int end = face.IsSame(proof.caps[0]) ? 0 : 1;
+  const int j = (proof.reverse_basis ? 1-end : end)*nv;
+  const auto center = revolution_center(d,end);
+  const auto plane = BRepAdaptor_Surface(face).Plane().Position();
+  const auto normal = gp_Vec(plane.XDirection()).Crossed(gp_Vec(plane.YDirection()));
+  const bool reversed = gp_Vec(center,point(0,j)).Crossed(gp_Vec(center,point(1,j))).Dot(normal) < 0.;
+  Handle(Poly_Triangulation) mesh = new Poly_Triangulation(nu+1,nu,false);
+  mesh->SetNode(1,center);
+  for (int i = 0; i < nu; ++i) {
+    mesh->SetNode(i+2,point(i,j));
+    int a = i+2, b = (i+1)%nu+2;
+    if (reversed) std::swap(a,b);
+    mesh->SetTriangle(i+1,Poly_Triangle(1,a,b));
+  }
+  return mesh;
+}
+
+std::vector<RevolutionGrid> check_meshing_resolution(const TopoDS_Shape& shape, double deflection) {
   const CadFailure too_complex{mesh_too_complex, "La résolution demandée dépasse le budget de tessellation."};
   TopTools_IndexedMapOfShape edges;
   TopExp::MapShapes(shape, TopAbs_EDGE, edges);
   size_t estimated_segments = 0;
   std::map<int,double> junctions;
+  size_t estimated_curved_triangles = 0;
+  std::vector<RevolutionGrid> grids;
+  for (TopExp_Explorer body(shape,TopAbs_SOLID); body.More(); body.Next()) {
+    for (TopExp_Explorer face(body.Current(),TopAbs_FACE); face.More(); face.Next()) {
+      if (BRepAdaptor_Surface(TopoDS::Face(face.Current())).GetType() != GeomAbs_SurfaceOfRevolution)
+        continue;
+      // Admit only the seam of a complete certified polynomial body. Bound
+      // its angle/height grid with the Bernstein hulls of r, r' and r''.
+      const auto proof = verify_revolution(body.Current(), nullptr, mesh_failed);
+      const auto& d = proof.domain;
+      const double radius = proof.max_radius, first = proof.max_mixed_derivative;
+      const double second = proof.max_axial_second_derivative;
+      const BRepAdaptor_Surface wall(proof.wall);
+      // The full interpolation error is bounded by
+      // (radius*du² + 2*first*du*dt + second*dt²)/8.
+      const double du = std::min(mesh_angle,std::sqrt(8.*deflection/(3.*radius)));
+      const double u = std::ceil((wall.LastUParameter()-wall.FirstUParameter())/du);
+      const double v = std::ceil(std::max({1.,std::sqrt(3.*second/(8.*deflection)),
+                                           3.*first*du/(4.*deflection), second/(mesh_angle*d.height)}));
+      const double triangles = 2.*u*v + 2.*u;
+      if (!std::isfinite(triangles) || triangles > mesh_triangle_limit - estimated_curved_triangles)
+        throw too_complex;
+      estimated_curved_triangles += static_cast<size_t>(triangles);
+      junctions.emplace(edges.FindIndex(proof.seam),v);
+      grids.push_back({proof,body.Current(),static_cast<int>(u),static_cast<int>(v)});
+      break;
+    }
+  }
   bool inspected_junctions=false;
   for (int i = 1; i <= edges.Extent(); ++i) {
     const auto edge = TopoDS::Edge(edges(i));
@@ -2499,6 +2602,8 @@ void check_meshing_resolution(const TopoDS_Shape& shape, double deflection) {
       const double step = std::min(mesh_angular_step(ellipse.MajorRadius(), deflection),
                                    mesh_angle * ellipse.MinorRadius() / ellipse.MajorRadius());
       segments = std::ceil(std::abs(curve.LastParameter() - curve.FirstParameter()) / step);
+    } else if (junctions.count(i)) {
+      segments = junctions.at(i);
     } else if (curve.GetType() == GeomAbs_BSplineCurve) {
       if (!inspected_junctions) {
         inspected_junctions=true;
@@ -2508,7 +2613,8 @@ void check_meshing_resolution(const TopoDS_Shape& shape, double deflection) {
           bool spline=false;
           for(int j=1;j<=body_edges.Extent() && !spline;++j) {
             const auto e=TopoDS::Edge(body_edges(j));
-            spline=!BRep_Tool::Degenerated(e) && BRepAdaptor_Curve(e).GetType()==GeomAbs_BSplineCurve;
+            spline=!junctions.count(edges.FindIndex(e)) && !BRep_Tool::Degenerated(e) &&
+                   BRepAdaptor_Curve(e).GetType()==GeomAbs_BSplineCurve;
           }
           if(spline) try {
             const auto proof=verify_cross_drill(solid,nullptr,deflection);
@@ -2532,7 +2638,6 @@ void check_meshing_resolution(const TopoDS_Shape& shape, double deflection) {
   }
   // Curvature in two directions can exhaust the mesher even when the
   // boundary curves alone are inexpensive. Bound these grids before OCCT.
-  size_t estimated_curved_triangles = 0;
   for (TopExp_Explorer it(shape, TopAbs_FACE); it.More(); it.Next()) {
     const BRepAdaptor_Surface surface(TopoDS::Face(it.Current()));
     double major, minor;
@@ -2556,6 +2661,7 @@ void check_meshing_resolution(const TopoDS_Shape& shape, double deflection) {
     }
     estimated_curved_triangles += static_cast<size_t>(triangles);
   }
+  return grids;
 }
 
 std::vector<int> complete_torus_seam_nodes(const TopoDS_Face& face,
@@ -2618,13 +2724,32 @@ std::vector<int> complete_torus_seam_nodes(const TopoDS_Face& face,
 
 void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output,
                 std::vector<ResultFaceData>* faces = nullptr) {
-  check_meshing_resolution(shape, deflection);
-  const BRepMesh_IncrementalMesh mesh(shape, deflection, false, mesh_angle, false);
+  const auto grids = check_meshing_resolution(shape, deflection);
+  TopTools_IndexedMapOfShape grid_faces;
+  for (const auto& grid : grids) {
+    for (const auto& face : {grid.proof.wall,grid.proof.caps[0],grid.proof.caps[1]})
+      grid_faces.Add(face);
+  }
+  TopoDS_Shape ordinary_shape = shape;
+  if (!grids.empty()) {
+    TopoDS_Compound compound;
+    BRep_Builder builder;
+    builder.MakeCompound(compound);
+    ordinary_shape.Nullify();
+    for (TopExp_Explorer body(shape,TopAbs_SOLID); body.More(); body.Next()) {
+      if (std::none_of(grids.begin(),grids.end(),[&](const auto& grid){ return body.Current().IsSame(grid.body); })) {
+        builder.Add(compound,body.Current());
+        ordinary_shape = compound;
+      }
+    }
+  }
   constexpr int failure_flags = IMeshData_OpenWire | IMeshData_SelfIntersectingWire |
                                 IMeshData_Failure | IMeshData_UnorientedWire |
                                 IMeshData_TooFewPoints | IMeshData_UserBreak;
-  if (!mesh.IsDone() || (mesh.GetStatusFlags() & failure_flags) != 0) {
-    throw CadFailure{mesh_failed, "La tessellation du solide STEP a échoué."};
+  if (!ordinary_shape.IsNull()) {
+    const BRepMesh_IncrementalMesh mesh(ordinary_shape,deflection,false,mesh_angle,false);
+    if (!mesh.IsDone() || (mesh.GetStatusFlags() & failure_flags) != 0)
+      throw CadFailure{mesh_failed, "La tessellation du solide STEP a échoué."};
   }
 
   std::vector<double> points;
@@ -2654,7 +2779,10 @@ void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output
       poles[pole_count++].point = *pole;
     }
     TopLoc_Location location;
-    const Handle(Poly_Triangulation)& triangulation = BRep_Tool::Triangulation(face, location);
+    const int grid_face = grid_faces.FindIndex(face);
+    const Handle(Poly_Triangulation) triangulation = grid_face > 0
+        ? revolution_face_mesh(grids[(grid_face-1)/3],face)
+        : BRep_Tool::Triangulation(face, location);
     if (triangulation.IsNull() || triangulation->NbTriangles() <= 0 ||
         triangulation->NbNodes() <= 0) {
       throw CadFailure{mesh_failed, "Une face du STEP n'a pas de triangulation."};
@@ -2803,6 +2931,7 @@ void read_result_topology(STEPControl_Reader& reader, TopoDS_Compound& document,
         case GeomAbs_Cone: family = 2; break;
         case GeomAbs_Sphere: family = 3; break;
         case GeomAbs_Torus: family = 4; break;
+        case GeomAbs_SurfaceOfRevolution: family = 6; break;
         default: break;
       }
       faces.push_back({static_cast<size_t>(root - 1), family, 0, 0, 0, 0, 0});
@@ -3533,12 +3662,13 @@ template <typename BuildSolid>
 int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
                    char* error, size_t error_capacity,
                    const RoundedBoxFrame* expected_box = nullptr,
-                   FaceLabels* labels = nullptr,const CrossDrillData* expected_drill=nullptr) noexcept {
+                   FaceLabels* labels = nullptr,const CrossDrillData* expected_drill=nullptr,
+                   const SmoothRevolutionData* expected_revolution=nullptr) noexcept {
   *output = {};
   return with_occt(invalid_model, error, error_capacity, [&](Status& stage) {
     size_t face_count = 0;
     for (const size_t count : {expected.planar, expected.cylindrical, expected.conical,
-                               expected.spherical, expected.toroidal}) {
+                               expected.spherical, expected.toroidal, expected.revolutions}) {
       if (count > result_face_limit - face_count) {
         throw CadFailure{invalid_model, "Le STEP reconstruit dépasse 100 000 faces résultat."};
       }
@@ -3546,7 +3676,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     }
     const TopoDS_Solid solid = build();
     stage = invalid_solid;
-    const CadMetrics before = measure(solid, expected, stage, expected_box,expected_drill);
+    const CadMetrics before = measure(solid, expected, stage, expected_box,expected_drill,expected_revolution);
 
     stage = write_failed;
     DESTEP_Parameters parameters;
@@ -3565,7 +3695,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
 
     stage = read_failed;
     stream.seekg(0);
-    const CadMetrics after = measure(read_step(stream), expected, stage, expected_box,expected_drill);
+    const CadMetrics after = measure(read_step(stream), expected, stage, expected_box,expected_drill,expected_revolution);
     if (!same_measurement(before, after)) {
       throw CadFailure{mismatch, "Les dimensions ou le volume changent après réimport du STEP."};
     }
@@ -3650,6 +3780,16 @@ extern "C" int fabstep_build_mixed_step(
       {plane_count, cylinder_count + partial_count, partial_count, cone_count + partial_cone_count,
        sphere_count, torus_count, 0, partial_cone_count},
       output, error, error_capacity);
+}
+
+extern "C" int fabstep_build_smooth_revolution_step(const SmoothRevolutionData* domain,
+    const size_t* cap_tokens, const size_t* wall_token, StepOutput* output, char* error, size_t capacity) noexcept {
+  FaceLabels labels;
+  auto* tracked = wall_token ? &labels : nullptr;
+  SurfaceCounts expected{2,0};
+  expected.revolutions = 1;
+  return validated_step([&]{return build_smooth_revolution(*domain,cap_tokens,wall_token,tracked);},
+                        expected,output,error,capacity,nullptr,tracked,nullptr,domain);
 }
 
 // Rust validates every index, both complete oriented uses and the model bounds.

@@ -579,7 +579,7 @@ fn recognize_scoped(
     let planes = model.planes.len();
     let cones = revolved_model.cones.len();
     Ok(ScopedRecognition{model:revolved_model,triangle_faces:owners.into_iter().map(Option::unwrap).collect(),
-        report:RecognitionReport{cylinders,cones,spheres:0,tori:0,toroidal_fillets:0,max_radial_residual_mm:radial,max_chord_error_mm:chord,max_wall_residual_mm:wall,
+        report:RecognitionReport{revolutions: 0,cylinders,cones,spheres:0,tori:0,toroidal_fillets:0,max_radial_residual_mm:radial,max_chord_error_mm:chord,max_wall_residual_mm:wall,
             max_deviation_bound_mm:deviation,expected_volume_mm3:expected_volume,diagnostics:vec![
                 Diagnostic{code:if cones == 0 { "recognition.circular_intent_assumed" } else { "recognition.conic_intent_assumed" }.into(),severity:Severity::Warning,count:cylinders + cones,
                     message:"Les profils polygonaux circulaires sont interprétés comme cercles dans le mode explicitement activé.".into()},

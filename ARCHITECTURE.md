@@ -263,3 +263,12 @@ La partition source exhaustive est obligatoire. Le suivi des étiquettes natives
 `cross_drill.rs` prouve la partition orientée en six plans et trois parois, les cycles, les cartes cylindriques et leurs bornes continues. Avant de prendre priorité sur les reconnaisseurs historiques, une jonction source entre les deux parois cylindriques est exigée : quatre anneaux de trous borgnes ne suffisent pas. La réserve native de 4e−7 mm entre dans le budget demandé, sans relever les tolérances.
 
 La CAO construit conjointement les courbes spatiales et paramétriques, puis certifie leurs données effectivement réimportées et leurs cycles. `cross_drill_verify.cpp` compile séparément le certificat partagé avec le laboratoire F0, sans fast-math ni contraction FMA. Les budgets d’intervalles, le volume indépendant, les sondes matière et le contrôle du solide entier s’appliquent aussi aux documents multisolides. L’exception de tessellation pour les branches certifiées n’autorise pas les splines arbitraires. La provenance native conserve la politique tout-ou-rien ADR-0018 ; les corrections locales couplées et les profils DXF non coniques restent refusés.
+
+
+### Révolution cubique bornée — R-084
+
+`RoundedModel.smooth_revolution` est un domaine optionnel scalaire à quatre coefficients de Bernstein, hauteur positive et deux références d’anneaux. Les anciens modèles restent lisibles. Un onzième groupe de provenance, un compteur et une famille Révolution distincts évitent de présenter la paroi comme un cône. L’ajustement est signalé par `reconstruction.fitted_revolution`. Voir ADR-0039.
+
+La reconnaissance vient après les classificateurs historiques. Au moins cinq niveaux complets, la partition source, les cartes angle–hauteur orientées et les disques sont prouvés. La borne d’interpolation inclut les dérivées radiales, angulaires et mixtes ; la planéité des disques garde sa tolérance propre. Un profil circulaire non distinguable n’est pas rebaptisé cubique. Le volume polynomial est calculé indépendamment du noyau.
+
+Le wrapper CAO vérifie les champs scalaires exclusifs et les supports avant l’ABI. Le noyau compare les pôles physiques, l’axe, les limites et leurs courbes paramétriques après chaque transfert, y compris multisolide. Seul ce domaine certifié autorise sa couture spline. Les ressources de tessellation restent plafonnées ; les corrections guidées couplées et sections non coniques restent refusées. La réserve native est chargée dans le budget source, sans modifier les tolérances de l’utilisateur.

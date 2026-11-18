@@ -147,6 +147,7 @@ pub fn recognize_complete_sphere(
     }
     Ok(RoundedRecognition {
         model: RoundedModel {
+            smooth_revolution: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -160,6 +161,7 @@ pub fn recognize_complete_sphere(
         },
         triangle_faces: vec![RoundedFaceRef::Sphere { index: 0 }; triangles],
         report: RecognitionReport {
+            revolutions: 0,
             cylinders: 0, cones: 0, spheres: 1, tori: 0, toroidal_fillets: 0,
             max_radial_residual_mm: radial, max_chord_error_mm: chord, max_wall_residual_mm: 0.,
             max_deviation_bound_mm: bound, expected_volume_mm3: volume,

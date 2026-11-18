@@ -133,6 +133,22 @@ fn an_unproved_split_or_excessive_chain_cannot_produce_an_explicit_step() {
             "recognition.surface_unproven"
         };
         for name in m["negative_cases"].as_object().unwrap().keys() {
+            // This historical negative is exactly r(z)=10+0.04z². C2 now
+            // proves it as one smooth wall, without inventing conical splits.
+            if name == "smooth" && mode == ReconstructionMode::Surfaces {
+                let converted = convert_stl(&fixture(&format!("{name}.stl")), &o).unwrap();
+                assert_eq!(converted.report.cad.revolution_faces, 1);
+                assert_eq!(converted.report.cad.conical_faces, 0);
+                assert!(converted
+                    .report
+                    .rounded_recognition
+                    .as_ref()
+                    .unwrap()
+                    .model
+                    .smooth_revolution
+                    .is_some());
+                continue;
+            }
             let error = convert_stl(&fixture(&format!("{name}.stl")), &o)
                 .err()
                 .unwrap();

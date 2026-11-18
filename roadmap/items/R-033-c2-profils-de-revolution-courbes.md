@@ -1,7 +1,7 @@
 ---
 id: R-033
 titre: "C2 — profils de révolution courbes"
-resume: "Partiellement intégré : révolutions toriques composées ; reste la méridienne courbe générale."
+resume: "Révolutions toriques composées et première méridienne cubique bornée ; la généralisation reste ouverte."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13
@@ -23,7 +23,7 @@ Surfaces libres arbitraires, fermeture inventée, approximation sans borne ; un 
 
 ## Dépendances
 
-R-061, R-075, R-076 ; les choix de contrat supplémentaires seront présentés dans leur tranche.
+R-061, R-075, R-076, R-084 ; les choix de contrat supplémentaires seront présentés dans leur tranche.
 
 ## Critères d'acceptation
 
@@ -35,7 +35,7 @@ Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions F
 
 ## État consolidé — 18 novembre 2026
 
-R-061/R-075/R-076 intégrés et à tester. Reste : méridiennes lisses plus générales. Aucun développement de cette partie libre n’est encore revendiqué.
+R-061/R-075/R-076 intégrés et à tester. R-084 ajoute une première méridienne cubique positive, mono-travée, sur un tour complet avec deux disques source (ADR-0039 approuvé). Sa qualification et ses essais sont suivis dans ce sous-jalon. Restent : profils multisegments, pôles et retours axiaux, autres limites et raccords à des familles voisines ; ces domaines exigent encore des contrats et preuves propres. Aucune surface libre générique n’est revendiquée.
 
 L’utilisateur a autorisé la réalisation de l’ensemble. Le statut « en cours » représente ce chantier global partiellement intégré ; il ne signifie pas que tous ses domaines sont déjà disponibles. Les essais manuels ouverts ne bloquent pas les travaux indépendants restants.
 

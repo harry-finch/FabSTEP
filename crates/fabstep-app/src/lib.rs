@@ -320,7 +320,7 @@ fn convert_analysis_with_recognized(
                 }
                 Recognized::Rounded(r) => {
                     let m = &r.model.revolved.mixed;
-                    if m.cylinders.is_empty() && m.partial_cylinders.is_empty() && r.model.revolved.cones.is_empty() && r.model.spheres.is_empty() && r.model.tori.is_empty() && r.model.partial_cones.is_empty() && r.model.octants.is_empty() && r.model.linear_blend.is_none() && r.model.cross_drill.is_none() {
+                    if m.cylinders.is_empty() && m.partial_cylinders.is_empty() && r.model.revolved.cones.is_empty() && r.model.spheres.is_empty() && r.model.tori.is_empty() && r.model.partial_cones.is_empty() && r.model.octants.is_empty() && r.model.linear_blend.is_none() && r.model.cross_drill.is_none() && r.model.smooth_revolution.is_none() {
                         let model = PlanarModel { vertices: m.vertices.clone(), faces: m.planes.iter().map(|plane| {
                             let loops = plane.loops.iter().map(|lp| match lp {
                                 fabstep_core::MixedLoop::Polygon { vertices } => Ok(vertices.clone()),
@@ -331,11 +331,11 @@ fn convert_analysis_with_recognized(
                         return match face_tokens { Some(tokens) => fabstep_cad::build_step_with_provenance(&model,tokens), None => build_step(&model) };
                     }
                     if let Some(tokens) = face_tokens {
-                        let counts = [m.planes.len(),m.cylinders.len(),m.partial_cylinders.len(),r.model.revolved.cones.len(),r.model.spheres.len(),r.model.tori.len(),r.model.partial_cones.len(),r.model.octants.len(),usize::from(r.model.linear_blend.is_some()),if r.model.cross_drill.is_some() {3} else {0}];
+                        let counts = [m.planes.len(),m.cylinders.len(),m.partial_cylinders.len(),r.model.revolved.cones.len(),r.model.spheres.len(),r.model.tori.len(),r.model.partial_cones.len(),r.model.octants.len(),usize::from(r.model.linear_blend.is_some()),if r.model.cross_drill.is_some() {3} else {0},usize::from(r.model.smooth_revolution.is_some())];
                         if counts.iter().sum::<usize>() != tokens.len() { return Err(FabError::new("step.invalid_source_provenance", "Nombre de jetons du résultat arrondi incohérent.")); }
                         let mut start = 0;
                         let parts:Vec<_> = counts.iter().map(|count| {let part=&tokens[start..start+count];start+=count;part}).collect();
-                        fabstep_cad::build_rounded_step_with_cross_drill_provenance(&r.model,parts[0],parts[1],parts[2],parts[3],parts[4],parts[5],parts[6],parts[7],parts[8],parts[9])
+                        fabstep_cad::build_rounded_step_with_smooth_revolution_provenance(&r.model,parts[0],parts[1],parts[2],parts[3],parts[4],parts[5],parts[6],parts[7],parts[8],parts[9],parts[10])
                     } else { build_rounded_step(&r.model) }
                 },
                 Recognized::RoundedBox(r) => build_rounded_box_step(&r.model),
@@ -369,6 +369,7 @@ fn convert_analysis_with_recognized(
             || result.report.conical_faces != report.cones
             || result.report.spherical_faces != report.spheres
             || result.report.toroidal_faces != report.tori
+            || result.report.revolution_faces != report.revolutions
         {
             return Err(FabError::new("validation.analytic_mismatch", "Le solide réimporté ne correspond pas aux primitives reconnues ou dépasse l'écart demandé."));
         }

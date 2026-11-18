@@ -528,6 +528,7 @@ pub fn recognize_revolved(a: &Analysis, o: &Options) -> Result<RevolvedRecogniti
     let cylinders = model.mixed.cylinders.len();
     let planes = model.mixed.planes.len();
     Ok(RevolvedRecognition {model,triangle_faces:owners.into_iter().map(Option::unwrap).collect(),report:RecognitionReport {
+        revolutions: 0,
         cones,cylinders,spheres:0,tori:0,toroidal_fillets:0,max_radial_residual_mm:radial,max_wall_residual_mm:wall,max_chord_error_mm:chord,max_deviation_bound_mm:deviation,expected_volume_mm3:expected_volume,
         diagnostics:vec![
             Diagnostic {code:"recognition.conic_intent_assumed".into(),severity:Severity::Warning,count:cones,message:"Les bandes circulaires à rayon affine sont interprétées comme cônes dans le mode explicitement activé.".into()},

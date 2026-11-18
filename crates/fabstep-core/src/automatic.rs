@@ -65,6 +65,9 @@ fn recognize(
         }
         Err(e) => return Err(e),
     };
+    if result.model.smooth_revolution.is_some() {
+        return Ok(result);
+    }
     if result.report.cylinders + result.report.cones + result.report.spheres + result.report.tori
         == 0
     {
@@ -108,6 +111,7 @@ fn planar(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
     let s = crate::planar::build_with_provenance(&a.mesh, &adj, o.plane_tolerance_mm)?;
     Ok(RoundedRecognition {
         model: RoundedModel {
+            smooth_revolution: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -145,6 +149,7 @@ fn planar(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
             .map(|index| RoundedFaceRef::Plane { index })
             .collect(),
         report: RecognitionReport {
+            revolutions: 0,
             cylinders: 0,
             cones: 0,
             spheres: 0,
@@ -530,7 +535,8 @@ pub fn recognize_automatic_guided(
     if !requests.is_empty()
         && (!result.model.octants.is_empty()
             || result.model.linear_blend.is_some()
-            || result.model.cross_drill.is_some())
+            || result.model.cross_drill.is_some()
+            || result.model.smooth_revolution.is_some())
     {
         return Err(unproven());
     }

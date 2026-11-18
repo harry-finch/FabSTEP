@@ -8,6 +8,7 @@ fn main() {
     println!("cargo:rerun-if-changed=src/occt.cpp");
     for file in [
         "cross_drill.hxx",
+        "smooth_revolution.hxx",
         "cross_drill_build.hxx",
         "cross_drill_verify.cpp",
         "cross_drill_certificate.hxx",

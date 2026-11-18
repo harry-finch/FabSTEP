@@ -99,7 +99,8 @@ fn summarize(fit: f64, result: Result<DocumentReport, FabError>) -> ParameterTri
                     report.cad.cylindrical_faces
                         + report.cad.conical_faces
                         + report.cad.spherical_faces
-                        + report.cad.toroidal_faces,
+                        + report.cad.toroidal_faces
+                        + report.cad.revolution_faces,
                 ),
                 max_deviation_bound_mm: bounds,
                 max_sampled_distance_mm: sampled,

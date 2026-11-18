@@ -348,7 +348,7 @@ fn candidate(
     let outer = output.remove(0);
     Ok(Some(Recognition{
         extrusion:AnalyticExtrusion{origin:frame.origin,axis:frame.axis,x_axis:frame.x,height_mm:height,outer,holes:output},
-        report:RecognitionReport{cylinders,cones:0,spheres:0,tori:0,toroidal_fillets:0,max_radial_residual_mm:radial,max_chord_error_mm:chord,
+        report:RecognitionReport{revolutions: 0,cylinders,cones:0,spheres:0,tori:0,toroidal_fillets:0,max_radial_residual_mm:radial,max_chord_error_mm:chord,
             max_wall_residual_mm:wall_residual,max_deviation_bound_mm:deviation,expected_volume_mm3:expected_volume,
             diagnostics:vec![Diagnostic{code:"recognition.circular_intent_assumed".into(),severity:Severity::Warning,
                 message:"Le mode explicite interprète des profils polygonaux suffisamment circulaires comme des cercles. L'intention de conception originale n'est pas récupérable du STL.".into(),count:cylinders},

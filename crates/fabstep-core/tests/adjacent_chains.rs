@@ -135,15 +135,21 @@ fn unresolved_and_ambiguous_profiles_cannot_gain_a_conical_decomposition() {
     ] {
         let a = analyze_stl(&fixture(name), &o).unwrap_or_else(|e| panic!("{name}: {e}"));
         let revolved = recognize_revolved(&a, &o).unwrap_err();
-        let rounded = recognize_rounded(&a, &surfaces).unwrap_err();
+        let rounded = recognize_rounded(&a, &surfaces);
         assert_eq!(
             revolved.code, "recognition.conic_unproven",
             "{name}/{revolved}"
         );
-        assert_eq!(
-            rounded.code, "recognition.surface_unproven",
-            "{name}/{rounded}"
-        );
+        if name == "smooth" {
+            // The historical negative is exactly r(z) = 10 + 0.04 z².
+            // Its complete source levels now prove a C2 fit; no cone is gained.
+            let fitted = rounded.unwrap();
+            assert_eq!(fitted.report.revolutions, 1);
+            assert!(fitted.model.revolved.cones.is_empty());
+        } else {
+            let error = rounded.unwrap_err();
+            assert_eq!(error.code, "recognition.surface_unproven", "{name}/{error}");
+        }
         let r = recognize_automatic(&a, &auto).unwrap_or_else(|e| panic!("{name}: {e}"));
         assert!(r.model.revolved.cones.is_empty(), "{name}");
         assert_eq!(r.triangle_faces.len(), a.mesh.triangles.len());

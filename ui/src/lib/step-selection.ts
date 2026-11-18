@@ -1,7 +1,7 @@
 import type { ResultFaces, StepFamily } from './types.ts';
 export type StepSourceSelection = { status:'exact'; bodies:{ previewBodyId:string; triangles:number[] }[]; triangleCount:number } | { status:'unavailable'; reason:string };
 export type StepSelection = { faces:number[]; triangles:number[]; families:Partial<Record<StepFamily,number>>; solids:number[]; hasMore:boolean; canShrink:boolean; source:StepSourceSelection };
-const families = new Set(['plane','cylinder','cone','sphere','torus','other']);
+const families = new Set(['plane','cylinder','cone','sphere','torus','revolution','other']);
 const MAX_TRIANGLES = 100_000, MAX_VERTICES = 300_000, MAX_INCIDENCES = 600_000;
 const invalid = () => new Error('step.invalid_preview');
 /** Sélection des vraies faces du STEP ; validation et croissance bornées dans un worker. */

@@ -184,6 +184,8 @@ pub struct AnalyticExtrusion {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecognitionReport {
+    #[serde(default)]
+    pub revolutions: usize,
     pub cylinders: usize,
     #[serde(default)]
     pub cones: usize,
@@ -411,6 +413,18 @@ pub struct CrossDrill {
     pub branches: [Vec<usize>; 2],
 }
 
+/// One full exterior turn of the fitted positive Bernstein radius r(t),
+/// with axial distance height_mm*t. The two end circles are witnessed.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SmoothRevolution {
+    pub origin: [f64; 3],
+    pub axis: [f64; 3],
+    pub height_mm: f64,
+    pub radii_mm: [f64; 4],
+    pub rings: [usize; 2],
+    pub witness_tolerance_mm: f64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoundedModel {
     pub revolved: RevolvedModel,
@@ -424,11 +438,16 @@ pub struct RoundedModel {
     pub linear_blend: Option<Box<MixedLinearBlend>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cross_drill: Option<Box<CrossDrill>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub smooth_revolution: Option<Box<SmoothRevolution>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RoundedFaceRef {
+    SmoothRevolution {
+        index: usize,
+    },
     /// 0 and 1 are the lower and upper small walls; 2 is the large wall.
     CrossDrill {
         index: usize,
