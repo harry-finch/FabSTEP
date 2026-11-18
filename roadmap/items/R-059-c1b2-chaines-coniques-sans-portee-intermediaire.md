@@ -1,8 +1,8 @@
 ---
 id: R-059
 titre: "C1b2 — chaînes coniques sans portée intermédiaire"
-resume: "Prouver les ruptures de pente entre cônes directement adjacents, sans découper artificiellement une méridienne courbe."
-statut: idee
+resume: "Deux à huit cônes adjacents ou mêlés à des portées sont couverts par R-060 et R-078. Les essais de la chaîne complète sont suivis en A-073 et A-074."
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-17
 maj: 2026-11-18
@@ -24,3 +24,7 @@ L’utilisateur confirme que l’objectif est de réaliser l’ensemble C1b2, C2
 ## Intégration des tranches
 
 R-078 étend les chaînes adjacentes ou mêlées à des portées jusqu’à huit cônes, avec témoins intérieurs et découpage unique. Validation automatique V-1201 réussie, essais A-073/A-074 ouverts ; les profils hors domaine gardent le repli Auto historique.
+
+## Qualification du domaine prévu
+
+La suite native `fabstep-app --test adjacent_chains` vérifie en réimport les chaînes de trois à huit cônes et leur combinaison avec des portées. Elle contrôle aussi la provenance et le refus des ruptures ambiguës. R-060 couvre deux cônes. Les essais utilisateur des chaînes longues et mixtes sont déjà ouverts en A-073 et A-074. Le plafond de huit cônes et l’exigence de témoins à l’intérieur de chaque bande restent applicables.
