@@ -43,7 +43,17 @@ fn options() -> Options {
 
 #[test]
 fn disjoint_revolutions_keep_two_roots_and_interleaved_source_ownership() {
-    let bytes = interleaved_stl(BULGE, NECK, [25., -2., 3.]);
+    check_two_roots(BULGE, NECK, 4224);
+}
+
+#[test]
+fn two_span_revolutions_keep_both_internal_knots_in_a_multiroot_export() {
+    let source = include_bytes!("../../../fixtures/smooth_revolution/two_span.stl");
+    check_two_roots(source, source, 6272);
+}
+
+fn check_two_roots(first: &[u8], second: &[u8], count: usize) {
+    let bytes = interleaved_stl(first, second, [25., -2., 3.]);
     let converted = convert_document_with_provenance(&bytes, InputFormat::Stl, &options()).unwrap();
     let report = &converted.report;
     assert_eq!(
@@ -72,8 +82,8 @@ fn disjoint_revolutions_keep_two_roots_and_interleaved_source_ownership() {
         let mut body_solids = BTreeSet::new();
         for (family, start, end) in [
             (ResultFaceFamily::Plane, 0, 64),
-            (ResultFaceFamily::Revolution, 64, 4160),
-            (ResultFaceFamily::Plane, 4160, 4224),
+            (ResultFaceFamily::Revolution, 64, count - 64),
+            (ResultFaceFamily::Plane, count - 64, count),
         ] {
             let row = inspected
                 .source_correspondence

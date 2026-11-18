@@ -1,4 +1,4 @@
-//! A single polynomial radius over a strictly increasing axial coordinate.
+//! One or two cubic Bernstein spans over a strictly increasing axial coordinate.
 //! Recognition already checked a connected, oriented, closed two-manifold
 //! (including vertex links). The segmentation gives the actual boundary of
 //! each cap as one simple cycle. Removing their triangles leaves exactly
@@ -10,7 +10,7 @@
 //! boundaries and vertices. The same argument on each cap's cyclic polygon
 //! proves its planar interior before extending the inscribed rim to the disk.
 use super::*;
-use crate::{planar::Segmentation, SmoothRevolution};
+use crate::{planar::Segmentation, CubicRevolutionSpan, SmoothRevolution};
 
 // 20 times the native 5e-8 mm guard: both serializations, then the final
 // stored support/trim domains and numerical slack (ADR-0039).
@@ -127,13 +127,88 @@ fn excludes_circle(a: &Analysis, nodes: &[Node], frame: &Frame, tolerance: f64) 
     false
 }
 
+struct Profile {
+    first: [f64; 4],
+    second: Option<(usize, CubicRevolutionSpan)>,
+}
+
+fn fit_profile(nodes: &[Node], o: &Options, work: &mut Work) -> Result<Option<Profile>, FabError> {
+    if let Some(first) = fit(nodes, o) {
+        return Ok(Some(Profile {
+            first,
+            second: None,
+        }));
+    }
+    // At least seven complete rings per span, including the measured joint.
+    // Trying every eligible source ring also detects non-unique partitions.
+    let z0 = nodes[0].z;
+    let height = nodes.last().unwrap().z - z0;
+    let mut result = None;
+    for joint in 6..nodes.len().saturating_sub(6) {
+        let knot = (nodes[joint].z - z0) / height;
+        if !(0.125..=0.875).contains(&knot) {
+            continue;
+        }
+        work.spend(10 * nodes.len())?;
+        let (Some(mut left), Some(mut right)) = (fit(&nodes[..=joint], o), fit(&nodes[joint..], o))
+        else {
+            continue;
+        };
+        // Inserting the internal double knot in a degree-three B-spline
+        // gives the shared Bernstein control (1-k) left[2] + k right[1].
+        // Project those two controls onto this C1 constraint while keeping
+        // the witnessed common radius fixed, then recheck every sample.
+        let w = 1. - knot;
+        let mismatch = w * left[2] + knot * right[1] - left[3];
+        let correction = mismatch / (w * w + knot * knot);
+        left[2] -= w * correction;
+        right[1] -= knot * correction;
+        let fits = |span: &[Node], controls: &[f64; 4]| {
+            let h = span.last().unwrap().z - span[0].z;
+            controls.iter().all(|r| {
+                r.is_finite() && *r > 8. * o.plane_tolerance_mm.max(o.cylinder_fit_tolerance_mm)
+            }) && span.iter().all(|n| {
+                (radius(controls, (n.z - span[0].z) / h) - n.radius).abs()
+                    <= o.cylinder_fit_tolerance_mm
+            })
+        };
+        if !fits(&nodes[..=joint], &left) || !fits(&nodes[joint..], &right) {
+            continue;
+        }
+        if result.is_some() {
+            return Ok(None);
+        }
+        result = Some(Profile {
+            first: left,
+            second: Some((
+                joint,
+                CubicRevolutionSpan {
+                    start_fraction: knot,
+                    next_radii_mm: [right[1], right[2], right[3]],
+                },
+            )),
+        });
+    }
+    Ok(result)
+}
+
+fn spans(f: &SmoothRevolution) -> impl Iterator<Item = (f64, f64, [f64; 4])> + '_ {
+    let end = f.second_span.as_ref().map_or(1., |s| s.start_fraction);
+    std::iter::once((0., end, f.radii_mm)).chain(f.second_span.iter().map(|s| {
+        let [a, b, c] = s.next_radii_mm;
+        (s.start_fraction, 1., [f.radii_mm[3], a, b, c])
+    }))
+}
+
 pub(super) fn volume(f: &SmoothRevolution) -> Result<f64, FabError> {
     let c3 = [1., 3., 3., 1.];
     let c6 = [1., 6., 15., 20., 15., 6., 1.];
     let mut sum = Sum::default();
-    for (i, &a) in f.radii_mm.iter().enumerate() {
-        for (j, &b) in f.radii_mm.iter().enumerate() {
-            sum.add(a * b * c3[i] * c3[j] / (7. * c6[i + j]));
+    for (lo, hi, controls) in spans(f) {
+        for (i, &a) in controls.iter().enumerate() {
+            for (j, &b) in controls.iter().enumerate() {
+                sum.add((hi - lo) * a * b * c3[i] * c3[j] / (7. * c6[i + j]));
+            }
         }
     }
     let v = PI * f.height_mm * sum.get();
@@ -185,7 +260,11 @@ fn ring_points(
 ) -> Result<Vec<Point>, FabError> {
     let mut points = vec![Point::default(); a.mesh.vertices.len()];
     for (level, n) in nodes.iter().enumerate() {
-        let r = radius(&f.radii_mm, (n.z - nodes[0].z) / f.height_mm);
+        let t = (n.z - nodes[0].z) / f.height_mm;
+        let (lo, hi, controls) = spans(f)
+            .find(|(_, hi, _)| t <= *hi)
+            .ok_or_else(|| unproven("niveau hors profil"))?;
+        let r = radius(&controls, (t - lo) / (hi - lo));
         for &v in &n.vertices {
             let [x, y, z] = frame.project(a.mesh.vertices[v]);
             let rho = x.hypot(y);
@@ -226,6 +305,7 @@ fn ring_points(
     Ok(points)
 }
 
+#[derive(Default)]
 struct Derivatives {
     r: f64,
     first: f64,
@@ -348,14 +428,16 @@ pub(super) fn candidate(
     if cap_regions[0] == cap_regions[1] {
         return Ok(None);
     }
-    let Some(b) = fit(nodes, o) else {
+    let Some(profile) = fit_profile(nodes, o, work)? else {
         return Ok(None);
     };
+    let b = profile.first;
     let origin = frame.lift([0., 0., nodes[0].z]);
     let height = nodes[last].z - nodes[0].z;
     let extent = origin
         .into_iter()
         .chain(b)
+        .chain(profile.second.iter().flat_map(|(_, s)| s.next_radii_mm))
         .chain([height])
         .map(f64::abs)
         .fold(1., f64::max);
@@ -367,11 +449,28 @@ pub(super) fn candidate(
     if !excludes_circle(a, nodes, frame, o.cylinder_fit_tolerance_mm + roundoff) {
         return Ok(None);
     }
+    if let Some((split, _)) = &profile.second {
+        work.spend(2 * 9 * 9 * 9)?;
+        if !excludes_circle(
+            a,
+            &nodes[..=*split],
+            frame,
+            o.cylinder_fit_tolerance_mm + roundoff,
+        ) || !excludes_circle(
+            a,
+            &nodes[*split..],
+            frame,
+            o.cylinder_fit_tolerance_mm + roundoff,
+        ) {
+            return Ok(None);
+        }
+    }
     let mut f = SmoothRevolution {
         origin,
         axis: frame.axis,
         height_mm: height,
         radii_mm: b,
+        second_span: profile.second.map(|(_, s)| s),
         rings: [0, 1],
         witness_tolerance_mm: 0.,
     };
@@ -382,7 +481,16 @@ pub(super) fn candidate(
     };
     let tol = o.cylinder_fit_tolerance_mm;
     let points = ring_points(a, frame, nodes, &f, tol, &mut bound)?;
-    let derivatives = Derivatives::new(b);
+    let mut derivatives = Derivatives::default();
+    for (lo, hi, controls) in spans(&f) {
+        let local = Derivatives::new(controls);
+        let width = hi - lo;
+        // The common C1 derivative is Lipschitz across the knot with the
+        // maximum of the two per-span second derivative bounds in global t.
+        derivatives.r = derivatives.r.max(local.r);
+        derivatives.first = derivatives.first.max(local.first / width);
+        derivatives.second = derivatives.second.max(local.second / width.powi(2));
+    }
     let mut owners = Vec::with_capacity(a.mesh.triangles.len());
     for (&ids, &region) in a.mesh.triangles.iter().zip(&s.triangle_regions) {
         let mapped = ids.map(|i| points[i]);

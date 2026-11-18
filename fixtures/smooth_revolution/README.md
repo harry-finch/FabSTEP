@@ -17,3 +17,6 @@ Le générateur [`generate-smooth-revolution-fixtures.py`](../../scripts/generat
 Le générateur relit les STL, contrôle l’orientation des arêtes, la connexité des faces, les liens de sommets et la caractéristique d’Euler. Le manifeste associe les triangles source à leurs trois régions et encode les sondes intérieures et extérieures. Le volume de référence provient d’une intégration de Simpson sur les sections circulaires. Les bornes analytiques évaluent les extrémités et les points stationnaires de chaque projection axiale et radiale. Les contrôles de topologie portent sur la structure combinatoire, y compris dans le cas replié.
 
 Régénération depuis la racine avec `python3 scripts/generate-smooth-revolution-fixtures.py`.
+
+
+Les fichiers `two_span.stl` et `two_span_mirror.stl` décrivent une pièce de 24 mm de haut. Deux cubiques positives se rejoignent tangentiellement à 9 mm. Leurs rayons de contrôle valent respectivement (6, 4,5, 7,5, 8) mm et (8, 8 + 5/6, 4, 6) mm. Le deuxième STL utilise un placement réfléchi et un autre nombre de triangles. Dans `kinked_span.stl`, le deuxième contrôle de la seconde cubique est ramené à 7 mm. La cassure de tangente interdit le modèle lisse. La relecture indépendante des exports `two_span.step` et `two_span_mirror.step` se lance avec le Python de FreeCAD et `scripts/validate-cubic-spans-freecad.py DOSSIER_DES_STEP`.
