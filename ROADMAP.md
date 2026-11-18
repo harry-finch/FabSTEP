@@ -36,34 +36,34 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    AUD-017 — Construire une reproduction du défaut supposé ; conserver la protection des anneaux peu échantillonnés. Aucun remplacement direct par `fit_circle` sans cette preuve
 13. **[R-027 A — cône et encoche ouverte](roadmap/items/R-027-a-cone-et-encoche-ouverte.md)** · À tester · jalon post-v1
    Fraisure complète et cylindre ouvert distincts dans un même corps, en Surfaces
-14. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
-   Construire et qualifier la distribution sur Windows et Linux.
-15. **[R-028 B — zones sphériques](roadmap/items/R-028-b-zones-spheriques.md)** · À tester · jalon post-v1
+14. **[R-028 B — zones sphériques](roadmap/items/R-028-b-zones-spheriques.md)** · À tester · jalon post-v1
    Zone entre deux anneaux plans sans pôle, puis variante concave
-16. **[R-029 Consolidation M2c — arcs décalés et adjacents](roadmap/items/R-029-consolidation-m2c-arcs-decales-et-adjacents.md)** · À tester · jalon post-v1
+15. **[R-029 Consolidation M2c — arcs décalés et adjacents](roadmap/items/R-029-consolidation-m2c-arcs-decales-et-adjacents.md)** · À tester · jalon post-v1
    Recherche bornée d'arcs fragmentés, angles de triangulation différents selon la hauteur, génératrices source partagées par deux parois
-17. **[R-030 Petits raccords cylindriques contextuels](roadmap/items/R-030-petits-raccords-cylindriques-contextuels.md)** · À tester · jalon post-v1
+16. **[R-030 Petits raccords cylindriques contextuels](roadmap/items/R-030-petits-raccords-cylindriques-contextuels.md)** · À tester · jalon post-v1
    Intervalle entier de 4–7 points entre deux parois prouvées ; rayon résolu et tangentes compatibles
-18. **[R-031 C1a — chaînes coniques alternées](roadmap/items/R-031-c1a-chaines-coniques-alternees.md)** · À tester · jalon post-v1
+17. **[R-031 C1a — chaînes coniques alternées](roadmap/items/R-031-c1a-chaines-coniques-alternees.md)** · À tester · jalon post-v1
    Trois à huit cônes alternés et portées résolues ; réimport indépendant et parcours graphique à qualifier.
-19. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · En cours · jalon post-v1
+18. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · En cours · jalon post-v1
    Partiellement intégré : révolutions toriques composées ; reste la méridienne courbe générale.
-20. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · En cours · jalon post-v1
+19. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · En cours · jalon post-v1
    Coin à trois arrondis intégré ; reste la généralisation des congés partiels et de leurs combinaisons.
-21. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · En cours · jalon post-v1
+20. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · En cours · jalon post-v1
    Bac ouvert et fond percé intégrés ; restent les congés du fond/rebord et autres combinaisons.
-22. **[R-036 F — perçages sécants](roadmap/items/R-036-f-percages-secants.md)** · En cours · jalon post-v1
+21. **[R-036 F — perçages sécants](roadmap/items/R-036-f-percages-secants.md)** · En cours · jalon post-v1
    Certificat natif validé au laboratoire ; reconnaissance STL et intégration R-083 en développement.
-23. **[R-037 G — congés variables](roadmap/items/R-037-g-conges-variables.md)** · En cours · jalon post-v1
+22. **[R-037 G — congés variables](roadmap/items/R-037-g-conges-variables.md)** · En cours · jalon post-v1
    Premier raccord à rayon linéaire intégré ; restent les autres configurations et raccords variables multiples.
-24. **[R-038 H — surfaces libres](roadmap/items/R-038-h-surfaces-libres.md)** · Idée · jalon post-v1
+23. **[R-038 H — surfaces libres](roadmap/items/R-038-h-surfaces-libres.md)** · Idée · jalon post-v1
    Patch bicubique de type hauteur, quatre limites source sur un solide fermé
-25. **[R-039 UX1 — choix compréhensibles](roadmap/items/R-039-ux1-choix-comprehensibles.md)** · À tester · jalon atelier
+24. **[R-039 UX1 — choix compréhensibles](roadmap/items/R-039-ux1-choix-comprehensibles.md)** · À tester · jalon atelier
    Mettre en avant conserver les facettes ou reconnaître les surfaces courbes ; regrouper les reconnaissances ciblées ; aide brève selon le choix, limites détaillées à la demande
-26. **[R-040 UX2 — recherche assistée des réglages](roadmap/items/R-040-ux2-recherche-assistee-des-reglages.md)** · À tester · jalon atelier
+25. **[R-040 UX2 — recherche assistée des réglages](roadmap/items/R-040-ux2-recherche-assistee-des-reglages.md)** · À tester · jalon atelier
    Comparer au plus sept tolérances radiales et appliquer explicitement la proposition
-27. **[R-041 UX3 — rendre les faces lisibles](roadmap/items/R-041-ux3-rendre-les-faces-lisibles.md)** · À tester · jalon atelier
+26. **[R-041 UX3 — rendre les faces lisibles](roadmap/items/R-041-ux3-rendre-les-faces-lisibles.md)** · À tester · jalon atelier
    Couleurs par face STEP, contours contrastés et sélection identifiable
+27. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
+   Construire et qualifier la distribution sur Windows et Linux.
 28. **[R-043 I1 — sélectionner et comprendre](roadmap/items/R-043-i1-selectionner-et-comprendre.md)** · À tester · jalon atelier
    Cliquer sur la surface visible, surligner une zone contiguë du corps choisi, ajuster/effacer la sélection et afficher ce qui est reconnu ou refusé
 29. **[R-044 I1b — inspecter le STEP](roadmap/items/R-044-i1b-inspecter-le-step.md)** · À tester · jalon atelier
