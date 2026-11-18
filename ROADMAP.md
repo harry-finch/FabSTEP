@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 99** (23 %)
+**Avancement : 23 livrés sur 100** (23 %)
 
 ## Restant à faire
 
@@ -164,6 +164,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Qualifier un bac ouvert combinant trois perçages traversants et huit congés verticaux.
 76. **[R-099 C2 — Révolution cubique terminée sur un sommet axial](roadmap/items/R-099-c2-revolution-cubique-terminee-sur-un-sommet.md)** · À tester · jalon post-v1
    Reconstruire une méridienne cubique entre un disque et une pointe présente dans le maillage.
+77. **[R-100 E — Bac à rebord et deux cavités ouvertes](roadmap/items/R-100-e-bac-a-rebord-et-deux-cavites-ouvertes.md)** · À tester · jalon post-v1
+   Conserver le rebord en saillie et deux cavités de profondeur différente séparées par une cloison.
 
 ## Actions à faire
 
@@ -259,6 +261,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-103](roadmap/actions/A-103-inspecter-le-bac-et-ses-trois-percages-dans.md) Inspecter le bac et ses trois perçages dans Fusion (tester, R-098)
 - [ ] [A-104](roadmap/actions/A-104-inspecter-la-pointe-de-revolution-dans-fusion.md) Inspecter la pointe de révolution dans Fusion (tester, R-099)
 - [ ] [A-105](roadmap/actions/A-105-verifier-les-deux-reliefs-bicubiques-dans-fusion.md) Vérifier les deux reliefs bicubiques dans Fusion (tester, R-038)
+- [ ] [A-106](roadmap/actions/A-106-verifier-le-rebord-et-la-cloison-dans-fusion.md) Vérifier le rebord et la cloison dans Fusion (tester, R-100)
 
 ## Livré
 
