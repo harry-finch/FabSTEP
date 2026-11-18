@@ -104,34 +104,34 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Premier raccord à rayon linéaire intégré ; restent les autres configurations et raccords variables multiples.
 47. **[R-059 C1b2 — chaînes coniques sans portée intermédiaire](roadmap/items/R-059-c1b2-chaines-coniques-sans-portee-intermediaire.md)** · Idée · jalon post-v1
    Prouver les ruptures de pente entre cônes directement adjacents, sans découper artificiellement une méridienne courbe.
-48. **[R-025 Découper les gros modules et mutualiser les helpers au besoin](roadmap/items/R-025-decouper-les-gros-modules-et-mutualiser-les-helpers-au-besoin.md)** · Idée · jalon audit
-   AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes
-49. **[R-026 Qualifier le garde de cocircularité des anneaux fermés](roadmap/items/R-026-qualifier-le-garde-de-cocircularite-des-anneaux-fermes.md)** · Idée · jalon audit
-   AUD-017 — Construire une reproduction du défaut supposé ; conserver la protection des anneaux peu échantillonnés. Aucun remplacement direct par `fit_circle` sans cette preuve
-50. **[R-038 H — surfaces libres](roadmap/items/R-038-h-surfaces-libres.md)** · Idée · jalon post-v1
-   Patch bicubique de type hauteur, quatre limites source sur un solide fermé
-51. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · Idée · jalon atelier
-   Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
-52. **[R-050 I2 — élargir les familles guidées](roadmap/items/R-050-i2-elargir-les-familles-guidees.md)** · Idée · jalon atelier
-   Après Plan (R-056), ajouter le raccord torique guidé puis étudier les sphères.
-53. **[R-024 Préserver les caractères composés dans les noms de produits tronqués](roadmap/items/R-024-preserver-les-caracteres-composes-dans-les-noms-de-produits-tronques.md)** · Idée · jalon audit
-   AUD-011 — Reproduire les cas Unicode utiles ; conserver le nom source et éviter une dépendance disproportionnée pour ce seul besoin
-54. **[R-023 Durcir les permissions locales Tauri](roadmap/items/R-023-durcir-les-permissions-locales-tauri.md)** · Idée · jalon audit
-   AUD-014 — Définir le manifeste applicatif et tester les commandes autorisées/refusées, fenêtres et origines ; ne pas ajouter un fichier de capacités supposé suffisant
-55. **[R-022 Réduire le coût de démarrage du frontend](roadmap/items/R-022-reduire-le-cout-de-demarrage-du-frontend.md)** · Idée · jalon audit
-   AUD-009 — Mesurer le démarrage réel de la WebView ; retenir un chargement différé ou un découpage uniquement si le gain est démontré
-56. **[R-080 Qualifier les 231 584 plans restants de Flansch](roadmap/items/R-080-qualifier-les-231-584-plans-restants-de-flansch.md)** · À tester · jalon post-v1
-   Après les quatre grandes zones reconstruites, Flansch conserve 231 584 faces planes et 24 surfaces analytiques. Identifier les zones encore facettisées et leurs familles possibles avant toute nouvelle extension ou proposition de plafond ; la validation native dense reste un obstacle séparé.
-57. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
-   Signer et notariser le paquet macOS ; ces étapes restent ouvertes.
-58. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
-   Construire et qualifier la distribution sur Windows et Linux.
-59. **[R-021 Étudier la réutilisation entre instances 3MF](roadmap/items/R-021-etudier-la-reutilisation-entre-instances-3mf.md)** · Idée · jalon audit
-   AUD-006 — Démontrer un gain sur plusieurs instances ; établir un contrat tenant compte des transformations, de l’arrondi, du soudage et de la provenance avant tout cache
-60. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
-   Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
-61. **[R-084 C2b — reconstruire une révolution à profil cubique](roadmap/items/R-084-c2b-reconstruire-une-revolution-a-profil-cubique.md)** · À tester · jalon post-v1
+48. **[R-084 C2b — reconstruire une révolution à profil cubique](roadmap/items/R-084-c2b-reconstruire-une-revolution-a-profil-cubique.md)** · À tester · jalon post-v1
    Un profil lisse cubique borné, deux disques source et un tour complet ; preuve continue, STEP contrôlé et famille Révolution explicite.
+49. **[R-025 Découper les gros modules et mutualiser les helpers au besoin](roadmap/items/R-025-decouper-les-gros-modules-et-mutualiser-les-helpers-au-besoin.md)** · Idée · jalon audit
+   AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes
+50. **[R-026 Qualifier le garde de cocircularité des anneaux fermés](roadmap/items/R-026-qualifier-le-garde-de-cocircularite-des-anneaux-fermes.md)** · Idée · jalon audit
+   AUD-017 — Construire une reproduction du défaut supposé ; conserver la protection des anneaux peu échantillonnés. Aucun remplacement direct par `fit_circle` sans cette preuve
+51. **[R-038 H — surfaces libres](roadmap/items/R-038-h-surfaces-libres.md)** · Idée · jalon post-v1
+   Patch bicubique de type hauteur, quatre limites source sur un solide fermé
+52. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · Idée · jalon atelier
+   Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
+53. **[R-050 I2 — élargir les familles guidées](roadmap/items/R-050-i2-elargir-les-familles-guidees.md)** · Idée · jalon atelier
+   Après Plan (R-056), ajouter le raccord torique guidé puis étudier les sphères.
+54. **[R-024 Préserver les caractères composés dans les noms de produits tronqués](roadmap/items/R-024-preserver-les-caracteres-composes-dans-les-noms-de-produits-tronques.md)** · Idée · jalon audit
+   AUD-011 — Reproduire les cas Unicode utiles ; conserver le nom source et éviter une dépendance disproportionnée pour ce seul besoin
+55. **[R-023 Durcir les permissions locales Tauri](roadmap/items/R-023-durcir-les-permissions-locales-tauri.md)** · Idée · jalon audit
+   AUD-014 — Définir le manifeste applicatif et tester les commandes autorisées/refusées, fenêtres et origines ; ne pas ajouter un fichier de capacités supposé suffisant
+56. **[R-022 Réduire le coût de démarrage du frontend](roadmap/items/R-022-reduire-le-cout-de-demarrage-du-frontend.md)** · Idée · jalon audit
+   AUD-009 — Mesurer le démarrage réel de la WebView ; retenir un chargement différé ou un découpage uniquement si le gain est démontré
+57. **[R-080 Qualifier les 231 584 plans restants de Flansch](roadmap/items/R-080-qualifier-les-231-584-plans-restants-de-flansch.md)** · À tester · jalon post-v1
+   Après les quatre grandes zones reconstruites, Flansch conserve 231 584 faces planes et 24 surfaces analytiques. Identifier les zones encore facettisées et leurs familles possibles avant toute nouvelle extension ou proposition de plafond ; la validation native dense reste un obstacle séparé.
+58. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
+   Signer et notariser le paquet macOS ; ces étapes restent ouvertes.
+59. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
+   Construire et qualifier la distribution sur Windows et Linux.
+60. **[R-021 Étudier la réutilisation entre instances 3MF](roadmap/items/R-021-etudier-la-reutilisation-entre-instances-3mf.md)** · Idée · jalon audit
+   AUD-006 — Démontrer un gain sur plusieurs instances ; établir un contrat tenant compte des transformations, de l’arrondi, du soudage et de la provenance avant tout cache
+61. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
+   Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
 62. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · Idée · jalon post-v1
    Commencer par les deux bandes de rayon 0,5 mm identifiées dans R-080. Qualifier les limites des secteurs, la continuité avec les faces voisines et la fidélité dans les deux sens sur un corpus public indépendant. Rejouer ensuite le fichier entier et mesurer les coûts natifs.
 
