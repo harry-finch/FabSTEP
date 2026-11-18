@@ -11,6 +11,7 @@ fn main() {
         "smooth_revolution.hxx",
         "height_patch.hxx",
         "torus_sector.hxx",
+        "trim_native_step.hxx",
         "oblique_pocket.hxx",
         "unequal_pocket.hxx",
         "cross_drill_build.hxx",

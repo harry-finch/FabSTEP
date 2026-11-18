@@ -2343,50 +2343,7 @@ protected:
   }
 };
 
-class StepOutputBuffer : public std::streambuf {
-public:
-  const unsigned char* data() const { return bytes.get(); }
-  size_t size() const { return written; }
-  bool limit_reached() const { return exceeded; }
-  unsigned char* release() { return bytes.release(); }
-
-protected:
-  std::streamsize xsputn(const char* source, std::streamsize count) override {
-    if (count < 0 || static_cast<size_t>(count) > step_document_limit - written) {
-      exceeded = true;
-      return 0;
-    }
-    if (count == 0) {
-      return 0;
-    }
-    const auto required = written + static_cast<size_t>(count);
-    if (required > capacity) {
-      capacity = std::min(step_document_limit, std::max({required, capacity * 2, size_t{4096}}));
-      std::unique_ptr<unsigned char[]> next(new unsigned char[capacity]);
-      if (written != 0) {
-        std::memcpy(next.get(), bytes.get(), written);
-      }
-      bytes = std::move(next);
-    }
-    std::memcpy(bytes.get() + written, source, static_cast<size_t>(count));
-    written = required;
-    return count;
-  }
-
-  int_type overflow(int_type value) override {
-    if (traits_type::eq_int_type(value, traits_type::eof())) {
-      return traits_type::not_eof(value);
-    }
-    const char byte = traits_type::to_char_type(value);
-    return xsputn(&byte, 1) == 1 ? value : traits_type::eof();
-  }
-
-private:
-  std::unique_ptr<unsigned char[]> bytes;
-  size_t written = 0;
-  size_t capacity = 0;
-  bool exceeded = false;
-};
+#include "trim_native_step.hxx"
 
 struct Body {
   TopoDS_Shape shape;
@@ -2500,30 +2457,23 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
   check_bodies_separated(before, parts);
 
   stage = write_failed;
-  STEPControl_Writer writer;
-  DESTEP_Parameters parameters;
-  parameters.WriteAssembly = DESTEP_Parameters::WriteMode_Assembly_Off;
-  parameters.WriteUnit = UnitsMethods_LengthUnit_Millimeter;
-  parameters.WriteTessellated = DESTEP_Parameters::RWMode_Tessellated_Off;
-  for (size_t i = 0; i < count; ++i) {
-    parameters.WriteProductName = parts[i].name;
-    if (writer.Transfer(before[i].shape, STEPControl_ManifoldSolidBrep, parameters) != IFSelect_RetDone) {
-      throw CadFailure{stage, "Impossible d'écrire un corps dans le document STEP."};
+  auto output_buffer = write_bounded_step([&](STEPControl_Writer& writer, bool compact) {
+    DESTEP_Parameters parameters;
+    parameters.WriteSurfaceCurMode = !compact;
+    parameters.WriteAssembly = DESTEP_Parameters::WriteMode_Assembly_Off;
+    parameters.WriteUnit = UnitsMethods_LengthUnit_Millimeter;
+    parameters.WriteTessellated = DESTEP_Parameters::RWMode_Tessellated_Off;
+    for (size_t i = 0; i < count; ++i) {
+      parameters.WriteProductName = parts[i].name;
+      if (writer.Transfer(before[i].shape, STEPControl_ManifoldSolidBrep, parameters) != IFSelect_RetDone) {
+        throw CadFailure{stage, "Impossible d'écrire un corps dans le document STEP."};
+      }
     }
-  }
-  if (complete_labels) write_face_labels(writer, labels);
-  StepOutputBuffer output_buffer;
-  std::ostream output_stream(&output_buffer);
-  const auto write_status = writer.WriteStream(output_stream);
-  if (output_buffer.limit_reached()) {
-    throw CadFailure{document_too_large, "Le document STEP exporté dépasse 128 Mio."};
-  }
-  if (write_status != IFSelect_RetDone || !output_stream.good() || output_buffer.size() == 0) {
-    throw CadFailure{stage, "Impossible de sérialiser le document STEP."};
-  }
+    if (complete_labels) write_face_labels(writer, labels);
+  });
 
   stage = read_failed;
-  StepInputBuffer read_buffer(output_buffer.data(), output_buffer.size());
+  StepInputBuffer read_buffer(output_buffer->data(), output_buffer->size());
   std::istream input_stream(&read_buffer);
   STEPControl_Reader reader;
   load_step(reader, input_stream);
@@ -2579,7 +2529,7 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
   if (!std::isfinite(total.volume)) {
     throw CadFailure{mismatch, "Le volume cumulé des corps dépasse la plage numérique."};
   }
-  *output = {output_buffer.release(), output_buffer.size(), total};
+  *output = {output_buffer->release(), output_buffer->size(), total};
 }
 
 constexpr size_t mesh_triangle_limit = 100'000;
@@ -3809,38 +3759,34 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     if(expected_height) height_patch::verify(solid,stage,expected_height);
 
     stage = write_failed;
-    DESTEP_Parameters parameters;
-    parameters.WriteProductName = "FabSTEP";
-    parameters.WriteUnit = UnitsMethods_LengthUnit_Millimeter;
-    parameters.WriteTessellated = DESTEP_Parameters::RWMode_Tessellated_Off;
-    STEPControl_Writer writer;
-    // The default STEP healing stage rewrites some swept profile faces. The
-    // sector was already checked above; transfer those exact TShapes so its
-    // face tokens reach the corresponding ADVANCED_FACE entities.
-    if (expected_height || expected_sector || expected_pocket || expected_unequal) writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
-    if (writer.Transfer(solid, STEPControl_ManifoldSolidBrep, parameters) != IFSelect_RetDone) {
-      throw CadFailure{stage, "Impossible de traduire le solide en STEP."};
-    }
-    if (labels && !write_face_labels(writer, *labels) && (expected_height || expected_sector || expected_pocket || expected_unequal))
-      throw CadFailure{write_failed,"Les identités de faces analytiques ne sont pas transférables."};
-    std::stringstream stream;
-    if (writer.WriteStream(stream) != IFSelect_RetDone || !stream.good()) {
-      throw CadFailure{stage, "Impossible de sérialiser le fichier STEP."};
-    }
+    auto output_buffer = write_bounded_step([&](STEPControl_Writer& writer, bool compact) {
+      DESTEP_Parameters parameters;
+      parameters.WriteSurfaceCurMode = !compact;
+      parameters.WriteProductName = "FabSTEP";
+      parameters.WriteUnit = UnitsMethods_LengthUnit_Millimeter;
+      parameters.WriteTessellated = DESTEP_Parameters::RWMode_Tessellated_Off;
+      // The default STEP healing stage rewrites some swept profile faces. The
+      // sector was already checked above; transfer those exact TShapes so its
+      // face tokens reach the corresponding ADVANCED_FACE entities.
+      if (expected_height || expected_sector || expected_pocket || expected_unequal) writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
+      if (writer.Transfer(solid, STEPControl_ManifoldSolidBrep, parameters) != IFSelect_RetDone) {
+        throw CadFailure{stage, "Impossible de traduire le solide en STEP."};
+      }
+      if (labels && !write_face_labels(writer, *labels) && (expected_height || expected_sector || expected_pocket || expected_unequal))
+        throw CadFailure{write_failed,"Les identités de faces analytiques ne sont pas transférables."};
+    });
 
     stage = read_failed;
-    stream.seekg(0);
+    StepInputBuffer input_buffer(output_buffer->data(), output_buffer->size());
+    std::istream stream(&input_buffer);
     const auto reopened = read_step(stream);
-    if(expected_height) height_patch::verify(reopened,stage,expected_height);
+    if (expected_height) height_patch::verify(reopened,stage,expected_height);
     const CadMetrics after = measure(reopened, expected, stage, expected_box,expected_drill,expected_revolution,expected_sector,expected_pocket,expected_unequal);
     if (!same_measurement(before, after)) {
       throw CadFailure{mismatch, "Les dimensions ou le volume changent après réimport du STEP."};
     }
 
-    const std::string step = stream.str();
-    auto* data = new unsigned char[step.size()];
-    std::memcpy(data, step.data(), step.size());
-    *output = {data, step.size(), after};
+    *output = {output_buffer->release(), output_buffer->size(), after};
   });
 }
 }
