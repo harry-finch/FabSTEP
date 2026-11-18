@@ -43,6 +43,9 @@ test('preference migration defaults to Auto once, preserves tolerances and later
  const old={...initial,input_unit:'inch',reconstruction:'surfaces',plane_tolerance_mm:1e-7};
  assert.deepEqual(restoreOptions(initial,null,JSON.stringify(old)),{...old,reconstruction:'auto'});
  assert.deepEqual(restoreOptions(initial,JSON.stringify(old),null),old);
+ const relief:Options={...initial,reconstruction:'height_patch'};
+ assert.deepEqual(restoreOptions(initial,JSON.stringify(relief),null),relief);
+ assert.equal(restoreOptions(initial,null,JSON.stringify(relief)).reconstruction,'auto');
  assert.deepEqual(restoreOptions(initial,'{',null),initial);
  assert.deepEqual(restoreOptions(initial,'null','null'),initial);
 });

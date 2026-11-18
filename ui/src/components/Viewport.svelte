@@ -254,13 +254,13 @@
       } else if (!stepPreview && !denseRaw && results.length && showEdges) {
         const points: number[] = [];
         for (const result of results) {
-        if (result.rounded_box_recognition) {
+        const patchOwners = result.rounded_box_recognition?.triangle_faces ?? result.height_patch_recognition?.triangle_faces;
+        if (patchOwners) {
           // Show the source edges shared by distinct proven surface patches.
           const mesh = result.analysis.mesh;
-          const owners = result.rounded_box_recognition.triangle_faces;
           const edges = new Map<string, { owner:string; a:number; b:number }>();
           mesh.triangles.forEach((triangle, index) => {
-            const owner = JSON.stringify(owners[index]);
+            const owner = JSON.stringify(patchOwners[index]);
             for (let i = 0; i < 3; i++) {
               const a = triangle[i], b = triangle[(i + 1) % 3];
               const key = a < b ? `${a}:${b}` : `${b}:${a}`;

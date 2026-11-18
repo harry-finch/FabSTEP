@@ -26,6 +26,10 @@ Les identifiants M0–M6, A/B/C1, I1–I3 et UX désignent les [jalons de la roa
 - `ui/src/lib/selection.worker.ts` : inspection source (I1) ; `step-selection.worker.ts` : sélection native et préparation de l'affichage des faces (I1b, UX3).
 - `fabstep-desktop/src/main.rs` : commandes `selection_topology`, `result_faces`, `search_parameters`, `guided_convert`, `remove_guidance` et `recompute_guidance`, en complément de l'import, de la conversion et de l'export.
 
+## Reliefs bicubiques
+
+Le mode explicite `height_patch` de R-038 relie un certificat sur les triangles du toit à un constructeur OCCT à six faces. Il utilise les mêmes contrôles de volume, de provenance et de réimport que les autres domaines. Voir [ADR-0044](docs/adr/0044-bicubic-height-patch.md).
+
 ## Parcours des données
 
 STL ou 3MF en octets → unité STL choisie ou unité 3MF déclarée/par défaut → instances et placements en mm → aperçu des maillages source → séparation des composantes → soudage et contrôles topologiques → contrôle CAO de séparation source → reconstruction par corps → STEP à une ou plusieurs racines → réimport, contrôle du résultat et de la séparation → export seulement si tous les corps sont validés.

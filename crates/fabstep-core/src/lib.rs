@@ -1,5 +1,7 @@
 //! Géométrie pure et déterministe de FabSTEP, en millimètres.
 use serde::{Deserialize, Serialize};
+mod height_patch;
+pub use height_patch::{recognize_height_patch, HeightPatch, HeightPatchRecognition};
 
 /// Source-only storage bounds. The larger profile is compiled only into the
 /// isolated STL helper; result tessellation, DXF and 3MF keep their own bounds.
@@ -66,6 +68,7 @@ pub enum ReconstructionMode {
     Cylinders,
     Primitives,
     Surfaces,
+    HeightPatch,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

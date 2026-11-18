@@ -9,7 +9,7 @@ export function restoreOptions(initial:Options, current:string|null, legacy:stri
   }
   if(!saved||typeof saved!=='object'||Array.isArray(saved))return {...initial};
   const positive=(value:unknown,fallback:number)=>typeof value==='number'&&Number.isFinite(value)&&value>0?value:fallback;
-  const modes=['auto','planar','cylinders','primitives','surfaces'];
+  const modes=['auto','planar','cylinders','primitives','surfaces','height_patch'];
   return {
     input_unit:saved.input_unit==='inch'?'inch':initial.input_unit,
     reconstruction:!migrated&&modes.includes(saved.reconstruction??'')?saved.reconstruction!:'auto',

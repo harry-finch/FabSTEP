@@ -13,7 +13,7 @@ Usage :
   fabstep convert <entrée.stl|entrée.3mf> -o <sortie.step> [--unit mm|inch] [--json] [--force]
 
 Options :
-  --mode auto|planar|cylinders|primitives|surfaces  Plans (défaut), cylindres, cônes, surfaces arrondies
+  --mode auto|planar|cylinders|primitives|surfaces|height-patch  Stratégie de reconstruction (défaut : planar)
   --max-deviation <mm>     Budget de borne composée (défaut : 0.05 mm)
   --fit <mm>              Résidu radial maximal d'ajustement (défaut : 0.00001 mm)
   --weld <mm>    Tolérance de soudage (défaut : 0.000001 mm)
@@ -28,7 +28,8 @@ séparées par des portées résolues ; pas de congés généraux.
 Mode surfaces : ajoute les portions sphériques (dont les zones sans pôle) et toriques prouvées,
 les sphères et tores complets, les boîtiers convexes entièrement arrondis à rayon uniforme,
 et la combinaison prouvée d’un cône complet et d’un cylindre ouvert.
-Les formes libres et les congés généraux à rayon variable restent hors périmètre.
+Mode height-patch : interprétation explicite d’un relief bicubique sur un socle rectangulaire XY.
+Les surfaces libres arbitraires et les congés généraux à rayon variable restent hors périmètre.
 3MF Core : unité du fichier ; --unit interdit. Corps séparés, sans fusion.
 Les extensions requises inconnues et les corps en contact ou imbriqués sont refusés.
 Une forme non reconnue est refusée ; le mode planar reste disponible.
@@ -98,6 +99,7 @@ fn run() -> Result<(), FabError> {
                         Some("cylinders") => ReconstructionMode::Cylinders,
                         Some("primitives") => ReconstructionMode::Primitives,
                         Some("surfaces") => ReconstructionMode::Surfaces,
+                        Some("height-patch") => ReconstructionMode::HeightPatch,
                         _ => return Err(usage(
                             "Le mode doit être auto, planar, cylinders, primitives ou surfaces.",
                         )),
@@ -169,20 +171,35 @@ fn run() -> Result<(), FabError> {
                 ReconstructionMode::Auto
                 | ReconstructionMode::Cylinders
                 | ReconstructionMode::Primitives
+                | ReconstructionMode::HeightPatch
                 | ReconstructionMode::Surfaces => Some(
                     fabstep_app::recognize_surfaces(&body.analysis, &options)
                         .map_err(|e| e.with_body(&body.id, &body.name))?,
                 ),
             };
-            let (extrusion, mixed, revolved, rounded, rounded_box) = match &recognition {
-                Some(fabstep_app::Recognized::Extrusion(r)) => (Some(r), None, None, None, None),
-                Some(fabstep_app::Recognized::Mixed(r)) => (None, Some(r), None, None, None),
-                Some(fabstep_app::Recognized::Revolved(r)) => (None, None, Some(r), None, None),
-                Some(fabstep_app::Recognized::Rounded(r)) => (None, None, None, Some(r), None),
-                Some(fabstep_app::Recognized::RoundedBox(r)) => (None, None, None, None, Some(r)),
-                None => (None, None, None, None, None),
-            };
-            bodies.push(serde_json::json!({"id":body.id,"name":body.name,"provenance":body.provenance,"mesh":body.analysis.report,"recognition":extrusion,"mixed_recognition":mixed,"revolved_recognition":revolved,"rounded_recognition":rounded,"rounded_box_recognition":rounded_box}));
+            let (extrusion, mixed, revolved, rounded, rounded_box, height_patch) =
+                match &recognition {
+                    Some(fabstep_app::Recognized::Extrusion(r)) => {
+                        (Some(r), None, None, None, None, None)
+                    }
+                    Some(fabstep_app::Recognized::Mixed(r)) => {
+                        (None, Some(r), None, None, None, None)
+                    }
+                    Some(fabstep_app::Recognized::Revolved(r)) => {
+                        (None, None, Some(r), None, None, None)
+                    }
+                    Some(fabstep_app::Recognized::Rounded(r)) => {
+                        (None, None, None, Some(r), None, None)
+                    }
+                    Some(fabstep_app::Recognized::RoundedBox(r)) => {
+                        (None, None, None, None, Some(r), None)
+                    }
+                    Some(fabstep_app::Recognized::HeightPatch(r)) => {
+                        (None, None, None, None, None, Some(r))
+                    }
+                    None => (None, None, None, None, None, None),
+                };
+            bodies.push(serde_json::json!({"id":body.id,"name":body.name,"provenance":body.provenance,"mesh":body.analysis.report,"recognition":extrusion,"mixed_recognition":mixed,"revolved_recognition":revolved,"rounded_recognition":rounded,"rounded_box_recognition":rounded_box,"height_patch_recognition":height_patch}));
         }
         if json {
             let mut report = serde_json::json!({"settings":document.settings,"source":document.source,"bodies":bodies,"diagnostics":document.diagnostics,"native_validated":false});
@@ -207,6 +224,7 @@ fn run() -> Result<(), FabError> {
                 report["mixed_recognition"] = bodies[0]["mixed_recognition"].clone();
                 report["revolved_recognition"] = bodies[0]["revolved_recognition"].clone();
                 report["rounded_recognition"] = bodies[0]["rounded_recognition"].clone();
+                report["height_patch_recognition"] = bodies[0]["height_patch_recognition"].clone();
                 report["rounded_box_recognition"] = bodies[0]["rounded_box_recognition"].clone();
             }
             print_json(&report)?;
@@ -243,7 +261,7 @@ fn run() -> Result<(), FabError> {
                 .map_err(|e| io_error(e.error))?;
         }
         if json {
-            let bodies: Vec<_> = result.report.bodies.iter().map(|b| serde_json::json!({"id":b.id,"name":b.name,"provenance":b.provenance,"mesh":b.conversion.analysis.report,"cad":b.conversion.cad,"recognition":b.conversion.recognition,"mixed_recognition":b.conversion.mixed_recognition,"revolved_recognition":b.conversion.revolved_recognition,"rounded_recognition":b.conversion.rounded_recognition,"rounded_box_recognition":b.conversion.rounded_box_recognition,"fidelity":b.conversion.fidelity})).collect();
+            let bodies: Vec<_> = result.report.bodies.iter().map(|b| serde_json::json!({"id":b.id,"name":b.name,"provenance":b.provenance,"mesh":b.conversion.analysis.report,"cad":b.conversion.cad,"recognition":b.conversion.recognition,"mixed_recognition":b.conversion.mixed_recognition,"revolved_recognition":b.conversion.revolved_recognition,"rounded_recognition":b.conversion.rounded_recognition,"rounded_box_recognition":b.conversion.rounded_box_recognition,"height_patch_recognition":b.conversion.height_patch_recognition,"fidelity":b.conversion.fidelity})).collect();
             let mut report = serde_json::json!({"output":path,"settings":result.report.settings,"source":result.report.source,"cad":result.report.cad,"bodies":bodies,"diagnostics":result.report.diagnostics,"native_validated":true});
             if bodies.len() == 1 {
                 for key in [
@@ -253,6 +271,7 @@ fn run() -> Result<(), FabError> {
                     "revolved_recognition",
                     "rounded_recognition",
                     "rounded_box_recognition",
+                    "height_patch_recognition",
                     "fidelity",
                 ] {
                     report[key] = bodies[0][key].clone();
@@ -260,7 +279,18 @@ fn run() -> Result<(), FabError> {
             }
             print_json(&report)?;
         } else {
-            println!("STEP validé et réimporté : {} solide(s), {} plans, {} cylindres, {} cônes, {} sphères, {} tores, {} révolutions ; volume total {:.6} mm³.\n{}", result.report.cad.solids, result.report.cad.planar_faces, result.report.cad.cylindrical_faces, result.report.cad.conical_faces, result.report.cad.spherical_faces, result.report.cad.toroidal_faces, result.report.cad.revolution_faces, result.report.cad.volume_mm3, path.display());
+            let reliefs = result
+                .report
+                .bodies
+                .iter()
+                .filter(|b| b.conversion.height_patch_recognition.is_some())
+                .count();
+            let relief_summary = if reliefs > 0 {
+                format!(", {reliefs} relief(s) bicubique(s)")
+            } else {
+                String::new()
+            };
+            println!("STEP validé et réimporté : {} solide(s), {} plans, {} cylindres, {} cônes, {} sphères, {} tores, {} révolutions{relief_summary} ; volume total {:.6} mm³.\n{}", result.report.cad.solids, result.report.cad.planar_faces, result.report.cad.cylindrical_faces, result.report.cad.conical_faces, result.report.cad.spherical_faces, result.report.cad.toroidal_faces, result.report.cad.revolution_faces, result.report.cad.volume_mm3, path.display());
             for body in result.report.bodies {
                 let recognition_report = body
                     .conversion
@@ -291,6 +321,12 @@ fn run() -> Result<(), FabError> {
                             .as_ref()
                             .map(|r| &r.report)
                     });
+                let recognition_report = recognition_report.or_else(|| {
+                    body.conversion
+                        .height_patch_recognition
+                        .as_ref()
+                        .map(|r| &r.report)
+                });
                 if let Some(report) = recognition_report {
                     println!("{} : borne d'écart {:.6} mm. Interprétation analytique explicite ; sans historique CAO.", body.name, report.max_deviation_bound_mm);
                 }

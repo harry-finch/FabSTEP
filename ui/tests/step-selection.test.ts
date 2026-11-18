@@ -177,3 +177,12 @@ test('certified revolution faces keep their own STEP family through selection an
   assert.deepEqual(g.grow().families,{plane:1,revolution:1,cone:1});
   assert.deepEqual(g.shrink().families,{revolution:1});
 });
+
+test('a native bicubic roof is selectable as a distinct family', () => {
+  const result=structuredClone(document);
+  result.faces[0].family='height_patch';
+  const graph=new StepSelectionGraph();
+  graph.prepare(result);
+  assert.deepEqual(graph.pick(0,false).families,{height_patch:1});
+  assert.deepEqual(graph.inspect().triangles,[0,1]);
+});

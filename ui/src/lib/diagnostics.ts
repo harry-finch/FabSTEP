@@ -12,6 +12,7 @@ const technicalRemarks = new Set([
   'recognition.adjacent_pocket_fitted',
   'recognition.unequal_pocket_fitted',
   'recognition.rounded_box_intent_assumed',
+  'recognition.height_patch_fitted',
 ]);
 const routineInfo = new Set([
   'auto.faceted_base',

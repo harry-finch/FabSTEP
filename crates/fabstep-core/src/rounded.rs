@@ -451,9 +451,14 @@ fn recognize_policy_with_proofs(
             .iter()
             .any(|face| face.loops.len() == 2)
     {
-        if let Some(pocket) =
-            crate::oblique_pocket::recognize(a, &segmentation.model, o, &adjacency, &mut work, automatic)?
-        {
+        if let Some(pocket) = crate::oblique_pocket::recognize(
+            a,
+            &segmentation.model,
+            o,
+            &adjacency,
+            &mut work,
+            automatic,
+        )? {
             if scope.is_some() {
                 return Err(FabError::new(
                     "guidance.family_unproven",
@@ -1327,7 +1332,11 @@ fn classify(
             if nodes[0].radius != 0. {
                 return Err(previous);
             }
-            return Ok(Classified::Meridian { frame, nodes, previous });
+            return Ok(Classified::Meridian {
+                frame,
+                nodes,
+                previous,
+            });
         }
         Err(previous) if previous.code == "recognition.surface_unproven" && rims.len() == 2 => {
             work.spend(measured_radii.len())?;
