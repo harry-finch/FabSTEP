@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 98** (23 %)
+**Avancement : 23 livrés sur 99** (23 %)
 
 ## Restant à faire
 
@@ -162,6 +162,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Reconstruire une paroi cylindrique concave tangente et ses deux bords elliptiques dans une poche borgne.
 75. **[R-098 E — Bac arrondi percé sur le fond et la paroi](roadmap/items/R-098-e-bac-arrondi-perce-sur-le-fond-et-la-paroi.md)** · À tester · jalon post-v1
    Qualifier un bac ouvert combinant trois perçages traversants et huit congés verticaux.
+76. **[R-099 C2 — Révolution cubique terminée sur un sommet axial](roadmap/items/R-099-c2-revolution-cubique-terminee-sur-un-sommet.md)** · À tester · jalon post-v1
+   Reconstruire une méridienne cubique entre un disque et une pointe présente dans le maillage.
 
 ## Actions à faire
 
@@ -255,6 +257,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-101](roadmap/actions/A-101-verifier-les-deux-percages-decentres-dans-fusion.md) Vérifier les deux perçages décentrés dans Fusion (tester, R-096)
 - [ ] [A-102](roadmap/actions/A-102-verifier-les-deux-butees-inclinees-dans-fusion.md) Vérifier les deux butées inclinées dans Fusion (tester, R-097)
 - [ ] [A-103](roadmap/actions/A-103-inspecter-le-bac-et-ses-trois-percages-dans.md) Inspecter le bac et ses trois perçages dans Fusion (tester, R-098)
+- [ ] [A-104](roadmap/actions/A-104-inspecter-la-pointe-de-revolution-dans-fusion.md) Inspecter la pointe de révolution dans Fusion (tester, R-099)
 
 ## Livré
 

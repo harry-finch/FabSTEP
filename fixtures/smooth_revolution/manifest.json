@@ -1450,6 +1450,32 @@
       },
       "defect": "quartic"
     },
+    "off_axis_pole": {
+      "triangles": 4096,
+      "axial_divisions": 32,
+      "azimuths": 64,
+      "patches": [
+        {
+          "owner": "wall",
+          "first_source_triangle": 0,
+          "triangles": 4032
+        },
+        {
+          "owner": "upper_cap",
+          "first_source_triangle": 4032,
+          "triangles": 64
+        }
+      ],
+      "topology": {
+        "vertices": 2050,
+        "boundary_edges": 0,
+        "signed_volume_mm3": 1004.3813962863271
+      },
+      "pole": true,
+      "defect": "off_axis_pole"
+    }
+  },
+  "pole_cases": {
     "axial_tip": {
       "triangles": 4096,
       "axial_divisions": 32,
@@ -1471,7 +1497,258 @@
         "boundary_edges": 0,
         "signed_volume_mm3": 1004.3813962863271
       },
-      "defect": "axial_tip"
+      "pole": true,
+      "parameters": {
+        "radii_mm": [
+          0.0,
+          4.0,
+          2.0,
+          8.0
+        ],
+        "height_mm": 20.0,
+        "origin_mm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "volume_mm3": 1005.309649148745
+      },
+      "analytic_bounds_mm": [
+        [
+          -8.0,
+          -8.0,
+          0.0
+        ],
+        [
+          8.0,
+          8.0,
+          20.0
+        ]
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            1.3385819999999997,
+            0.0,
+            3.4000000000000004
+          ],
+          "material": true
+        },
+        {
+          "point_mm": [
+            1.8385819999999997,
+            0.0,
+            3.4000000000000004
+          ],
+          "material": false
+        },
+        {
+          "point_mm": [
+            2.5226659999999996,
+            0.0,
+            7.800000000000001
+          ],
+          "material": true
+        },
+        {
+          "point_mm": [
+            3.0226659999999996,
+            0.0,
+            7.800000000000001
+          ],
+          "material": false
+        },
+        {
+          "point_mm": [
+            3.7897499999999997,
+            0.0,
+            13.0
+          ],
+          "material": true
+        },
+        {
+          "point_mm": [
+            4.28975,
+            0.0,
+            13.0
+          ],
+          "material": false
+        },
+        {
+          "point_mm": [
+            6.041766000000001,
+            0.0,
+            17.8
+          ],
+          "material": true
+        },
+        {
+          "point_mm": [
+            6.541766000000001,
+            0.0,
+            17.8
+          ],
+          "material": false
+        },
+        {
+          "point_mm": [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          "material": false
+        },
+        {
+          "point_mm": [
+            0.0,
+            0.0,
+            21.0
+          ],
+          "material": false
+        }
+      ]
+    },
+    "mirrored_tip": {
+      "triangles": 4608,
+      "axial_divisions": 36,
+      "azimuths": 64,
+      "patches": [
+        {
+          "owner": "wall",
+          "first_source_triangle": 0,
+          "triangles": 4544
+        },
+        {
+          "owner": "upper_cap",
+          "first_source_triangle": 4544,
+          "triangles": 64
+        }
+      ],
+      "topology": {
+        "vertices": 2306,
+        "boundary_edges": 0,
+        "signed_volume_mm3": 521.3522267088665
+      },
+      "pole": true,
+      "parameters": {
+        "radii_mm": [
+          0.0,
+          2.0,
+          5.0,
+          4.5
+        ],
+        "height_mm": 16.0,
+        "origin_mm": [
+          3.0,
+          1.0,
+          -2.0
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "volume_mm3": 522.401978396931
+      },
+      "analytic_bounds_mm": [
+        [
+          -1.555335960660127,
+          -3.555335960660127,
+          -18.0
+        ],
+        [
+          7.555335960660127,
+          5.555335960660127,
+          -2.0
+        ]
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            3.8345915,
+            1.0,
+            -4.720000000000001
+          ],
+          "material": true
+        },
+        {
+          "point_mm": [
+            4.3345915,
+            1.0,
+            -4.720000000000001
+          ],
+          "material": false
+        },
+        {
+          "point_mm": [
+            5.2793645,
+            1.0,
+            -8.24
+          ],
+          "material": true
+        },
+        {
+          "point_mm": [
+            5.7793645,
+            1.0,
+            -8.24
+          ],
+          "material": false
+        },
+        {
+          "point_mm": [
+            6.681687500000001,
+            1.0,
+            -12.4
+          ],
+          "material": true
+        },
+        {
+          "point_mm": [
+            7.181687500000001,
+            1.0,
+            -12.4
+          ],
+          "material": false
+        },
+        {
+          "point_mm": [
+            7.2939395,
+            1.0,
+            -16.240000000000002
+          ],
+          "material": true
+        },
+        {
+          "point_mm": [
+            7.7939395,
+            1.0,
+            -16.240000000000002
+          ],
+          "material": false
+        },
+        {
+          "point_mm": [
+            3.0,
+            1.0,
+            -1.2
+          ],
+          "material": false
+        },
+        {
+          "point_mm": [
+            3.0,
+            1.0,
+            -18.8
+          ],
+          "material": false
+        }
+      ]
     }
   }
 }

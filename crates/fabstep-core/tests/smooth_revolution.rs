@@ -136,7 +136,7 @@ fn off_profile_underconstrained_open_or_folded_sources_cannot_authorize_a_cubic(
         "folded",
         "quartic",
         "incomplete_level",
-        "axial_tip",
+        "off_axis_pole",
     ] {
         let a = analyze_stl(&fixture(name), &o).unwrap();
         if let Ok(r) = recognize_rounded(&a, &o) {
@@ -245,4 +245,40 @@ fn two_span_meridian_requires_a_unique_witnessed_tangent_joint() {
     assert!(recognize_rounded(&bad, &o).map_or(true, |r| r.model.smooth_revolution.is_none()));
     let fallback = recognize_automatic(&bad, &opts(ReconstructionMode::Auto)).unwrap();
     assert!(fallback.model.smooth_revolution.is_none());
+}
+
+#[test]
+fn axial_poles_require_the_complete_original_fan_and_one_witnessed_disk() {
+    let o = opts(ReconstructionMode::Surfaces);
+    for (name, tip) in [("axial_tip", [0., 0., 0.]), ("mirrored_tip", [3., 1., -2.])] {
+        let a = analyze_stl(&fixture(name), &o).unwrap();
+        let recognized = recognize_rounded(&a, &o).unwrap();
+        let wall = recognized.model.smooth_revolution.as_ref().unwrap();
+        let vertex = wall.pole_vertex.unwrap();
+        assert_eq!(a.mesh.vertices[vertex], tip);
+        assert!(wall
+            .origin
+            .iter()
+            .zip(tip)
+            .all(|(a, b)| (a - b).abs() < 1e-6));
+        assert_eq!(wall.radii_mm[0], 0.);
+        assert_eq!(wall.rings, [0, 0]);
+        assert_eq!(recognized.model.revolved.mixed.planes.len(), 1);
+        assert_eq!(recognized.model.revolved.mixed.rings.len(), 1);
+        assert!(recognized.report.max_deviation_bound_mm <= o.max_deviation_mm);
+        let mut fan_faces = Vec::new();
+        for (i, triangle) in a.mesh.triangles.iter().enumerate() {
+            if triangle.contains(&vertex) {
+                assert_eq!(
+                    recognized.triangle_faces[i],
+                    RoundedFaceRef::SmoothRevolution { index: 0 }
+                );
+                fan_faces.push(i);
+            }
+        }
+        assert_eq!(fan_faces.len(), 64);
+        let mut open = a.mesh.clone();
+        open.triangles.remove(fan_faces[0]);
+        assert_eq!(analyze_mesh(&open, &o).unwrap_err().code, "mesh.open");
+    }
 }

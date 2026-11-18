@@ -1,4 +1,4 @@
-// A C2 body has exactly one full-turn polynomial wall and two disk caps.
+// A C2 body has one full-turn polynomial wall, closed by two disks or a disk and a pole.
 // No other spline face or edge is admitted through this certificate.
 constexpr double revolution_precision = 5.e-8;
 constexpr double revolution_period = 2. * 3.14159265358979323846;
@@ -128,7 +128,7 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
     if (wire.More())
       throw invalid;
   }
-  if (planes.size() != 2 || proof.wall.IsNull())
+  if (planes.empty() || proof.wall.IsNull())
     throw invalid;
   const BRepAdaptor_Surface wall(proof.wall);
   const auto native_axis = wall.AxeOfRevolution();
@@ -151,7 +151,26 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
   axis.Coord(d.axis[0], d.axis[1], d.axis[2]);
   if (!(d.height > revolution_precision))
     throw invalid;
-  const gp_Vec radial = gp_Vec(origin, poles[0]).Normalized();
+  // One missing disk must correspond to an actual axial endpoint of the
+  // meridian and, below, to exactly one degenerate coedge and one STEP vertex.
+  int pole_end = -1;
+  if (planes.size() == 1) {
+    const bool low = poles.front().Distance(origin) <= revolution_precision;
+    const bool high = poles.back().Distance(revolution_center(d, 1.)) <= revolution_precision;
+    if (low == high || meridian.knot)
+      throw invalid;
+    pole_end = low ? 0 : 1;
+  }
+  if (expected) {
+    const int expected_pole = !expected->knot && expected->radii[0] == 0.   ? 0
+                              : !expected->knot && expected->radii[3] == 0. ? 1
+                                                                            : -1;
+    if (pole_end != expected_pole)
+      throw invalid;
+  }
+  const int anchor = pole_end == 0 ? 1 : 0;
+  const gp_Vec radial =
+      gp_Vec(revolution_center(d, anchor), anchor ? poles.back() : poles.front()).Normalized();
   d.knot = meridian.knot;
   if (expected && (bool(d.knot) != bool(expected->knot) ||
                    std::abs(d.knot - expected->knot) * d.height > revolution_precision))
@@ -160,8 +179,9 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
   for (size_t i = 0; i < poles.size(); ++i) {
     const double t = meridian.parameter(i);
     const auto center = revolution_center(d, t);
-    const double r = gp_Vec(center, poles[i]).Dot(radial);
-    if (!(r > revolution_precision) ||
+    const bool at_pole = (i == 0 && pole_end == 0) || (i + 1 == poles.size() && pole_end == 1);
+    const double r = at_pole ? 0. : gp_Vec(center, poles[i]).Dot(radial);
+    if ((!at_pole && !(r > revolution_precision)) ||
         center.Translated(radial * r).Distance(poles[i]) > revolution_precision)
       throw invalid;
     if (i <= 3)
@@ -253,7 +273,7 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
     auto normal = gp_Vec(plane.Position().XDirection()).Crossed(gp_Vec(plane.Position().YDirection()));
     if (cap.Orientation() == TopAbs_REVERSED)
       normal.Reverse();
-    if (!rims[end].IsNull() || normal.Dot(axis) * (end ? 1. : -1.) <= 0. ||
+    if (end == pole_end || !rims[end].IsNull() || normal.Dot(axis) * (end ? 1. : -1.) <= 0. ||
         normal.Crossed(axis).Magnitude() * max_radius > revolution_precision ||
         gp_Vec(circle.Axis().Direction()).Crossed(axis).Magnitude() * max_radius > revolution_precision ||
         plane.Distance(circle.Location()) > revolution_precision ||
@@ -285,6 +305,17 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
     if (trim.GetType() != GeomAbs_Line)
       throw invalid;
     const auto a = trim.Value(trim.FirstParameter()), b = trim.Value(trim.LastParameter());
+    if (BRep_Tool::Degenerated(edge)) {
+      if (pole_end < 0 || ++uses[pole_end] != 1)
+        throw invalid;
+      const auto p = surface_pole(proof.wall, edge);
+      const double v = reverse_basis ? 1. - pole_end : pole_end;
+      if (!p || p->Distance(revolution_center(d, pole_end)) > revolution_precision ||
+          std::max(std::abs(a.Y() - v), std::abs(b.Y() - v)) * v_scale > revolution_precision ||
+          !full_span(a.X(), b.X(), u0, u1, u_scale))
+        throw invalid;
+      continue;
+    }
     const BRepAdaptor_Curve curve(edge);
     const double first = curve.FirstParameter(), last = curve.LastParameter();
     if (std::abs(trim.FirstParameter() - first) > 1.e-12 || std::abs(trim.LastParameter() - last) > 1.e-12)
@@ -325,7 +356,9 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
       seam.reverse();
     if (seam.points.size() != poles.size() || std::abs(seam.knot - d.knot) * v_scale > revolution_precision)
       throw invalid;
-    const auto seam_radial = gp_Vec(origin, seam.points.front()).Normalized();
+    const auto seam_radial =
+        gp_Vec(revolution_center(d, anchor), anchor ? seam.points.back() : seam.points.front())
+            .Normalized();
     if (std::abs(seam_radial.Dot(axis)) * max_radius > revolution_precision)
       throw invalid;
     for (size_t i = 0; i < poles.size(); ++i)
@@ -368,7 +401,8 @@ TopoDS_Solid build_smooth_revolution(const SmoothRevolutionData &d, const size_t
   }
   const auto bottom = revolution_center(d, 0), top = revolution_center(d, 1);
   BRepBuilderAPI_MakeWire wire;
-  wire.Add(BRepBuilderAPI_MakeEdge(bottom, poles(1)).Edge());
+  if (d.radii[0] != 0.)
+    wire.Add(BRepBuilderAPI_MakeEdge(bottom, poles(1)).Edge());
   wire.Add(BRepBuilderAPI_MakeEdge(curve).Edge());
   wire.Add(BRepBuilderAPI_MakeEdge(poles(poles.Upper()), top).Edge());
   wire.Add(BRepBuilderAPI_MakeEdge(top, bottom).Edge());
@@ -377,8 +411,11 @@ TopoDS_Solid build_smooth_revolution(const SmoothRevolutionData &d, const size_t
   const auto solid = TopoDS::Solid(single_solid(revol.Shape(), invalid_solid));
   if (labels) {
     const auto proof = verify_revolution(solid, &d, invalid_solid);
-    for (int i = 0; i < 2; ++i)
-      labels->emplace_back(proof.caps[i], caps[i]);
+    size_t cap_slot = 0;
+    for (const auto &cap : proof.caps) {
+      if (!cap.IsNull())
+        labels->emplace_back(cap, caps[cap_slot++]);
+    }
     labels->emplace_back(proof.wall, *wall);
   }
   return solid;

@@ -1720,8 +1720,10 @@ fn build_smooth_revolution(
     };
     let m = &model.revolved.mixed;
     let finite = |v: &[f64; 3]| v.iter().all(|x| x.is_finite());
-    if m.planes.len() != 2
-        || m.rings.len() != 2
+    let pole = usize::from(f.pole_vertex.is_some());
+    let cap_count = 2 - pole;
+    if m.planes.len() != cap_count
+        || m.rings.len() != cap_count
         || m.vertices.len() > MAX_SOURCE_VERTICES
         || !m.vertices.iter().all(finite)
         || !m.cylinders.is_empty()
@@ -1739,10 +1741,10 @@ fn build_smooth_revolution(
         || !unit_direction(&f.axis)
         || !f.height_mm.is_finite()
         || f.height_mm <= 0.
-        || f.radii_mm.iter().any(|r| !r.is_finite() || *r <= 0.)
-        || f.rings[0] >= 2
-        || f.rings[1] >= 2
-        || f.rings[0] == f.rings[1]
+        || f.radii_mm[pole..].iter().any(|r| !r.is_finite() || *r <= 0.)
+        || (pole == 1 && (f.radii_mm[0] != 0. || f.second_span.is_some()))
+        || f.rings.iter().any(|&r| r >= cap_count)
+        || (pole == 0 && f.rings[0] == f.rings[1])
         || !f.witness_tolerance_mm.is_finite()
         || f.witness_tolerance_mm < 0.
     {
@@ -1766,7 +1768,7 @@ fn build_smooth_revolution(
         .map(f64::abs).fold(1., f64::max);
     let roundoff = 512. * f64::EPSILON * scale;
     let shortest_span = if f.second_span.is_some() { knot.min(1. - knot) } else { 1. };
-    let min_feature = radii().fold(f.height_mm * shortest_span, f64::min);
+    let min_feature = radii().skip(pole).fold(f.height_mm * shortest_span, f64::min);
     if roundoff > 5e-8 || f.witness_tolerance_mm >= min_feature / 2. {
         return Err(invalid());
     }
@@ -1784,9 +1786,14 @@ fn build_smooth_revolution(
         return Err(invalid());
     }
     let direction_tolerance = 5e-8 / feature_extent;
-    for end in 0..2 {
+    if let Some(vertex) = f.pole_vertex {
+        let point = m.vertices.get(vertex).ok_or_else(invalid)?;
+        let displacement = (0..3).map(|k| (point[k]-f.origin[k]).powi(2)).sum::<f64>().sqrt();
+        if displacement > f.witness_tolerance_mm + roundoff { return Err(invalid()); }
+    }
+    for end in pole..2 {
         let ring = &m.rings[f.rings[end]];
-        let plane = &m.planes[end];
+        let plane = &m.planes[end-pole];
         let expected_center: [f64; 3] =
             std::array::from_fn(|i| f.origin[i] + end as f64 * f.height_mm * f.axis[i]);
         let expected_radius = if end == 0 { f.radii_mm[0] } else { f.second_span.as_ref().map_or(f.radii_mm[3], |s| s.next_radii_mm[2]) };

@@ -2411,3 +2411,7 @@ Les trois dessins FreeCAD de `fixtures/double_oblique_pocket` donnent 108, 132 e
 ## V-1226 — Bac à deux perçages dans le fond et un perçage latéral
 
 Le générateur indépendant `scripts/qualify-multibore-tray-freecad.py` dessine et contrôle le bac à deux résolutions (1 308 et 2 004 triangles). Les deux STEP produits par Auto contiennent onze plans et onze cylindres. Les six bouches, les huit congés et dix-huit sondes de matière ou de vide sont vérifiés après relecture. L’écart au volume dessiné de 5 767,098637 mm³ est inférieur à 0,000025 mm³. Ce lot étend le corpus de validation du moteur existant.
+
+## V-1227 — Révolution cubique à pointe axiale
+
+Les vingt tests core, CAO, app et document des suites `smooth_revolution` et `smooth_revolution_document` passent. L’ancien modèle à 3 281 plans devient une révolution et un disque. La lecture indépendante avec FreeCAD retrouve les deux solides, leurs pointes et les volumes de 1 005,309634 et 522,401965 mm³. Sur 492 positions de profil, l’écart radial maximal reste inférieur à 0,0000001 mm. Un déplacement du sommet de 0,02 mm, une interruption de l’éventail ou un budget insuffisant empêchent l’acceptation de la pointe.

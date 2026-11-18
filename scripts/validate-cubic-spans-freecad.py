@@ -1,4 +1,4 @@
-"""Check the two exported tangent cubic meridians in a FreeCAD Python session."""
+"""Check exported cubic meridians with a tangent joint or an axial pole in a FreeCAD Python session."""
 
 import argparse
 import json
@@ -19,16 +19,22 @@ def check(case, path):
     shape = Part.read(str(path))
     assert len(shape.Solids) == 1 and shape.isValid() and shape.Solids[0].isClosed()
     walls = [f for f in shape.Faces if isinstance(f.Surface, Part.SurfaceOfRevolution)]
-    assert len(walls) == 1 and len(shape.Faces) == 3
+    pole = case.get("pole", False)
+    assert len(walls) == 1 and len(shape.Faces) == (2 if pole else 3)
     wall = walls[0]
-    seams = [e.Curve for e in wall.Edges if isinstance(e.Curve, Part.BSplineCurve)]
-    assert len(seams) == 1 and seams[0].Degree == 3 and seams[0].NbPoles == 6
-    assert seams[0].getMultiplicities() == [4, 2, 4]
+    seams = [e.Curve for e in wall.Edges if not e.Degenerated and isinstance(e.Curve, Part.BSplineCurve)]
+    assert len(seams) == 1 and seams[0].Degree == 3 and seams[0].NbPoles == (4 if pole else 6)
+    assert seams[0].getMultiplicities() == ([4, 4] if pole else [4, 2, 4])
     params = case["parameters"]
     height, left = params["height_mm"], params["radii_mm"]
     origin, axis = App.Vector(*params["origin_mm"]), App.Vector(*params["axis"])
-    split = case["second_span"]["start_fraction"]
-    right = [left[-1], *case["second_span"]["next_radii_mm"]]
+    split = 1.0 if pole else case["second_span"]["start_fraction"]
+    right = left if pole else [left[-1], *case["second_span"]["next_radii_mm"]]
+    collapsed = [e for e in wall.Edges if e.Degenerated]
+    assert len(collapsed) == int(pole)
+    if pole:
+        assert len(collapsed[0].Vertexes) == 1
+        assert (collapsed[0].Vertexes[0].Point - origin).Length < 2e-5
     errors = []
     u0, u1, v0, v1 = wall.ParameterRange
     for station in range(41):
@@ -41,7 +47,7 @@ def check(case, path):
             assert -1e-6 <= t <= 1 + 1e-6
             r = (
                 radius(left, t / split)
-                if t <= split
+                if pole or t <= split
                 else radius(right, (t - split) / (1 - split))
             )
             errors.append(abs(relative.cross(axis).Length - r))
@@ -62,15 +68,14 @@ def check(case, path):
         0.3478548451374539,
     ]
     volume = 0.0
-    knots = seams[0].getKnots()
-    # The physical wall V orientation is independent of the edge direction.
-    start_z = (wall.valueAt(u0, v0) - origin).dot(axis)
-    wall_knot = split if abs(start_z) < 2e-5 else 1 - split
-    assert min(abs(knots[1] - wall_knot), abs(1 - knots[1] - wall_knot)) < 1e-6
-    for low, high in [
-        (v0, v0 + (v1 - v0) * wall_knot),
-        (v0 + (v1 - v0) * wall_knot, v1),
-    ]:
+    stations = [v0, v1]
+    if not pole:
+        start_z = (wall.valueAt(u0, v0) - origin).dot(axis)
+        wall_knot = split if abs(start_z) < 2e-5 else 1 - split
+        knot = seams[0].getKnots()[1]
+        assert min(abs(knot - wall_knot), abs(1 - knot - wall_knot)) < 1e-6
+        stations.insert(1, v0 + (v1 - v0) * wall_knot)
+    for low, high in zip(stations, stations[1:]):
         dz = abs((wall.valueAt(u0, high) - wall.valueAt(u0, low)).dot(axis))
         for node, weight in zip(nodes, weights):
             v = (low + high + node * (high - low)) / 2
@@ -90,16 +95,17 @@ def check(case, path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("step_dir", type=Path)
+    parser.add_argument("--poles", action="store_true")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     cases = json.loads((root / "fixtures/smooth_revolution/manifest.json").read_text())[
-        "cases"
+        "pole_cases" if args.poles else "cases"
     ]
     print(
         json.dumps(
             {
                 n: check(cases[n], args.step_dir / f"{n}.step")
-                for n in ["two_span", "two_span_mirror"]
+                for n in (cases if args.poles else ["two_span", "two_span_mirror"])
             }
         )
     )

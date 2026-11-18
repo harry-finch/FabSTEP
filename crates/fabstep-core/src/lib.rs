@@ -442,6 +442,10 @@ pub struct SmoothRevolution {
     pub radii_mm: [f64; 4],
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub second_span: Option<CubicRevolutionSpan>,
+    /// At a witnessed axial tip the first endpoint has no circle. Both ring
+    /// indices then refer to the only cap, and this is the welded source vertex.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pole_vertex: Option<usize>,
     pub rings: [usize; 2],
     pub witness_tolerance_mm: f64,
 }

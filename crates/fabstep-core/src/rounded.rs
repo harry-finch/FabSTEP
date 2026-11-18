@@ -520,7 +520,7 @@ fn recognize_policy_with_proofs(
             }) => {
                 // All historical classifiers, including the toroidal and adjoining
                 // cone chains, declined this patch. Only a complete body qualifies.
-                if rims.len() == 2 {
+                if rims.len() <= 2 {
                     match smooth_revolution::candidate(
                         a,
                         &segmentation,
@@ -1296,7 +1296,7 @@ fn classify(
     // The fallback uses the exact original circle measurements. Preserve
     // one scalar per ring before the historical classifier canonicalizes
     // radii instead of projecting every source vertex a second time.
-    let measured_radii = if rims.len() == 2 && nodes.len() >= 5 {
+    let measured_radii = if nodes.len() >= 5 {
         work.spend(nodes.len())?;
         nodes.iter().map(|node| node.radius).collect()
     } else {
@@ -1304,6 +1304,31 @@ fn classify(
     };
     let sections = match historical_sections(a, &triangles, &mut nodes, &projected, o, work) {
         Ok(sections) => sections,
+        Err(previous)
+            if previous.code == "recognition.surface_unproven"
+                && rims.len() == 1
+                && (5..=128).contains(&nodes.len()) =>
+        {
+            work.spend(2 * nodes.len())?;
+            for (node, radius) in nodes.iter_mut().zip(measured_radii) {
+                node.radius = radius;
+            }
+            let mut frame = frame;
+            // Canonicalize a genuine pole to the lower end of the revolved
+            // interval, keeping the local chart right-handed under reflection.
+            if nodes.last().unwrap().radius == 0. {
+                nodes.reverse();
+                for node in &mut nodes {
+                    node.z = -node.z;
+                }
+                frame.axis = scale(frame.axis, -1.);
+                frame.y = scale(frame.y, -1.);
+            }
+            if nodes[0].radius != 0. {
+                return Err(previous);
+            }
+            return Ok(Classified::Meridian { frame, nodes, previous });
+        }
         Err(previous) if previous.code == "recognition.surface_unproven" && rims.len() == 2 => {
             work.spend(measured_radii.len())?;
             for (node, radius) in nodes.iter_mut().zip(measured_radii) {

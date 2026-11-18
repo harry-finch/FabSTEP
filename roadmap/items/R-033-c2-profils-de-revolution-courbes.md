@@ -67,3 +67,5 @@ Priorité immédiate : prolonger les raccords de R-075 vers les chaînes à deux
 R-076 ajoute les deux profils toriques composés et obtus mesurés sur Flansch ; validation automatique V-1201 réussie, essais utilisateur A-069/A-070 ouverts. La méridienne libre reste à qualifier.
 
 R-095 — Reconstruire une paroi de révolution dont la méridienne comporte deux segments cubiques à tangente commune. Voir V-1223.
+
+R-099 — Reconstruire une méridienne cubique entre un disque et une pointe présente dans le maillage. Voir V-1227.

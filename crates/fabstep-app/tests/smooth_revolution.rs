@@ -56,7 +56,13 @@ fn cubic_walls_reimport_with_their_caps_volume_bounds_and_fidelity() {
     .unwrap();
     for mode in [ReconstructionMode::Auto, ReconstructionMode::Surfaces] {
         let o = options(mode);
-        for (name, case) in manifest["cases"].as_object().unwrap() {
+        for (name, case) in manifest["cases"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .chain(manifest["pole_cases"].as_object().unwrap())
+        {
+            let face_count = if case["pole"] == true { 2 } else { 3 };
             let bytes = fixture(name);
             let converted = convert_document_with_provenance(&bytes, InputFormat::Stl, &o)
                 .unwrap_or_else(|error| panic!("{name}/{mode:?}: {error}"));
@@ -72,7 +78,7 @@ fn cubic_walls_reimport_with_their_caps_volume_bounds_and_fidelity() {
                     cad.planar_faces,
                     cad.revolution_faces
                 ),
-                (1, 3, 2, 1),
+                (1, face_count, face_count - 1, 1),
                 "{name}/{mode:?}: {cad:?}"
             );
             let volume = case["parameters"]["volume_mm3"].as_f64().unwrap();
@@ -101,7 +107,7 @@ fn cubic_walls_reimport_with_their_caps_volume_bounds_and_fidelity() {
             assert!(audit.result_to_source_mm <= o.max_deviation_mm);
             let inspected = converted.step.result_faces().unwrap();
             let faces = &inspected.result.faces;
-            assert_eq!(faces.len(), 3);
+            assert_eq!(faces.len(), face_count);
             let wall = faces
                 .iter()
                 .find(|face| face.family == ResultFaceFamily::Revolution)
@@ -129,7 +135,7 @@ fn cubic_walls_reimport_with_their_caps_volume_bounds_and_fidelity() {
             let correspondence = &inspected.source_correspondence;
             if mode == ReconstructionMode::Auto {
                 assert_eq!(correspondence.status, "exact", "{name}");
-                assert_eq!(correspondence.faces.len(), 3);
+                assert_eq!(correspondence.faces.len(), face_count);
             }
             let mut patch_owners = Vec::new();
             for patch in case["patches"].as_array().unwrap() {
@@ -168,7 +174,7 @@ fn cubic_walls_reimport_with_their_caps_volume_bounds_and_fidelity() {
             }
 
             if mode == ReconstructionMode::Auto {
-                if name == "bulge" || name == "two_span" {
+                if matches!(name.as_str(), "bulge" | "two_span" | "axial_tip") {
                     let error = converted
                         .step
                         .guided_surface(&[wall.id], GuidanceFamily::Auto)
@@ -208,11 +214,13 @@ fn invalid_or_over_budget_sources_never_receive_a_cubic_wall() {
             "incomplete_level",
             "sparse",
             "quartic",
+            "off_axis_pole",
             "axial_tip",
+            "two_span",
             "bulge",
         ] {
             let mut o = options.clone();
-            if name == "bulge" || name == "two_span" {
+            if matches!(name, "bulge" | "two_span" | "axial_tip") {
                 o.max_deviation_mm = 1e-4;
             }
             match convert_document_with_provenance(&fixture(name), InputFormat::Stl, &o) {
