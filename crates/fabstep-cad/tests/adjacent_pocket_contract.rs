@@ -192,6 +192,7 @@ fn inconsistent_neighbor_curves_or_ownership_are_refused() {
         |m| m.arcs[1].vertices[0] = usize::MAX,
         |m| m.elliptic_arcs[0].center[0] += 0.01,
         |m| m.vertices[12][2] += 0.01,
+        |m| m.partial_cylinders[0].elliptic_start = true,
         |m| m.planes[5].loops.truncate(1),
         |m| m.planes[8].normal = [0., 1., 0.],
         |m| {

@@ -40,16 +40,15 @@ pub(super) fn build(
         || !model.vertices.iter().all(finite)
         || model.arcs.len() != 2
         || a.arcs[0] == b.arcs[0]
-        || [a, b]
-            .iter()
-            .any(|w| !w.inner || !w.elliptic_end || w.arcs[1] != 0 || w.arcs[0] >= 2)
+        || [a, b].iter().any(|w| {
+            !w.inner || w.elliptic_start || !w.elliptic_end || w.arcs[1] != 0 || w.arcs[0] >= 2
+        })
     {
         return Err(invalid());
     }
     let circles = [&model.arcs[a.arcs[0]], &model.arcs[b.arcs[0]]];
-    if dot(circles[0].axis, circles[1].axis).abs() > 1e-7
+    if dot(circles[0].axis, circles[1].axis).abs() >= std::f64::consts::FRAC_1_SQRT_2
         || (circles[0].radius_mm - circles[1].radius_mm).abs() > GUARD
-        || (ellipse.major_mm - ellipse.minor_mm * std::f64::consts::SQRT_2).abs() > GUARD
     {
         return Err(invalid());
     }

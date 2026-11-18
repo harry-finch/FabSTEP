@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 100** (23 %)
+**Avancement : 23 livrés sur 101** (23 %)
 
 ## Restant à faire
 
@@ -166,6 +166,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Reconstruire une méridienne cubique entre un disque et une pointe présente dans le maillage.
 77. **[R-100 E — Bac à rebord et deux cavités ouvertes](roadmap/items/R-100-e-bac-a-rebord-et-deux-cavites-ouvertes.md)** · À tester · jalon post-v1
    Conserver le rebord en saillie et deux cavités de profondeur différente séparées par une cloison.
+78. **[R-101 D — Congés adjacents à angle aigu ou obtus](roadmap/items/R-101-d-conges-adjacents-a-angle-aigu-ou-obtus.md)** · À tester · jalon post-v1
+   Reconstruire deux congés de poche de même rayon partageant une arête elliptique sur la bissectrice du coin.
 
 ## Actions à faire
 
@@ -263,6 +265,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-105](roadmap/actions/A-105-verifier-les-deux-reliefs-bicubiques-dans-fusion.md) Vérifier les deux reliefs bicubiques dans Fusion (tester, R-038)
 - [ ] [A-106](roadmap/actions/A-106-verifier-le-rebord-et-la-cloison-dans-fusion.md) Vérifier le rebord et la cloison dans Fusion (tester, R-100)
 - [ ] [A-107](roadmap/actions/A-107-essayer-la-correction-spherique-sur-un-dome.md) Essayer la correction sphérique sur un dôme (tester, R-050)
+- [ ] [A-108](roadmap/actions/A-108-verifier-les-deux-angles-de-poche-dans-fusion.md) Vérifier les deux angles de poche dans Fusion (tester, R-101)
 
 ## Livré
 

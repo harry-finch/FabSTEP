@@ -67,6 +67,39 @@ struct Partition {
     neighbor: BTreeMap<(usize, usize), usize>,
 }
 
+// For a prescribed normal, the midplane of the extreme projections
+// minimizes the maximum point residual, including all interior vertices.
+fn center_plane(mesh: &Mesh, patch: &Patch, normal: V) -> Plane {
+    let base = patch.support.origin;
+    let mut low = f64::INFINITY;
+    let mut high = f64::NEG_INFINITY;
+    for &t in &patch.triangles {
+        for &v in &mesh.triangles[t] {
+            let h = dot(sub(mesh.vertices[v], base), normal);
+            low = low.min(h);
+            high = high.max(h);
+        }
+    }
+    Plane {
+        origin: add(base, scale(normal, (low + high) / 2.)),
+        normal,
+    }
+}
+
+fn refit_supports(mesh: &Mesh, part: &mut Partition) -> Result<(), FabError> {
+    // The seed triangle suffices for discovery. Binary STL rounding makes
+    // its normal less reliable than the oriented area of the entire patch.
+    for patch in &mut part.planes {
+        let mut vector = [0.; 3];
+        for &t in &patch.triangles {
+            let [a, b, c] = mesh.triangles[t].map(|v| mesh.vertices[v]);
+            vector = add(vector, cross(sub(b, a), sub(c, a)));
+        }
+        patch.support.normal = unit(vector).ok_or_else(unsupported)?;
+    }
+    Ok(())
+}
+
 fn partition(
     mesh: &Mesh,
     adjacency: &[Vec<usize>],
@@ -421,9 +454,9 @@ fn candidate(
     adjacency: &[Vec<usize>],
     work: &mut Work,
     automatic: bool,
+    mut part: Partition,
 ) -> Result<RoundedRecognition, FabError> {
     let mesh = &a.mesh;
-    let mut part = partition(mesh, adjacency, o.plane_tolerance_mm.min(1e-5), work)?;
     let neighbor_count = part.cuts.keys().filter(|(_, j)| *j == WALL).count();
     let geoms = if neighbor_count == 5 {
         // The small fillet's side shares both a straight rail and the
@@ -617,7 +650,8 @@ pub(crate) fn recognize(
     if !(24..=4096).contains(&a.mesh.triangles.len()) {
         return Ok(None);
     }
-    let mut result = candidate(a, o, adjacency, work, automatic);
+    let mut result = partition(&a.mesh, adjacency, o.plane_tolerance_mm.min(1e-5), work)
+        .and_then(|part| candidate(a, o, adjacency, work, automatic, part));
     let discovery_tol = o.cylinder_fit_tolerance_mm.min(1e-5);
     if result.as_ref().is_err_and(inconclusive)
         && o.plane_tolerance_mm < discovery_tol
@@ -625,8 +659,10 @@ pub(crate) fn recognize(
     {
         // Only the discovery radius changes. The final plane distances,
         // incidence, cylindrical fits and deviation use the requested limits.
-        result = partition(&a.mesh, adjacency, discovery_tol, work)
-            .and_then(|part| unequal::candidate(a, o, adjacency, work, part));
+        result = partition(&a.mesh, adjacency, discovery_tol, work).and_then(|part| {
+            checked(part.cuts.keys().filter(|(_, j)| *j == WALL).count() == 5)?;
+            candidate(a, o, adjacency, work, automatic, part)
+        });
     }
     match result {
         Ok(value) => Ok(Some(value)),

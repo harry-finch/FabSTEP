@@ -60,3 +60,5 @@ L’utilisateur confirme que l’objectif est de réaliser l’ensemble C1b2, C2
 Le contrat local est approuvé par A-068/ADR-0036. R-081 intègre le coin à trois cylindres et un octant sphérique sur bloc orthogonal ; qualification globale V-1203 réussie ; essais A-075/A-076 ouverts.
 
 R-097 — Reconstruire une paroi cylindrique concave tangente et ses deux bords elliptiques dans une poche borgne. Voir V-1225.
+
+R-101 — Reconstruire deux congés de poche de même rayon partageant une arête elliptique sur la bissectrice du coin. Voir V-1231.

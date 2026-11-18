@@ -31,39 +31,6 @@ fn inset_at_angle(own: f64, other: f64, angle: f64) -> f64 {
     (other - height).powi(2) / (other + (height * (2. * other - height)).sqrt())
 }
 
-// For a prescribed normal, the midplane of the extreme projections
-// minimizes the maximum point residual, including all interior vertices.
-fn center_plane(mesh: &Mesh, patch: &Patch, normal: V) -> Plane {
-    let base = patch.support.origin;
-    let mut low = f64::INFINITY;
-    let mut high = f64::NEG_INFINITY;
-    for &t in &patch.triangles {
-        for &v in &mesh.triangles[t] {
-            let h = dot(sub(mesh.vertices[v], base), normal);
-            low = low.min(h);
-            high = high.max(h);
-        }
-    }
-    Plane {
-        origin: add(base, scale(normal, (low + high) / 2.)),
-        normal,
-    }
-}
-
-fn refit_supports(mesh: &Mesh, part: &mut Partition) -> Result<(), FabError> {
-    // The seed triangle suffices for discovery. Binary STL rounding makes
-    // its normal less reliable than the oriented area of the entire patch.
-    for patch in &mut part.planes {
-        let mut vector = [0.; 3];
-        for &t in &patch.triangles {
-            let [a, b, c] = mesh.triangles[t].map(|v| mesh.vertices[v]);
-            vector = add(vector, cross(sub(b, a), sub(c, a)));
-        }
-        patch.support.normal = unit(vector).ok_or_else(unsupported)?;
-    }
-    Ok(())
-}
-
 fn parallel_normal(planes: &[Patch], reference: V) -> Result<V, FabError> {
     let mut vector = [0.; 3];
     for patch in planes {
