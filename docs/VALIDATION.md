@@ -1969,3 +1969,58 @@ Le rejeu depuis le STL reproduit à l’octet les paramètres, les groupes de tr
 ### Non-régression
 
 `sh scripts/check.sh` termine avec le code 0. Les suites Rust totalisent 772 réussites, dont 588 dans le workspace et un transfert réel bureau/helper. Vingt et une occurrences de tests sont ignorées lors des passages par défaut, dont le transfert rejoué explicitement. Les 235 tests UI réussissent. Svelte signale zéro erreur et zéro avertissement. Formatage, Clippy strict et builds passent. Les douze tests Python historiques passent dans la suite globale. Après ajout des deux cas publics du contour, un rejeu avec NumPy réussit les quatorze tests Python. Avec le Python sans NumPy, seuls ces deux nouveaux tests sont ignorés. La sonde Rust privée `large-stl` et son contrôle Clippy ciblé passent aussi séparément. Le paquet de développement utilisé pour le rejeu Flansch est celui de V-1208.
+
+## V-1210 — R-085, perçages, épaulements et marquages de Flansch
+
+### Coque mesurée sur la pièce
+
+Le rejeu part du STL de 540 170 triangles et retrouve le témoin de 34 faces de V-1209. Chaque ligne décrit une étape cumulative de la construction OCCT 7.9.3, contrôlée à nouveau après transfert STEP.
+
+| Ajout | Triangles STL de l’ajout | Faces dans la coque | Contrôle après transfert |
+| --- | ---: | ---: | --- |
+| Trois flancs cylindriques à bord irrégulier | 409 | 37 | Trois arcs du bas, deux génératrices communes et 274 portions du contour supérieur. Les six ressauts sont conservés. |
+| Cinq chaînes de perçage, dont le passage central, et son col plan | 286 678 | 60 | 22 faces de révolution ou plans annulaires, le plan du col et quatre sorties de petits perçages à X = 7 mm. |
+| Deux épaulements plans percés | 2 310 | 62 | Quatre anneaux, quatre arcs et six segments droits partagés. Un rail se divise en trois segments contigus. |
+| Dix marquages en creux | 5 984 | 1 814 | 1 752 faces planes, 1 004 raccords au flanc et 4 240 arêtes intérieures à deux usages opposés. |
+| Extrémités des rails | 4 | 1 816 | Deux plans, huit arêtes partagées et deux paires de sommets identifiées sur la source. |
+| Facettes bordant les flancs longs | 267 | 2 083 | 267 bases et 162 raccords latéraux partagés. Les 210 côtés libres de ces facettes rejoignent le prochain pourtour. |
+
+Les 22 faces des chaînes restent à moins de 0,012861 mm du maillage selon leurs cartes continues. Les quatre sorties ont été revérifiées à la station commune de leurs épaulements. Les contacts sur les trois flancs longs conservent les deux plateaux et leurs relevés de hauteur pour une station basse commune à X = 6,5 mm. L’écart de leur bord transféré à la courbe attendue reste inférieur à 1,08 × 10⁻⁹ mm. La profondeur mesurée du marquage est de 0,300001 mm. Une variation de 0,01 mm est détectée après réimport même lorsque le nombre de faces et la validité de la coque sont conservés. Le témoin refuse aussi une paroi écourtée, un perçage rétréci, un changement de normale, un intervalle de rail oublié et un triangle intérieur en double.
+
+### Attribution et raccords restants
+
+Les 1 814 faces reprennent **459 773 triangles** et **153 943 anciens propriétaires complets**. Les **80 397 triangles** restants possèdent **77 665 propriétaires**, tous plans dans l’attribution Auto. Chaque triangle a une attribution unique. Si ces propriétaires sont conservés, le total est de **79 479 faces**. La fermeture du corps, son volume, sa tessellation et sa reconnaissance automatique restent à qualifier.
+
+Le STEP à 1 814 faces contient une coque ouverte, zéro solide et **deux boucles**. Les 781 arêtes de la première suivent 959 segments source en sens opposé. Deux quarts de cercle rassemblent chacun 90 segments. Les 478 arêtes de la seconde suivent chacune un segment. Les extrémités concordent à moins de 0,000005574 mm. La borne continue cercle–corde reste sous 0,001671 mm. Le contrôle des lignes et splines du relevé global donne un écart **échantillonné** inférieur à 0,000422 mm. Le laboratoire vérifie séparément les courbes des flancs longs.
+
+Le reliquat comporte une grande nappe de 80 393 triangles, avec deux contours de 951 et 478 segments. Deux rectangles de deux triangles occupent les extrémités des rails. Chacun touche le contour principal en un sommet qui a deux identités topologiques dans la coque partielle. Cette distinction explique pourquoi la seule comparaison du nombre de boucles ne suffirait pas à orienter les faces à raccorder.
+
+Les deux plans d’extrémité se raccordent par huit arêtes existantes. À chaque extrémité, le parcours du contour et les triangles voisins confirment que deux sommets STEP coïncidents reprennent le même sommet source. Après cette identification locale, OCCT relit **1 816 faces**, une coque et zéro solide. Les normales, les huit incidences, les positions, les aires et les **1 251 autres arêtes libres** sont revérifiées. La borne de déplacement des deux rectangles est inférieure à 0,00000434 mm. Les deux cycles natifs comptent désormais **773 et 478 arêtes**. La mise en correspondance retrouve les **951 et 478 segments** des deux limites de la nappe restante, avec orientation opposée, sans branchement ni sommet répété. Les **459 777 triangles** déjà assemblés laissent **80 393 triangles pour 77 663 faces planes**. L’ajout des deux plans conserve le total projeté de 79 479 faces.
+
+### Facettes bordant les trois cylindres longs
+
+Une limite courbe du cylindre peut s’écarter du plan de la facette voisine de 0,001664 mm à mi-parcours. La sonde reprend la courbe et le sommet opposé du triangle mesuré pour construire une face réglée. Sur chaque triangle retenu, elle borne le déplacement du sommet, l’écart continu entre la courbe et la corde et le signe du jacobien projeté sur le plan du triangle. Ce dernier contrôle refuse un repli, même à faible distance du maillage.
+
+Sur les 274 arêtes supérieures, **267** correspondent chacune à un propriétaire d’un seul triangle. Après réimport séparé de ces 267 faces, OCCT retrouve **trois plans, 184 faces réglées sur un arc et 80 sur un bord cubique**. Les génératrices du sommet restent rectilignes. L’écart continu au maillage, transfert inclus, est inférieur à **0,001671 mm**. Un sommet déplacé de 0,01 mm est détecté. Les sept autres arêtes appartiennent à des propriétaires de plusieurs triangles.
+
+Les **267 faces** sont ensuite cousues à la coque de 1 816 faces. Le manifeste associe l’arête de base, les deux côtés et le sommet opposé aux trois points source de chaque triangle. Les 801 incidences orientées donnent 267 raccords au cylindre, 162 coutures entre nouvelles faces et 210 segments libres. Pour chaque base et chaque génératrice partagée, le contrôle retrouve le voisin source attendu, l’orientation opposée et la courbe sur la face. Le noyau conserve les 1 816 faces initiales. Un voisin interverti est refusé. Les 264 limites paramétriques dégénérées au sommet des faces réglées ont chacune un seul sommet et sont exclues du comptage des arêtes matérielles.
+
+Le dernier STEP relu contient **2 083 faces**, **une coque ouverte**, **zéro solide** et **1 194 arêtes libres**. Les deux boucles physiques comprennent 716 et 478 arêtes. Elles reprennent, en sens opposé, les 1 372 arêtes qui séparent la coque des facettes restantes du STL. Les 460 044 triangles qualifiés laissent trois nappes de 52 956, 13 600 et 13 567 triangles, ainsi que trois triangles isolés. Les deux cycles du STEP ont chacun des sommets distincts en topologie. Dans le STL, ils se rencontrent en six sommets communs aux bords des composantes restantes. Les **80 126 triangles** de ce reliquat conservent **77 396 propriétaires plans**, soit un total projeté de **79 479 faces**. Les sept bords de flanc encore portés par des propriétaires à plusieurs triangles et les deux quarts de cercle à partager entre 90 voisins chacun font partie du prochain raccordement.
+
+### Reproduction
+
+Depuis la racine du dépôt, avec le SDK OCCT 7.9.3 et un interpréteur Python équipé de NumPy et SciPy, lancer la commande suivante. La sonde Rust compile en mode gros STL dans sa cible de laboratoire. Les coordonnées privées et les STEP intermédiaires restent sous le dossier de sortie.
+
+```sh
+PYTHON=python sh scripts/qualify-flange-replay.sh "$HOME/Downloads/FlanschTurboLuftfilter_REV02.STL" artifacts/r085-replay-v1210
+```
+
+Le rejeu produit notamment `ownership.json` (partition intermédiaire à 37 faces), `final/lettering.step` (coque marquée), `frontier/frontier.json` (boucles STEP), `source-frontier.json` (arêtes orientées et triangles voisins) et `remainder.json` (partition entière à cette étape). La coque à 1 816 faces se trouve dans `rail-shell/rail-ends.step`. Les fichiers `rail-shell/frontier.json`, `final-source-frontier.json` et `rail-partition.json` décrivent ses deux contours. Le témoin final est `trim-shell/trim-shell.step`. Le rapport de transfert `trim-shell/report.json`, le relevé OCCT `trim-frontier/frontier.json`, les incidences orientées `trim-source-frontier.json` et le recomptage `trim-partition.json` permettent de reprendre sur les six composantes restantes.
+
+Le helper du paquet de développement V-1208 refuse de nouveau la conversion intégrale de Flansch à **231 608 faces** pour une limite résultat de 100 000. Sur ce passage, 74,848 s, RSS maximale échantillonnée de 440 401 920 octets et empreinte physique de 506 446 880 octets. Le dossier de sortie du helper ne contient aucun STEP de la pièce.
+
+### Non-régression
+
+Le rejeu complet depuis le STL et la suite `sh scripts/check.sh` se terminent avec le code 0. Les suites Rust cumulent **772 réussites** et 21 occurrences de tests ignorés dans les passages ordinaires. Le transfert bureau/helper a été exécuté explicitement. Les **235 tests UI** passent et Svelte rapporte zéro erreur et zéro avertissement. Formatage, Clippy strict et builds passent. Les **20 tests Python** passent avec NumPy/SciPy. Avec le Python système du poste, 12 passent et huit sont ignorés en l’absence des bibliothèques scientifiques. La sonde Rust opt-in de Flansch passe aussi sous Clippy avec la feature `large-stl`.
+
+Le rapport final détecte douze altérations d’attribution ou de frontière source. Les expériences OCCT vérifient séparément les contre-exemples géométriques à chaque assemblage. Le produit et le paquet macOS conservent la version de V-1208. Les essais manuels FabSTEP et Fusion restent suivis dans A-084 et A-085.

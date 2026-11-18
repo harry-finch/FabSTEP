@@ -1,7 +1,7 @@
 ---
 id: R-085
 titre: "Reconstruire les raccords toriques partiels du pourtour de Flansch"
-resume: "Le laboratoire réimporte 34 faces de Flansch et retrouve 79 879 faces sur la partition du corps entier. Raccorder les 16 contours libres aux surfaces conservées, puis vérifier le solide complet et son export depuis FabSTEP."
+resume: "Sur Flansch, le laboratoire réimporte 2 083 faces et retrouve leurs deux contours sur le STL. Raccorder les 80 126 triangles restants, puis valider le solide dans FabSTEP."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-18
@@ -35,6 +35,6 @@ Essayer le secteur public dans FabSTEP et vérifier le solide exporté dans Fusi
 
 ## État vérifié
 
-Le domaine à plans radiaux est intégré dans Auto et Surfaces. Les essais A-084 et A-085 restent ouverts. Sur Flansch, le laboratoire réimporte une coque connexe de 34 faces comprenant le dessous de la bride, les raccords haut et bas, cinq entrées de perçage et le flanc à dix découpes. Les 34 faces couvrent 164 392 triangles. En les substituant à leurs propriétaires actuels, la partition du document entier compte 79 879 faces. Le helper de l’application refuse encore le fichier à 231 608 faces.
+Le domaine à plans radiaux est intégré dans Auto et Surfaces. Les essais A-084 et A-085 restent ouverts. Sur Flansch, le laboratoire réimporte une coque de 2 083 faces comprenant les trois flancs longs, les cinq chaînes de perçage, les épaulements et les dix marquages en creux. Elle inclut aussi 267 facettes raccordées au bord des cylindres longs et couvre 460 044 des 540 170 triangles du fichier.
 
-Il reste à raccorder cinq anneaux de perçage, dix contours du marquage et le contour principal de 20 arêtes aux surfaces conservées, puis à valider le solide entier. Les 692 arêtes source de ce dernier contour sont attribuées à leurs voisines. La prochaine difficulté géométrique porte sur les trois flancs cylindriques longs à bord supérieur irrégulier. Les preuves et commandes de reprise figurent dans V-1209.
+Trois nappes et trois triangles isolés, soit 80 126 triangles, restent à raccorder. Leurs 77 396 propriétaires porteraient le total à 79 479 faces. La suite porte sur les limites courbes partagées avec ces facettes, le solide entier, sa tessellation et la conversion dans l’application. Le helper actuel refuse encore Flansch à 231 608 faces. Reproduction et mesures dans V-1210.
