@@ -479,6 +479,36 @@ fn triangles(
                 witness[1] = witness[1].max(z);
             }
         }
+        // On a strip triangulated from cap to cap a cone generator is a
+        // straight source edge. Its interior supplies axial samples even
+        // when the tessellator put every vertex on an end ellipse.
+        if witness[1] - witness[0] <= 8. * eps {
+            for i in 0..3 {
+                let j = (i + 1) % 3;
+                let ([t0, z0], [t1, z1]) = (uv[i], uv[j]);
+                if z0.min(z1) != 0.
+                    || z0.max(z1) != g.h
+                    || t0.abs().max(t1.abs()) >= g.theta * 0.8
+                    || (t1 - t0).abs() * g.major * g.radii[0].max(g.radii[1]) > eps
+                {
+                    continue;
+                }
+                work.spend(2)?;
+                for fraction in [1. / 3., 2. / 3.] {
+                    let p: V = std::array::from_fn(|axis| {
+                        local[ids[i]][axis] + fraction * (local[ids[j]][axis] - local[ids[i]][axis])
+                    });
+                    let z = z0 + fraction * (z1 - z0);
+                    let t = t0 + fraction * (t1 - t0);
+                    let r = g.radius(z);
+                    let circular_error = ((p[0] - r).hypot(p[1] - r) - r).abs();
+                    if norm(sub(p, g.point([t, z]))) <= eps && circular_error > 8. * eps {
+                        witness[0] = witness[0].min(z);
+                        witness[1] = witness[1].max(z);
+                    }
+                }
+            }
+        }
         // Positive chart area proves multiplicity. Also check the actual
         // source normal against the physical (outward) sheet of the cone.
         let t = uv.iter().map(|p| p[0]).sum::<f64>() / 3.;

@@ -3132,6 +3132,775 @@
         }
       ]
     },
+    "g_ruled_strip": {
+      "sha256": "b3390f203deb4218b886edf6cb7dc95fef0eedd69b8ded800634e9c4bf8b28c9",
+      "placement": "plain",
+      "triangles": 536,
+      "positive": true,
+      "defect": null,
+      "parameters": {
+        "family": "rolling_envelope",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "intercept_mm": 3.0,
+        "slope": 0.2,
+        "ellipse_intervals": 128,
+        "axial_steps": 1,
+        "staggered": false,
+        "volume_mm3": 3165.4015953235107,
+        "analytic_faces": {
+          "plane": 6,
+          "cone": 1
+        },
+        "ellipse_ends": 2,
+        "line_tangencies": 2,
+        "shape": {
+          "cone_apex_mm": [
+            0.0,
+            0.0,
+            -15.0
+          ],
+          "cone_axis": [
+            0.19245008972987523,
+            0.19245008972987523,
+            0.9622504486493761
+          ],
+          "cone_semi_angle_rad": 0.19365830044432664,
+          "ellipse_caps": [
+            {
+              "center_mm": [
+                3.125,
+                3.125,
+                0.0
+              ],
+              "semimajor_mm": 3.1868871959954905,
+              "semiminor_mm": 3.0618621784789726,
+              "sweep_rad": 1.5307856524409078,
+              "endpoints_mm": [
+                [
+                  3.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  3.0,
+                  0.0
+                ]
+              ]
+            },
+            {
+              "center_mm": [
+                5.208333333333334,
+                5.208333333333334,
+                10.0
+              ],
+              "semimajor_mm": 5.311478659992485,
+              "semiminor_mm": 5.103103630798288,
+              "sweep_rad": 1.5307856524409078,
+              "endpoints_mm": [
+                [
+                  5.0,
+                  0.0,
+                  10.0
+                ],
+                [
+                  0.0,
+                  5.0,
+                  10.0
+                ]
+              ]
+            }
+          ]
+        }
+      },
+      "analytic_bounds_mm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          20.0,
+          16.0,
+          10.0
+        ]
+      ],
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3165.398345212887,
+        "joined_edges": [
+          [
+            "cap_bottom",
+            "far_x",
+            1
+          ],
+          [
+            "cap_bottom",
+            "far_y",
+            1
+          ],
+          [
+            "cap_bottom",
+            "inclined_cone",
+            128
+          ],
+          [
+            "cap_bottom",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_bottom",
+            "tangent_y0",
+            1
+          ],
+          [
+            "cap_top",
+            "far_x",
+            1
+          ],
+          [
+            "cap_top",
+            "far_y",
+            1
+          ],
+          [
+            "cap_top",
+            "inclined_cone",
+            128
+          ],
+          [
+            "cap_top",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_top",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_x",
+            "far_y",
+            1
+          ],
+          [
+            "far_x",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_y",
+            "tangent_x0",
+            1
+          ],
+          [
+            "inclined_cone",
+            "tangent_x0",
+            1
+          ],
+          [
+            "inclined_cone",
+            "tangent_y0",
+            1
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "inclined_cone",
+          "first_source_triangle": 0,
+          "triangles": 256
+        },
+        {
+          "owner": "cap_bottom",
+          "first_source_triangle": 256,
+          "triangles": 132
+        },
+        {
+          "owner": "cap_top",
+          "first_source_triangle": 388,
+          "triangles": 132
+        },
+        {
+          "owner": "tangent_y0",
+          "first_source_triangle": 520,
+          "triangles": 4
+        },
+        {
+          "owner": "tangent_x0",
+          "first_source_triangle": 524,
+          "triangles": 4
+        },
+        {
+          "owner": "far_x",
+          "first_source_triangle": 528,
+          "triangles": 4
+        },
+        {
+          "owner": "far_y",
+          "first_source_triangle": 532,
+          "triangles": 4
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            0.9146324830240071,
+            0.9146324830240071,
+            1.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            0.9446324830240072,
+            0.9446324830240072,
+            1.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            0.9334453916135276,
+            0.9334453916135276,
+            1.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            1.147040603780009,
+            1.147040603780009,
+            5.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            1.1770406037800087,
+            1.1770406037800087,
+            5.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            1.1668067395169093,
+            1.1668067395169093,
+            5.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            1.3794487245360108,
+            1.3794487245360108,
+            9.0
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            1.4094487245360106,
+            1.4094487245360106,
+            9.0
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            1.4001680874202913,
+            1.4001680874202913,
+            9.0
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        }
+      ]
+    },
+    "g_ruled_decreasing": {
+      "sha256": "4988050e163583445c4149ca8ca3357058b03e9135eca8d5d095be6a355c7e82",
+      "placement": "permuted",
+      "triangles": 600,
+      "positive": true,
+      "defect": null,
+      "parameters": {
+        "family": "rolling_envelope",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "intercept_mm": 5.0,
+        "slope": -0.2,
+        "ellipse_intervals": 144,
+        "axial_steps": 1,
+        "staggered": false,
+        "volume_mm3": 3165.4015953235107,
+        "analytic_faces": {
+          "plane": 6,
+          "cone": 1
+        },
+        "ellipse_ends": 2,
+        "line_tangencies": 2,
+        "shape": {
+          "cone_apex_mm": [
+            28.0,
+            -8.0,
+            5.0
+          ],
+          "cone_axis": [
+            -0.9622504486493764,
+            0.1924500897298751,
+            0.1924500897298751
+          ],
+          "cone_semi_angle_rad": 0.19365830044432664,
+          "ellipse_caps": [
+            {
+              "center_mm": [
+                3.0,
+                -2.791666666666666,
+                10.208333333333334
+              ],
+              "semimajor_mm": 5.311478659992485,
+              "semiminor_mm": 5.103103630798288,
+              "sweep_rad": 1.5307856524409078,
+              "endpoints_mm": [
+                [
+                  3.0,
+                  -3.0,
+                  5.0
+                ],
+                [
+                  3.0,
+                  -8.0,
+                  10.0
+                ]
+              ]
+            },
+            {
+              "center_mm": [
+                13.0,
+                -4.875,
+                8.125
+              ],
+              "semimajor_mm": 3.1868871959954905,
+              "semiminor_mm": 3.0618621784789726,
+              "sweep_rad": 1.5307856524409078,
+              "endpoints_mm": [
+                [
+                  13.0,
+                  -5.0,
+                  5.0
+                ],
+                [
+                  13.0,
+                  -8.0,
+                  8.0
+                ]
+              ]
+            }
+          ]
+        }
+      },
+      "analytic_bounds_mm": [
+        [
+          3.0,
+          -8.0,
+          5.0
+        ],
+        [
+          13.0,
+          12.0,
+          21.0
+        ]
+      ],
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3165.39902766719,
+        "joined_edges": [
+          [
+            "cap_bottom",
+            "far_x",
+            1
+          ],
+          [
+            "cap_bottom",
+            "far_y",
+            1
+          ],
+          [
+            "cap_bottom",
+            "inclined_cone",
+            144
+          ],
+          [
+            "cap_bottom",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_bottom",
+            "tangent_y0",
+            1
+          ],
+          [
+            "cap_top",
+            "far_x",
+            1
+          ],
+          [
+            "cap_top",
+            "far_y",
+            1
+          ],
+          [
+            "cap_top",
+            "inclined_cone",
+            144
+          ],
+          [
+            "cap_top",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_top",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_x",
+            "far_y",
+            1
+          ],
+          [
+            "far_x",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_y",
+            "tangent_x0",
+            1
+          ],
+          [
+            "inclined_cone",
+            "tangent_x0",
+            1
+          ],
+          [
+            "inclined_cone",
+            "tangent_y0",
+            1
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "inclined_cone",
+          "first_source_triangle": 0,
+          "triangles": 288
+        },
+        {
+          "owner": "cap_bottom",
+          "first_source_triangle": 288,
+          "triangles": 148
+        },
+        {
+          "owner": "cap_top",
+          "first_source_triangle": 436,
+          "triangles": 148
+        },
+        {
+          "owner": "tangent_y0",
+          "first_source_triangle": 584,
+          "triangles": 4
+        },
+        {
+          "owner": "tangent_x0",
+          "first_source_triangle": 588,
+          "triangles": 4
+        },
+        {
+          "owner": "far_x",
+          "first_source_triangle": 592,
+          "triangles": 4
+        },
+        {
+          "owner": "far_y",
+          "first_source_triangle": 596,
+          "triangles": 4
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            4.0,
+            -6.620551275463989,
+            6.379448724536011
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            4.0,
+            -6.590551275463989,
+            6.409448724536011
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            4.0,
+            -6.599831912579709,
+            6.400168087420291
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            8.0,
+            -6.852959396219991,
+            6.147040603780009
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            8.0,
+            -6.822959396219991,
+            6.177040603780009
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            8.0,
+            -6.833193260483091,
+            6.166806739516909
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            12.0,
+            -7.085367516975992,
+            5.914632483024008
+          ],
+          "material": false,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            12.0,
+            -7.055367516975993,
+            5.944632483024007
+          ],
+          "material": true,
+          "purpose": "rolling_envelope"
+        },
+        {
+          "point_mm": [
+            12.0,
+            -7.066554608386473,
+            5.933445391613527
+          ],
+          "material": true,
+          "purpose": "discriminates_circular_stack"
+        }
+      ]
+    },
+    "g_ruled_circle": {
+      "sha256": "affdb0e7e2636d444bbe4d042760aa60b9f4415403ab363c5d997e318f819dc3",
+      "placement": "plain",
+      "triangles": 536,
+      "positive": false,
+      "defect": "circular_stack",
+      "parameters": {
+        "family": "rolling_envelope",
+        "dimensions_mm": [
+          20.0,
+          16.0,
+          10.0
+        ],
+        "intercept_mm": 3.0,
+        "slope": 0.2,
+        "ellipse_intervals": 128,
+        "axial_steps": 1,
+        "staggered": false
+      },
+      "analytic_bounds_mm": null,
+      "topology": {
+        "euler_characteristic": 2,
+        "boundary_edges": 0,
+        "sampled_volume_mm3": 3164.9451257651863,
+        "joined_edges": [
+          [
+            "cap_bottom",
+            "far_x",
+            1
+          ],
+          [
+            "cap_bottom",
+            "far_y",
+            1
+          ],
+          [
+            "cap_bottom",
+            "inclined_cone",
+            128
+          ],
+          [
+            "cap_bottom",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_bottom",
+            "tangent_y0",
+            1
+          ],
+          [
+            "cap_top",
+            "far_x",
+            1
+          ],
+          [
+            "cap_top",
+            "far_y",
+            1
+          ],
+          [
+            "cap_top",
+            "inclined_cone",
+            128
+          ],
+          [
+            "cap_top",
+            "tangent_x0",
+            1
+          ],
+          [
+            "cap_top",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_x",
+            "far_y",
+            1
+          ],
+          [
+            "far_x",
+            "tangent_y0",
+            1
+          ],
+          [
+            "far_y",
+            "tangent_x0",
+            1
+          ],
+          [
+            "inclined_cone",
+            "tangent_x0",
+            1
+          ],
+          [
+            "inclined_cone",
+            "tangent_y0",
+            1
+          ]
+        ]
+      },
+      "patches": [
+        {
+          "owner": "inclined_cone",
+          "first_source_triangle": 0,
+          "triangles": 256
+        },
+        {
+          "owner": "cap_bottom",
+          "first_source_triangle": 256,
+          "triangles": 132
+        },
+        {
+          "owner": "cap_top",
+          "first_source_triangle": 388,
+          "triangles": 132
+        },
+        {
+          "owner": "tangent_y0",
+          "first_source_triangle": 520,
+          "triangles": 4
+        },
+        {
+          "owner": "tangent_x0",
+          "first_source_triangle": 524,
+          "triangles": 4
+        },
+        {
+          "owner": "far_x",
+          "first_source_triangle": 528,
+          "triangles": 4
+        },
+        {
+          "owner": "far_y",
+          "first_source_triangle": 532,
+          "triangles": 4
+        }
+      ],
+      "material_probes": [
+        {
+          "point_mm": [
+            0.9334453916135276,
+            0.9334453916135276,
+            1.0
+          ],
+          "material": false,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            1.1668067395169093,
+            1.1668067395169093,
+            5.0
+          ],
+          "material": false,
+          "purpose": "discriminates_circular_stack"
+        },
+        {
+          "point_mm": [
+            1.4001680874202913,
+            1.4001680874202913,
+            9.0
+          ],
+          "material": false,
+          "purpose": "discriminates_circular_stack"
+        }
+      ]
+    },
     "g_circular_stack": {
       "sha256": "7c951e157ffa4d4fd054ffafadd4ac56919ff7106ffbb686239cab03bdd5b49c",
       "placement": "plain",

@@ -13,14 +13,21 @@ use fabstep_core::{
 use serde_json::{json, Value};
 use std::{collections::BTreeSet, f64::consts::TAU, fs, ops::Range, path::Path};
 
-const POSITIVES: [&str; 5] = [
+const POSITIVES: [&str; 7] = [
     "g_increasing",
     "g_decreasing",
     "g_mirror",
     "g_permuted",
     "g_oblique_staggered",
+    "g_ruled_strip",
+    "g_ruled_decreasing",
 ];
-const CLOSED_NEGATIVES: [&str; 3] = ["g_circular_stack", "g_nonlinear", "g_parabolic_cap"];
+const CLOSED_NEGATIVES: [&str; 4] = [
+    "g_circular_stack",
+    "g_nonlinear",
+    "g_parabolic_cap",
+    "g_ruled_circle",
+];
 const GEOMETRY_TOLERANCE: f64 = 2e-5;
 
 fn fixture(file: &str) -> Vec<u8> {

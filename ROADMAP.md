@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 93** (25 %)
+**Avancement : 23 livrés sur 94** (24 %)
 
 ## Restant à faire
 
@@ -152,6 +152,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Deux poses et deux densités de STL binaire inclinés donnent six plans et trois cylindres aux réglages par défaut. Vérification Fusion ouverte.
 70. **[R-093 Auto — reconnaître le trou traversant d’une plaque inclinée](roadmap/items/R-093-auto-reconnaitre-le-trou-traversant-d-une-plaque.md)** · À tester · jalon post-v1
    Sur la plaque inclinée de 268 triangles, le mode Automatique reconstruit six faces planes et un cylindre de Ø6 mm. Sélectionner la paroi retrouve ses 126 triangles source.
+71. **[R-094 G — congé à rayon variable maillé entre ses deux extrémités](roadmap/items/R-094-g-conge-a-rayon-variable-maille-entre-ses-deux.md)** · À tester · jalon post-v1
+   Retrouver le congé linéaire sur une paroi dont les sommets appartiennent tous aux deux bords elliptiques.
 
 ## Actions à faire
 
@@ -240,6 +242,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-094](roadmap/actions/A-094-verifier-les-percages-secants-de-rayons-3-et-5.md) Vérifier les perçages sécants de rayons 3 et 5 mm dans Fusion (tester, R-091)
 - [ ] [A-095](roadmap/actions/A-095-verifier-le-bloc-incline-a-deux-percages-dans.md) Vérifier le bloc incliné à deux perçages dans Fusion (tester, R-092)
 - [ ] [A-096](roadmap/actions/A-096-verifier-le-trou-de-la-plaque-inclinee-dans.md) Vérifier le trou de la plaque inclinée dans FabSTEP et Fusion (tester, R-093)
+- [ ] [A-099](roadmap/actions/A-099-inspecter-le-conge-a-rayon-variable-dans-fusion.md) Inspecter le congé à rayon variable dans Fusion (tester, R-094)
 
 ## Livré
 

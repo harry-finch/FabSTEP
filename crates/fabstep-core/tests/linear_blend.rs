@@ -56,6 +56,8 @@ fn assigned_linear_blend_has_two_shared_ellipses_and_exact_volume() {
         ("g_mirror", 240),
         ("g_permuted", 392),
         ("g_oblique_staggered", 512),
+        ("g_ruled_strip", 256),
+        ("g_ruled_decreasing", 288),
     ] {
         for reconstruction in [ReconstructionMode::Auto, ReconstructionMode::Surfaces] {
             let o = opts(reconstruction);
@@ -141,7 +143,12 @@ fn assigned_linear_blend_has_two_shared_ellipses_and_exact_volume() {
 fn rejects_unproved_linear_blends_and_preserves_automatic_fallback() {
     let o = opts(ReconstructionMode::Surfaces);
     let auto = opts(ReconstructionMode::Auto);
-    for name in ["g_nonlinear", "g_circular_stack", "g_parabolic_cap"] {
+    for name in [
+        "g_nonlinear",
+        "g_circular_stack",
+        "g_ruled_circle",
+        "g_parabolic_cap",
+    ] {
         let a = analyze_stl(&source(name), &o).unwrap();
         assert!(recognize_rounded(&a, &o).is_err(), "{name}");
         let rec = recognize_automatic(&a, &auto).unwrap_or_else(|e| panic!("{name}: {e}"));
