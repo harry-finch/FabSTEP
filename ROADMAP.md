@@ -82,26 +82,26 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
    Après Plan (R-056), ajouter le raccord torique guidé puis étudier les sphères.
 36. **[R-052 DXF1 — exporter une face plane](roadmap/items/R-052-dxf1-exporter-une-face-plane.md)** · À tester · jalon dxf
    Sélectionner une face du STEP validé, prévisualiser son contour dans son plan, puis **Exporter le profil DXF**
-37. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
-   Signer et notariser le paquet macOS ; ces étapes restent ouvertes.
-38. **[R-053 DXF2a — coupe du STEP et ellipses exactes](roadmap/items/R-053-dxf2a-coupe-du-step-et-ellipses-exactes.md)** · À tester · jalon dxf
+37. **[R-053 DXF2a — coupe du STEP et ellipses exactes](roadmap/items/R-053-dxf2a-coupe-du-step-et-ellipses-exactes.md)** · À tester · jalon dxf
    Placer un plan XY/XZ/YZ ou reprendre le plan d’une face plane, régler son décalage et son orientation, voir la coupe et exporter la section DXF
-39. **[R-054 DXF2b — coupe du maillage source](roadmap/items/R-054-dxf2b-coupe-du-maillage-source.md)** · À tester · jalon dxf
+38. **[R-054 DXF2b — coupe du maillage source](roadmap/items/R-054-dxf2b-coupe-du-maillage-source.md)** · À tester · jalon dxf
    Couper le maillage préparé sans exiger un STEP réussi ; profils polygonaux et export DXF distinct.
-40. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
+39. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
-41. **[R-056 I2d — fusion plane guidée](roadmap/items/R-056-i2d-fusion-plane-guidee.md)** · À tester · jalon atelier
+40. **[R-056 I2d — fusion plane guidée](roadmap/items/R-056-i2d-fusion-plane-guidee.md)** · À tester · jalon atelier
    Ajouter Plan aux familles guidées : fusionner une sélection contiguë presque plane, sans déplacer ses sommets, après contrôle du solide.
-42. **[R-057 UX5 — reconstruction automatique et sélection des parois](roadmap/items/R-057-ux5-reconstruction-automatique-et-selection-des.md)** · À tester · jalon atelier
+41. **[R-057 UX5 — reconstruction automatique et sélection des parois](roadmap/items/R-057-ux5-reconstruction-automatique-et-selection-des.md)** · À tester · jalon atelier
    Ouvrir et obtenir le meilleur STEP prouvé, sélectionner une paroi en un geste et corriger localement sans perdre les surfaces reconnues.
-43. **[R-059 C1b2 — chaînes coniques sans portée intermédiaire](roadmap/items/R-059-c1b2-chaines-coniques-sans-portee-intermediaire.md)** · Idée · jalon post-v1
+42. **[R-059 C1b2 — chaînes coniques sans portée intermédiaire](roadmap/items/R-059-c1b2-chaines-coniques-sans-portee-intermediaire.md)** · Idée · jalon post-v1
    Prouver les ruptures de pente entre cônes directement adjacents, sans découper artificiellement une méridienne courbe.
-44. **[R-064 UX6 — lancer le STEP depuis l’inspecteur](roadmap/items/R-064-ux6-lancer-le-step-depuis-l-inspecteur.md)** · À tester · jalon atelier
+43. **[R-064 UX6 — lancer le STEP depuis l’inspecteur](roadmap/items/R-064-ux6-lancer-le-step-depuis-l-inspecteur.md)** · À tester · jalon atelier
    Ouvrir le fichier en aperçu source puis lancer sa reconstruction avec un bouton explicite dans le panneau de droite.
-45. **[R-065 UX7 — suivre les étapes réelles de reconstruction](roadmap/items/R-065-ux7-suivre-les-etapes-reelles-de-reconstruction.md)** · À tester · jalon atelier
+44. **[R-065 UX7 — suivre les étapes réelles de reconstruction](roadmap/items/R-065-ux7-suivre-les-etapes-reelles-de-reconstruction.md)** · À tester · jalon atelier
    Afficher les étapes observées du moteur et le corps en cours, sans pourcentage ni temps restant inventés.
-46. **[R-066 UX8 — préciser le nombre de triangles refusés](roadmap/items/R-066-ux8-preciser-le-nombre-de-triangles-refuses.md)** · À tester · jalon atelier
+45. **[R-066 UX8 — préciser le nombre de triangles refusés](roadmap/items/R-066-ux8-preciser-le-nombre-de-triangles-refuses.md)** · À tester · jalon atelier
    Afficher le nombre exact de triangles d’un STL trop dense et le maximum autorisé.
+46. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
+   Signer et notariser le paquet macOS ; ces étapes restent ouvertes.
 47. **[R-067 G1 — gros maillages sur accord et calcul annulable](roadmap/items/R-067-g1-gros-maillages-sur-accord-et-calcul-annulable.md)** · À tester · jalon post-v1
    Autoriser un essai explicite au-delà de 100 000 triangles, avec avertissement, limites distinctes et arrêt du calcul ; qualifier d’abord le STL de 540 170 triangles.
 48. **[R-068 G2 — accélérer la vérification des contours denses](roadmap/items/R-068-g2-accelerer-la-verification-des-contours-denses.md)** · À tester · jalon post-v1
