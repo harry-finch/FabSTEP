@@ -2289,3 +2289,33 @@ PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
 ```
 
 **Contrôles de développement.** Le passage général des exécutables de test du workspace compte 626 tests réussis et 16 ignorés. La phase rustdoc de ce passage a rencontré des dépendances de compilation périmées après reconstruction des binaires pendant les tests. Le rejeu isolé de `cargo test --workspace --doc --offline --locked` passe pour tous les crates. Les suites ciblées ont été rejouées après les ajustements finaux, y compris les sept tests R-090 du noyau et les profils ordinaires et `large-stl`. Format Rust, Clippy strict, 236 tests d’interface, contrôle Svelte, compilation bureau/helper et essai du helper embarqué passent. Le contrôle interactif dans Fusion est ouvert dans A-093.
+
+## V-1219 — R-091, perçages sécants de rayons plus proches
+
+Le STL historique `f_ratio.stl` (rayons 3 et 5,5 mm) donnait 306 plans avec le build R-090. Auto reconstruit maintenant un solide fermé à six plans et trois parois cylindriques. Le grand trou communique avec les deux parties du petit trou. Les deux coutures communes sont fermées sur les sept STEP contrôlés par le script FreeCAD. Les 84 sondes matière/vide passent, ainsi que les mesures de rayons, d’axes et de dimensions. L’écart de volume mesuré dans FreeCAD par rapport à l’intégrale des sections reste inférieur à 0,0000061 mm³.
+
+| Source STL | Rayons en mm | Faces STEP | Borne de fidélité en mm, arrondie par excès |
+| --- | --- | ---: | ---: |
+| Historique | 3 et 5,5 | 9 | 0,013752 |
+| Incliné, ASCII | 3 et 5 | 9 | 0,008933 |
+| Miroir, proche du seuil | 3 et 4,51 | 9 | 0,006597 |
+| FreeCAD, 884 et 1 766 triangles | 3 et 5 | 9 chacun | 0,021398 et 0,003347 |
+| FreeCAD avec subdivisions axiales, 1 388 et 2 774 triangles | 3 et 5 | 9 chacun | 0,021439 et 0,003366 |
+
+Sur les deux STL FreeCAD à 884 et 1 766 triangles, le rejeu du commit R-090 produit respectivement 586 et 1 178 faces planes. La CAO certifie les trois STEP de la première partie du tableau avec une borne continue inférieure à 6,7 × 10⁻⁸ mm sur les courbes communes et sur leurs tracés paramétriques. La plus grande exécution nécessite 5 197 118 opérations pour ces arêtes, dans le budget de 10 millions. Le laboratoire F0 conserve ses refus sur les courbes perturbées.
+
+Sur les deux STL de rayons 3 et 4,5 mm puis 3 et 4,49 mm, Auto produit 298 faces planes. Les tests du noyau vérifient aussi le refus lorsque les seules arêtes de bande qui confirment le rayon sont concentrées dans un secteur trop étroit. Les tests de document mélangent les facettes de deux pièces et vérifient les dix-huit faces, leurs appartenances et les deux solides après réimport.
+
+Un essai supplémentaire incline la pièce avant son maillage binaire. Il se reproduit en maillant le fichier `f_ratio_mid-reference.step` avec les mêmes déflexions (0,025 mm et 0,20 rad). Aux réglages par défaut, R-090 et R-091 signalent tous deux `planar.invalid_contour` pendant le regroupement des facettes planes. Avec `--plane 0.00003 --fit 0.00003`, Auto obtient neuf faces et une borne de 0,021427 mm. Le volume FreeCAD s’écarte de la référence de 0,01468 mm³, au-delà du critère de comparaison de ce corpus. Cet essai reste ouvert dans R-036. Il est distinct des sept STEP du tableau.
+
+Reproduction depuis la racine du dépôt sur macOS avec FreeCAD installé :
+
+```sh
+cargo build --locked --offline -p fabstep-cli
+PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
+  /Applications/FreeCAD.app/Contents/Resources/bin/python \
+  scripts/validate-cross-drill-ratios-freecad.py artifacts/r091/reference --mesh --cli target/debug/fabstep
+sh scripts/qualify-cross-drill.sh
+```
+
+**Vérifications finales.** Le passage intégral sur les sources finales dans une cible isolée (`CARGO_PROFILE_TEST_OPT_LEVEL=2`) compte 634 tests Rust réussis et 16 ignorés, avec succès des doctests. Formatage et Clippy strict passent. Les suites ciblées sur le profil ordinaire et le profil `large-stl` couvrent le noyau, la CAO, la conversion et les documents à deux corps. Les 236 tests d’interface, le contrôle Svelte et la compilation passent. Le build macOS local contient le helper testé sur trois fichiers, dont le STL FreeCAD à 884 triangles et le témoin de repli au seuil. L’essai manuel dans Fusion figure dans A-094.

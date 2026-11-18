@@ -209,7 +209,7 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
   const auto d = expected ? *expected : infer(faces);
   const auto center = point(d.center);
   const double r = d.radii[0], R = d.radii[1], tol = Precision::Confusion();
-  require(r > tol && R >= 2 * r && d.half[0] > r + tol && d.half[1] > R + tol &&
+  require(r > tol && cross_drill_lab::resolvedRadii(r, R, tol) && d.half[0] > r + tol && d.half[1] > R + tol &&
               d.half[2] > R + tol,
           "Rayons ou portées des perçages invalides.");
   const std::array<gp_Dir, 3> axes{dir(d.axes[0]), dir(d.axes[1]), dir(d.axes[2])};

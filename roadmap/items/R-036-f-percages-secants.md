@@ -1,7 +1,7 @@
 ---
 id: R-036
 titre: "F — perçages sécants"
-resume: "F1 centré orthogonal développé sous R-083 et qualifié automatiquement ; essais utilisateur et généralisation restent ouverts."
+resume: "F1 et F2 intégrés. Deux perçages centrés et orthogonaux sont reconnus jusqu’au rapport de rayons strictement inférieur à deux tiers avec marge. Axes décentrés, obliques et intersections multiples restent ouverts."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13
@@ -66,7 +66,7 @@ Qualification préalable : [R-063](R-063-f0-qualifier-les-courbes-des-percages-s
 L’utilisateur confirme que l’objectif est de réaliser l’ensemble C1b2, C2, D, E, F et G et autorise la poursuite du chantier. Les tranches déjà développées restent à tester ; cet accord ne remplace pas leur acceptation ni les preuves géométriques. Les travaux sont décomposés en extensions bornées, corpus indépendants et vérifications natives. Les changements structurants encore indéfinis seront présentés lorsqu’un contrat concret est établi ; l’accord sur les perçages sécants A-045 reste acquis.
 
 
-## Tranche de production F1 préparée après D/G
+## Plan initial de la tranche F1, avant intégration
 
 A-045 autorise déjà le contrat : aucun nouvel arbitrage n’est requis pour le domaine centré, orthogonal, avec grand rayon au moins double du petit et quatre entrées circulaires complètes. A-067 attend une lecture du laboratoire, pas une seconde autorisation d’architecture.
 
@@ -78,3 +78,9 @@ A-045 autorise déjà le contrat : aucun nouvel arbitrage n’est requis pour le
 Les difficultés ouvertes sont la couverture source autour des deux ouvertures, les transformations d’intervalles, les coutures paramétriques natives et leur tessellation bornée. Les trous décentrés/obliques, tangences, triples intersections, budgets modifiés ou contrat BRep générique seraient des extensions distinctes à présenter ; ils ne sont pas promis par F1. Aucun code de production F n’est encore activé.
 
 Le certificat d’intervalles devra conserver les options numériques du laboratoire (`-fno-fast-math -ffp-contract=off`, ou équivalents plateforme) dans son unité de compilation. Un rapport exactement 2:1 peut être indéterminé après mesure STL : privilégier des témoins avec marge (par exemple R=6,5 mm et r=3 mm), ou refuser l’incertitude ; aucune canonicalisation non comptée pour faire passer le corpus.
+
+## Domaine intégré au 18 novembre 2026
+
+R-083 a intégré F1. R-091 élargit le rapport de rayons aux couples dont l’enveloppe de mesure reste strictement sous deux tiers. Un contrôle supplémentaire couvre les maillages reliant directement bouches et jonctions. Le corpus contient une pièce dessinée et maillée dans FreeCAD. Les résultats, y compris le repli au seuil, figurent dans V-1219. Les axes décentrés ou obliques et les intersections multiples restent à qualifier.
+
+À reprendre également sur la pièce FreeCAD inclinée avant maillage binaire. L’analyse des facettes planes échoue aux réglages par défaut sur une région pincée. Des tolérances explicites donnent neuf faces mais dépassent le critère de comparaison des volumes du corpus. Sur les six plans du bloc, les sommets des 272 triangles mesurés restent à moins de 0,000001 mm des plans de référence. La normale d’un triangle mince s’écarte pourtant jusqu’à 0,000384°. Tester un ajustement sur plusieurs triangles et la conservation de chaque contour, avec des contre-exemples réellement pincés. Reproduction et mesures dans V-1219.

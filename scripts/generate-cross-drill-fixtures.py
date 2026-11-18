@@ -100,7 +100,7 @@ def planar_face(mesh, half, axis, sign, hole=None, center=(0., 0.)):
         mesh.triangle(a, b, side[0], normal, label)
 
 
-def cross_drill(half, r, big_r, circumferential, steps, defect):
+def cross_drill(half, r, big_r, circumferential, steps, defect, small_steps):
     hx, _, hz = half
     cx, cy = (1.125, .625) if defect == "off_center" else (0., 0.)
     right = right_semicircle(r, circumferential // 2)
@@ -124,8 +124,8 @@ def cross_drill(half, r, big_r, circumferential, steps, defect):
         mouth = [(x, y, sign * hz) for x, y, _ in seam]
         small_mouths[sign] = mouth
         levels = [seam]
-        for i in range(1, steps):
-            t = i / steps
+        for i in range(1, small_steps):
+            t = i / small_steps
             levels.append([(x, y, (1. - t) * z + t * sign * hz) for x, y, z in seam])
         levels.append(mouth)
         for i, (a, b) in enumerate(zip(levels, levels[1:])):
@@ -134,7 +134,7 @@ def cross_drill(half, r, big_r, circumferential, steps, defect):
                 normal = (2. * cx - a[j][0] - a[k][0], 2. * cy - a[j][1] - a[k][1], 0.)
                 mesh.quad(a[j], a[k], b[k], b[j], normal, label, alternate=(i + j) % 2 == 1)
         if defect == "fold" and sign > 0:
-            row = levels[steps // 2]
+            row = levels[small_steps // 2]
             j = circumferential // 3
             p = row[j]
             # Keep the point on the analytic cylinder while moving it past the
@@ -394,11 +394,12 @@ def probes(half, r, big_r):
     return values
 
 
-def write_case(destination, name, scale, pose, circumferential, steps, defect):
+def write_case(destination, name, scale, pose, circumferential, steps, defect, large_radius=LARGE_RADIUS, small_steps=None):
     half = tuple(scale * x for x in HALF_EXTENTS)
     r = scale * SMALL_RADIUS
-    big_r = scale * (5.5 if defect == "ratio" else LARGE_RADIUS)
-    mesh = cross_drill(half, r, big_r, circumferential, steps, defect)
+    big_r = scale * large_radius
+    mesh = cross_drill(half, r, big_r, circumferential, steps, defect,
+                       steps if small_steps is None else small_steps)
     axes, center, flipped = placement(pose)
     faces = [tuple(place(p, axes, center) for p in (tri[::-1] if flipped else tri))
              for tri in mesh.faces]
@@ -439,7 +440,12 @@ CASES = (
     ("f_rotated", 1., "rotated", 64, 3, None),
     ("f_mirror", 1., "mirror", 64, 3, None),
     ("f_retessellated", 1., "nominal", 88, 5, None),
-    ("f_ratio", 1., "nominal", 64, 3, "ratio"),
+    ("f_ratio", 1., "nominal", 64, 3, None, 5.5),
+    ("f_ratio_mid", 1., "rotated", 80, 3, None, 5.0),
+    ("f_ratio_strip", 1., "nominal", 80, 3, None, 5.0, 1),
+    ("f_ratio_near", 1., "mirror", 96, 3, None, 4.51),
+    ("f_ratio_boundary", 1., "nominal", 64, 3, "ratio_at_limit", 4.5),
+    ("f_ratio_above", 1., "nominal", 64, 3, "ratio_above_limit", 4.49),
     ("f_off_center", 1., "nominal", 64, 3, "off_center"),
     ("f_fold", 1., "nominal", 64, 3, "fold"),
     ("f_missing_mouth", 1., "nominal", 64, 3, "missing_mouth"),

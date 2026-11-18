@@ -114,7 +114,7 @@ fn seed(
     if (s0.radius - s1.radius).abs() > 2. * fit
         || (b0.radius - b1.radius).abs() > 2. * fit
         || r <= 1e-4
-        || big - 2. * r <= 4. * eps
+        || big - 1.5 * r <= 4. * eps.max(1e-7)
         || norm(sub(c0, c1)) > 2. * fit
     {
         return Ok(None);
@@ -265,6 +265,7 @@ fn owners(
             let large = p.iter().all(|q| (q[1].hypot(q[2]) - big).abs() <= fit);
             match (small, large) {
                 (false, true) => LARGE,
+                // Both intersection branches satisfy |z| >= sqrt(5) R/3 when r/R < 2/3.
                 (true, false) if p.iter().all(|q| q[2] < -big / 2.) => SMALL_LOW,
                 (true, false) if p.iter().all(|q| q[2] > big / 2.) => SMALL_HIGH,
                 _ => usize::MAX,
@@ -570,12 +571,67 @@ fn planes(
     Ok(result)
 }
 
+// A strip can run from mouth to seam without any intermediate vertices. Its
+// internal edges still contain measured points between the two trims. Demand
+// two resolved, widely separated radial directions on each such wall.
+fn prove_strip_interiors(
+    f: &CrossDrill,
+    local: &[V],
+    owners: &[usize],
+    edges: &BTreeMap<Edge, Vec<usize>>,
+    interior: &mut [bool; 3],
+    o: &Options,
+    work: &mut Work,
+) -> Result<(), FabError> {
+    let fit = o.cylinder_fit_tolerance_mm;
+    let clearance = 4. * fit.max(o.weld_tolerance_mm).max(o.plane_tolerance_mm);
+    let mut minima = [[f64::INFINITY; 2]; 3];
+    let mut maxima = [[f64::NEG_INFINITY; 2]; 3];
+    work.spend(edges.len() * 8)?;
+    for (&(a, b), incident) in edges {
+        // topology() already required exactly two incident triangles per edge.
+        let wall = owners[incident[0]];
+        if wall < SMALL_LOW || interior[wall - SMALL_LOW] || wall != owners[incident[1]] {
+            continue;
+        }
+        let large = wall == LARGE;
+        let axis = if large { 0 } else { 2 };
+        let j = (axis + 1) % 3;
+        let k = (axis + 2) % 3;
+        let radius = f.radii[usize::from(large)];
+        let (p, q) = (local[a], local[b]);
+        let m = midpoint(p, q);
+        let other_distance = if large {
+            m[0].hypot(m[1]) - f.radii[0]
+        } else {
+            m[1].hypot(m[2]) - f.radii[1]
+        };
+        if (p[axis] - q[axis]).abs() <= clearance
+            || f.half_lengths[axis] - m[axis].abs() <= clearance
+            || other_distance <= clearance
+            || (m[j].hypot(m[k]) - radius).abs() > fit
+        {
+            continue;
+        }
+        let slot = wall - SMALL_LOW;
+        for (i, value) in [m[j], m[k]].into_iter().enumerate() {
+            minima[slot][i] = minima[slot][i].min(value);
+            maxima[slot][i] = maxima[slot][i].max(value);
+            // A single radial component spanning more than one radius
+            // certifies two distinct points even with both fit errors.
+            interior[slot] |= maxima[slot][i] - minima[slot][i] > radius + 2. * fit;
+        }
+    }
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 fn proof(
     a: &Analysis,
     f: &CrossDrill,
     local: &[V],
     owners: &[usize],
+    edges: &BTreeMap<Edge, Vec<usize>>,
     t: &Topology,
     o: &Options,
     err: &mut Bound,
@@ -653,6 +709,9 @@ fn proof(
         err.wall = err.wall.max(radius * (hi - lo).powi(2) / 8.);
     }
     if interior.contains(&false) {
+        prove_strip_interiors(f, local, owners, edges, &mut interior, o, work)?;
+    }
+    if interior.contains(&false) {
         return Err(fail("paroi sans témoin intérieur"));
     }
     // The source is a closed oriented 2-manifold. Connected patches and their
@@ -662,8 +721,8 @@ fn proof(
     // each directed boundary changes it by the boundary degree, so interior
     // multiplicity is one precisely in the intended region, zero elsewhere.
     // On the large cylinder, each ideal branch in (x, angle) is congruent to
-    // (r cos t, asin(k sin t)), k=r/R<=1/2. Its signed curvature numerator is
-    // r k [1-k² sin²(t)(1+cos²(t))]/(1-k² sin²(t))^(3/2)>0. The two sampled
+    // (r cos t, asin(k sin t)), k=r/R<2/3. Its signed curvature is
+    // positive: its numerator has the sign of 1-k²(1-cos⁴(t)) >= 1-k². The sampled
     // polygons are therefore simple, convex and in disjoint half-cylinders.
     // In the small chart the two trims are strictly single-valued axial graphs.
     // The homotopy from each straight chart edge to its exact trim is charged
@@ -676,12 +735,15 @@ pub(crate) fn volume(f: &CrossDrill) -> Result<f64, FabError> {
     let [r, big] = f.radii;
     let [x, y, z] = f.half_lengths;
     // F0 overlap integral. Moments of cos²(t)*sin^(2k)(t) have ratio
-    // (2k+1)/(2k+4). The absolute ratio of successive terms is at most 1/4.
+    // (2k+1)/(2k+4). The absolute ratio of successive terms is at most q.
     // The native certificate independently encloses the volume with intervals.
     let ratio = (r / big).powi(2);
     let mut term = PI / 4.;
     let mut series = Sum::default();
-    for k in 0..20 {
+    // Preserve the historical sum for q <= 1/4. In the extended domain
+    // the omitted series is bounded by (pi/4)*(4/9)^48/(1-4/9) < 1.8e-17.
+    let terms = if ratio <= 0.25 { 20 } else { 48 };
+    for k in 0..terms {
         series.add(term);
         let k = k as f64;
         term *= ratio * (k - 0.5) / (k + 1.) * (2. * k + 1.) / (2. * k + 4.);
@@ -728,10 +790,16 @@ pub(crate) fn candidate(
         o.cylinder_fit_tolerance_mm,
         work,
     )?;
-    proof(a, &seed.model, &points, &own, &t, o, &mut err, work)?;
+    proof(a, &seed.model, &points, &own, edges, &t, o, &mut err, work)?;
     seed.model.branches = t.branch;
     seed.model.witness_tolerance_mm = err.projection + err.plane + seed.roundoff;
     let f = &seed.model;
+    // Each measured radius can vary by w. Require R - w > 1.5 (r + w)
+    // even after the reconstruction and the CAD frame each charge roundoff.
+    let witness = f.witness_tolerance_mm + seed.roundoff;
+    if f.radii[1] - 1.5 * f.radii[0] <= 2.5 * witness {
+        return Ok(None);
+    }
     let mut rings = Vec::with_capacity(4);
     for face in [2, 5, 0, 3] {
         let i = face % 3;

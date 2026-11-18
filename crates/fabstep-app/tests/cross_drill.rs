@@ -15,14 +15,22 @@ use std::{
     path::Path,
 };
 
-const POSITIVES: [&str; 5] = [
+const POSITIVES: [&str; 8] = [
     "f_nominal",
     "f_scaled",
     "f_rotated",
     "f_mirror",
     "f_retessellated",
+    "f_ratio",
+    "f_ratio_mid",
+    "f_ratio_near",
 ];
-const CLOSED_NEGATIVES: [&str; 3] = ["f_ratio", "f_off_center", "f_fold"];
+const CLOSED_NEGATIVES: [&str; 4] = [
+    "f_ratio_boundary",
+    "f_ratio_above",
+    "f_off_center",
+    "f_fold",
+];
 
 fn fixture(name: &str) -> Vec<u8> {
     fs::read(
@@ -459,5 +467,51 @@ fn separate_blind_drills_still_convert_through_the_historical_surface_path() {
             .conversion
             .rounded_recognition
             .is_none());
+    }
+}
+
+#[test]
+fn freecad_bore_strips_keep_both_openings_and_every_source_face() {
+    // Independent FreeCAD tessellation of a 24 x 20 x 18 block. The two
+    // small walls span from rim to intersection without interior vertices.
+    let bytes = fixture("freecad_mid_coarse.stl");
+    let o = options(ReconstructionMode::Auto);
+    let doc = convert_document_with_provenance(&bytes, InputFormat::Stl, &o).unwrap();
+    let cad = &doc.report.cad;
+    assert_eq!(
+        (cad.solids, cad.planar_faces, cad.cylindrical_faces),
+        (1, 6, 3)
+    );
+    let cases: Value = serde_json::from_slice(&fixture("manifest.json")).unwrap();
+    let reference = cases["cases"]["f_ratio_mid"]["parameters"]["volume_mm3"]
+        .as_f64()
+        .unwrap();
+    assert!((cad.volume_mm3 - reference).abs() < 0.0001);
+    let conversion = &doc.report.bodies[0].conversion;
+    let proof = conversion.rounded_recognition.as_ref().unwrap();
+    assert!(proof.model.cross_drill.is_some());
+    assert!(proof.report.max_deviation_bound_mm <= o.max_deviation_mm);
+    let inspection = doc.step.result_faces().unwrap();
+    assert_eq!(inspection.source_correspondence.status, "exact");
+    let mut attributed: Vec<_> = inspection
+        .source_correspondence
+        .faces
+        .iter()
+        .flat_map(|owner| owner.source_triangle_ids.iter().copied())
+        .collect();
+    attributed.sort_unstable();
+    assert!(attributed
+        .into_iter()
+        .eq(0..conversion.analysis.mesh.triangles.len()));
+
+    let mesh = &inspection.result.mesh;
+    for (point, material) in [
+        ([0., 0., 0.], false),
+        ([0., 0., 7.], false),
+        ([10., 0., 0.], false),
+        ([5., 1., 6.], true),
+        ([5., 1., -6.], true),
+    ] {
+        assert!((winding(mesh, point).abs() - f64::from(u8::from(material))).abs() < 1e-6);
     }
 }

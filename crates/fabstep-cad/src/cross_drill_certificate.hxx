@@ -586,6 +586,13 @@ inline void visit(State& s,const std::array<Net,3>& n,int depth) {
 }
 } // namespace certificate_detail
 
+// For centered, orthogonal axes the two branches remain separated by
+// 2*sqrt(R²-r²). The local edge bounds below use that actual separation.
+inline bool resolvedRadii(double small, double large, double uncertainty = 0.) {
+  return std::isfinite(small) && std::isfinite(large) && small > 0. &&
+         large - 1.5 * small > 2.5 * uncertainty;
+}
+
 inline Certificate certifyEdge(const TopoDS_Edge& edge,const TopoDS_Face& face1,
                                const TopoDS_Face& face2,double r,double R,
                                const Budget& budget=Budget{},const certificate_detail::LocalFrame* frame=nullptr) {
@@ -595,7 +602,7 @@ inline Certificate certifyEdge(const TopoDS_Edge& edge,const TopoDS_Face& face1,
   State state{budget,counter,{},false,I(0.),r,R,{}};
   try {
     static_assert(std::numeric_limits<double>::is_iec559,"binary64 interval arithmetic required");
-    if(!std::isfinite(r)||!std::isfinite(R)||r<=0.||R<2.*r||!std::isfinite(budget.tolerance_mm)||budget.tolerance_mm<=0.||budget.max_depth<0||budget.max_depth>30||budget.max_leaves==0||budget.max_leaves>65'536)
+    if(!resolvedRadii(r,R)||!std::isfinite(budget.tolerance_mm)||budget.tolerance_mm<=0.||budget.max_depth<0||budget.max_depth>30||budget.max_leaves==0||budget.max_leaves>65'536)
       throw Failure{"invalid_laboratory_contract"};
     double first,last;
     RawSpline space=curve3(edge,first,last);
@@ -630,10 +637,13 @@ inline Certificate certifyEdge(const TopoDS_Edge& edge,const TopoDS_Face& face1,
 // All terms after the constant are negative and their ratios are at most q.
 inline certificate_detail::I idealVolume(double lx,double ly,double lz,double small,double large) {
   using namespace certificate_detail;
-  if(!(lx>2.*small && ly>2.*large && lz>2.*large && large>=2.*small && small>0.))throw Failure{"unsupported_volume_domain"};
+  if(!(lx>2.*small && ly>2.*large && lz>2.*large && resolvedRadii(small,large)))throw Failure{"unsupported_volume_domain"};
   const I q=square(I(small)/I(large));
   I term=pi()/I(4.),sum(0.);
-  for(int k=0;k<20;++k) {
+  // Keep the historical enclosure when q <= 1/4; for q < 4/9,
+  // 48 terms keep the geometric tail below binary64 roundoff.
+  const int terms = large >= 2.*small ? 20 : 48;
+  for(int k=0;k<terms;++k) {
     sum=sum+term;
     term=term*q*(I(k)-I(.5))/I(k+1)*ratio(2*k+1,2*k+4);
   }

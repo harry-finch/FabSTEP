@@ -30,3 +30,7 @@ La couverture d’une paroi cylindrique à deux ouvertures et les coutures péri
 ## Validation
 
 Corpus paramétrique indépendant, variantes de placement/rayon/tessellation, négatifs de topologie et de domaine, tests core et CAO, documents à plusieurs corps, réimport STEP, volume, fidélité et provenance. Réutiliser les adversaires du certificat F0. Une preuve incomplète, une régression historique ou un budget dépassé interdit de déclarer le lot validé. Les résultats seront consignés dans VALIDATION ; aucun succès de production n’est revendiqué par cette décision seule.
+
+## Extension F2 du 18 novembre 2026
+
+R-091 conserve les quatre anneaux, les deux branches et les trois propriétaires de ce contrat. Les mesures permettent d’étendre le rapport petit/grand rayon strictement sous deux tiers si la marge couvre l’incertitude des deux rayons. Les contrôles du certificat et les essais au seuil sont référencés dans [V-1219](../VALIDATION.md#v-1219--r-091-perçages-sécants-de-rayons-plus-proches).

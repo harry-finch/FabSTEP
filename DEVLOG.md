@@ -498,3 +498,7 @@ Deux maillages FreeCAD donnent encore 69 et 155 plans. La pièce de référence 
 Le parcours STL → STEP reconnaît les deux congés de rayons différents au coin d’une poche rectangulaire. La couverture des bandes et des onze plans est vérifiée avant construction. Une représentation paramétrique dédiée fixe la courbe commune et ses deux tracés. La CAO contrôle les cinq pôles de la quartique et les deux domaines après réimport. La sélection Auto conserve la provenance de chaque face et le DXF de la paroi comporte un arc circulaire.
 
 Un essai supplémentaire sur un STL incliné et réécrit en f32 a révélé une fragmentation des plans. Une seconde recherche bornée et l’ajustement des supports sur leurs triangles ont permis de reconstruire la pièce aux tolérances initiales. Le fond volontairement déformé est couvert par un test de refus. Résultats et reproduction dans V-1218, vérification manuelle dans A-093.
+
+## 2026-11-18 — R-091, perçages sécants de rayons plus proches
+
+Le témoin historique de rayons 3 et 5,5 mm passe de 306 plans à six plans et trois faces cylindriques. La vérification du rapport de rayons tient compte des deux incertitudes. Une seconde pièce construite par soustractions dans FreeCAD a révélé un cas fréquent de maillage où tous les sommets d’une paroi se trouvent sur ses bords. Les arêtes internes permettent de retrouver la paroi lorsque deux témoins suffisamment espacés confirment son rayon. Quatre maillages de cette pièce et trois témoins à rapports différents ont été convertis et relus dans FreeCAD. Voir V-1219.

@@ -1837,7 +1837,7 @@ fn build_cross_drill(
             .chain(&f.half_lengths)
             .chain(&f.radii)
             .all(|x| x.is_finite())
-        || !(r > 0. && big >= 2. * r && hx > r && hy > big && hz > big)
+        || !(r > 0. && hx > r && hy > big && hz > big)
     {
         return Err(invalid());
     }
@@ -1875,7 +1875,11 @@ fn build_cross_drill(
         return Err(invalid());
     }
     let witness = f.witness_tolerance_mm + numerical;
-    if witness >= r.min(big - 2. * r).min(hx - r).min(hy - big).min(hz - big) / 2. {
+    // Both radii can move by the witness error. Keep the entire uncertainty
+    // interval strictly inside r/R < 2/3, including the native support tolerance.
+    if big - 1.5 * r <= 2.5 * witness.max(1e-7)
+        || witness >= r.min(hx - r).min(hy - big).min(hz - big) / 2.
+    {
         return Err(invalid());
     }
     let mut used = [false; 4];

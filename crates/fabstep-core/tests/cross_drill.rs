@@ -43,6 +43,10 @@ fn to_local(f: &CrossDrill, p: [f64; 3]) -> [f64; 3] {
 fn source_partition_proves_mouths_and_two_disjoint_oriented_branches() {
     for (name, small_count, large_count, vol) in [
         ("f_nominal", 384, 1344, 5302.986330628418),
+        ("f_ratio", 384, 1296, 6149.240263339935),
+        ("f_ratio_mid", 480, 1536, 6515.476725492639),
+        ("f_ratio_strip", 160, 1536, 6515.476725492639),
+        ("f_ratio_near", 576, 1776, 6837.46767288864),
         ("f_mirror", 384, 1344, 5302.986330628418),
         ("f_rotated", 384, 1344, 5302.986330628418),
         ("f_retessellated", 880, 3040, 5302.986330628418),
@@ -116,7 +120,12 @@ fn source_partition_proves_mouths_and_two_disjoint_oriented_branches() {
 fn folded_same_support_and_other_nonqualifying_geometry_never_get_the_domain() {
     let o = opts(ReconstructionMode::Surfaces);
     let auto = opts(ReconstructionMode::Auto);
-    for name in ["f_ratio", "f_off_center", "f_fold"] {
+    for name in [
+        "f_ratio_boundary",
+        "f_ratio_above",
+        "f_off_center",
+        "f_fold",
+    ] {
         let a = analyze_stl(&fixture(name), &o).unwrap();
         let e = recognize_rounded(&a, &o).unwrap_err();
         assert_eq!(e.code, "recognition.surface_unproven");
@@ -193,5 +202,90 @@ fn reversed_and_double_winding_intersections_fail_on_the_source_branch_itself() 
             e.message.contains("branche transverse"),
             "winding {winding}: {e}"
         );
+    }
+}
+
+#[test]
+fn close_radii_must_be_resolved_and_keep_the_continuous_deviation_budget() {
+    let raw = fixture("f_ratio_near");
+    let ordinary = opts(ReconstructionMode::Surfaces);
+    let a = analyze_stl(&raw, &ordinary).unwrap();
+    let recognized = recognize_rounded(&a, &ordinary).unwrap();
+    let f = recognized.model.cross_drill.as_ref().unwrap();
+
+    let tight = Options {
+        max_deviation_mm: recognized.report.max_deviation_bound_mm * 0.9,
+        ..ordinary.clone()
+    };
+    assert_eq!(
+        recognize_rounded(&a, &tight).unwrap_err().code,
+        "recognition.deviation_exceeded"
+    );
+
+    // At r=3 and R=4.51 the measured margin R - 1.5r is only 0.01 mm.
+    // A larger source uncertainty must close this case even on the ideal model.
+    let uncertain = Options {
+        weld_tolerance_mm: 0.003,
+        reconstruction: ReconstructionMode::Auto,
+        ..ordinary.clone()
+    };
+    let a_uncertain = analyze_stl(&raw, &uncertain).unwrap();
+    assert!(recognize_automatic(&a_uncertain, &uncertain)
+        .unwrap()
+        .model
+        .cross_drill
+        .is_none());
+
+    // The altered seam knot still lies on the small cylinder, but leaves the
+    // large one. The complete partition must therefore be rejected.
+    let v = f.branches[1][5];
+    let mut mesh = a.mesh;
+    for (c, n) in mesh.vertices[v].iter_mut().zip(f.axes[2]) {
+        *c += 0.002 * n;
+    }
+    let warped = analyze_mesh(&mesh, &ordinary).unwrap();
+    assert_eq!(
+        recognize_rounded(&warped, &ordinary).unwrap_err().code,
+        "recognition.surface_unproven"
+    );
+}
+
+#[test]
+fn independent_single_strip_freecad_mesh_keeps_its_two_seams() {
+    let o = opts(ReconstructionMode::Auto);
+    let a = analyze_stl(&fixture("freecad_mid_coarse"), &o).unwrap();
+    let result = recognize_automatic(&a, &o).unwrap();
+    let f = result.model.cross_drill.unwrap();
+    assert_eq!(result.triangle_faces.len(), 884);
+    assert_eq!(result.model.revolved.mixed.planes.len(), 6);
+    assert_eq!(result.report.cylinders, 3);
+    assert!(f.branches.iter().all(|b| b.len() >= 32));
+    assert!((result.report.expected_volume_mm3 - 6515.476725492639).abs() < 1e-4);
+    assert!(result.report.max_deviation_bound_mm < 0.022);
+}
+
+#[test]
+fn strip_vertices_on_radius_or_a_single_sector_cannot_prove_the_wall() {
+    let o = opts(ReconstructionMode::Surfaces);
+    let a = analyze_stl(&fixture("f_ratio_strip"), &o).unwrap();
+    for keep_one_sector in [false, true] {
+        let mut mesh = a.mesh.clone();
+        let angle = std::f64::consts::PI / 80.;
+        let (sin, cos) = angle.sin_cos();
+        // Shift one mouth half a sample, while preserving all incident
+        // triangles, the cylindrical radii, the branches and the other mouth.
+        // Only the optional narrow sector retains measured generators.
+        for [x, y, z] in &mut mesh.vertices {
+            if (*z - 9.).abs() < 1e-6
+                && (x.hypot(*y) - 3.).abs() < 1e-5
+                && !(keep_one_sector && y.atan2(*x).abs() < 0.2)
+            {
+                (*x, *y) = (cos * *x - sin * *y, sin * *x + cos * *y);
+            }
+        }
+        let source = analyze_mesh(&mesh, &o).unwrap();
+        let error = recognize_rounded(&source, &o).unwrap_err();
+        assert_eq!(error.code, "recognition.surface_unproven");
+        assert!(error.message.contains("sans témoin intérieur"), "{error}");
     }
 }

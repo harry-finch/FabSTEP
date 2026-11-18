@@ -4,24 +4,26 @@ use fabstep_core::{read_stl_mesh, InputUnit, Options, ReconstructionMode};
 use serde_json::Value;
 use std::collections::BTreeSet;
 
-const CASES: [&str; 2] = ["f_nominal", "f_mirror"];
 const NOMINAL: &[u8] = include_bytes!("../../../fixtures/cross_drill/f_nominal.stl");
+const WIDER_RATIO: &[u8] = include_bytes!("../../../fixtures/cross_drill/f_ratio.stl");
 const MIRROR: &[u8] = include_bytes!("../../../fixtures/cross_drill/f_mirror.stl");
 
-fn interleaved_stl(offset: [f64; 3]) -> Vec<u8> {
-    let a = read_stl_mesh(NOMINAL, InputUnit::Mm).unwrap();
-    let b = read_stl_mesh(MIRROR, InputUnit::Mm).unwrap();
-    assert_eq!(a.triangles.len(), b.triangles.len());
-    let count = u32::try_from(a.triangles.len() + b.triangles.len()).unwrap();
+fn interleaved_stl(first: &[u8], offset: [f64; 3]) -> (Vec<u8>, [Vec<usize>; 2]) {
+    let meshes = [first, MIRROR].map(|bytes| read_stl_mesh(bytes, InputUnit::Mm).unwrap());
+    let counts = meshes.each_ref().map(|mesh| mesh.triangles.len());
+    let count = u32::try_from(counts.iter().sum::<usize>()).unwrap();
     let mut stl = vec![0; 80];
     stl.extend(count.to_le_bytes());
-    for (first, second) in a.triangles.iter().zip(&b.triangles) {
-        for (points, shift) in [
-            (first.map(|i| a.vertices[i]), [0.; 3]),
-            (second.map(|i| b.vertices[i]), offset),
-        ] {
+    let mut source_ids = [Vec::new(), Vec::new()];
+    for row in 0..counts[0].max(counts[1]) {
+        for (body, mesh) in meshes.iter().enumerate() {
+            let Some(triangle) = mesh.triangles.get(row) else {
+                continue;
+            };
+            source_ids[body].push((stl.len() - 84) / 50);
+            let shift = if body == 0 { [0.; 3] } else { offset };
             stl.extend([0; 12]); // Facet orientation comes from vertex order.
-            for point in points {
+            for point in triangle.map(|i| mesh.vertices[i]) {
                 for (coordinate, delta) in point.into_iter().zip(shift) {
                     stl.extend(((coordinate + delta) as f32).to_le_bytes());
                 }
@@ -29,7 +31,7 @@ fn interleaved_stl(offset: [f64; 3]) -> Vec<u8> {
             stl.extend([0; 2]); // STL attribute byte count.
         }
     }
-    stl
+    (stl, source_ids)
 }
 
 fn options() -> Options {
@@ -41,8 +43,17 @@ fn options() -> Options {
 
 #[test]
 fn interleaved_cross_drills_retain_their_native_solids_and_source_faces() {
+    check_document("f_nominal", NOMINAL);
+}
+
+#[test]
+fn wider_ratio_and_historical_bores_keep_separate_source_faces() {
+    check_document("f_ratio", WIDER_RATIO);
+}
+
+fn check_document(first_name: &str, first: &[u8]) {
     let offset = [32., -5., 3.];
-    let bytes = interleaved_stl(offset);
+    let (bytes, source_ids) = interleaved_stl(first, offset);
     let converted = convert_document_with_provenance(&bytes, InputFormat::Stl, &options()).unwrap();
     let report = &converted.report;
     assert_eq!((report.cad.solids, report.cad.faces), (2, 18));
@@ -64,7 +75,11 @@ fn interleaved_cross_drills_retain_their_native_solids_and_source_faces() {
     let tolerance = 2e-5;
     let mut matched = BTreeSet::new();
     let mut solids = BTreeSet::new();
-    for (i, (name, shift)) in CASES.into_iter().zip([[0.; 3], offset]).enumerate() {
+    for (i, (name, shift)) in [first_name, "f_mirror"]
+        .into_iter()
+        .zip([[0.; 3], offset])
+        .enumerate()
+    {
         let case = &manifest["cases"][name];
         let expected: [[f64; 3]; 2] = std::array::from_fn(|end| {
             std::array::from_fn(|axis| {
@@ -93,7 +108,7 @@ fn interleaved_cross_drills_retain_their_native_solids_and_source_faces() {
             let owner = patch["owner"].as_str().unwrap();
             let first = patch["first_source_triangle"].as_u64().unwrap() as usize;
             let count = patch["triangles"].as_u64().unwrap() as usize;
-            let expected_ids = (first..first + count).map(|triangle| 2 * triangle + i);
+            let expected_ids = source_ids[i][first..first + count].iter().copied();
             let row = rows
                 .iter()
                 .find(|row| {
@@ -143,7 +158,7 @@ fn interleaved_cross_drills_retain_their_native_solids_and_source_faces() {
 fn touching_cross_drill_bodies_are_refused() {
     // The x mouth planes meet at x=12 with material surrounding both holes.
     // Offsetting in their plane keeps all vertices distinct between bodies.
-    let bytes = interleaved_stl([20., 0.375, 0.625]);
+    let (bytes, _) = interleaved_stl(NOMINAL, [20., 0.375, 0.625]);
     let error = convert_document_with_provenance(&bytes, InputFormat::Stl, &options())
         .err()
         .expect("touching sources accepted");

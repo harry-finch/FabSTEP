@@ -7,17 +7,19 @@ use fabstep_core::{
 };
 use std::collections::BTreeSet;
 
-fn nominal() -> RoundedModel {
+fn from_source(stl: &[u8]) -> RoundedModel {
     let o = Options {
         reconstruction: ReconstructionMode::Surfaces,
         ..Options::default()
     };
-    let a = analyze_stl(
-        include_bytes!("../../../fixtures/cross_drill/f_nominal.stl"),
-        &o,
-    )
-    .unwrap();
+    let a = analyze_stl(stl, &o).unwrap();
     recognize_rounded(&a, &o).unwrap().model
+}
+
+fn nominal() -> RoundedModel {
+    from_source(include_bytes!(
+        "../../../fixtures/cross_drill/f_nominal.stl"
+    ))
 }
 
 #[test]
@@ -172,4 +174,46 @@ fn cross_drill_tracks_only_complete_distinct_owner_groups() {
         .faces
         .iter()
         .all(|f| f.source_face_token.is_none()));
+}
+
+#[test]
+fn wider_ratio_keeps_both_branches_on_reimport() {
+    let model = from_source(include_bytes!(
+        "../../../fixtures/cross_drill/f_ratio_near.stl"
+    ));
+    let d = model.cross_drill.as_ref().unwrap();
+    assert!((0.665..(2. / 3.)).contains(&(d.radii[0] / d.radii[1])));
+    let result = build_rounded_step(&model).unwrap();
+    assert_eq!(
+        (
+            result.report.solids,
+            result.report.planar_faces,
+            result.report.cylindrical_faces
+        ),
+        (1, 6, 3)
+    );
+    // Independent integration in fixtures/cross_drill/manifest.json.
+    assert!((result.report.volume_mm3 - 6837.46767288864).abs() < 1e-4);
+    let inspection = result_faces(&result.bytes).unwrap();
+    let mut neighbours: Vec<_> = inspection
+        .faces
+        .iter()
+        .filter(|f| f.family == ResultFaceFamily::Cylinder)
+        .map(|f| f.adjacent_face_ids.len())
+        .collect();
+    neighbours.sort_unstable();
+    assert_eq!(neighbours, [2, 2, 4]);
+}
+
+#[test]
+fn radius_uncertainty_must_clear_the_ratio_boundary() {
+    let mut model = from_source(include_bytes!("../../../fixtures/cross_drill/f_ratio.stl"));
+    let d = model.cross_drill.as_mut().unwrap();
+    // These FOUR rims and both cycles still match the supports exactly.
+    // The uncertainty interval alone now reaches beyond the 2/3 boundary.
+    d.witness_tolerance_mm = (d.radii[1] - 1.5 * d.radii[0]) / 2.5;
+    assert_eq!(
+        build_rounded_step(&model).unwrap_err().code,
+        "cad.invalid_model"
+    );
 }
