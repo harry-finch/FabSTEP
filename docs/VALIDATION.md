@@ -2571,3 +2571,9 @@ Le helper release livré dans `artifacts/FabSTEP.app/Contents/MacOS/fabstep-work
 Le calcul a atteint la construction. Après **1 380,137 s**, le parent a reçu **`cad.invalid_solid`** sur `stl/component/0` au contrôle d’auto-intersection du solide. Le test vérifie que le parent ne possède aucun résultat et que le processus fils est récupéré. Le contrôle exact des courbes, les écarts du témoin de laboratoire et le nombre de triangles admissible ne suffisent donc pas à autoriser cet export. Les essais graphiques et dans Fusion des nouveaux domaines restent proposés dans FabBoard.
 
 Rejeu manuel : ouvrir le STL, choisir le millimètre et le mode Automatique, accepter l’essai de gros STL puis lancer la reconstruction. La rampe publique indépendante et son contrôle complet sont reproductibles avec le script de V-1250. Les limites appliquées sont celles de l’ADR-0034.
+
+### Localisation du refus V-1256
+
+Sur la coque avant transfert, les 739 premiers groupes spatiaux passent. Le groupe 740 signale deux faces. La face native 39 332 reproduit le défaut à elle seule. Les six triangles d’analyse concernés parmi 14 882 raccords réglés sont 397 534, 397 648, 397 670, 397 673, 397 901 et 397 904 (indices à partir de zéro).
+
+Dans le témoin minimal, la ligne signalée par OCCT a une corde nulle et onze points confondus au sommet à environ 7 × 10⁻¹⁵ mm. Les six arcs balayent environ 1° et leurs sommets sont à environ 1,17 × 10⁻⁸ mm du plan de l’arc. La projection de chaque éventail conserve le signe de son déterminant jusqu’au sommet. En laboratoire, une surface rationnelle de degrés (2,1) réutilisant les arêtes d’origine passe le contrôle local et celui de la paire avec sa voisine torique sur les six faces et sur la rampe publique. Cette expérience locale porte sur les faces avant transfert.
