@@ -2493,3 +2493,9 @@ Trois poches à deux densités et une septième triangulation construite par sec
 Le moteur pur retrouve une même rampe torique interrompue à deux densités, y compris après changement de repère. Les cas à facette absente ou dupliquée ne fournissent aucun domaine. Sur le STL privé passé par l’importeur ordinaire du helper, 43 domaines couvrent 493 542 des 540 170 triangles. Avec une face par triangle résiduel, la construction prévue compte 46 671 faces. Ce décompte concerne la reconnaissance.
 
 Rejeu public par `cargo test --offline -p fabstep-core --test torus_atlas`. Pour le STL privé, définir `FABSTEP_LARGE_STL` au chemin du fichier puis lancer `cargo test --offline -p fabstep-core --features large-stl --test torus_atlas -- --include-ignored --nocapture`. Les trois tests passent sur le Mac de développement.
+
+## V-1245 — Audit des distances du maillage complet
+
+L’audit examine toujours chaque sommet, milieu d’arête distinct bit à bit et barycentre. Un triangle déjà rencontré permet de terminer une requête dès que sa distance effective à l’échantillon est inférieure au maximum déjà démontré. Les requêtes susceptibles d’augmenter ce maximum poursuivent la recherche dans l’arbre. Le plafond de 50 millions d’opérations est conservé et la réponse reste le même maximum d’échantillonnage.
+
+Sur le STL privé et le maillage de V-1242 (82 602 triangles), l’ancienne recherche refusait après 1,52 s avec `validation.distance_budget`. La nouvelle termine en 1,00 s en profil release. Elle rend 0,011552224 mm de la source vers le résultat et 0,009855085 mm en retour, sur 2 430 757 et 419 948 échantillons comptabilisés. Le test `witnessed_upper_bounds_preserve_the_exhaustive_maximum` compare les bits du résultat au calcul exhaustif. Les tests des petits triangles, des milieux d’arête arrondis différemment et de l’épuisement du budget passent également.

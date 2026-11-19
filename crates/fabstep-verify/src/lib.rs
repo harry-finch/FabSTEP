@@ -119,6 +119,17 @@ struct Triangle {
     bounds: Bounds,
     center: Point,
 }
+impl Triangle {
+    fn distance_squared(&self, point: Point) -> Result<f64, FabError> {
+        let distance = triangle_distance_squared(point, self.points);
+        if !distance.is_finite() || distance < 0.0 {
+            return Err(invalid(
+                "Le calcul de distance dépasse la précision numérique prise en charge.",
+            ));
+        }
+        Ok(distance)
+    }
+}
 struct Node {
     bounds: Bounds,
     range: std::ops::Range<usize>,
@@ -218,13 +229,26 @@ impl Tree {
         }
         id
     }
-    fn distance(
+    // Each query must either increase the maximum or prove that a real
+    // triangle is already within it. Neighboring samples often hit the same
+    // triangle. A cached hit is an upper bound, never a reason to skip a
+    // query whose distance could still increase the result.
+    fn maximum_squared(
         &self,
         point: Point,
+        maximum: f64,
+        last: &mut Option<usize>,
         work: &mut Work,
         stack: &mut Vec<usize>,
     ) -> Result<f64, FabError> {
         let mut best = f64::INFINITY;
+        if let Some(index) = *last {
+            work.spend()?;
+            best = self.triangles[index].distance_squared(point)?;
+            if best <= maximum {
+                return Ok(maximum);
+            }
+        }
         stack.clear();
         stack.push(0);
         while let Some(id) = stack.pop() {
@@ -237,30 +261,31 @@ impl Tree {
                 let da = self.nodes[a].bounds.distance_squared(point);
                 let db = self.nodes[b].bounds.distance_squared(point);
                 let (near, far) = if da <= db { (a, b) } else { (b, a) };
-                stack.push(far);
-                stack.push(near);
+                if da.max(db) <= best {
+                    stack.push(far);
+                }
+                if da.min(db) <= best {
+                    stack.push(near);
+                }
             } else {
-                for tri in &self.triangles[node.range.clone()] {
+                for index in node.range.clone() {
                     work.spend()?;
-                    // La distance à la boîte minore celle au triangle.
-                    // Même une boîte écartée consomme son unité de travail.
-                    if tri.bounds.distance_squared(point) > best {
+                    let triangle = &self.triangles[index];
+                    if triangle.bounds.distance_squared(point) > best {
                         continue;
                     }
-                    let d = triangle_distance_squared(point, tri.points);
-                    if !d.is_finite() || d < 0.0 {
-                        return Err(invalid(
-                            "Le calcul de distance dépasse la précision numérique prise en charge.",
-                        ));
+                    let d = triangle.distance_squared(point)?;
+                    if d < best {
+                        best = d;
+                        *last = Some(index);
                     }
-                    best = best.min(d);
+                    if best <= maximum {
+                        return Ok(maximum);
+                    }
                 }
             }
         }
-        if !best.is_finite() {
-            return Err(invalid("Aucune distance finie n'a pu être calculée."));
-        }
-        Ok(best.sqrt())
+        Ok(maximum.max(best))
     }
 }
 
@@ -310,10 +335,23 @@ fn triangle_distance_squared(p: Point, [a, b, c]: [Point; 3]) -> f64 {
 fn sample(mesh: &Mesh, target: &Tree, work: &mut Work) -> Result<(f64, usize), FabError> {
     let mut stack = Vec::with_capacity(32);
     let mut maximum = 0.0_f64;
+    let mut last = None;
     let mut visit = |p| -> Result<(), FabError> {
-        maximum = maximum.max(target.distance(p, work, &mut stack)?);
+        maximum = target.maximum_squared(p, maximum, &mut last, work, &mut stack)?;
         Ok(())
     };
+    visit_samples(mesh, &mut visit)?;
+    // Le rapport compte toujours les mêmes échantillons, doublons compris.
+    Ok((
+        maximum.sqrt(),
+        mesh.vertices.len() + 4 * mesh.triangles.len(),
+    ))
+}
+
+fn visit_samples(
+    mesh: &Mesh,
+    mut visit: impl FnMut(Point) -> Result<(), FabError>,
+) -> Result<(), FabError> {
     for &vertex in &mesh.vertices {
         visit(vertex)?;
     }
@@ -333,8 +371,7 @@ fn sample(mesh: &Mesh, target: &Tree, work: &mut Work) -> Result<(f64, usize), F
             a[i] + (b[i] - a[i]) / 3.0 + (c[i] - a[i]) / 3.0
         }))?;
     }
-    // Le rapport compte toujours les mêmes échantillons, doublons compris.
-    Ok((maximum, mesh.vertices.len() + 4 * mesh.triangles.len()))
+    Ok(())
 }
 
 #[cfg(test)]
@@ -463,7 +500,10 @@ mod tests {
                     .map(|triangle| triangle_distance_squared(point, triangle.points))
                     .fold(f64::INFINITY, f64::min)
                     .sqrt();
-                let actual = tree.distance(point, &mut work, &mut stack).unwrap();
+                let actual = tree
+                    .maximum_squared(point, 0., &mut None, &mut work, &mut stack)
+                    .unwrap()
+                    .sqrt();
                 assert_eq!(actual.to_bits(), exhaustive.to_bits(), "{point:?}");
             }
         }
@@ -475,16 +515,45 @@ mod tests {
         let target = Tree::new(&square(2.)).unwrap();
         let mut work = Work(0);
         assert_eq!(sample(&source, &target, &mut work).unwrap(), (2., 12));
-        // One leaf and two triangle bounds per query. Only the exact shared
-        // diagonal midpoint avoids a query.
-        assert_eq!(work.0, 3 * 11);
-
+        let sample_count = |mesh: &Mesh| {
+            let mut queries = 0;
+            visit_samples(mesh, |_| {
+                queries += 1;
+                Ok(())
+            })
+            .unwrap();
+            queries
+        };
+        // Only the exact shared diagonal midpoint avoids a query.
+        assert_eq!(sample_count(&source), 11);
         source.vertices[0][0] = 0.1;
         source.vertices[2][0] = 0.7;
         let mut work = Work(0);
         assert_eq!(sample(&source, &target, &mut work).unwrap(), (2., 12));
         // The diagonal's two directions round to different x coordinates.
-        assert_eq!(work.0, 3 * 12);
+        assert_eq!(sample_count(&source), 12);
+    }
+
+    #[test]
+    fn witnessed_upper_bounds_preserve_the_exhaustive_maximum() {
+        let mut source = square(0.);
+        source.vertices[2][2] = 3.1;
+        let target = Tree::new(&square(0.7)).unwrap();
+        let mut exhaustive = 0.0_f64;
+        visit_samples(&source, |p| {
+            let nearest = target
+                .triangles
+                .iter()
+                .map(|triangle| triangle_distance_squared(p, triangle.points))
+                .fold(f64::INFINITY, f64::min);
+            exhaustive = exhaustive.max(nearest.sqrt());
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(
+            sample(&source, &target, &mut Work(0)).unwrap().0.to_bits(),
+            exhaustive.to_bits()
+        );
     }
 
     #[test]
