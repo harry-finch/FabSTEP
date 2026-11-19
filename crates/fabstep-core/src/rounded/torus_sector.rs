@@ -592,6 +592,7 @@ fn assemble(
         octants: vec![],
         linear_blend: None,
         unequal_pocket: None,
+        drilled_shaft: None,
         cross_drill: None,
         smooth_revolution: None,
     };

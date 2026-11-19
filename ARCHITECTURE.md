@@ -318,3 +318,5 @@ Les onze plans délimitent le bloc rectangulaire, son rebord et la poche borgne.
 La jonction spatiale est une courbe rationnelle de degré quatre. Chaque cylindre porte son propre tracé paramétrique pour la même arête. Le cinquième bord du grand cylindre est un arc de cercle partagé avec la paroi du petit congé. Ce contrat concerne deux congés orthogonaux à butées droites. [ADR-0043](docs/adr/0043-unequal-adjacent-pocket-fillets.md)
 
 Pour les gros STL à un corps, le helper dispose aussi d’une reconnaissance de portions toriques à contours isoparamétriques. Le core construit la partition source, la CAO conserve les raccords et le service de conversion partage l’audit de fidélité des autres reconstructions. Voir [ADR-0046](docs/adr/0046-trimmed-torus-atlas.md).
+
+Les parois interrompues ajoutent trois assemblages de faces au parcours Auto. L’arbre percé partage deux branches spline entre une paroi extérieure et un trou. Le bloc à perçages sécants accepte un congé longitudinal séparé. L’octant sphérique peut être fermé par ses trois plans radiaux. Le contrat et ses limites sont consignés dans [ADR-0047](docs/adr/0047-interrupted-walls-and-composed-bores.md).

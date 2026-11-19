@@ -1,10 +1,13 @@
 #pragma once
 #include <TopoDS_Edge.hxx>
 #include <TopoDS_Shape.hxx>
+#include <cstdint>
 #include <utility>
 #include <vector>
 struct CrossDrillData {
   double small_offset[2], center[3], axes[3][3], half[3], radii[2], large_axis_cosine;
+  double fillet_radius;
+  int32_t fillet_y_sign, fillet_z_sign;
 };
 struct CrossDrillResult {
   CrossDrillData data;

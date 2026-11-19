@@ -759,6 +759,7 @@ fn finish(
             octants: vec![],
             linear_blend: None,
             unequal_pocket: None,
+            drilled_shaft: None,
             cross_drill: None,
             torus_sectors: vec![],
             smooth_revolution: Some(Box::new(f)),

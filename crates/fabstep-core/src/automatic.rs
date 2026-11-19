@@ -65,7 +65,8 @@ fn recognize(
         }
         Err(e) => return Err(e),
     };
-    if result.model.unequal_pocket.is_some()
+    if result.model.drilled_shaft.is_some()
+        || result.model.unequal_pocket.is_some()
         || result.model.smooth_revolution.is_some()
         || !result.model.torus_sectors.is_empty()
         || result
@@ -127,6 +128,7 @@ fn planar(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
             torus_sectors: vec![],
             smooth_revolution: None,
             unequal_pocket: None,
+            drilled_shaft: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -639,7 +641,8 @@ pub fn recognize_automatic_guided(
         )?
     };
     if !requests.is_empty()
-        && (!result.model.octants.is_empty()
+        && (result.model.drilled_shaft.is_some()
+            || !result.model.octants.is_empty()
             || result.model.linear_blend.is_some()
             || result.model.cross_drill.is_some()
             || result.model.unequal_pocket.is_some()

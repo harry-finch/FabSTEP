@@ -12,6 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::{PI, TAU};
 pub(crate) mod block;
 mod bored_prism;
+mod cut_octant;
 mod linear_blend;
 mod octant;
 mod smooth_revolution;
@@ -373,6 +374,12 @@ fn recognize_policy_with_proofs(
         }
     }
     let rims = segmented_rims(a, o, &segmentation, &mut work)?;
+    if automatic && scope.is_none() {
+        if let Some(result) = crate::drilled_shaft::candidate(a, &segmentation, &rims, o, &mut work)
+        {
+            return Ok(result);
+        }
+    }
     // A larger segmentation tolerance can split a mouth when it changes the
     // seed order. Try the witnessed openings first, retaining the ordinary
     // partition for the other recognizers and the faceted fallback.
@@ -495,6 +502,19 @@ fn recognize_policy_with_proofs(
                 ));
             }
             return Ok(pocket);
+        }
+    }
+    if rims.is_empty() {
+        if let Some(result) =
+            cut_octant::candidate(a, &segmentation, &adjacency, &edges, o, &mut work)?
+        {
+            if scope.is_some() {
+                return Err(FabError::new(
+                    "guidance.family_unproven",
+                    "Le secteur sphérique exige la preuve de ses trois plans de coupe.",
+                ));
+            }
+            return Ok(result);
         }
     }
     if rims.is_empty() && !automatic {
@@ -706,6 +726,7 @@ fn recognize_policy_with_proofs(
         torus_sectors: vec![],
         smooth_revolution: None,
         unequal_pocket: None,
+        drilled_shaft: None,
         cross_drill: None,
         linear_blend: None,
         octants: vec![],
@@ -2548,6 +2569,9 @@ pub(crate) fn volume(m: &RoundedModel) -> Result<f64, FabError> {
     }
     if let Some(f) = &m.smooth_revolution {
         return smooth_revolution::volume(f);
+    }
+    if let Some(f) = &m.drilled_shaft {
+        return Ok(f.volume_mm3());
     }
     if let Some(f) = &m.cross_drill {
         return crate::cross_drill::volume(f);

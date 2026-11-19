@@ -365,6 +365,7 @@ pub(in super::super) fn candidate(
         tori: vec![],
         spheres: vec![],
         unequal_pocket: None,
+        drilled_shaft: None,
         cross_drill: None,
     };
     let wall = 2. * proof.plane + proof.projection;

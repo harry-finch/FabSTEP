@@ -165,6 +165,19 @@ void store(double* p, gp_XYZ v) {
     p[i] = v.Coord(i + 1);
 }
 
+// Sweeping the same convex profile in opposite wire order can give a
+// reversed face on an indirect cylinder. Use its oriented surface normal.
+bool exterior_cylinder(const TopoDS_Face& face, const BRepAdaptor_Surface& surface) {
+  if (surface.GetType() != GeomAbs_Cylinder) return false;
+  gp_Pnt sample;
+  gp_Vec du,dv;
+  surface.D1((surface.FirstUParameter()+surface.LastUParameter())*.5,
+             (surface.FirstVParameter()+surface.LastVParameter())*.5, sample,du,dv);
+  auto normal=du.Crossed(dv);
+  if (face.Orientation()==TopAbs_REVERSED) normal.Reverse();
+  return normal.Dot(gp_Vec(surface.Cylinder().Location(),sample))>0.;
+}
+
 // On a multi-root reimport or display inspection derive the coordinate frame
 // from the four actual mouths, independently of STEP names / enumeration.
 CrossDrillData infer(const TopTools_IndexedMapOfShape& faces) {
@@ -175,7 +188,7 @@ CrossDrillData infer(const TopTools_IndexedMapOfShape& faces) {
       continue;
     for (TopExp_Explorer it(f, TopAbs_EDGE); it.More(); it.Next()) {
       const BRepAdaptor_Curve c(TopoDS::Edge(it.Current()));
-      if (c.GetType() == GeomAbs_Circle)
+      if (c.GetType() == GeomAbs_Circle && BRep_Tool::IsClosed(it.Current()))
         rings.push_back(c.Circle());
     }
   }
@@ -214,6 +227,19 @@ CrossDrillData infer(const TopTools_IndexedMapOfShape& faces) {
   }
   d.radii[0] = (rings[0].Radius() + rings[1].Radius()) / 2.;
   d.radii[1] = (rings[2].Radius() + rings[3].Radius()) / 2.;
+  if (faces.Extent() == 10) {
+    for (int i = 1; i <= faces.Extent(); ++i) {
+      const auto face = TopoDS::Face(faces(i));
+      const BRepAdaptor_Surface surface(face);
+      if (!exterior_cylinder(face,surface)) continue;
+      require(d.fillet_radius == 0., "Plusieurs congés extérieurs.");
+      const auto cyl = surface.Cylinder();
+      const gp_Vec v(gp_Pnt(center), cyl.Location());
+      d.fillet_radius = cyl.Radius();
+      d.fillet_y_sign = v.Dot(gp_Vec(y)) > 0. ? 1 : -1;
+      d.fillet_z_sign = v.Dot(gp_Vec(z)) > 0. ? 1 : -1;
+    }
+  }
   return d;
 }
 } // namespace
@@ -222,7 +248,7 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
                                     double deflection) {
   TopTools_IndexedMapOfShape faces;
   TopExp::MapShapes(solid, TopAbs_FACE, faces);
-  require(faces.Extent() == 9, "Les perçages sécants exigent neuf faces.");
+  require(faces.Extent() == 9 || faces.Extent() == 10, "Nombre de faces du bloc percé inattendu.");
   const auto d = expected ? *expected : infer(faces);
   const auto center = point(d.center);
   const double r = d.radii[0], R = d.radii[1], tol = Precision::Confusion();
@@ -238,6 +264,23 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
           "Repère des perçages invalide.");
   const gp_Dir big_axis(gp_Vec(u)*tilt_sine+gp_Vec(z_axis)*cosine);
   const std::array<gp_Dir, 3> axes{big_axis,y_axis,z_axis};
+  const double radius = d.fillet_radius;
+  const auto sy = d.fillet_y_sign, sz = d.fillet_z_sign;
+  require(faces.Extent() == (radius ? 10 : 9) && (radius ?
+      (std::isfinite(radius) && radius > tol && cosine == 0. && (sy == -1 || sy == 1) &&
+       (sz == -1 || sz == 1) && d.half[2] > radius && d.half[1]-radius > std::max(R, std::abs(dy)+r)+tol) :
+      (sy == 0 && sz == 0)), "Domaine du congé extérieur incohérent.");
+  const auto fillet_center = center.Translated(gp_Vec(y_axis)*double(sy)*(d.half[1]-radius) +
+                                               gp_Vec(z_axis)*double(sz)*(d.half[2]-radius));
+  // The two tangent points of each end arc replace one stock corner.
+  auto stock_vertex = [&](const gp_Pnt& p) {
+    const gp_Vec v(center, p);
+    if (std::abs(std::abs(v.Dot(gp_Vec(u))) - d.half[0]) > tol) return false;
+    const double y = v.Dot(gp_Vec(y_axis)), z = v.Dot(gp_Vec(z_axis));
+    return std::hypot(y-sy*d.half[1], z-sz*(d.half[2]-radius)) <= tol ||
+           std::hypot(y-sy*(d.half[1]-radius), z-sz*d.half[2]) <= tol;
+  };
+  bool fillet_found = false;
   require(cosine==0. || (dx==0. &&
       d.half[0]>std::abs(cosine)*d.half[2]+tilt_sine*r+tol &&
       d.half[2]>std::abs(cosine)*d.half[0]+tilt_sine*R+tol),
@@ -285,6 +328,14 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
       require(slot >= 0 && !planes[slot], "Les six plans doivent borner le bloc centré.");
       planes[slot] = i;
       owners[i] = slot;
+    } else if (radius && exterior_cylinder(f,s)) {
+      const auto cyl=s.Cylinder();
+      require(!fillet_found && cyl.Axis().Direction().IsParallel(u, near_angle(d.half[0])) &&
+              gp_Lin(cyl.Axis()).Distance(fillet_center) + std::abs(cyl.Radius()-radius) +
+              gp_Vec(cyl.Axis().Direction()).Crossed(gp_Vec(u)).Magnitude()*(d.half[0]+radius) <= tol,
+              "Support du congé extérieur déplacé.");
+      owners[i]=9;
+      fillet_found=true;
     } else {
       require(s.GetType() == GeomAbs_Cylinder && f.Orientation() == TopAbs_REVERSED,
               "Une paroi doit être un cylindre intérieur.");
@@ -342,6 +393,7 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
   TopExp::MapShapesAndUniqueAncestors(solid, TopAbs_EDGE, TopAbs_FACE, incidence);
   size_t remaining = 10000000, leaves = 16384;
   int lines = 0, mouths = 0;
+  unsigned fillet_planes = 0;
   std::vector<cross_drill_lab::Certificate> certs;
   std::vector<CycleArc> links;
   TopTools_IndexedMapOfShape vertices;
@@ -368,6 +420,28 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
     require(adj.Extent() == 2 &&
                 occurrence(edge, a).Orientation() != occurrence(edge, b).Orientation(),
             "Incidence du raccord invalide.");
+    if (l == 9 || h == 9) {
+      const int plane = l == 9 ? h : l;
+      const bool cap = plane == 0 || plane == 3;
+      require(plane == (sy > 0 ? 4 : 1) || plane == (sz > 0 ? 5 : 2) || cap,
+              "Appui du congé extérieur incorrect.");
+      require(!(fillet_planes & (1u << plane)), "Arête du congé dupliquée.");
+      fillet_planes |= 1u << plane;
+      const double a0=c.FirstParameter(), a1=c.LastParameter();
+      require(stock_vertex(c.Value(a0)) && stock_vertex(c.Value(a1)), "Extrémité du congé incorrecte.");
+      if (cap) {
+        const auto mid=c.Value((a0+a1)*.5);
+        const auto target=fillet_center.Translated(gp_Vec(u)*((plane==0?-1.:1.)*d.half[0])+
+              (gp_Vec(y_axis)*double(sy)+gp_Vec(z_axis)*double(sz))*(radius*std::sqrt(.5)));
+        require(c.GetType()==GeomAbs_Circle && std::abs(a1-a0-std::acos(-1.)*.5)*radius<=tol &&
+                mid.Distance(target)<=tol, "Arc du congé incorrect.");
+      } else {
+        require(c.GetType()==GeomAbs_Line && c.Line().Direction().IsParallel(u,near_angle(d.half[0])) &&
+                std::abs(c.Value(a0).Distance(c.Value(a1))-2.*d.half[0])<=tol,
+                "Génératrice du congé incohérente.");
+      }
+      continue;
+    }
     if (l < 6 && h < 6) {
       require(c.GetType() == GeomAbs_Line && l % 3 != h % 3, "Arête extérieure hors bloc.");
       for (double t : {c.FirstParameter(), c.LastParameter()}) {
@@ -377,7 +451,9 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
           const double component=v.Dot(gp_Vec(axes[j]));
           residual[j] = component - std::copysign(d.half[j],component);
         }
-        require(std::hypot((residual[0]-cosine*residual[2])/tilt_sine, residual[1], residual[2]) <= tol,
+        const bool old_corner = !radius || sy*v.Dot(gp_Vec(y_axis)) < 0. || sz*v.Dot(gp_Vec(z_axis)) < 0.;
+        require((old_corner && std::hypot((residual[0]-cosine*residual[2])/tilt_sine, residual[1], residual[2]) <= tol) ||
+                (radius && stock_vertex(c.Value(t))),
                 "Sommet du bloc hors domaine.");
       }
       ++lines;
@@ -412,7 +488,10 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
     out.mesh_edges.push_back({edge, cert.mesh_segments});
     certs.push_back(std::move(cert));
   }
-  require(lines == 12 && mouths == 4, "Le bloc ne possède pas ses douze arêtes et quatre entrées.");
+  const unsigned expected_fillet_planes = radius ?
+      ((1u<<0)|(1u<<3)|(1u<<(sy>0 ? 4 : 1))|(1u<<(sz>0 ? 5 : 2))) : 0u;
+  require(lines == (radius ? 11 : 12) && mouths == 4 && fillet_planes == expected_fillet_planes &&
+          fillet_found == (radius != 0.), "Frontière extérieure ou entrée du bloc incorrecte.");
   for (int sign : {-1, 1}) {
     auto coverage = budgetedBranch(certs, links, sign, 1.e-7, remaining, r, R, dy, cosine);
     if (!coverage.ok)
@@ -454,7 +533,10 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
     const I removed=I(2.)*pi()*(I(d.half[0])*square(I(R))+I(d.half[2])*square(I(r)));
     volume=(volume+removed)/sine-removed;
   }
+  if (radius) volume = volume-I(2.)*I(d.half[0])*square(I(radius))*(I(1.)-pi()/I(4.));
   out.volume_low = volume.lo;
   out.volume_high = volume.hi;
   return out;
 }
+
+#include "drilled_shaft_verify.hxx"

@@ -278,6 +278,9 @@ struct NativeCrossDrill {
     half: [f64; 3],
     radii: [f64; 2],
     large_axis_cosine: f64,
+    fillet_radius: f64,
+    fillet_y_sign: i32,
+    fillet_z_sign: i32,
 }
 
 #[repr(C)]
@@ -1565,7 +1568,7 @@ pub fn build_rounded_step_with_token_groups(
         arrays;
     let counts = [
         model.revolved.mixed.planes.len(),
-        model.revolved.mixed.cylinders.len(),
+        model.revolved.mixed.cylinders.len() + 2 * usize::from(model.drilled_shaft.is_some()),
         model.partial_cylinder_count(),
         model.revolved.cones.len(),
         model.spheres.len(),
@@ -1573,7 +1576,10 @@ pub fn build_rounded_step_with_token_groups(
         model.partial_cones.len(),
         model.octants.len(),
         model.linear_blend.as_ref().map_or(0, |b| b.iter().count()),
-        if model.cross_drill.is_some() { 3 } else { 0 },
+        model
+            .cross_drill
+            .as_ref()
+            .map_or(0, |f| 3 + usize::from(f.stock_fillet.is_some())),
         usize::from(model.smooth_revolution.is_some()),
         model.torus_sectors.len(),
     ];
@@ -1617,7 +1623,10 @@ pub fn build_rounded_step_with_token_groups(
 }
 
 mod adjacent_pocket;
+mod cut_octant;
+mod drilled_shaft;
 mod oblique_pocket;
+mod stock_fillet;
 mod torus_sector;
 mod unequal_pocket;
 
@@ -1625,6 +1634,12 @@ fn build_rounded_step_impl(
     model: &RoundedModel,
     tokens: Option<SurfaceTokens<'_>>,
 ) -> Result<ValidatedStep, FabError> {
+    if !model.octants.is_empty() && model.revolved.mixed.planes.len() == 3 {
+        return cut_octant::build(model, tokens);
+    }
+    if model.drilled_shaft.is_some() {
+        return drilled_shaft::build(model, tokens);
+    }
     if model
         .revolved
         .mixed
@@ -2029,6 +2044,13 @@ fn build_cross_drill(
     {
         return Err(invalid());
     }
+    if let Some(corner) = f.stock_fillet {
+        if !corner.fits(f, witness.max(1e-7))
+            || !stock_fillet::shared_outline(m, f, corner, witness)
+        {
+            return Err(invalid());
+        }
+    }
     let stock = [std::array::from_fn(|i| sine * x[i] + cosine * z[i]), y, z];
     if cosine != 0.
         && (hx - cosine.abs() * hz - sine * r <= 2. * witness.max(1e-7)
@@ -2048,34 +2070,44 @@ fn build_cross_drill(
         let Some(MixedLoop::Polygon { vertices }) = p.loops.first() else {
             return Err(invalid());
         };
-        if vertices.len() != 4
-            || vertices.iter().any(|&i| i >= m.vertices.len())
-            || signed_area(vertices, &m.vertices, p.normal) <= 0.
-        {
-            return Err(invalid());
-        }
-        let mut mask = 0u8;
-        for &id in vertices {
-            let [u, y, z] = local(id)?;
-            let at = [sine * u + cosine * z, y, z];
-            let bits: usize = (0..3).map(|k| usize::from(at[k] > 0.) << k).sum();
-            let goal = std::array::from_fn(|k| {
-                if bits & (1 << k) != 0 {
-                    f.half_lengths[k]
-                } else {
-                    -f.half_lengths[k]
-                }
-            });
-            let [dl, dy, dz] = sub(at, goal);
-            if at[axis] * sign <= 0.
-                || norm([(dl - cosine * dz) / sine, dy, dz]) > witness
-                || mask & (1 << bits) != 0
-                || corners[bits].is_some_and(|previous| previous != id)
+        if let Some(corner) = f.stock_fillet {
+            let points: Vec<_> = vertices
+                .iter()
+                .map(|&id| local(id))
+                .collect::<Result<_, _>>()?;
+            corner
+                .project_stock_outline(f.half_lengths, face, &points, witness)
+                .ok_or_else(invalid)?;
+        } else {
+            if vertices.len() != 4
+                || vertices.iter().any(|&i| i >= m.vertices.len())
+                || signed_area(vertices, &m.vertices, p.normal) <= 0.
             {
                 return Err(invalid());
             }
-            corners[bits] = Some(id);
-            mask |= 1 << bits;
+            let mut mask = 0u8;
+            for &id in vertices {
+                let [u, y, z] = local(id)?;
+                let at = [sine * u + cosine * z, y, z];
+                let bits: usize = (0..3).map(|k| usize::from(at[k] > 0.) << k).sum();
+                let goal = std::array::from_fn(|k| {
+                    if bits & (1 << k) != 0 {
+                        f.half_lengths[k]
+                    } else {
+                        -f.half_lengths[k]
+                    }
+                });
+                let [dl, dy, dz] = sub(at, goal);
+                if at[axis] * sign <= 0.
+                    || norm([(dl - cosine * dz) / sine, dy, dz]) > witness
+                    || mask & (1 << bits) != 0
+                    || corners[bits].is_some_and(|previous| previous != id)
+                {
+                    return Err(invalid());
+                }
+                corners[bits] = Some(id);
+                mask |= 1 << bits;
+            }
         }
         let rim_slot = match face {
             2 => Some(0),
@@ -2152,6 +2184,9 @@ fn build_cross_drill(
         }
     }
     let domain = NativeCrossDrill {
+        fillet_radius: f.stock_fillet.as_ref().map_or(0., |c| c.radius_mm),
+        fillet_y_sign: f.stock_fillet.as_ref().map_or(0, |c| c.y_sign),
+        fillet_z_sign: f.stock_fillet.as_ref().map_or(0, |c| c.z_sign),
         large_axis_cosine: cosine,
         small_offset: f.small_offset,
         center: f.center,
@@ -5407,6 +5442,7 @@ mod tests {
             smooth_revolution: None,
             unequal_pocket: None,
             torus_sectors: vec![],
+            drilled_shaft: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -5431,6 +5467,7 @@ mod tests {
             smooth_revolution: None,
             unequal_pocket: None,
             torus_sectors: vec![],
+            drilled_shaft: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -5799,6 +5836,7 @@ mod tests {
             smooth_revolution: None,
             unequal_pocket: None,
             torus_sectors: vec![],
+            drilled_shaft: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -5895,6 +5933,7 @@ mod tests {
             smooth_revolution: None,
             unequal_pocket: None,
             torus_sectors: vec![],
+            drilled_shaft: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -5961,6 +6000,7 @@ mod tests {
             torus_sectors: vec![],
             revolved,
             spheres: vec![],
+            drilled_shaft: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -6069,6 +6109,7 @@ mod tests {
             smooth_revolution: None,
             unequal_pocket: None,
             torus_sectors: vec![],
+            drilled_shaft: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -6835,6 +6876,7 @@ mod tests {
             },
             spheres: vec![],
             tori: vec![],
+            drilled_shaft: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],
@@ -6934,6 +6976,7 @@ mod tests {
             spheres: vec![],
             tori: vec![],
             partial_cones: vec![],
+            drilled_shaft: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![MixedSphericalOctant {
@@ -7035,6 +7078,7 @@ mod tests {
             tori: vec![],
             partial_cones: vec![],
             octants: vec![],
+            drilled_shaft: None,
             cross_drill: None,
             linear_blend: Some(Box::new(fabstep_core::LinearBlends {
                 second: None,

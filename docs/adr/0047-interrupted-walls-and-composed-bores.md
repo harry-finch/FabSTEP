@@ -1,0 +1,9 @@
+# ADR-0047 — Parois interrompues et composition de perçages
+
+Le 19 novembre 2026, les domaines privés de R-113, R-114 et R-117 ont été approuvés sur des témoins fermés. Le moteur Rust propose un domaine depuis les triangles placés en millimètres et lui attribue ses triangles source. L’adaptateur CAO construit ses faces et contrôle à nouveau la géométrie sur le STEP relu.
+
+- **Arbre percé.** Deux disques plans bornent le cylindre extérieur. Un perçage transversal orthogonal peut être excentré. Le constructeur conserve les deux branches fermées communes aux parois intérieure et extérieure. Le certificat porte sur la courbe 3D, ses traces sur les deux cylindres et la couverture de chaque branche. Le volume de matière attendu est celui du cylindre moins l’intersection avec le perçage. L’intégration de contrôle fournit un intervalle par arrondi dirigé.
+- **Bloc percé et arrondi.** Le domaine historique des deux perçages sécants peut porter un congé longitudinal extérieur disjoint. Sa définition optionnelle contient un rayon et les deux signes qui désignent l’arête du bloc. Les quatre arêtes du congé bordent quatre plans. Les six plans, les trois parois des perçages et le congé ont chacun une attribution source et un jeton natif. L’absence du champ optionnel conserve la représentation historique.
+- **Bandes résiduelles.** Le domaine conique admis est limité aux deux arcs parallèles et aux deux génératrices dont les voisins et la couverture sont vérifiés. L’octant sphérique découpé utilise les trois arcs du modèle sphérique existant, avec trois plans passant par le centre. Le contrôle de ce solide à quatre faces est distinct de celui d’un coin raccordé à trois congés cylindriques.
+
+La validation du solide, de la géométrie transférée et de la fidélité dans les deux sens reste obligatoire. Un domaine concurrent, incomplet ou hors tolérance conserve le repli d’Auto. Les corps et le format des fichiers source restent indépendants de ces extensions.

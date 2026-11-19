@@ -100,7 +100,34 @@ TopoDS_Solid build_cross_drill(const CrossDrillData& data, const size_t* plane_t
   // Six planes at signed distances ±hx, ±hy and ±hz. A skew block
   // preserves circular mouths normal to both of its measured bore axes.
   TopoDS_Shape outer;
-  if(cosine==0.) {
+  if (data.fillet_radius != 0.) {
+    const double radius = data.fillet_radius;
+    const int sy = data.fillet_y_sign, sz = data.fillet_z_sign;
+    if (cosine != 0. || !std::isfinite(radius) || radius <= Precision::Confusion() ||
+        (sy != -1 && sy != 1) || (sz != -1 && sz != 1) || radius >= hz ||
+        hy - radius <= std::max(R, std::abs(data.small_offset[1]) + r) + Precision::Confusion())
+      throw invalid;
+    // Extrude the measured YZ profile. Its single circular edge supplies both
+    // end arcs and the adjacent planes share the two tangent generators.
+    auto end = [&](double y, double z) { return p(-hx, sy*y, sz*z); };
+    const auto a=end(-hy,-hz), b=end(hy,-hz), c=end(hy,hz-radius);
+    const auto d=end(hy-radius,hz), e=end(-hy,hz);
+    const double inset = radius * (1.-std::sqrt(.5));
+    GC_MakeArcOfCircle arc(c, end(hy-inset,hz-inset), d);
+    if (!arc.IsDone()) throw invalid;
+    BRepBuilderAPI_MakeWire wire;
+    wire.Add(BRepBuilderAPI_MakeEdge(a,b));
+    wire.Add(BRepBuilderAPI_MakeEdge(b,c));
+    wire.Add(BRepBuilderAPI_MakeEdge(arc.Value()));
+    wire.Add(BRepBuilderAPI_MakeEdge(d,e));
+    wire.Add(BRepBuilderAPI_MakeEdge(e,a));
+    if (!wire.IsDone()) throw invalid;
+    BRepBuilderAPI_MakeFace end_face(wire.Wire(), true);
+    if (!end_face.IsDone()) throw invalid;
+    BRepPrimAPI_MakePrism prism(end_face.Face(), ex*(2.*hx), true, true);
+    if (!prism.IsDone()) throw invalid;
+    outer = prism.Shape();
+  } else if(cosine==0.) {
     outer=BRepPrimAPI_MakeBox(gp_Ax2(p(-hx,-hy,-hz),gp_Dir(ez),gp_Dir(ex)),2.*hx,2.*hy,2.*hz).Shape();
   } else {
     BRepBuilderAPI_MakePolygon loop;
@@ -118,7 +145,14 @@ TopoDS_Solid build_cross_drill(const CrossDrillData& data, const size_t* plane_t
   }
   for (TopExp_Explorer it(outer, TopAbs_FACE); it.More(); it.Next()) {
     const auto f = TopoDS::Face(it.Current());
-    auto plane = BRepAdaptor_Surface(f).Plane();
+    const BRepAdaptor_Surface surface(f);
+    if (data.fillet_radius && surface.GetType() == GeomAbs_Cylinder) {
+      sewing.Add(f);
+      if (labels) labels->push_back({f,wall_tokens[3]});
+      continue;
+    }
+    if (surface.GetType() != GeomAbs_Plane) throw invalid;
+    auto plane = surface.Plane();
     gp_Dir n = plane.Axis().Direction();
     if (f.Orientation() == TopAbs_REVERSED)
       n.Reverse();

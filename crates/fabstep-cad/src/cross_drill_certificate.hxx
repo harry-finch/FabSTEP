@@ -618,14 +618,17 @@ inline bool resolvedRadii(double small, double large, double uncertainty = 0.) {
 
 inline Certificate certifyEdge(const TopoDS_Edge& edge,const TopoDS_Face& face1,
                                const TopoDS_Face& face2,double r,double R,
-                               const Budget& budget=Budget{},const certificate_detail::LocalFrame* frame=nullptr,double offset=0.) {
+                               const Budget& budget=Budget{},const certificate_detail::LocalFrame* frame=nullptr,double offset=0.,
+                               bool exterior_shaft=false) {
   using namespace certificate_detail;
   Counter counter{0,budget.max_work};Scope scope(counter);
   Certificate result;
   State state{budget,counter,{},false,I(0.),r,R,offset,{},frame};
   try {
     static_assert(std::numeric_limits<double>::is_iec559,"binary64 interval arithmetic required");
-    if(!std::isfinite(offset)||std::abs(offset)>r||!resolvedRadii(r+std::abs(offset),R)||!std::isfinite(budget.tolerance_mm)||budget.tolerance_mm<=0.||budget.max_depth<0||budget.max_depth>30||budget.max_leaves==0||budget.max_leaves>65'536)
+    // The convex shaft can have an eccentric bore outside its own radius.
+    // The residual and axial derivative bounds below use |offset|+r.
+    if(!std::isfinite(offset)||(!exterior_shaft && std::abs(offset)>r)||!resolvedRadii(r+std::abs(offset),R)||!std::isfinite(budget.tolerance_mm)||budget.tolerance_mm<=0.||budget.max_depth<0||budget.max_depth>30||budget.max_leaves==0||budget.max_leaves>65'536)
       throw Failure{"invalid_laboratory_contract"};
     double first,last;
     RawSpline space=curve3(edge,first,last);

@@ -18,8 +18,8 @@ pub use fabstep_core::{SOURCE_MAX_TRIANGLES, SOURCE_MAX_VERTICES};
 mod control;
 use control::{controlled, ConversionControl};
 pub use control::{ConversionCheckpoint, ConversionPhase};
-mod product_name;
 mod document;
+mod product_name;
 pub use document::*;
 pub mod isolated_report;
 mod parameter_search;
@@ -251,7 +251,7 @@ fn rounded_face_counts(model: &fabstep_core::RoundedModel) -> [usize; 12] {
     let m = &model.revolved.mixed;
     [
         m.planes.len(),
-        m.cylinders.len(),
+        m.cylinders.len() + 2 * usize::from(model.drilled_shaft.is_some()),
         model.partial_cylinder_count(),
         model.revolved.cones.len(),
         model.spheres.len(),
@@ -259,7 +259,10 @@ fn rounded_face_counts(model: &fabstep_core::RoundedModel) -> [usize; 12] {
         model.partial_cones.len(),
         model.octants.len(),
         model.linear_blend.as_ref().map_or(0, |b| b.iter().count()),
-        if model.cross_drill.is_some() { 3 } else { 0 },
+        model
+            .cross_drill
+            .as_ref()
+            .map_or(0, |f| 3 + usize::from(f.stock_fillet.is_some())),
         usize::from(model.smooth_revolution.is_some()),
         model.torus_sectors.len(),
     ]

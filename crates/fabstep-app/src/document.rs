@@ -1327,7 +1327,7 @@ fn rounded_source_faces(
         use fabstep_core::RoundedFaceRef as F;
         let (kind, index) = match *owner {
             F::Plane { index } => (0, index),
-            F::Cylinder { index } => (1, index),
+            F::Cylinder { index } | F::ShaftWall { index } => (1, index),
             F::PartialCylinder { index } => (2, index),
             F::Cone { index } => (3, index),
             F::Sphere { index } => (4, index),

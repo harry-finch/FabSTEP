@@ -184,6 +184,7 @@ pub fn recognize_complete_torus(a: &Analysis, o: &Options) -> Result<RoundedReco
         model: RoundedModel {
             torus_sectors: vec![], smooth_revolution: None,
             unequal_pocket: None,
+            drilled_shaft: None,
             cross_drill: None,
             linear_blend: None,
             octants: vec![],

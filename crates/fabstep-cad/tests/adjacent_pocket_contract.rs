@@ -129,6 +129,7 @@ fn both_ellipse_orientations_and_wall_orders_preserve_geometry_and_provenance() 
             partial_cones: vec![],
             octants: vec![],
             linear_blend: None,
+            drilled_shaft: None,
             cross_drill: None,
             smooth_revolution: None,
             unequal_pocket: None,

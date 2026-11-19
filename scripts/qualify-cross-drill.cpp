@@ -46,6 +46,7 @@
 #include <vector>
 #ifdef CROSS_DRILL_WITH_CERTIFICATE
 #include "cross_drill_certificate.hxx"
+#include "../crates/fabstep-cad/src/drilled_shaft_volume.hxx"
 #endif
 
 namespace {
@@ -199,6 +200,25 @@ Coverage budgetedBranch(const std::vector<cross_drill_lab::Certificate>& certs,
 
 #endif
 #ifdef CROSS_DRILL_WITH_CERTIFICATE
+// Compare the enclosure with independent long-double angular quadrature.
+void check_shaft_volumes() {
+  const long double pi=std::acos(-1.L);
+  for (double R : {1.,10.,32.}) for (double ratio : {0.,.1,.35,.59}) {
+    const double r=.2*R, h=3.*R, d=ratio*R;
+    long double removed=0.;
+    constexpr int samples=8192;
+    for (int i=0; i<samples; ++i) {
+      const long double t=pi*((i+.5L)/samples-.5L);
+      const long double y=d+r*std::sin(t);
+      removed+=std::cos(t)*std::cos(t)*std::sqrt((R-y)*(R+y));
+    }
+    const auto expected=pi*R*R*h-4*r*r*pi*removed/samples;
+    const auto bound=cross_drill_lab::shaft_volume(h,R,r,d);
+    if (expected<bound.lo || expected>bound.hi || bound.hi-bound.lo>1e-9*expected)
+      throw std::runtime_error("Uncertified transverse bore volume");
+  }
+}
+
 std::string certificateJson(const cross_drill_lab::Certificate& c) {
   std::ostringstream s;
   s << "{\"ok\":" << yes(c.ok) << ",\"bounds_scope\":" << quote(c.ok?"entire_edge":"accepted_leaves_only_not_a_certificate") << ",\"bound_3d_mm\":" << number(c.bound3d)
@@ -218,6 +238,7 @@ int main(int argc,char** argv) {
   try {
     bool elementaryPassed=false;std::string elementaryJson="null";
 #ifdef CROSS_DRILL_WITH_CERTIFICATE
+    check_shaft_volumes();
     const auto elementary=cross_drill_lab::selfTest();elementaryPassed=elementary.ok;
     std::ostringstream elementaryStream;
     elementaryStream << "{\"ok\":" << yes(elementary.ok) << ",\"work\":" << elementary.work << ",\"reason\":" << quote(elementary.reason) << '}';

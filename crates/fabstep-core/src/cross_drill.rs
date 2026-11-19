@@ -9,6 +9,9 @@ use crate::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::{PI, TAU};
 
+mod fillet;
+use fillet::FILLET;
+
 const SMALL_LOW: usize = 6;
 const SMALL_HIGH: usize = 7;
 const LARGE: usize = 8;
@@ -182,6 +185,7 @@ fn seed(
     let x = scale(x, 1. / norm(x));
     let y = cross(z, x);
     let mut model = CrossDrill {
+        stock_fillet: None,
         large_axis_cosine: cosine,
         small_offset: [0.; 2],
         witness_tolerance_mm: 0.,
@@ -347,7 +351,7 @@ impl Bound {
 fn owners(
     a: &Analysis,
     s: &Segmentation,
-    seed: &Seed,
+    seed: &mut Seed,
     points: &[V],
     adj: &[Vec<usize>],
     fit: f64,
@@ -356,7 +360,7 @@ fn owners(
     work.spend(a.mesh.triangles.len() * 13)?;
     let [r, big] = seed.model.radii;
     let [dx, dy] = seed.model.small_offset;
-    let owners: Vec<_> = a
+    let mut owners: Vec<_> = a
         .mesh
         .triangles
         .iter()
@@ -389,9 +393,15 @@ fn owners(
         return Ok(None);
     }
     if owners.contains(&usize::MAX) {
-        return Err(fail(
-            "triangle de paroi absent ou attribuable à plusieurs supports",
-        ));
+        work.spend(4 * a.mesh.triangles.len())?;
+        let corner = fillet::fit(&seed.model, &a.mesh, points, &owners, fit)
+            .ok_or_else(|| fail("triangle de paroi absent ou attribuable à plusieurs supports"))?;
+        seed.model.stock_fillet = Some(corner);
+        for slot in &mut owners {
+            if *slot == usize::MAX {
+                *slot = FILLET;
+            }
+        }
     }
     Ok(Some(owners))
 }
@@ -446,9 +456,9 @@ fn topology(
     work: &mut Work,
 ) -> Result<Topology, FabError> {
     let mut cuts = BTreeMap::<Edge, Vec<Edge>>::new();
-    let mut counts = [0isize; 9];
-    let mut incident: [BTreeSet<usize>; 9] = std::array::from_fn(|_| BTreeSet::new());
-    let mut edge_counts = [0isize; 9];
+    let mut counts = [0isize; 10];
+    let mut incident: [BTreeSet<usize>; 10] = std::array::from_fn(|_| BTreeSet::new());
+    let mut edge_counts = [0isize; 10];
     work.spend(4 * a.mesh.triangles.len() + a.mesh.vertices.len() + 2 * edges.len())?;
     for (ids, &i) in a.mesh.triangles.iter().zip(own) {
         counts[i] += 1;
@@ -480,11 +490,16 @@ fn topology(
         want.insert((i, mouth(i).unwrap().1));
     }
     want.extend([(SMALL_LOW, LARGE), (SMALL_HIGH, LARGE)]);
+    if let Some(corner) = seed.model.stock_fillet {
+        let (y, z) = corner.neighboring_planes();
+        want.remove(&key(y, z));
+        want.extend([0, 3, y, z].map(|i| (i, FILLET)));
+    }
     if cuts.keys().copied().collect::<BTreeSet<_>>() != want {
         return Err(fail("incidences des neuf domaines incompatibles"));
     }
     let mut visited = vec![false; own.len()];
-    let mut seen = [false; 9];
+    let mut seen = [false; 10];
     for (i, &owner) in own.iter().enumerate() {
         if visited[i] {
             continue;
@@ -504,9 +519,9 @@ fn topology(
             }
         }
     }
-    for i in 0..9 {
+    for i in 0..9 + usize::from(seed.model.stock_fillet.is_some()) {
         let expected = match i {
-            1 | 4 => 1,
+            1 | 4 | FILLET => 1,
             LARGE => -2,
             _ => 0,
         };
@@ -682,6 +697,28 @@ fn planes(
         let normal = scale(normal(f, i), side(i));
         let j = (i + 1) % 3;
         let k = (i + 2) % 3;
+        if let Some(corner) = f.stock_fillet {
+            work.spend(16 * outer.len())?;
+            let points: Vec<_> = outer.iter().map(|&v| local[v]).collect();
+            let projected = corner
+                .project_stock_outline(f.half_lengths, i, &points, fit)
+                .ok_or_else(|| fail("contour extérieur du bloc arrondi non prouvé"))?;
+            for (&id, q) in outer.iter().zip(projected) {
+                err.record(local[id], q, fit)?;
+                if t.boundary[id].is_some_and(|p| norm(sub(p, q)) > seed.roundoff) {
+                    return Err(fail("sommet du congé incohérent entre deux plans"));
+                }
+                t.boundary[id] = Some(q);
+            }
+            let mut loops = vec![MixedLoop::Polygon {
+                vertices: outer.clone(),
+            }];
+            if let Some((slot, _)) = mouth(i) {
+                loops.push(MixedLoop::Circle { ring: slot });
+            }
+            result.push(MixedPlane { normal, loops });
+            continue;
+        }
         let mut sides = Vec::with_capacity(outer.len());
         for n in 0..outer.len() {
             let p = supports(f, local[outer[n]]);
@@ -766,7 +803,10 @@ fn prove_strip_interiors(
     for (&(a, b), incident) in edges {
         // topology() already required exactly two incident triangles per edge.
         let wall = owners[incident[0]];
-        if wall < SMALL_LOW || interior[wall - SMALL_LOW] || wall != owners[incident[1]] {
+        if !(SMALL_LOW..=LARGE).contains(&wall)
+            || interior[wall - SMALL_LOW]
+            || wall != owners[incident[1]]
+        {
             continue;
         }
         let large = wall == LARGE;
@@ -844,6 +884,16 @@ fn proof(
             {
                 return Err(fail("triangle plan replié"));
             }
+            continue;
+        }
+        if wall == FILLET {
+            f.stock_fillet.unwrap().prove_triangle(
+                f,
+                ids.map(|v| local[v]),
+                ids.map(|v| t.boundary[v]),
+                o.cylinder_fit_tolerance_mm,
+                err,
+            )?;
             continue;
         }
         let axis = if wall == LARGE { 0 } else { 2 };
@@ -924,6 +974,13 @@ fn proof(
 }
 
 pub(crate) fn volume(f: &CrossDrill) -> Result<f64, FabError> {
+    let mut volume = drilled_volume(f)?;
+    if let Some(corner) = f.stock_fillet {
+        volume -= 2. * f.half_lengths[0] * corner.radius_mm.powi(2) * (1. - PI / 4.);
+    }
+    Ok(volume)
+}
+fn drilled_volume(f: &CrossDrill) -> Result<f64, FabError> {
     let [r, big] = f.radii;
     let [x, y, z] = f.half_lengths;
     if f.small_offset[1] != 0. {
@@ -1000,7 +1057,16 @@ pub(crate) fn candidate(
         .iter()
         .map(|&p| local(&seed.model, p))
         .collect();
-    let Some(own) = owners(a, s, &seed, &points, adj, o.cylinder_fit_tolerance_mm, work)? else {
+    let Some(own) = owners(
+        a,
+        s,
+        &mut seed,
+        &points,
+        adj,
+        o.cylinder_fit_tolerance_mm,
+        work,
+    )?
+    else {
         return Ok(None);
     };
     let mut err = Bound::default();
@@ -1045,13 +1111,45 @@ pub(crate) fn candidate(
             "Le perçage sécant dépasse la borne d’écart.",
         ));
     }
-    let report=RecognitionReport{revolutions: 0,cylinders:3,cones:0,spheres:0,tori:0,toroidal_fillets:0,max_radial_residual_mm:err.projection,
-        max_chord_error_mm:err.wall,max_wall_residual_mm:wall,max_deviation_bound_mm:deviation,expected_volume_mm3:volume(f)?,
+    let cylinders = 3 + usize::from(f.stock_fillet.is_some());
+    let intent = if f.stock_fillet.is_some() {
+        "Quatre parois sont interprétées comme deux perçages sécants et un congé longitudinal."
+    } else {
+        "Trois parois sont interprétées comme deux perçages cylindriques sécants."
+    };
+    let report=RecognitionReport{
+        revolutions:0,
+        cylinders,
+        cones:0,
+        spheres:0,
+        tori:0,
+        toroidal_fillets:0,
+        max_radial_residual_mm:err.projection,
+        max_chord_error_mm:err.wall,
+        max_wall_residual_mm:wall,
+        max_deviation_bound_mm:deviation,
+        expected_volume_mm3:volume(f)?,
         diagnostics:vec![
-        Diagnostic{code:"recognition.circular_intent_assumed".into(),severity:Severity::Warning,count:3,message:"Trois parois sont interprétées comme deux perçages cylindriques sécants.".into()},
-        Diagnostic{code:"recognition.rounded_coverage".into(),severity:Severity::Info,count:own.len(),message:"Les neuf domaines et les deux branches transverses sont attribués aux triangles source.".into()},
-        Diagnostic{code:"recognition.bound_scope".into(),severity:Severity::Info,count:1,message:"La borne inclut les résidus source, les branches communes, les cordes et la réserve du certificat natif.".into()},
-    ]};
+            Diagnostic{
+                code:"recognition.circular_intent_assumed".into(),
+                severity:Severity::Warning,
+                count:cylinders,
+                message:intent.into(),
+            },
+            Diagnostic{
+                code:"recognition.rounded_coverage".into(),
+                severity:Severity::Info,
+                count:own.len(),
+                message:"Les domaines du bloc et les deux branches transverses sont attribués aux triangles source.".into(),
+            },
+            Diagnostic{
+                code:"recognition.bound_scope".into(),
+                severity:Severity::Info,
+                count:1,
+                message:"La borne inclut les résidus source, les branches communes, les cordes et la réserve du certificat natif.".into(),
+            }
+        ],
+    };
     work.spend(a.mesh.vertices.len() + own.len())?;
     let model = RoundedModel {
         revolved: RevolvedModel {
@@ -1074,6 +1172,7 @@ pub(crate) fn candidate(
         torus_sectors: vec![],
         smooth_revolution: None,
         unequal_pocket: None,
+        drilled_shaft: None,
         cross_drill: Some(Box::new(seed.model)),
     };
     let triangle_faces = own

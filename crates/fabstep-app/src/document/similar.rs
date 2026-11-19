@@ -135,6 +135,7 @@ fn coupled(r: &RoundedRecognition) -> bool {
     let m = &r.model;
     !m.octants.is_empty()
         || m.linear_blend.is_some()
+        || m.drilled_shaft.is_some()
         || m.cross_drill.is_some()
         || m.unequal_pocket.is_some()
         || m.smooth_revolution.is_some()

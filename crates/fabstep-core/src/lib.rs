@@ -443,6 +443,9 @@ impl std::ops::DerefMut for LinearBlends {
 /// the two small mouths in increasing z, then the two large mouths in x.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrossDrill {
+    /// Full-length exterior quarter round on an orthogonal stock, parallel to X.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stock_fillet: Option<StockFillet>,
     /// Dot product of the two physical bore axes, zero in legacy files.
     #[serde(default)]
     pub large_axis_cosine: f64,
@@ -459,6 +462,13 @@ pub struct CrossDrill {
     /// Each witnessed source cycle (z negative, positive) is ordered by
     /// increasing phase around z, without repeating the first vertex id.
     pub branches: [Vec<usize>; 2],
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct StockFillet {
+    pub radius_mm: f64,
+    pub y_sign: i32,
+    pub z_sign: i32,
 }
 
 /// An additional positive Bernstein span, joined C1 to the first at a witnessed level.
@@ -543,6 +553,8 @@ pub struct RoundedModel {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cross_drill: Option<Box<CrossDrill>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub drilled_shaft: Option<Box<DrilledShaft>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub smooth_revolution: Option<Box<SmoothRevolution>>,
 }
 
@@ -560,13 +572,17 @@ impl RoundedModel {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RoundedFaceRef {
+    /// 0 is the convex shaft wall, 1 the concave transverse bore.
+    ShaftWall {
+        index: usize,
+    },
     TorusSector {
         index: usize,
     },
     SmoothRevolution {
         index: usize,
     },
-    /// 0 and 1 are the lower and upper small walls; 2 is the large wall.
+    /// 0 and 1 are the small bore walls, 2 is the large bore, and 3 is the optional exterior fillet.
     CrossDrill {
         index: usize,
     },
@@ -647,6 +663,8 @@ pub use rounded_box::recognize_rounded_box;
 mod complete_sphere;
 mod complete_torus;
 mod cross_drill;
+mod drilled_shaft;
+pub use drilled_shaft::DrilledShaft;
 mod math;
 mod mesh_section;
 mod oblique_pocket;

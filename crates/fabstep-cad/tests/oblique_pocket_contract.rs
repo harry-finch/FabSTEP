@@ -134,6 +134,7 @@ fn one_circle_and_one_ellipse_reimport_as_a_single_concave_fillet() {
         partial_cones: vec![],
         octants: vec![],
         linear_blend: None,
+        drilled_shaft: None,
         cross_drill: None,
         smooth_revolution: None,
         unequal_pocket: None,

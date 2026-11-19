@@ -264,17 +264,30 @@ pub(crate) fn nominates_conical_wall(
     o: &Options,
     work: &mut Work,
 ) -> bool {
-    matches!(nominate_wall(mesh, wall, o, work), Some(Support::Cone { .. }))
+    matches!(
+        nominate_wall(mesh, wall, o, work),
+        Some(Support::Cone { .. })
+    )
 }
 
-pub(crate) fn spherical_wall(mesh: &Mesh, wall: &BTreeSet<usize>, o: &Options, work: &mut Work) -> Option<(V, f64)> {
+pub(crate) fn spherical_wall(
+    mesh: &Mesh,
+    wall: &BTreeSet<usize>,
+    o: &Options,
+    work: &mut Work,
+) -> Option<(V, f64)> {
     match nominate_wall(mesh, wall, o, work)? {
         Support::Sphere { center, radius } => Some((center, radius)),
         _ => None,
     }
 }
 
-fn nominate_wall(mesh: &Mesh, wall: &BTreeSet<usize>, o: &Options, work: &mut Work) -> Option<Support> {
+fn nominate_wall(
+    mesh: &Mesh,
+    wall: &BTreeSet<usize>,
+    o: &Options,
+    work: &mut Work,
+) -> Option<Support> {
     let n = mesh.triangles.len();
     if n > 4096 || wall.len() < 16 || mesh.vertices.len() > 3 * 4096 {
         return None;
@@ -294,10 +307,13 @@ fn nominate_wall(mesh: &Mesh, wall: &BTreeSet<usize>, o: &Options, work: &mut Wo
     let Ok(found) = discover(mesh, &residual, o, work) else {
         return None;
     };
-    let [candidate] = found.as_slice() else { return None };
+    let [candidate] = found.as_slice() else {
+        return None;
+    };
     (candidate.triangles.iter().eq(wall)
         && candidate.vertex_residual_mm <= o.cylinder_fit_tolerance_mm
-        && candidate.triangle_bound_mm <= o.max_deviation_mm).then_some(candidate.support)
+        && candidate.triangle_bound_mm <= o.max_deviation_mm)
+        .then_some(candidate.support)
 }
 
 fn discover(

@@ -309,6 +309,7 @@ pub(super) fn candidate(
         tori: vec![],
         partial_cones: vec![],
         octants: vec![],
+        drilled_shaft: None,
         cross_drill: None,
         linear_blend: None,
         torus_sectors: vec![],

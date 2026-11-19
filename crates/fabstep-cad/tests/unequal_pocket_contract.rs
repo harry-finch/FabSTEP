@@ -60,6 +60,7 @@ fn pocket(reflected: bool) -> RoundedModel {
         partial_cones: vec![],
         octants: vec![],
         linear_blend: None,
+        drilled_shaft: None,
         cross_drill: None,
         smooth_revolution: None,
         unequal_pocket: Some(Box::new(geometry)),

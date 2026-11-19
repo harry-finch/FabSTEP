@@ -8,8 +8,14 @@ fn main() {
     println!("cargo:rerun-if-changed=src/occt.cpp");
     for file in [
         "cross_drill.hxx",
+        "drilled_shaft.hxx",
+        "drilled_shaft_build.hxx",
+        "drilled_shaft_verify.hxx",
+        "drilled_shaft_volume.hxx",
         "smooth_revolution.hxx",
         "height_patch.hxx",
+        "cut_octant_build.hxx",
+        "cut_octant_check.hxx",
         "torus_sector.hxx",
         "trim_native_step.hxx",
         "trim_edge_cache.hxx",

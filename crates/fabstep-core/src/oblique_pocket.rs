@@ -662,6 +662,7 @@ fn candidate(
         torus_sectors: vec![],
         smooth_revolution: None,
         unequal_pocket: None,
+        drilled_shaft: None,
         cross_drill: None,
         linear_blend: None,
         octants: vec![],
