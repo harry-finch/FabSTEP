@@ -441,6 +441,9 @@ impl std::ops::DerefMut for LinearBlends {
 /// the two small mouths in increasing z, then the two large mouths in x.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrossDrill {
+    /// Dot product of the two physical bore axes, zero in legacy files.
+    #[serde(default)]
+    pub large_axis_cosine: f64,
     /// Small bore axis position along local X/Y, measured from the block center.
     #[serde(default)]
     pub small_offset: [f64; 2],

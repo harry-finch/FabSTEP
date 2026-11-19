@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 struct CrossDrillData {
-  double small_offset[2], center[3], axes[3][3], half[3], radii[2];
+  double small_offset[2], center[3], axes[3][3], half[3], radii[2], large_axis_cosine;
 };
 struct CrossDrillResult {
   CrossDrillData data;

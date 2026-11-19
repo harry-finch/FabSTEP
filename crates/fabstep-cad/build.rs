@@ -15,6 +15,7 @@ fn main() {
         "oblique_pocket.hxx",
         "unequal_pocket.hxx",
         "cross_drill_build.hxx",
+        "cross_drill_junction.hxx",
         "cross_drill_verify.cpp",
         "cross_drill_certificate.hxx",
     ] {

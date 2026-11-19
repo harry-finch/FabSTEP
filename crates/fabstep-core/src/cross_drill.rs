@@ -1,4 +1,4 @@
-//! Orthogonal through bores with two transverse, closed branches.
+//! Cylindrical through bores with two transverse, closed branches.
 //! The cylinder charts are periodic. The oriented boundary of each domain
 //! fixes its degree; pointwise projection alone cannot prove the two holes.
 use crate::math::*;
@@ -42,6 +42,42 @@ fn local(f: &CrossDrill, p: V) -> V {
 fn world(f: &CrossDrill, p: V) -> V {
     std::array::from_fn(|i| f.center[i] + (0..3).map(|j| p[j] * f.axes[j][i]).sum::<f64>())
 }
+// Physical orthonormal coordinates are (U,Y,Z). Rotate into the frame
+// of the large cylinder for distances and angular charts. Pulling back
+// the block supports uses three unit normals, which need not be orthogonal.
+fn sine(f: &CrossDrill) -> f64 {
+    (1. - f.large_axis_cosine.powi(2)).sqrt()
+}
+fn large_frame(f: &CrossDrill, p: V) -> V {
+    let c = f.large_axis_cosine;
+    let s = sine(f);
+    [s * p[0] + c * p[2], p[1], s * p[2] - c * p[0]]
+}
+fn from_large(f: &CrossDrill, p: V) -> V {
+    let c = f.large_axis_cosine;
+    let s = sine(f);
+    [s * p[0] - c * p[2], p[1], c * p[0] + s * p[2]]
+}
+fn chart(f: &CrossDrill, p: V, large: bool) -> V {
+    if large {
+        large_frame(f, p)
+    } else {
+        p
+    }
+}
+fn supports(f: &CrossDrill, p: V) -> V {
+    [large_frame(f, p)[0], p[1], p[2]]
+}
+fn from_supports(f: &CrossDrill, p: V) -> V {
+    [(p[0] - f.large_axis_cosine * p[2]) / sine(f), p[1], p[2]]
+}
+fn normal(f: &CrossDrill, i: usize) -> V {
+    if i % 3 == 0 {
+        std::array::from_fn(|j| sine(f) * f.axes[0][j] + f.large_axis_cosine * f.axes[2][j])
+    } else {
+        f.axes[i % 3]
+    }
+}
 fn face_axis(i: usize) -> usize {
     i % 3
 }
@@ -69,7 +105,12 @@ fn branch_position(f: &CrossDrill, t: f64, sign: f64) -> V {
     let (s, c) = t.sin_cos();
     let [dx, dy] = f.small_offset;
     let y = dy + r * s;
-    [dx + r * c, y, sign * ((big - y) * (big + y)).sqrt()]
+    let x = dx + r * c;
+    [
+        x,
+        y,
+        (f.large_axis_cosine * x + sign * ((big - y) * (big + y)).sqrt()) / sine(f),
+    ]
 }
 fn delta_angle(a: f64, b: f64) -> f64 {
     let d = b - a;
@@ -123,7 +164,7 @@ fn seed(
         || (b0.radius - b1.radius).abs() > 2. * fit
         || r <= 1e-4
         || big - 1.5 * r <= 4. * eps.max(1e-7)
-        || dot(s0.axis, b0.axis).abs() > 1e-6
+        || dot(s0.axis, b0.axis).abs() > 0.51 + 1e-6
     {
         return Ok(None);
     }
@@ -132,13 +173,16 @@ fn seed(
     let (Some(z), Some(raw_x)) = (bore_direction(s0, s1, fit), bore_direction(b0, b1, fit)) else {
         return Ok(None);
     };
-    if dot(z, raw_x).abs() > 1e-6 {
+    let cosine = dot(z, raw_x);
+    let cosine = if cosine.abs() <= 1e-6 { 0. } else { cosine };
+    if cosine.abs() > 0.51 || (cosine != 0. && norm(sub(c0, c1)) > 2. * fit) {
         return Ok(None);
     }
     let x = sub(raw_x, scale(z, dot(z, raw_x)));
     let x = scale(x, 1. / norm(x));
     let y = cross(z, x);
     let mut model = CrossDrill {
+        large_axis_cosine: cosine,
         small_offset: [0.; 2],
         witness_tolerance_mm: 0.,
         center: if norm(sub(c0, c1)) <= 2. * fit {
@@ -156,7 +200,7 @@ fn seed(
         let axis = if (rim.radius - r).abs() < (rim.radius - big).abs() {
             z
         } else {
-            x
+            normal(&model, 0)
         };
         norm(cross(axis, rim.axis)) * rim.radius > fit
     }) {
@@ -166,7 +210,7 @@ fn seed(
     let mut lo = [f64::INFINITY; 3];
     let mut hi = [f64::NEG_INFINITY; 3];
     for &p in &a.mesh.vertices {
-        let q = local(&model, p);
+        let q = supports(&model, local(&model, p));
         for i in 0..3 {
             lo[i] = lo[i].min(q[i]);
             hi[i] = hi[i].max(q[i]);
@@ -181,10 +225,10 @@ fn seed(
     let longest = model.half_lengths.into_iter().fold(0., f64::max);
     let mut regions = [usize::MAX; 6];
     for (region, face) in s.model.faces.iter().enumerate() {
-        let q = local(&model, a.mesh.vertices[face.loops[0][0]]);
+        let q = supports(&model, local(&model, a.mesh.vertices[face.loops[0][0]]));
         for (i, slot) in regions.iter_mut().enumerate() {
             if (q[i % 3] - height(&model, i)).abs() > fit
-                || norm(sub(face.normal, scale(model.axes[i % 3], side(i)))) * longest > fit
+                || norm(sub(face.normal, scale(normal(&model, i), side(i)))) * longest > fit
             {
                 continue;
             }
@@ -213,22 +257,22 @@ fn seed(
             continue;
         }
         for &v in triangle {
-            let d = dot(
-                sub(a.mesh.vertices[v], model.center),
-                model.axes[face_axis(i)],
-            );
+            let d = dot(sub(a.mesh.vertices[v], model.center), normal(&model, i));
             low[i] = low[i].min(d);
             high[i] = high[i].max(d);
         }
     }
     let heights: [f64; 6] = std::array::from_fn(|i| (low[i] + high[i]) * 0.5);
     let offset = std::array::from_fn(|i| (heights[i + 3] + heights[i]) * 0.5);
-    model.center = world(&model, offset);
+    model.center = world(&model, from_supports(&model, offset));
     model.half_lengths = std::array::from_fn(|i| (heights[i + 3] - heights[i]) * 0.5);
     let measured = local(&model, c0);
     // Absorb only deviations already covered by the measured mouth residual.
     // This preserves historical centered cylinders on float32 placements.
     if measured[0].hypot(measured[1]) > fit {
+        if cosine != 0. {
+            return Ok(None);
+        }
         model.small_offset = [measured[0], measured[1]];
     }
     let [dx, dy] = model.small_offset;
@@ -238,6 +282,9 @@ fn seed(
         || l[0] <= dx.abs() + r + 8. * eps
         || l[1] <= big + 8. * eps
         || l[2] <= big + 8. * eps
+        || (cosine != 0.
+            && (l[0] <= cosine.abs() * l[2] + sine(&model) * r + 8. * eps
+                || l[2] <= cosine.abs() * l[0] + sine(&model) * big + 8. * eps))
     {
         return Ok(None);
     }
@@ -261,6 +308,9 @@ fn seed(
         };
         let mut q = if slot < 2 { [dx, dy, 0.] } else { [0.; 3] };
         q[i % 3] = height(&model, i);
+        if slot >= 2 {
+            q = from_large(&model, q);
+        }
         if norm(sub(rim.center, world(&model, q))) > fit
             || (rim.radius - model.radii[usize::from(slot >= 2)]).abs() > fit
         {
@@ -317,12 +367,13 @@ fn owners(
             let small = p
                 .iter()
                 .all(|q| ((q[0] - dx).hypot(q[1] - dy) - r).abs() <= fit);
-            let large = p.iter().all(|q| (q[1].hypot(q[2]) - big).abs() <= fit);
+            let broad = p.map(|q| large_frame(&seed.model, q));
+            let large = broad.iter().all(|q| (q[1].hypot(q[2]) - big).abs() <= fit);
             match (small, large) {
                 (false, true) => LARGE,
                 // Both intersection branches satisfy |z| >= sqrt(5) R/3 when r/R < 2/3.
-                (true, false) if p.iter().all(|q| q[2] < -big / 2.) => SMALL_LOW,
-                (true, false) if p.iter().all(|q| q[2] > big / 2.) => SMALL_HIGH,
+                (true, false) if broad.iter().all(|q| q[2] < -big / 2.) => SMALL_LOW,
+                (true, false) if broad.iter().all(|q| q[2] > big / 2.) => SMALL_HIGH,
                 _ => usize::MAX,
             }
         })
@@ -485,7 +536,7 @@ fn topology(
         // Directed edge origins here come from the planar side of each mouth.
         let center = if slot < 2 { [dx, dy, 0.] } else { [0.; 3] };
         let angle = |p: V| {
-            let q = sub(p, center);
+            let q = sub(chart(f, p, axis == 0), center);
             q[(axis + 2) % 3].atan2(q[(axis + 1) % 3])
         };
         let mut total = Sum::default();
@@ -502,6 +553,9 @@ fn topology(
             q[axis] = height(f, face);
             q[(axis + 1) % 3] += radius * a.cos();
             q[(axis + 2) % 3] += radius * a.sin();
+            if axis == 0 {
+                q = from_large(f, q);
+            }
             err.record(points[v], q, o.cylinder_fit_tolerance_mm)?;
             if t.boundary[v].replace(q).is_some() {
                 return Err(fail("embouchures partagées entre domaines"));
@@ -526,6 +580,19 @@ fn topology(
         (
             (r * r + extent * r) / floor + (extent * r).powi(2) / floor.powi(3),
             r.hypot(big * (r / floor + extent * r * r / floor.powi(3))),
+        )
+    };
+    // The oblique branch has axial coordinates (c*x + W)/s on
+    // the small chart and (x + c*W)/s on the large chart, where
+    // W=+/-sqrt(R²-y²). The circular coordinate on either chart is unchanged.
+    let (small_accel, large_accel) = if f.large_axis_cosine == 0. {
+        (small_accel, large_accel)
+    } else {
+        let c = f.large_axis_cosine.abs();
+        let angle_accel = big * (r / floor + extent * r * r / floor.powi(3));
+        (
+            (c * r + small_accel) / sine(f),
+            ((r + c * small_accel) / sine(f)).hypot(angle_accel),
         )
     };
     for j in 0..2 {
@@ -558,6 +625,39 @@ fn topology(
         if (total.get() - TAU).abs() > 1e-8 {
             return Err(fail("degré différent d’un sur la branche transverse"));
         }
+        if f.large_axis_cosine != 0. {
+            // Prove that the source chords in the large chart bound one
+            // simple convex hole. The two signs occupy disjoint half-cylinders.
+            work.spend(cycle.len().saturating_mul(cycle.len()))?;
+            let poly: Vec<_> = cycle
+                .iter()
+                .map(|&v| {
+                    let q = large_frame(f, t.boundary[v].unwrap());
+                    [q[0], big * q[2].atan2(q[1])]
+                })
+                .collect();
+            let mut winding = 0.;
+            for i in 0..poly.len() {
+                let p = poly[i];
+                let q = poly[(i + 1) % poly.len()];
+                for (k, r) in poly.iter().enumerate() {
+                    if k == i || k == (i + 1) % poly.len() {
+                        continue;
+                    }
+                    let u = (q[0] - p[0]) * (r[1] - p[1]);
+                    let v = (q[1] - p[1]) * (r[0] - p[0]);
+                    let cross = u - v;
+                    if cross.abs() <= 128. * f64::EPSILON * (u.abs() + v.abs())
+                        || (winding != 0. && winding != cross.signum())
+                    {
+                        return Err(fail(
+                            "contour oblique non convexe dans la carte du grand perçage",
+                        ));
+                    }
+                    winding = cross.signum();
+                }
+            }
+        }
         t.branch[j] = cycle;
     }
     Ok(t)
@@ -577,13 +677,13 @@ fn planes(
     for (i, &region) in seed.regions.iter().enumerate() {
         let outer = &s.model.faces[region].loops[0];
         work.spend(8 * outer.len())?;
-        let normal = scale(f.axes[i % 3], side(i));
+        let normal = scale(normal(f, i), side(i));
         let j = (i + 1) % 3;
         let k = (i + 2) % 3;
         let mut sides = Vec::with_capacity(outer.len());
         for n in 0..outer.len() {
-            let p = local[outer[n]];
-            let q = local[outer[(n + 1) % outer.len()]];
+            let p = supports(f, local[outer[n]]);
+            let q = supports(f, local[outer[(n + 1) % outer.len()]]);
             let mut selected = None;
             for &fixed in &[j, k] {
                 for sign in [-1., 1.] {
@@ -609,7 +709,7 @@ fn planes(
         let mut corners = Vec::new();
         for n in 0..outer.len() {
             let v = outer[n];
-            let mut q = local[v];
+            let mut q = supports(f, local[v]);
             q[i % 3] = height(f, i);
             let (fixed, sign) = sides[n];
             q[fixed] = sign * f.half_lengths[fixed];
@@ -621,6 +721,7 @@ fn planes(
                 q[previous.0] = previous.1 * f.half_lengths[previous.0];
                 corners.push(v);
             }
+            let q = from_supports(f, q);
             err.record(local[v], q, fit)?;
             if let Some(prev) = t.boundary[v] {
                 if norm(sub(q, prev)) > seed.roundoff {
@@ -671,14 +772,15 @@ fn prove_strip_interiors(
         let j = (axis + 1) % 3;
         let k = (axis + 2) % 3;
         let radius = f.radii[usize::from(large)];
-        let (p, q) = (local[a], local[b]);
-        let m = midpoint(p, q);
+        let mid = midpoint(local[a], local[b]);
+        let (p, q) = (chart(f, local[a], large), chart(f, local[b], large));
+        let m = chart(f, mid, large);
         let [dx, dy] = f.small_offset;
         let center = if large { [0.; 3] } else { [dx, dy, 0.] };
         let other_distance = if large {
-            (m[0] - dx).hypot(m[1] - dy) - f.radii[0]
+            (mid[0] - dx).hypot(mid[1] - dy) - f.radii[0]
         } else {
-            m[1].hypot(m[2]) - f.radii[1]
+            m[1].hypot(large_frame(f, mid)[2]) - f.radii[1]
         };
         if (p[axis] - q[axis]).abs() <= clearance
             || f.half_lengths[axis] - m[axis].abs() <= clearance
@@ -720,19 +822,24 @@ fn proof(
             let mut projected = [[0.; 3]; 3];
             for (i, v) in ids.into_iter().enumerate() {
                 let p = local[v];
-                let dist = (p[axis] - h).abs();
+                let dist = (supports(f, p)[axis] - h).abs();
                 if dist > o.plane_tolerance_mm {
                     return Err(fail("triangle hors du plan canonique"));
                 }
                 err.plane = err.plane.max(dist);
-                let mut q = p;
+                let mut q = chart(f, p, axis == 0);
                 q[axis] = h;
+                if axis == 0 {
+                    q = from_large(f, q);
+                }
                 projected[i] = t.boundary[v].unwrap_or(q);
             }
             let [p, q, r] = projected;
             let u = sub(q, p);
             let v = sub(r, p);
-            if side(wall) * cross(u, v)[axis] <= 128. * f64::EPSILON * norm(u) * norm(v) {
+            if side(wall) * supports(f, cross(u, v))[axis]
+                <= 128. * f64::EPSILON * norm(u) * norm(v)
+            {
                 return Err(fail("triangle plan replié"));
             }
             continue;
@@ -746,11 +853,15 @@ fn proof(
         let mut uv = [[0.; 2]; 3];
         for (i, v) in ids.into_iter().enumerate() {
             let p = local[v];
-            let mut q = t.boundary[v].unwrap_or(p);
+            let mut q = chart(f, t.boundary[v].unwrap_or(p), wall == LARGE);
             let angle = (q[k] - center[k]).atan2(q[j] - center[j]);
             q[j] = center[j] + radius * angle.cos();
             q[k] = center[k] + radius * angle.sin();
-            err.record(p, q, o.cylinder_fit_tolerance_mm)?;
+            err.record(
+                p,
+                if wall == LARGE { from_large(f, q) } else { q },
+                o.cylinder_fit_tolerance_mm,
+            )?;
             uv[i] = [angle, q[axis]];
             if t.boundary[v].is_none() {
                 interior[wall - 6] = true;
@@ -773,7 +884,7 @@ fn proof(
         if !signed.is_finite() || signed >= -128. * f64::EPSILON * ((u * g).abs() + (v * h).abs()) {
             return Err(fail("carte cylindrique repliée ou indéterminée"));
         }
-        let [p, q, r] = ids.map(|v| local[v]);
+        let [p, q, r] = ids.map(|v| chart(f, local[v], wall == LARGE));
         let n = cross(sub(q, p), sub(r, p));
         let mut radial = [0.; 3];
         let angle = raw0 + (lo + hi) * 0.5;
@@ -857,8 +968,10 @@ pub(crate) fn volume(f: &CrossDrill) -> Result<f64, FabError> {
         let k = k as f64;
         term *= ratio * (k - 0.5) / (k + 1.) * (2. * k + 1.) / (2. * k + 4.);
     }
-    let result =
-        8. * x * y * z - 2. * PI * (z * r * r + x * big * big) + 8. * r * r * big * series.get();
+    // The skew block and the overlap of the cylinders both acquire a
+    // Jacobian of 1/sin(angle). Each bore keeps its physical axial length.
+    let result = (8. * x * y * z + 8. * r * r * big * series.get()) / sine(f)
+        - 2. * PI * (z * r * r + x * big * big);
     if result.is_finite() && result > 0. {
         Ok(result)
     } else {
@@ -917,8 +1030,8 @@ pub(crate) fn candidate(
         let mut p = if i == 2 { [dx, dy, 0.] } else { [0.; 3] };
         p[i] = height(f, face);
         rings.push(CircularRing {
-            center: world(f, p),
-            axis: f.axes[i],
+            center: world(f, if i == 0 { from_large(f, p) } else { p }),
+            axis: normal(f, i),
             radius_mm: f.radii[usize::from(i == 0)],
         });
     }

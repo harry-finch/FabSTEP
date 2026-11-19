@@ -460,13 +460,21 @@ inline Cylinder cylinder(const TopoDS_Face& face) {
 struct LocalFrame {
   V center;
   std::array<V,3> axes;
+  I sine{1.}, cosine{0.};
+  bool oblique = false;
   I dot(V a,V b) const {return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
   V cross(V a,V b) const {return {a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]};}
   V vector(V p) const {return {dot(p,axes[0]),dot(p,axes[1]),dot(p,axes[2])};}
-  LocalFrame(const double* origin,const double* x,const double* z) {
+  LocalFrame(const double* origin,const double* x,const double* z,bool inclined=false) : oblique(inclined) {
     auto v=[](const double* p)->V{return {I(p[0]),I(p[1]),I(p[2])};};
     auto unit=[](V a){return scale(a,I(1.)/norm(a));};
     center=v(origin);axes[0]=unit(v(x));axes[1]=unit(cross(v(z),axes[0]));axes[2]=cross(axes[0],axes[1]);
+    if (oblique) {
+      const auto large=axes[0];
+      axes[2]=unit(v(z)); axes[0]=cross(axes[1],axes[2]);
+      sine=dot(large,axes[0]); cosine=dot(large,axes[2]);
+      if (sine.lo < .85 || magnitude(cosine) > .51) throw Failure{"inclined_axes_out_of_range"};
+    }
   }
   void apply(RawSpline& spline) const {
     for(auto& h:spline.poles) {
@@ -512,19 +520,27 @@ struct State {
   I phase_end;
   double r,R,offset;
   std::array<Cylinder,2> surfaces;
+  const LocalFrame* frame=nullptr;
 };
 inline bool leaf(State& s,const std::array<Net,3>& nets) {
   ++s.result.attempts;
   const auto& n=nets[0];
   const I w=hull(n[3]);if(w.lo<=0.)return false;
-  const auto x2=product(n[0],n[0]),y2=product(n[1],n[1]),z2=product(n[2],n[2]),w2=product(n[3],n[3]);
+  const bool oblique=s.frame && s.frame->oblique;
+  // In the physical, orthonormal frame of the small cylinder, k is the
+  // transverse coordinate of the large cylinder. Keep the physical space
+  // controls for both p-curve lifts and the tessellation derivative bounds.
+  Poly skew_transverse;
+  if(oblique) skew_transverse=add(scaled(n[2],s.frame->sine),scaled(n[0],s.frame->cosine),true);
+  const Poly& k=oblique ? skew_transverse : n[2];
+  const auto x2=product(n[0],n[0]),y2=product(n[1],n[1]),z2=product(k,k),w2=product(n[3],n[3]);
   const I f1=hull(add(add(x2,y2),scaled(w2,square(I(s.r))),true))/square(w);
   // Local x/y are relative to the small axis; the large axis lies at y=-d.
   const Poly large_y=s.offset==0. ? n[1] : add(n[1],scaled(n[3],I(s.offset)));
   const I f2=hull(add(add(s.offset==0. ? y2 : product(large_y,large_y),z2),scaled(w2,square(I(s.R))),true))/square(w);
   const I rho2=hull(add(x2,y2))/square(w);
   if(rho2.lo<=0.)return false;
-  const I rho=root(rho2),z=hull(n[2])/w;
+  const I rho=root(rho2),z=hull(k)/w;
   const int sign=z.lo>0.?1:z.hi<0.?-1:0;
   if(!sign)return false;
   const double zmin=sign>0?z.lo:-z.hi;
@@ -533,7 +549,10 @@ inline bool leaf(State& s,const std::array<Net,3>& nets) {
   // Project (x,y) radially to (x*,y*) on the small circle. Then
   // |(y+d)^2-(y*+d)^2| <= |rho²-r²| + 2|d|*|rho-r|.
   const I axial=(I(magnitude(f1))+I(magnitude(f2))+I(2.*std::abs(s.offset))*radial)/(I(zmin)+delta);
-  const double bound=norm({radial,axial,I(0.)}).hi;
+  // z = (k+cos(angle)*x)/sin(angle). Radial projection of (x,y)
+  // changes x by at most radial. Convert the k residual to a physical length.
+  const I dz=oblique ? (axial+I(magnitude(s.frame->cosine))*radial)/s.frame->sine : axial;
+  const double bound=norm({radial,dz,I(0.)}).hi;
   s.result.last_bound3d=bound;
   const Poly phase=add(product(n[0],derivative(n[1])),product(n[1],derivative(n[0])),true);
   const I h=hull(phase);const int direction=h.lo>0.?1:h.hi<0.?-1:0;
@@ -603,7 +622,7 @@ inline Certificate certifyEdge(const TopoDS_Edge& edge,const TopoDS_Face& face1,
   using namespace certificate_detail;
   Counter counter{0,budget.max_work};Scope scope(counter);
   Certificate result;
-  State state{budget,counter,{},false,I(0.),r,R,offset,{}};
+  State state{budget,counter,{},false,I(0.),r,R,offset,{},frame};
   try {
     static_assert(std::numeric_limits<double>::is_iec559,"binary64 interval arithmetic required");
     if(!std::isfinite(offset)||std::abs(offset)>r||!resolvedRadii(r+std::abs(offset),R)||!std::isfinite(budget.tolerance_mm)||budget.tolerance_mm<=0.||budget.max_depth<0||budget.max_depth>30||budget.max_leaves==0||budget.max_leaves>65'536)

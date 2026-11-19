@@ -11,6 +11,7 @@ fn aligned(a: V, b: V) -> bool {
 type P2 = [f64; 2];
 mod broad_phase;
 mod perforated;
+pub(crate) use perforated::cross_drill_supports;
 
 const EXHAUSTIVE_EDGE_LIMIT: usize = 64;
 

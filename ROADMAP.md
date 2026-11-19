@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 104** (22 %)
+**Avancement : 23 livrés sur 105** (22 %)
 
 ## Restant à faire
 
@@ -174,6 +174,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Reconstruire les deux congés d’un rebord de récipient ouvert, y compris le quart de tore qui rejoint le cylindre par sa branche radiale intérieure.
 81. **[R-104 C2 — Révolution cubique sur une tessellation irrégulière](roadmap/items/R-104-c2-revolution-cubique-sur-une-tessellation.md)** · À tester · jalon post-v1
    Reconstruire une méridienne cubique lorsque le maillage FreeCAD ne présente pas d’anneaux intérieurs complets.
+82. **[R-105 F — Deux perçages sécants à axes obliques](roadmap/items/R-105-f-deux-percages-secants-a-axes-obliques.md)** · À tester · jalon post-v1
+   Reconstruire les deux intersections transverses de perçages dont les axes se croisent dans un prisme à quatre bouches circulaires.
 
 ## Actions à faire
 
@@ -275,6 +277,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-109](roadmap/actions/A-109-controler-les-deux-conges-variables-dans-fusion.md) Contrôler les deux congés variables dans Fusion (tester, R-102)
 - [ ] [A-110](roadmap/actions/A-110-verifier-les-deux-arrondis-du-rebord-dans-fusion.md) Vérifier les deux arrondis du rebord dans Fusion (tester, R-103)
 - [ ] [A-111](roadmap/actions/A-111-verifier-les-revolutions-sans-anneaux-interieurs.md) Vérifier les révolutions sans anneaux intérieurs dans Fusion (tester, R-104)
+- [ ] [A-112](roadmap/actions/A-112-verifier-les-percages-a-60-et-75-dans-fusion.md) Vérifier les perçages à 60° et 75° dans Fusion (tester, R-105)
 
 ## Livré
 

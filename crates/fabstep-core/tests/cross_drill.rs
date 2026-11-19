@@ -358,3 +358,46 @@ fn displaced_axes_keep_separate_centers_and_resolve_both_intersections() {
             .is_none());
     }
 }
+
+#[test]
+fn inclined_bores_on_a_skew_block_keep_four_real_circles_and_two_transverse_cycles() {
+    let o = opts(ReconstructionMode::Surfaces);
+    for (bytes, angle, volume) in [
+        (
+            &include_bytes!("../../../fixtures/oblique_cross_drill/angle-60-coarse.stl")[..],
+            60_f64,
+            23856.175867446,
+        ),
+        (
+            &include_bytes!("../../../fixtures/oblique_cross_drill/angle-75-coarse.stl")[..],
+            75_f64,
+            21089.937824588,
+        ),
+        (
+            &include_bytes!("../../../fixtures/oblique_cross_drill/angle-60-fine.stl")[..],
+            60_f64,
+            23856.175867446,
+        ),
+        (
+            &include_bytes!("../../../fixtures/oblique_cross_drill/angle-75-fine.stl")[..],
+            75_f64,
+            21089.937824588,
+        ),
+    ] {
+        let a = analyze_stl(bytes, &o).unwrap();
+        let r = recognize_rounded(&a, &o).unwrap();
+        let f = r.model.cross_drill.as_ref().unwrap();
+        assert!((f.large_axis_cosine.abs() - angle.to_radians().cos()).abs() < 1e-6);
+        assert_eq!(f.small_offset, [0.; 2]);
+        assert_eq!(r.report.cylinders, 3);
+        assert!((r.report.expected_volume_mm3 - volume).abs() < 0.03);
+        assert!(r.report.max_deviation_bound_mm < 0.05);
+        assert_eq!(r.model.revolved.mixed.rings.len(), 4);
+        assert!(f.branches.iter().all(|b| b.len() >= 12));
+        let strict = Options {
+            max_deviation_mm: 1e-5,
+            ..o.clone()
+        };
+        assert!(recognize_rounded(&a, &strict).is_err());
+    }
+}
