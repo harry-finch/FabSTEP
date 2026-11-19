@@ -561,3 +561,7 @@ Le helper complet atteint l’échéance de trente minutes sur le STL Flansch co
 ## 2026-11-19 — R-115, récupération des plans sur STL quantifié
 
 Le mode Planar et la sortie plane d’Auto peuvent réunir des fragments dont une même graine de grande aire prouve le plan. L’essai conserve les indices des triangles, protège les plis et vérifie chaque sommet sur le plan ancré au contour de sortie. Les deux solides tournés passent de 89 faces Auto à six et sept, avec correspondance complète après relecture. V-1263 consigne les témoins de refus, le coût mesuré et la recette A-124.
+
+## 2026-11-19 — R-085, validation du corps après transfert STEP
+
+Le contrôle local de distance au tore, les raccords sur arcs courts et leur maillage à bord commun sont intégrés. Une loi de parcours corrigée sur 29 bords circulaires permet au solide entier de passer le contrôle géométrique après transfert et de conserver ses 46 671 identités. La fidélité passe dans les deux sens sur les 540 170 triangles du STL source. Le rejeu du paquet atteint toujours trente minutes au contrôle des interférences. Les témoins de régression, les résultats des contrôles indépendants et les groupes les plus coûteux sont consignés en V-1262.

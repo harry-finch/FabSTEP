@@ -1,7 +1,7 @@
 ---
 id: R-085
 titre: "Reconstruire les raccords toriques partiels du pourtour de Flansch"
-resume: "Le secteur public à deux tores passe en Auto. Sur Flansch, les 26 refus du raccord sont corrigés. Le contrôle entier atteint encore trente minutes, avec un pic de 3,03 Gio."
+resume: "Flansch conserve ses 46 671 faces et passe le contrôle géométrique après relecture STEP en laboratoire. Dans le paquet, le contrôle des intersections atteint encore trente minutes."
 statut: en-cours
 jalon: v1.0
 cree: 2026-11-18
@@ -45,3 +45,9 @@ Dans la contre-expertise Argon, le contrôle parallèle a isolé sur le STEP de 
 Le secteur public à deux bords décalés reproduisait le refus du noyau. Il passe maintenant depuis le STL dense de 166 848 triangles jusqu’au STEP réimporté dans FreeCAD. Sur Flansch, les 26 refus ciblés du raccord ont disparu. Les 1 907 nouveaux raccords conservent leurs supports et leurs bords après transfert par lots. Les qualifications publiques et privées sont détaillées en V-1261.
 
 Le rejeu complet en Auto du 19 novembre atteint trente minutes pendant la construction, avec un pic de 3,03 Gio et aucun STEP publié. R-085 reste en cours. Le filtre expérimental de distance au tore diminue le nombre de groupes coûteux sur le banc. Sa qualification sur le solide entier avant et après transfert reste à faire (V-1261).
+
+### Qualification du corps relu (V-1262)
+
+FabSTEP retrouve les 46 671 faces après écriture et relecture du corps Flansch en laboratoire. Le contrôle géométrique accepte le solide, dont les 29 traces circulaires corrigées. La tessellation de contrôle à 0,005 mm reste sous le plafond avec 98 468 triangles. Les distances échantillonnées sont de 0,011552 mm vers le STEP et de 0,010018 mm en retour.
+
+Les contrôles indépendants couvrent les 6 793 groupes natifs et les 6 763 groupes du STEP relu. Les 704 groupes modifiés par la correction de bord ont été revérifiés directement. Tous passent. Le helper du paquet atteint encore la garde de trente minutes dans le contrôle des intersections. Son pic échantillonné est de 3,04 Gio. La prochaine qualification porte sur le coût des groupes contenant des raccords B-splines sur les deux états du solide. Les témoins publics et les commandes sont consignés en V-1262.
