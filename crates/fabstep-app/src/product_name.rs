@@ -11,7 +11,8 @@ pub(crate) fn product_name(name: &str, fallback: &str) -> String {
     let end = if clean.len() <= 60 {
         clean.len()
     } else {
-        clean.grapheme_indices(true)
+        clean
+            .grapheme_indices(true)
             .map(|(start, cluster)| start + cluster.len())
             .take_while(|&end| end <= 60)
             .last()
