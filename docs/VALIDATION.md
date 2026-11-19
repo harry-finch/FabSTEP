@@ -2539,3 +2539,7 @@ L’audit de distance spatialement ordonné conserve les positions de tous les s
 V-1252, complément des unités. Onze cas indépendants couvrent notamment un modèle en pouces, des angles en degrés, un plan et une direction oblique en UV. Seuls les arcs du modèle métrique en radians dont la représentation est reconnue sont éligibles.
 
 **Rejouer la recherche source de V-1244.** Avec le Python NumPy de FreeCAD, exécuter `python scripts/qualify-flange-stock-domains.py chemin/vers/FlanschTurboLuftfilter_REV02.STL artifacts/torus-source`. Le laboratoire indépendant retrouve 26 hypothèses et 43 domaines couvrant 493 542 des 540 170 triangles. Le répertoire produit contient le repère mesuré, les boucles et l’affectation des triangles. Le témoin est exprimé dans ce repère. Pour reconstruire et valider un STEP dans le repère du fichier, utiliser le helper de l’application.
+
+## V-1254 — Réserve de soudage pour la source brute du helper
+
+Une occurrence de sommet de la rampe dense a été décalée de 0,000019997 mm avant écriture du STL. Avec un soudage de 0,000050000 mm, le helper retourne un solide de 659 faces et 93,536793075 mm³. La borne continue enregistrée inclut le soudage et atteint 0,013798369 mm. Le détecteur et la construction native se partagent le budget restant après soudage. Deux tests ciblés contrôlent également le seuil de refus, les identités source et les doubles attributions.
