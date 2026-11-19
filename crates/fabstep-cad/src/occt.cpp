@@ -3,6 +3,7 @@
 #include "trim_native_fan_mesh.hxx"
 #include "torus_atlas_abi.hxx"
 #include "torus_atlas_interference.hxx"
+#include "torus_atlas_pcurve.hxx"
 #include <GeomConvert.hxx>
 #include <BRepOffsetAPI_ThruSections.hxx>
 #include <BRepBuilderAPI_MakeVertex.hxx>
@@ -2527,6 +2528,14 @@ void require_product_name(STEPControl_Reader& reader, int root_index, const char
   throw CadFailure{mismatch, "Le nom d'un corps a changé après réimport du STEP."};
 }
 
+void align_atlas_parameters(STEPControl_Writer& writer) {
+  try {
+    atlas_pcurve::align(writer.Model());
+  } catch (const std::length_error& failure) {
+    throw CadFailure{document_too_large,failure.what()};
+  }
+}
+
 void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports, StepOutput* output,
              Status& stage, bool preserve_labels = false) {
   std::vector<Body> before;
@@ -2585,6 +2594,8 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
     }
     if (complete_labels && !write_face_labels(writer,labels) && includes_atlas)
       throw CadFailure{write_failed,"Perte des identités au transfert du document torique."};
+    if (includes_atlas && !compact)
+      align_atlas_parameters(writer);
   },step_document_limit,includes_atlas);
 
   stage = read_failed;
@@ -4088,6 +4099,7 @@ extern "C" int fabstep_build_torus_atlas(const double *points, size_t nv, const 
       if (writer.Transfer(solid, STEPControl_ManifoldSolidBrep, p) != IFSelect_RetDone ||
           !write_face_labels(writer, labels))
         throw CadFailure{stage, "Les surfaces de l’atlas ne sont pas transférables avec leurs identités."};
+      align_atlas_parameters(writer);
       AtlasStepStream compact(*bytes);
       std::ostream stream(&compact);
       auto status = writer.WriteStream(stream);

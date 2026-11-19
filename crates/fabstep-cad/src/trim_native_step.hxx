@@ -49,7 +49,8 @@ private:
 
 // Serialize one complete root set. OCCT's compact representation keeps the
 // 3D edge curves and surface supports; the reader recomputes the optional
-// parametric curves. The caller must validate the complete reimport as usual.
+// parametric curves. The dense atlas requires its certified surface parameters.
+// The caller must validate the complete reimport as usual.
 template <class Transfer>
 std::unique_ptr<StepOutputBuffer> write_bounded_step(Transfer transfer, size_t limit = step_document_limit, bool dense = false) {
   for (bool compact : {false, true}) {
@@ -61,7 +62,7 @@ std::unique_ptr<StepOutputBuffer> write_bounded_step(Transfer transfer, size_t l
     const auto status = writer.WriteStream(stream);
     const bool finished = !dense || leaders.finish();
     if (buffer->limit_reached()) {
-      if (!compact)
+      if (!compact && !dense)
         continue;
       throw CadFailure{document_too_large, "Le document STEP exporté dépasse 128 Mio."};
     }
