@@ -1,8 +1,8 @@
 ---
 id: R-036
 titre: "F — perçages sécants"
-resume: "Perçages orthogonaux centrés ou décentrés. Axes obliques entre eux dans un prisme à quatre bouches circulaires."
-statut: en-cours
+resume: "Deux perçages sécants, quatre bouches circulaires et deux branches certifiées, y compris avec un décalage latéral."
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-13
 maj: 2026-11-19
@@ -35,9 +35,7 @@ Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions F
 
 ## État consolidé
 
-R-096 qualifie un décentrage des axes orthogonaux. R-105 démontre deux axes centrés à 60° et 75° avec quatre entrées circulaires et deux branches certifiées. Les croisements multiples, bouches obliques elliptiques et combinaisons d’excentration et d’obliquité restent ouverts.
-
-Les essais dans Fusion sont suivis dans les actions des sous-jalons.
+Le domaine initial orthogonal de R-083 et ses extensions R-091/R-092/R-096/R-105/R-108 vérifient quatre entrées et deux branches pour des rayons distincts. Le décalage et l’inclinaison se combinent sur la normale commune. Les triples intersections, les trous borgnes et les bouches elliptiques dépassent le domaine actuel.
 
 ## Historique et décisions
 

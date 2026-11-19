@@ -1,8 +1,8 @@
 ---
 id: R-037
 titre: "G — congés variables"
-resume: "Un ou deux congés de loi affine sur un bloc droit, avec quatre ellipses pour deux arêtes opposées."
-statut: en-cours
+resume: "Un ou deux congés à rayon affine sur arêtes parallèles ou gauches, avec les deux extrémités contrôlées."
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-13
 maj: 2026-11-19
@@ -35,9 +35,7 @@ Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions F
 
 ## État consolidé
 
-R-094 accepte des bandes reliant directement les deux arrêts. R-102 reconstruit deux lois affines sur un bloc commun quand les deux domaines restent disjoints. Les congés qui se rencontrent et les lois non linéaires demandent des preuves supplémentaires.
-
-Les essais dans Fusion sont suivis dans les actions des sous-jalons.
+R-094, R-102 et R-109 vérifient le domaine affine sur un angle, deux arêtes opposées et deux arêtes gauches. Les lois sont mesurées séparément. Les jonctions entre deux congés variables et les lois non affines restent hors des domaines démontrés.
 
 ## Historique et décisions
 

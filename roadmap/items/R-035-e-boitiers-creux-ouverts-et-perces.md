@@ -1,8 +1,8 @@
 ---
 id: R-035
 titre: "E — boîtiers creux ouverts et percés"
-resume: "Bacs ouverts à perçages multiples, à rebord en saillie et cloison. Rebord circulaire arrondi sur ses deux côtés."
-statut: en-cours
+resume: "Bacs ouverts percés, parois et fonds, rebords et congés intérieurs vérifiés."
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-13
 maj: 2026-11-19
@@ -35,9 +35,7 @@ Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions F
 
 ## État consolidé
 
-R-097 couvre deux arrêts obliques. R-098 qualifie des trous du fond et de la paroi. R-100 qualifie deux cavités à fond de profondeur différente, séparées par une cloison sous un rebord. R-103 reconstruit les deux congés du rebord circulaire. Les lèvres sans plat mesuré, les cavités totalement enfermées et les assemblages libres ne font pas partie de ces domaines.
-
-Les essais dans Fusion sont suivis dans les actions des sous-jalons.
+Les bacs percés de R-098, les deux cavités de R-100, le rebord torique de R-103 et le fond de R-110 couvrent le périmètre défini. Les témoins à fond ouvert conservent leur passage. Les actions des sous-jalons portent les essais dans Fusion.
 
 ## Historique et décisions
 

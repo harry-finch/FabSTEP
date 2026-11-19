@@ -1,8 +1,8 @@
 ---
 id: R-034
 titre: "D — congés partiels constants"
-resume: "Congés de poche à un ou deux arrêts obliques. Deux congés adjacents à rayons égaux se rejoignent également dans des coins aigus ou obtus."
-statut: en-cours
+resume: "Congés constants de fond de poche avec butées, coins, U ou circuit fermé."
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-13
 maj: 2026-11-19
@@ -35,9 +35,7 @@ Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions F
 
 ## État consolidé
 
-Les essais de doubles arrêts obliques sont dans R-097. La jonction elliptique à 65° et 115° est contrôlée dans R-101. Les réseaux comportant plusieurs jonctions partagées restent à qualifier.
-
-Les essais dans Fusion sont suivis dans les actions des sous-jalons.
+R-097/R-101 prouvent les butées et les angles aigus ou obtus. R-107 et R-110 étendent la couverture aux réseaux de trois ou quatre congés égaux. Les arrêts, la matière, le fond et la provenance sont vérifiés sur les corps entiers. Les angles ou réseaux différents restent conditionnés à de nouveaux témoins.
 
 ## Historique et décisions
 
