@@ -2,7 +2,7 @@
 id: R-112
 titre: "Intégrer les recommandations NEON vérifiées"
 resume: "Suivi des seize constats et des reports dans docs/INT_AUDIT_01.md, section NEON. Contrôle atlas restant lié à R-085."
-statut: en-cours
+statut: a-tester
 jalon: audit
 cree: 2026-11-19
 maj: 2026-11-19
@@ -18,11 +18,11 @@ Sept jalons couvrent les outils de livraison, la publication atomique, la tessel
 
 ## Hors périmètre
 
-Les travaux différés sont le contrôle d’interférence équivalent de R-085, la mutualisation de la topologie et de la recherche de paramètres, les projections locales, le BVH de sélection, le démarrage WebView et la qualification Windows. Le registre précise les preuves attendues avant reprise.
+Les travaux différés sont le contrôle d’interférence équivalent de R-085, la mutualisation de la topologie et de la recherche de paramètres, les variantes du calcul de fidélité, les projections locales, le BVH de sélection, le démarrage WebView et la qualification Windows. Le registre précise les preuves attendues avant reprise.
 
 ## Dépendances
 
-Le rapport du helper et le manifeste du paquet demandent un arbitrage de compatibilité. Les autres lots sont indépendants.
+Les arbitrages A-119 et A-120 ont été validés. Le rapport v2 et le paquet autonome ont été qualifiés avec les versions précédentes.
 
 ## Critères d'acceptation
 
@@ -30,4 +30,4 @@ Tests par lot et vérification des décisions géométriques, de la fraîcheur d
 
 ## Vérifications de l'utilisateur
 
-Tester dans le bureau la peinture au clavier et un export après modification de tolérance. Les essais Fusion déjà prévus restent associés aux jalons géométriques.
+Vérifier la conservation d’une sélection STEP après Échap pendant un geste de peinture, puis le blocage de l’ancien export après édition de la tolérance.

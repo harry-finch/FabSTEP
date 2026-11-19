@@ -1,5 +1,7 @@
 # Journal d'ingénierie
 
+**19 novembre 2026 — Audit NEON, R-112.** Sept lots intégrés sur `audit/neon`. Le helper gros STL produit un rapport privé de 2 261 octets sur la rampe publique et accompagne la candidate autonome. Les contrôles d’interférence avant et après transfert restent nécessaires pour Flansch. Mesures, décisions, essais de compatibilité et conditions de reprise figurent dans le [registre NEON](docs/INT_AUDIT_01.md#neon--audit-du-19-novembre-2026-r-112).
+
 **19 novembre 2026 — Correction des six raccords et vérification du paquet final.** V-1257 et V-1258 qualifient la représentation rationnelle, le groupe d’interférences qui échouait et le rejeu du superviseur. FabSTEP convertit la rampe publique dense. Flansch atteint désormais la limite de trente minutes au contrôle complet. La suite workspace finale passe 707 tests.
 
 

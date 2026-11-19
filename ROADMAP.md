@@ -188,7 +188,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Reconstituer le circuit fermé de quatre cylindres autour d’un fond rectangulaire mesuré.
 88. **[R-111 C2 — méridiennes cubiques à retour axial](roadmap/items/R-111-c2-meridiennes-cubiques-a-retour-axial.md)** · À tester · jalon post-v1
    Reconnaître un retour axial sur un profil de rayon monotone et conserver les deux disques mesurés.
-89. **[R-112 Intégrer les recommandations NEON vérifiées](roadmap/items/R-112-integrer-les-recommandations-neon-verifiees.md)** · En cours · jalon audit
+89. **[R-112 Intégrer les recommandations NEON vérifiées](roadmap/items/R-112-integrer-les-recommandations-neon-verifiees.md)** · À tester · jalon audit
    Suivi des seize constats et des reports dans docs/INT_AUDIT_01.md, section NEON. Contrôle atlas restant lié à R-085.
 
 ## Actions à faire
@@ -298,6 +298,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-116](roadmap/actions/A-116-essayer-les-deux-orientations-des-conges.md) Essayer les deux orientations des congés variables sur arêtes gauches (tester, R-109)
 - [ ] [A-117](roadmap/actions/A-117-inspecter-le-circuit-ferme-de-quatre-conges-dans.md) Inspecter le circuit fermé de quatre congés dans Fusion (tester, R-110)
 - [ ] [A-118](roadmap/actions/A-118-verifier-un-retour-axial-dans-fusion.md) Vérifier un retour axial dans Fusion (tester, R-111)
+- [ ] [A-121](roadmap/actions/A-121-verifier-la-peinture-et-l-export-dans-le-bureau.md) Vérifier la peinture et l’export dans le bureau (tester, R-112)
 
 ## Livré
 

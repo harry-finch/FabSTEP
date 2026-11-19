@@ -224,3 +224,29 @@ Les deux rapports concordent sur toutes les mesures conservées, dont 659 faces 
 A-120 approuvée. Le manifeste v2 décrit les deux exécutables et leurs 30 bibliothèques. Les notices réunissent les dépendances des deux graphes Cargo, le profil gros STL est réservé au helper. La publication du répertoire utilise un renommage exclusif sur macOS, y compris lorsqu’un autre processus crée une destination vide.
 
 La candidate de 22 952 788 octets a pour SHA-256 `fcb1b13c4537d50e5e36fcbcdd07cdfae1cbc10ecb6af1e0651f2d4484a0891d`. Après extraction dans un chemin contenant des espaces, signature ad hoc vérifiée, quatre conversions CLI (cinq solides) et un cube de 1 mm³ par chaque protocole du helper. Une deuxième lecture indépendante reproduit le rapport de validation. Le véritable bureau extrait a ouvert une fenêtre de 1 440 × 900 avec les lectures Homebrew bloquées. Les 30 bibliothèques embarquées ont été observées au chargement, puis le seul processus de sonde a été arrêté. L’archive v1 historique garde son empreinte `9bac6a8d…`, ses 29 bibliothèques et passe encore la validation stricte avec son CLI. Six tests Python ciblent les chemins négatifs et la compatibilité. Preuves locales dans `artifacts/audit-neon/candidate/`, `release-candidate-strict.json` et `release-candidate-startup.json`.
+
+### Pistes transversales et reprise
+
+Les suggestions sans identifiant du §5 sont rattachées aux décisions ci-dessus. Les repères de projection locaux et les tolérances ont des domaines différents selon les familles ; une extraction commune justifierait un lot séparé avec preuves de parité. Déplacer les tests inline qui utilisent les internes FFI ou découper la traduction C++ suppose de mesurer le temps de recompilation touché. L’extraction des cartes de messages et le nettoyage des composants du design system restent secondaires. Le détail localisé de planéité repose encore sur le texte du noyau ; un sous-code stable devra conserver les consommateurs de `cad.invalid_model`. Le tri spatial, la parallélisation et une autre comptabilisation de Work requièrent des échantillons, des refus et un comportement déterministes. Les actions Fusion existantes gardent leur qualification manuelle.
+
+Les deux propositions de gains « 5×–20× » et « 2× » pour l’interférence restent sans mesure équivalente acceptable. Pour R-085, reproduire les quatre verdicts du banc et les cas de défaut avant/après transfert, puis mesurer sur la rampe et seulement ensuite sur Flansch avec le superviseur de production, 30 minutes et 4 Gio. La dernière conversion complète mesurée sur le STL de 540 170 triangles reste V-1258 (délai dépassé). Une tessellation réussie du STEP expérimental n’établit pas la réussite de cette conversion.
+
+Les sept lots ont leurs propres commits identifiés par `INT-AUDIT-01.X`. La publication locale du paquet n’installe rien sur un autre Mac. FabBoard A-121 porte sur le geste de peinture et l’invalidation d’export à confirmer dans le bureau. Le dépôt contient le code et les tests nécessaires à la reprise ; les fichiers privés et les sorties lourdes sont dans les répertoires locaux ignorés.
+
+
+### Bilan de validation NEON
+
+Deux recommandations ACCEPTED, dix ADAPTED, deux DEFERRED, une REJECTED et une ALREADY_FIXED. Sept lots autonomes validés. Les reports d’optimisations à l’intérieur des recommandations adaptées figurent dans le registre. Les arbitrages A-119 et A-120 sont clos.
+
+| Contrôle exécuté | Résultat |
+|---|---|
+| Workspace, 147 suites en profil test optimisé hors ligne avec verrou | 710 réussis, 18 optionnels ignorés. Exécution lancée sur les lots .6 à .10 ; recompilation du workspace et vérifications ciblées sur le protocole final. |
+| Core et fidélité en profil gros STL ; intégrations app/CAO en profil gros STL | 355 réussis, 10 optionnels ignorés ; 42 contrôles app/CAO supplémentaires réussis. |
+| Bureau, helpers réel v1 et v2 ; worker | 55 réussis au bureau et 11 au worker. Vérification supplémentaire avec le binaire du paquet autonome. |
+| Interface, Svelte et Vite | 241 réussis, analyse Svelte sans erreur ni avertissement, build réussi. Avertissement Vite de taille du module principal. |
+| Python avec NumPy ; détection du SDK OCCT | 31 tests et 4 tests réussis. |
+| Formatage, Clippy strict workspace/bureau/worker, compilation bureau, lint FabBoard et contrôle du diff | Réussis. |
+| Rampe publique avec le helper de la candidate autonome | 659 faces, 93,536793 mm³, rapport 2 261 octets en 34,105 s lors de ce passage. |
+| Grande archive source sur checkout propre | 1 065 entrées, contenu revérifié avec le manifeste. |
+
+Les essais manuels sur un second Mac ou dans Fusion pour cette candidate et la reconstruction de bout en bout du STL privé ne faisaient pas partie des relectures exécutées. Les logs et la candidate sont locaux. Les fichiers du rapport source et du nettoyage local préexistant sont restés dans leur état Git initial.
