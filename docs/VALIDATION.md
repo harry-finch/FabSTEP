@@ -2527,3 +2527,7 @@ Le témoin public contient 194 694 triangles. Avec les options ordinaires du h
 ## V-1251 — Budget mémoire de la recherche d’interférences CAO
 
 Sur la rampe de 4 363 faces, le même contrôle OCCT a mesuré 1 114 734 592 octets de RSS et 19,17 s en une passe, puis 214 482 944 octets et 41,51 s par groupes spatiaux. Les boîtes conservatrices englobent la tolérance des sous-formes. Toute paire de faces susceptible de se rencontrer entre dans un contrôle OCCT avec leurs identités topologiques d’origine. Les plafonds de comparaisons et de groupes provoquent un refus explicite. Le banc `scripts/qualify-atlas-interference.sh` compare les décisions sur des voisinages valides et des intersections internes ou entre groupes.
+
+## V-1252 — Reparamétrisation des bords circulaires dans le STEP
+
+Une arête sur tore était refusée par le contrôle exact d’OCCT après transfert alors que ses deux extrémités étaient conservées. Le constructeur vérifie les pôles et poids de l’arc rationnel puis aligne la paramétrisation de sa courbe 2D avec celle de la courbe 3D. Le lieu géométrique, les extrémités et la tolérance des arêtes sont conservés. Le banc C++ couvre deux directions, l’orientation inverse et les refus. Sur le modèle privé direct, 29 courbes 2D sur 2 166 504 entités ont été alignées. Le STEP obtenu pèse 130 701 976 octets ; le contrôle exact du solide relu passe. Les interférences et le budget du helper font l’objet d’un contrôle distinct.
