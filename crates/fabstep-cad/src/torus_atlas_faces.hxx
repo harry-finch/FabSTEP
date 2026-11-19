@@ -364,16 +364,17 @@ std::vector<TopoDS_Face> patch_faces(Model &m) {
           }
         }
       } else {
-        // A shallow collar can use a regular triangular patch with the actual
-        // material edges. Keep the loft when the source bound or orientation
-        // cannot be certified for that alternative.
+        // Non-shallow short arcs are eligible only when OCCT actually emits
+        // a one-span polynomial quadratic loft with a collapsed pole row.
         if (const auto triangle = atlas_triangle::geometry(rim[j], m.adjusted[z])) {
+          if (!triangle->shallow)
+            face = anchoredFan(rim[j], vertices[z]);
           const auto &first = rim[j].Orientation() == TopAbs_FORWARD ? m.source[a] : m.source[b];
           const auto &last = rim[j].Orientation() == TopAbs_FORWARD ? m.source[b] : m.source[a];
           const double drift = std::max({triangle->apex.Distance(m.source[z]), triangle->first.Distance(first),
                                          triangle->last.Distance(last)});
           const double bound = drift + triangle->deviation;
-          if (bound < m.tolerance) {
+          if (bound < m.tolerance && (face.IsNull() || atlas_triangle::quadratic_pole(face))) {
             if (auto regular = atlas_triangle::make(rim, j, *triangle, d.Crossed(side).Normalized())) {
               face = *regular;
               m.patchBound = std::max(m.patchBound, bound);

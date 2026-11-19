@@ -3,6 +3,10 @@
 #include <BRepAlgoAPI_Check.hxx>
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <BRepBuilderAPI_MakeVertex.hxx>
+#include <BRepBuilderAPI_MakeWire.hxx>
+#include <BRepOffsetAPI_ThruSections.hxx>
+#include <TopExp.hxx>
+#include <ShapeProcess.hxx>
 #include <Geom_BSplineCurve.hxx>
 #include <Geom_Circle.hxx>
 #include <STEPControl_Reader.hxx>
@@ -18,6 +22,21 @@ void require(bool condition, const char *message) {
 bool valid(const TopoDS_Shape &s) {
   BRepAlgoAPI_Check check(s, false, true);
   return !check.HasErrors() && check.IsValid();
+}
+TopoDS_Face step_face(const TopoDS_Face &face) {
+  STEPControl_Writer writer;
+  DESTEP_Parameters params;
+  params.WriteSurfaceCurMode = true;
+  writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
+  std::stringstream stream;
+  require(writer.Transfer(face, STEPControl_AsIs, params) == IFSelect_RetDone &&
+              writer.WriteStream(stream) == IFSelect_RetDone, "STEP write failed");
+  STEPControl_Reader reader;
+  require(reader.ReadStream("collar.step", stream) == IFSelect_RetDone && reader.TransferRoots() == 1,
+          "STEP read failed");
+  TopExp_Explorer it(reader.OneShape(), TopAbs_FACE);
+  require(it.More(), "missing STEP face");
+  return TopoDS::Face(it.Current());
 }
 void sewn_generator(const TopoDS_Face &face, const TopoDS_Edge &edge) {
   BRepAdaptor_Curve line(edge);
@@ -80,22 +99,52 @@ void sample(bool reverse) {
   make.Add(compound, *face);
   make.Add(compound, crossing);
   require(valid(*face) && !valid(compound), "real penetration must be rejected");
-  STEPControl_Writer writer;
-  std::stringstream stream;
-  require(writer.Transfer(*face, STEPControl_AsIs) == IFSelect_RetDone &&
-              writer.WriteStream(stream) == IFSelect_RetDone,
-          "STEP write failed");
-  STEPControl_Reader reader;
-  require(reader.ReadStream("shallow.step", stream) == IFSelect_RetDone && reader.TransferRoots() == 1,
-          "STEP read failed");
-  const auto shape = reader.OneShape();
-  TopExp_Explorer it(shape, TopAbs_FACE);
-  require(it.More(), "missing STEP face");
-  const auto read = TopoDS::Face(it.Current());
+  const auto read = step_face(*face);
   require(BRepCheck_Analyzer(read, true, false, true).IsValid() && valid(read) &&
               atlas_triangle::matches(read),
           "STEP triangle lost its certified trim");
   sewn_generator(*face, rim[1]);
+}
+// Independent long collar over a very short circular rim. The polynomial
+// loft is valid in memory. OCCT 7.9.3 reported an intersection with itself
+// next to its collapsed pole after writing and reading this fixture.
+void short_quadratic() {
+  const gp_Pnt center(-25.3, 42.7, 19.6);
+  const gp_Ax2 frame(center, gp_Dir(.27, .82, .52));
+  Handle(Geom_Circle) c = new Geom_Circle(frame, 2.4856144855167726);
+  const double start = 2.5537052150029842, sweep = .00097725404753004922;
+  const auto mid = c->Value(start + sweep * .5);
+  const auto radial = gp_Vec(center, mid).Normalized();
+  const auto tangent = gp_Vec(frame.Direction()).Crossed(radial);
+  const auto apex = mid.Translated(radial * -2.8963918955163317 + tangent * -.36531098589351052 +
+                                   gp_Vec(frame.Direction()) * .068325057670249698);
+  const auto arc = BRepBuilderAPI_MakeEdge(c, start, start + sweep).Edge();
+  const auto vz = BRepBuilderAPI_MakeVertex(apex).Vertex();
+  BRepOffsetAPI_ThruSections loft(false, true, Precision::Confusion());
+  loft.CheckCompatibility(false);
+  loft.SetMutableInput(false);
+  loft.AddWire(BRepBuilderAPI_MakeWire(arc).Wire());
+  loft.AddVertex(vz);
+  loft.Build();
+  require(loft.IsDone(), "short loft construction failed");
+  TopExp_Explorer it(loft.Shape(), TopAbs_FACE);
+  require(it.More(), "short loft missing");
+  const auto original = TopoDS::Face(it.Current());
+  require(atlas_triangle::quadratic_pole(original) && valid(original), "expected native quadratic pole");
+  const bool legacy_valid = valid(step_face(original));
+  std::cout << "Short quadratic legacy verdict after STEP = " << legacy_valid << "\n";
+  const auto patch = atlas_triangle::geometry(arc, apex);
+  require(patch && !patch->shallow && patch->deviation < 1e-6, "short arc outside certified bound");
+  const auto va = TopExp::FirstVertex(arc), vb = TopExp::LastVertex(arc);
+  std::array<TopoDS_Edge, 3> rim{arc, BRepBuilderAPI_MakeEdge(vb, vz).Edge(),
+                                 BRepBuilderAPI_MakeEdge(vz, va).Edge()};
+  const auto normal =
+      gp_Vec(apex, c->Value(start)).Crossed(gp_Vec(apex, c->Value(start + sweep))).Normalized();
+  const auto face = atlas_triangle::make(rim, 0, *patch, normal);
+  require(face && !atlas_triangle::quadratic_pole(*face) && valid(*face), "invalid short circular triangle");
+  const auto read = step_face(*face);
+  require(atlas_triangle::matches(read) && BRepCheck_Analyzer(read, true, false, true).IsValid() &&
+              valid(read), "reimported short circular triangle is invalid");
 }
 // Displace the virtual fourth pole by less than the support-comparison
 // tolerance while reversing its projected corner. Its three material
@@ -136,6 +185,7 @@ int main() try {
   sample(false);
   sample(true);
   nearly_folded();
+  short_quadratic();
   std::cout << "Two orientations, fidelity bound, STEP roundtrip and penetrating controls passed.\n";
 } catch (const std::exception &e) {
   std::cerr << e.what() << '\n';
