@@ -9,9 +9,22 @@ struct Geometry {
 };
 
 struct Domain {
-  std::array<Geometry, 3> walls;
+  std::array<Geometry, 4> walls;
   size_t count;
 };
+
+// Indexing of shared 3D edges and their canonical elliptic curves.
+struct Ends {
+  int lower_ellipse; // -1 for a circular stop
+  size_t upper_ellipse, upper_edge;
+  bool reverse_allowed, shared_stops;
+};
+
+Ends ends(size_t walls, size_t i, bool double_stop) {
+  if (walls == 4) return {static_cast<int>(i), (i + 1) % 4, (i + 1) % 4, false, true};
+  if (walls == 3) return {i == 2 ? 0 : -1, size_t(i != 0), i == 0 ? 2u : 3u, i != 2, i == 2};
+  return {double_stop ? 0 : -1, size_t(double_stop), walls, walls == 2, false};
+}
 
 void require(bool condition, Status status) {
   if (!condition)
@@ -99,13 +112,13 @@ TopoDS_Face wall(const MixedArcData& near, const EllipticArcData& far, const dou
   const gp_Circ circle(frame.Ax2(), near.radius);
   const gp_Elips ellipse(gp_Ax2(g.far_center, far_axis, direction(far.major_direction)),
                          far.major, far.minor);
-  if (low) {
+  if (low && circle_edge.IsNull()) {
     const gp_Elips lower(gp_Ax2(g.near_center, direction(low->axis), direction(low->major_direction)),
                          low->major, low->minor);
     BRepBuilderAPI_MakeEdge edge(lower, low->start, low->start + low->sweep);
     require(edge.IsDone(), invalid_model);
     circle_edge = edge.Edge();
-  } else {
+  } else if (!low) {
     BRepBuilderAPI_MakeEdge edge(circle, 0., near.sweep);
     require(edge.IsDone(), invalid_model);
     circle_edge = edge.Edge();
@@ -268,8 +281,8 @@ bool matches(const Geometry& a, const Geometry& b, double tolerance) {
 Domain verify(const TopoDS_Shape& solid, const TopTools_IndexedMapOfShape& faces,
               size_t count, const Domain* expected, Status status) {
   const double tol = 4. * Precision::Confusion();
-  require((count >= 1 && count <= 3) && faces.Extent() == static_cast<int>(11 + count), status);
-  std::array<TopoDS_Face, 3> walls;
+  require((count >= 1 && count <= 4) && faces.Extent() == static_cast<int>(11 + count), status);
+  std::array<TopoDS_Face, 4> walls;
   size_t n = 0;
   for (int i = 1; i <= faces.Extent(); ++i) {
     const auto face = TopoDS::Face(faces(i));
@@ -280,7 +293,7 @@ Domain verify(const TopoDS_Shape& solid, const TopTools_IndexedMapOfShape& faces
   require(n == count && (!expected || expected->count == count), status);
   TopTools_IndexedDataMapOfShapeListOfShape incidence;
   TopExp::MapShapesAndUniqueAncestors(solid, TopAbs_EDGE, TopAbs_FACE, incidence);
-  std::array<TopTools_IndexedMapOfShape, 3> seams, tangents;
+  std::array<TopTools_IndexedMapOfShape, 4> seams, tangents;
   Domain result{{}, count};
   for (size_t i = 0; i < count; ++i)
     result.walls[i] = verify_wall(walls[i], count, incidence, seams[i], tangents[i], status);
@@ -296,7 +309,7 @@ Domain verify(const TopoDS_Shape& solid, const TopTools_IndexedMapOfShape& faces
         ++common_seams;
         const auto ellipse = BRepAdaptor_Curve(TopoDS::Edge(seams[i](k))).Ellipse();
         const auto normal = ellipse.Axis().Direction();
-        require(std::abs(axis_a.Dot(axis_b)) < (count == 3 ? 1.e-7 : std::sqrt(0.5)) &&
+        require(std::abs(axis_a.Dot(axis_b)) < (count >= 3 ? 1.e-7 : std::sqrt(0.5)) &&
                 std::abs(a.Radius() - b.Radius()) < tol &&
                 std::abs(ellipse.MinorRadius() - a.Radius()) < tol &&
                 std::abs(ellipse.MajorRadius() * std::abs(axis_a.Dot(normal)) - a.Radius()) < tol &&
@@ -305,22 +318,40 @@ Domain verify(const TopoDS_Shape& solid, const TopTools_IndexedMapOfShape& faces
       require(common_seams <= 1, status);
       links += common_seams;
       if (!common_seams)
-        require(count == 3 && axis_a.IsParallel(axis_b, 1.e-7), status);
+        require(count >= 3 && axis_a.IsParallel(axis_b, 1.e-7), status);
       size_t common_planes = 0;
       for (int k = 1; k <= tangents[i].Extent(); ++k) common_planes += tangents[j].Contains(tangents[i](k));
       require(common_planes == 1, status);
     }
   }
-  require(links == count - 1, status);
-  if (count == 3) {
+  require(links == (count == 4 ? count : count - 1), status);
+  if (count >= 3) {
     int common_floor = 0;
-    for (int k = 1; k <= tangents[0].Extent(); ++k)
-      common_floor += tangents[1].Contains(tangents[0](k)) && tangents[2].Contains(tangents[0](k));
+    for (int k = 1; k <= tangents[0].Extent(); ++k) {
+      const auto& floor = tangents[0](k);
+      bool common = true;
+      for (size_t j = 1; j < count; ++j) common = common && tangents[j].Contains(floor);
+      if (!common) continue;
+      ++common_floor;
+      if (count == 4) {
+        TopTools_IndexedMapOfShape edges;
+        TopExp::MapShapes(floor, TopAbs_EDGE, edges);
+        require(edges.Extent() == 4, status);
+        for (int e = 1; e <= 4; ++e)
+          require(BRepAdaptor_Curve(TopoDS::Edge(edges(e))).GetType() == GeomAbs_Line, status);
+        GProp_GProps floor_props;
+        BRepGProp::SurfaceProperties(floor, floor_props);
+        require(floor_props.Mass() > tol * tol, status);
+      }
+    }
     require(common_floor == 1, status);
+    if (count == 4) {
+      for (size_t k = 0; k < count; ++k) require(seams[k].Extent() == 2, status);
+    }
   }
   if (expected) {
     // STEP may reorder the faces. Every wall must retain both trimmed ends.
-    std::array<bool, 3> used{};
+    std::array<bool, 4> used{};
     for (size_t i = 0; i < count; ++i) {
       size_t j = 0;
       while (j < count && (used[j] || !matches(result.walls[i], expected->walls[j], tol))) ++j;

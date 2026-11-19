@@ -269,9 +269,9 @@ pub(super) fn wall_rails(points: &[Point], c: &CircularArc, far: [usize; 2]) -> 
 }
 
 impl Planes {
-    pub(super) fn encode(
+    pub(super) fn encode<const N: usize>(
         model: &MixedModel,
-        curves: [Stop; 2],
+        curves: [Stop; N],
         rails: &[Rail],
     ) -> Result<Self, FabError> {
         let mut out = Self::default();
@@ -279,7 +279,7 @@ impl Planes {
         for (i, rail) in rails.iter().enumerate() {
             register_line(&mut edges, rail.vertices, model.planes.len() + i / 2)?;
         }
-        let mut stops = [None; 2];
+        let mut stops = [None; N];
         let points = &model.vertices;
         for (face, plane) in model.planes.iter().enumerate() {
             let normal = plane.normal;
@@ -358,7 +358,7 @@ impl Planes {
         out.offsets.push(out.loops.len());
         if out.loops.len() != 12
             || stops.contains(&None)
-            || (stops[0] == stops[1]) != (rails.len() == 6)
+            || matches!(stops.as_slice(), [a,b] if a==b) != (rails.len() == 6)
             || edges.values().any(|pair| pair.contains(&None))
         {
             return Err(invalid());
@@ -393,16 +393,17 @@ impl Planes {
                 return Err(invalid());
             }
         }
-        if rails.len() == 6 {
-            // The three pairs must have a single common floor and three
-            // distinct side planes. Both external stops lie on the fourth side.
+        if rails.len() >= 6 {
+            // Each pair contains the same floor plus a distinct upright side.
+            // A closed cycle has no external stop.
             let groups: Vec<_> = supports.chunks_exact(2).map(|s| [s[0].0, s[1].0]).collect();
             let floors: Vec<_> = groups[0]
                 .iter()
                 .copied()
                 .filter(|i| groups.iter().all(|s| s.contains(i)))
                 .collect();
-            if floors.len() != 1 || supports.iter().map(|p| p.0).collect::<BTreeSet<_>>().len() != 4
+            if floors.len() != 1
+                || supports.iter().map(|p| p.0).collect::<BTreeSet<_>>().len() != 1 + groups.len()
             {
                 return Err(invalid());
             }

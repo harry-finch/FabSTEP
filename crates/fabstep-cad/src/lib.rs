@@ -1627,7 +1627,7 @@ fn build_rounded_step_impl(
         .iter()
         .any(|c| c.elliptic_start)
         && (model.unequal_pocket.is_some()
-            || !matches!(model.revolved.mixed.partial_cylinders.len(), 1 | 3))
+            || !matches!(model.revolved.mixed.partial_cylinders.len(), 1 | 3 | 4))
     {
         return Err(oblique_pocket::invalid());
     }
@@ -2396,6 +2396,9 @@ fn build_surface_step_with_tokens(
             || !octants.is_empty()
         {
             return Err(oblique_pocket::invalid());
+        }
+        if model.partial_cylinders.len() == 4 {
+            return adjacent_pocket::build_cycle(model, tokens);
         }
         if model.partial_cylinders.len() == 3 {
             return adjacent_pocket::build_network(model, tokens);

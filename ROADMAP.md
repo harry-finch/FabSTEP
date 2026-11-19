@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 109** (21 %)
+**Avancement : 23 livrés sur 110** (21 %)
 
 ## Restant à faire
 
@@ -184,6 +184,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Reconstruire deux perçages dont les axes sont inclinés et décalés latéralement, à quatre bouches circulaires.
 86. **[R-109 Deux congés variables sur des arêtes gauches](roadmap/items/R-109-deux-conges-variables-sur-des-aretes-gauches.md)** · À tester · jalon post-v1
    Reconstruire deux congés à rayon affine portés par deux arêtes disjointes non parallèles du même bloc.
+87. **[R-110 Quatre congés reliés autour du fond d’une poche](roadmap/items/R-110-quatre-conges-relies-autour-du-fond-d-une-poche.md)** · À tester · jalon post-v1
+   Reconstituer le circuit fermé de quatre cylindres autour d’un fond rectangulaire mesuré.
 
 ## Actions à faire
 
@@ -290,6 +292,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-114](roadmap/actions/A-114-controler-les-trois-conges-du-fond-de-poche-dans.md) Contrôler les trois congés du fond de poche dans Fusion (tester, R-107)
 - [ ] [A-115](roadmap/actions/A-115-verifier-les-trous-obliques-decales-dans-fusion.md) Vérifier les trous obliques décalés dans Fusion (tester, R-108)
 - [ ] [A-116](roadmap/actions/A-116-essayer-les-deux-orientations-des-conges.md) Essayer les deux orientations des congés variables sur arêtes gauches (tester, R-109)
+- [ ] [A-117](roadmap/actions/A-117-inspecter-le-circuit-ferme-de-quatre-conges-dans.md) Inspecter le circuit fermé de quatre congés dans Fusion (tester, R-110)
 
 ## Livré
 
