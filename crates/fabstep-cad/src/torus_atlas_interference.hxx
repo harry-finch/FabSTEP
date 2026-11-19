@@ -1,4 +1,5 @@
 #pragma once
+#include "torus_atlas_filter.hxx"
 #include <BRepAlgoAPI_Check.hxx>
 #include <BRepBndLib.hxx>
 #include <BRep_Builder.hxx>
@@ -17,8 +18,8 @@
 
 // Check self-interference with the same exact OCCT operation on bounded
 // compounds. Tight physical face bounds cover every owned subshape, including
-// its stored tolerance. Every face is checked and every pair with overlapping
-// bounds occurs together in a check. Other pairs are geometrically disjoint.
+// its stored tolerance. Diagonal groups are always checked. Cross groups
+// contain all pairs not proved disjoint by bounds or the torus filter.
 namespace atlas_interference {
 struct Failure : std::runtime_error {
   using std::runtime_error::runtime_error;
@@ -27,6 +28,8 @@ struct Entry {
   TopoDS_Face face;
   Bnd_Box bounds;
   std::array<double, 3> center;
+  size_t id, torus;
+  double tolerance;
 };
 struct Node {
   Bnd_Box box;
@@ -35,6 +38,7 @@ struct Node {
 };
 struct Checker {
   static constexpr size_t leaf_size = 48;
+  TorusFilter filter;
   std::vector<Entry> faces;
   std::vector<Node> tree;
   size_t groups = 0, pairs = 0, face_box_tests = 0;
@@ -64,6 +68,10 @@ struct Checker {
     tree[id].right = b;
     return id;
   }
+  bool torus_disjoint(const Entry &a, const Entry &b) {
+    return filter.excludes(a.torus, b.id, b.face, b.tolerance, b.bounds) ||
+           filter.excludes(b.torus, a.id, a.face, a.tolerance, a.bounds);
+  }
   void inspect(int x, int y) {
     const auto &a = tree[x];
     const auto &b = tree[y];
@@ -88,6 +96,7 @@ struct Checker {
     TopoDS_Compound group;
     BRep_Builder builder;
     builder.MakeCompound(group);
+    bool needs_check = x == y;
     if (x == y) {
       for (size_t i = a.first; i < a.last; ++i)
         builder.Add(group, faces[i].face);
@@ -96,33 +105,41 @@ struct Checker {
       if (face_box_tests > 80'000'000)
         throw Failure("Budget de comparaison des faces dépassé.");
       std::array<bool, leaf_size> add_b{};
-      bool any = false;
+      const size_t pairs_before = pairs;
       for (size_t i = a.first; i < a.last; ++i) {
         bool included = false;
         for (size_t j = b.first; j < b.last; ++j)
           if (!faces[i].bounds.IsOut(faces[j].bounds)) {
+            ++pairs;
+            if (torus_disjoint(faces[i], faces[j]))
+              continue;
             add_b[j - b.first] = true;
             included = true;
-            ++pairs;
           }
         if (included) {
           builder.Add(group, faces[i].face);
-          any = true;
+          needs_check = true;
         }
       }
-      if (!any)
+      if (pairs_before == pairs)
         return;
       for (size_t j = b.first; j < b.last; ++j)
         if (add_b[j - b.first])
           builder.Add(group, faces[j].face);
     }
+    // Charge the original AABB groups and pairs, including every filtered pair.
     if (++groups > 200000 || pairs > 10000000)
       throw Failure("Budget de contrôle des interférences dépassé.");
+    if (!needs_check)
+      return;
     BRepAlgoAPI_Check check(group, false, true);
     if (check.HasErrors() || !check.IsValid())
       throw Failure("Le contrôle des auto-intersections du solide a échoué.");
   }
   void run(const TopTools_IndexedMapOfShape &input) {
+    if (!faces.empty())
+      *this = Checker{};
+    filter.neighbors.resize(input.Extent());
     for (int i = 1; i <= input.Extent(); ++i) {
       const auto f = TopoDS::Face(input(i));
       Bnd_Box box;
@@ -131,16 +148,22 @@ struct Checker {
         throw Failure("Face sans boîte de contrôle finie.");
       // Subshape tolerances can exceed the face tolerance used by AddOptimal.
       double tolerance = BRep_Tool::Tolerance(f);
-      for (TopExp_Explorer it(f, TopAbs_EDGE); it.More(); it.Next())
-        tolerance = std::max(tolerance, BRep_Tool::Tolerance(TopoDS::Edge(it.Current())));
-      for (TopExp_Explorer it(f, TopAbs_VERTEX); it.More(); it.Next())
-        tolerance = std::max(tolerance, BRep_Tool::Tolerance(TopoDS::Vertex(it.Current())));
+      bool finite_tolerances = std::isfinite(tolerance) && tolerance >= 0.;
+      for (const auto type : {TopAbs_EDGE, TopAbs_VERTEX})
+        for (TopExp_Explorer it(f, type); it.More(); it.Next()) {
+          const auto &shape = it.Current();
+          const double t = type == TopAbs_EDGE ? BRep_Tool::Tolerance(TopoDS::Edge(shape))
+                                               : BRep_Tool::Tolerance(TopoDS::Vertex(shape));
+          finite_tolerances = finite_tolerances && std::isfinite(t) && t >= 0.;
+          tolerance = std::max(tolerance, t);
+        }
       box.Enlarge(tolerance + Precision::Confusion());
       auto mid = (box.CornerMin().XYZ() + box.CornerMax().XYZ()) * .5;
       if (!std::isfinite(tolerance) || !std::isfinite(mid.X()) || !std::isfinite(mid.Y()) ||
           !std::isfinite(mid.Z()))
         throw Failure("Face sans boîte de contrôle finie.");
-      faces.push_back({f, box, {mid.X(), mid.Y(), mid.Z()}});
+      const double padding = finite_tolerances ? tolerance : std::numeric_limits<double>::quiet_NaN();
+      faces.push_back({f, box, {mid.X(), mid.Y(), mid.Z()}, faces.size(), filter.record(f, padding), padding});
     }
     if (!faces.empty()) {
       build(0, faces.size());
