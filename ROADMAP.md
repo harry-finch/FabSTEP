@@ -28,7 +28,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes
 8. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · Idée · jalon atelier
    Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
-9. **[R-119 Isoler une zone interne par boîte de découpe visuelle 3D](roadmap/items/R-119-isoler-une-zone-interne-par-boite-de-decoupe.md)** · Idée · jalon atelier
+9. **[R-119 Isoler une zone interne par boîte de découpe visuelle 3D](roadmap/items/R-119-isoler-une-zone-interne-par-boite-de-decoupe.md)** · Spécifiée · jalon atelier
    Ajouter une boîte de découpe visuelle manipulable dans la vue 3D (Source et Résultat STEP) pour inspecter, sélectionner et corriger des cavités internes sans modifier le solide ni l'export.
 10. **[R-120 Proposer une correction guidée sur les parois similaires](roadmap/items/R-120-proposer-une-correction-guidee-sur-les-parois.md)** · Spécifiée · jalon atelier
    Après une correction guidée acceptée, rechercher en lecture seule les parois géométriquement analogues du document, les prévisualiser puis appliquer celles qui passent les preuves strictes après accord explicite.
