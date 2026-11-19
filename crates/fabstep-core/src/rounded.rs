@@ -356,7 +356,15 @@ fn recognize_policy_with_proofs(
     validate_analysis(a)?;
     let tol = o.plane_tolerance_mm.max(o.cylinder_fit_tolerance_mm);
     let adjacency = crate::pipeline::validate_topology(&a.mesh)?;
-    let segmentation = crate::planar::build_with_provenance(&a.mesh, &adjacency, tol)?;
+    // A relaxed fit can join thin bore-wall triangles at just one vertex.
+    // Only retry the original, tighter plane tolerance when the relaxed
+    // contour itself is invalid. Every downstream surface proof still runs.
+    let segmentation = match crate::planar::build_with_provenance(&a.mesh, &adjacency, tol) {
+        Err(e) if e.code == "planar.invalid_contour" && tol > o.plane_tolerance_mm => {
+            crate::planar::build_with_provenance(&a.mesh, &adjacency, o.plane_tolerance_mm)?
+        }
+        result => result?,
+    };
     let mut work = Work::default();
     let mut edges: BTreeMap<Edge, Vec<usize>> = BTreeMap::new();
     for (t, &[x, y, z]) in a.mesh.triangles.iter().enumerate() {

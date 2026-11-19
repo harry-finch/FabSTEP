@@ -175,7 +175,7 @@ fn seed(
     };
     let cosine = dot(z, raw_x);
     let cosine = if cosine.abs() <= 1e-6 { 0. } else { cosine };
-    if cosine.abs() > 0.51 || (cosine != 0. && norm(sub(c0, c1)) > 2. * fit) {
+    if cosine.abs() > 0.51 {
         return Ok(None);
     }
     let x = sub(raw_x, scale(z, dot(z, raw_x)));
@@ -270,10 +270,12 @@ fn seed(
     // Absorb only deviations already covered by the measured mouth residual.
     // This preserves historical centered cylinders on float32 placements.
     if measured[0].hypot(measured[1]) > fit {
-        if cosine != 0. {
+        // A displacement along the common normal preserves both endpoint
+        // planes. An additional shift in the axes' plane needs different trims.
+        if cosine != 0. && measured[0].abs() > fit {
             return Ok(None);
         }
-        model.small_offset = [measured[0], measured[1]];
+        model.small_offset = [if cosine == 0. { measured[0] } else { 0. }, measured[1]];
     }
     let [dx, dy] = model.small_offset;
     let l = model.half_lengths;
@@ -946,8 +948,8 @@ pub(crate) fn volume(f: &CrossDrill) -> Result<f64, FabError> {
                 sum.add(coefficient * moment);
             }
         }
-        let v = 8. * x * y * z - 2. * PI * (z * r * r + x * big * big)
-            + 2. * PI * r * r * big * sum.get();
+        let v = (8. * x * y * z + 2. * PI * r * r * big * sum.get()) / sine(f)
+            - 2. * PI * (z * r * r + x * big * big);
         return if v.is_finite() && v > 0. {
             Ok(v)
         } else {
