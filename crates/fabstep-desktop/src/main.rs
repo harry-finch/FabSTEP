@@ -1252,6 +1252,9 @@ mod tests {
             );
         }
         assert!(cache.check_similar_selection(6, &[0]).is_err());
+        cache.result.as_mut().unwrap().similar_cancelled = true;
+        assert!(cache.check_similar_selection(7, &[0]).is_err());
+        cache.result.as_mut().unwrap().similar_cancelled = false;
         assert!(cache.current_result(30, 30, epoch, &document));
         cache
             .finish(

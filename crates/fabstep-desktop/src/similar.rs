@@ -14,7 +14,11 @@ pub(super) struct SimilarResponse {
 static SEARCH_WORKER: tauri::async_runtime::Mutex<()> = tauri::async_runtime::Mutex::const_new(());
 
 impl CacheState {
-    fn check_similar_selection(&self, search_id: u64, ids: &[usize]) -> Result<(), FabError> {
+    pub(super) fn check_similar_selection(
+        &self,
+        search_id: u64,
+        ids: &[usize],
+    ) -> Result<(), FabError> {
         let count = self
             .result
             .as_ref()
