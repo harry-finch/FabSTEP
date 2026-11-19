@@ -99,15 +99,15 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 43. **[R-080 Qualifier les 231 584 plans restants de Flansch](roadmap/items/R-080-qualifier-les-231-584-plans-restants-de-flansch.md)** · À tester · jalon post-v1
    Après les quatre grandes zones reconstruites, Flansch conserve 231 584 faces planes et 24 surfaces analytiques. Identifier les zones encore facettisées et leurs familles possibles avant toute nouvelle extension ou proposition de plafond ; la validation native dense reste un obstacle séparé.
 44. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · En cours · jalon post-v1
-   Révolutions toriques composées et première méridienne cubique bornée ; la généralisation reste ouverte.
+   Profils toriques, méridiennes cubiques mono- ou bi-travée, pointe axiale et premier domaine sur tessellation irrégulière.
 45. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · En cours · jalon post-v1
-   Congés de poche isolés, opposés ou adjacents à 90°, de rayons égaux ou distincts. Les réseaux à plusieurs jonctions et les autres angles restent ouverts.
+   Congés de poche à un ou deux arrêts obliques. Deux congés adjacents à rayons égaux se rejoignent également dans des coins aigus ou obtus.
 46. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · En cours · jalon post-v1
-   Bac ouvert, fond percé et poches à un ou deux congés contrôlés, y compris deux congés adjacents de rayons différents. Restent les rebords et les combinaisons de cavités.
+   Bacs ouverts à perçages multiples, à rebord en saillie et cloison. Rebord circulaire arrondi sur ses deux côtés.
 47. **[R-036 F — perçages sécants](roadmap/items/R-036-f-percages-secants.md)** · En cours · jalon post-v1
-   Les perçages centrés et orthogonaux sont reconnus dans les blocs droits et inclinés (R-083, R-091, R-092). Les perçages décentrés, obliques entre eux ou multiples restent ouverts.
+   Perçages orthogonaux centrés ou décentrés. Axes obliques entre eux dans un prisme à quatre bouches circulaires.
 48. **[R-037 G — congés variables](roadmap/items/R-037-g-conges-variables.md)** · En cours · jalon post-v1
-   Premier raccord à rayon linéaire intégré ; restent les autres configurations et raccords variables multiples.
+   Un ou deux congés de loi affine sur un bloc droit, avec quatre ellipses pour deux arêtes opposées.
 49. **[R-059 C1b2 — chaînes coniques sans portée intermédiaire](roadmap/items/R-059-c1b2-chaines-coniques-sans-portee-intermediaire.md)** · À tester · jalon post-v1
    Deux à huit cônes adjacents ou mêlés à des portées sont couverts par R-060 et R-078. Les essais de la chaîne complète sont suivis en A-073 et A-074.
 50. **[R-025 Découper les gros modules et mutualiser les helpers au besoin](roadmap/items/R-025-decouper-les-gros-modules-et-mutualiser-les-helpers-au-besoin.md)** · Idée · jalon audit

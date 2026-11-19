@@ -1,7 +1,7 @@
 ---
 id: R-036
 titre: "F — perçages sécants"
-resume: "Les perçages centrés et orthogonaux sont reconnus dans les blocs droits et inclinés (R-083, R-091, R-092). Les perçages décentrés, obliques entre eux ou multiples restent ouverts."
+resume: "Perçages orthogonaux centrés ou décentrés. Axes obliques entre eux dans un prisme à quatre bouches circulaires."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13
@@ -33,13 +33,11 @@ Source, domaines, courbes communes, volume, solide réimporté et provenance pro
 
 Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions FabBoard ; ne pas les dupliquer au niveau de ce chantier global.
 
-## État consolidé — 18 novembre 2026
+## État consolidé
 
-R-063 : certificat de laboratoire développé et testé. R-083 : reconnaissance STL et intégration CAO développées, suite complète V-1205 réussie. Le domaine reste limité à deux trous centrés orthogonaux, avec grand rayon au moins double du petit et marge résolue. Les essais utilisateur sont portés par R-083.
+R-096 qualifie un décentrage des axes orthogonaux. R-105 démontre deux axes centrés à 60° et 75° avec quatre entrées circulaires et deux branches certifiées. Les croisements multiples, bouches obliques elliptiques et combinaisons d’excentration et d’obliquité restent ouverts.
 
-Restent à spécifier et prouver séparément : décentrages, axes obliques, rapports de rayons hors domaine, intersections multiples et correction locale couplée. Les paragraphes historiques ci-dessous décrivent la préparation antérieure à F1, pas l’état actuel.
-
-L’utilisateur a autorisé la réalisation de l’ensemble. Le statut « en cours » représente ce chantier global partiellement intégré ; il ne signifie pas que tous ses domaines sont déjà disponibles. Les essais manuels ouverts ne bloquent pas les travaux indépendants restants.
+Les essais dans Fusion sont suivis dans les actions des sous-jalons.
 
 ## Historique et décisions
 

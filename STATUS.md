@@ -1,4 +1,4 @@
-# État — 18 novembre 2026
+# État — 19 novembre 2026
 
 **V1 mécanique 1.0.0 acceptée ; extensions post-v1 dans le build de développement.** Rust/OCCT, Svelte 5/Tauri, GPL-3.0-or-later. Branche de développement : `fabboard/mise-d-equerre` ; nettoyage local sur `fabboard/nettoyage`, sans modification de la branche par défaut ni du paquet release. Historique et mesures détaillés dans [DEVLOG](DEVLOG.md) et [VALIDATION](docs/VALIDATION.md), suivi utilisateur dans [ROADMAP](ROADMAP.md).
 
@@ -8,6 +8,10 @@
 - `artifacts/FabSTEP.app` est le build local de développement, dépendant du SDK installé. Ce paquet comprend les congés de fond de poche R-086 à R-090 et les perçages sécants R-091/R-092, y compris le bloc incliné en STL binaire (V-1219/V-1220). R-093 y ajoute le trou traversant d’une plaque inclinée en mode Auto (V-1221). Les essais de la butée oblique, des congés opposés et du coin à deux congés figurent dans V-1213, V-1214, V-1216 et V-1218.
 - Seize tests opt-in workspace restent ignorés par la suite ordinaire. Les essais graphiques/Fusion des extensions restent ouverts dans FabBoard ; aucun succès automatique ne vaut acceptation utilisateur. Le pilotage du dialogue d’ouverture avait été bloqué, mais l’utilisateur a confirmé l’ouverture manuelle.
 - Nettoyage A+B approuvé en [A-097](roadmap/actions/A-097-choisir-ce-qui-se-nettoie-dans-fabstep.md) : 40,8 Gio de caches et résidus déplacés à la Corbeille, projet ramené à 2,6 Gio. Les deux exécutables FabSTEP et le helper sont inchangés (SHA-256). Aucun fichier suivi retiré ; formatage Rust et contrôle des espaces Git réussis. Les tests et builds après nettoyage sont reportés au prochain développement sur choix explicite de l’utilisateur ([A-098](roadmap/actions/A-098-choisir-quand-recompiler-fabstep-apres-nettoyage.md)).
+
+## Extensions géométriques de développement
+
+R-094 à R-105 ajoutent la pointe de révolution, la méridienne cubique par morceaux, les maillages irréguliers, les perçages décentrés ou obliques, plusieurs types de poche et deux congés à rayon variable sur la même pièce. R-038 ajoute un relief bicubique explicite. R-050 couvre la correction sphérique depuis une face STEP. Les contrôles par famille figurent dans V-1222 à V-1235 et dans les actions FabBoard de chaque lot.
 
 ## Capacités développées
 
@@ -53,11 +57,11 @@ Le secteur annulaire de R-085 est intégré sous ADR-0040. R-086 couvre le cas d
 | Chantier | Déjà développé | Travail restant avant généralisation |
 | --- | --- | --- |
 | C1b2 | R-078 : chaînes adjacentes et mixtes de deux à huit cônes | Extensions hors des témoins et limites actuellement prouvés ; essais A-073/A-074 |
-| C2 / R-033 | R-061/R-075/R-076 et R-084 : profils toriques composés et méridienne cubique unique | Méridiennes multisegments, pôles, retours axiaux et raccords à des familles voisines ; contrats de preuve encore nécessaires |
-| D / R-034 | R-062 et R-081 : configurations locales constantes, coin triédrique sphérique ; R-086/R-087 : congé isolé à deux butées droites ou à une butée oblique. R-088 à R-090 : congés opposés ou adjacents à 90°, de rayons égaux ou distincts | Autres réseaux de congés, supports et coins ; ne pas extrapoler le cas orthogonal |
-| E / R-035 | R-062/R-077 : bac ouvert arrondi, fond traversé ; R-086/R-087 : poche borgne à un congé de fond, butée droite ou oblique. R-088 à R-090 : deux congés opposés ou adjacents, y compris de rayons distincts | Deux arrêts obliques, autres combinaisons, congés du rebord, autres combinaisons de cavités |
-| F / R-036 | R-063 : certificat natif ; R-083/R-091 : deux branches certifiées jusqu’au rapport inférieur à deux tiers avec marge. R-092 : même bloc incliné avant maillage binaire | Axes décentrés ou obliques, rayons plus proches, intersections multiples et guidage couplé |
-| G / R-037 | R-082/R-094 : un raccord convexe linéaire à limites elliptiques, y compris sur un maillage sans rangée intermédiaire | Autres configurations, raccords multiples et lois de rayon non linéaires |
+| C2 / R-033 | R-095, R-099 et R-104. Deux travées tangentes, pointe axiale, mono-travée sans anneaux complets | Retours axiaux, familles voisines et autres conditions de raccord |
+| D / R-034 | R-097 et R-101. Doubles butées inclinées et coins à deux congés de 65° ou 115° | Réseaux à plusieurs jonctions |
+| E / R-035 | R-098, R-100 et R-103. Trous du fond et de paroi, deux cavités avec cloison et rebord, lèvre circulaire à deux congés | Réseaux de congés et lèvres hors des domaines publiés |
+| F / R-036 | R-096 et R-105. Décentrage orthogonal et axes obliques dans un prisme à lèvres circulaires | Intersections multiples, bouches elliptiques et décentrage oblique combiné |
+| G / R-037 | R-094 et R-102. Bandes sans rangée intermédiaire et deux lois affines indépendantes | Raccords qui se rejoignent, axes non parallèles et lois non linéaires |
 
 Les parents C2/D/E/F/G sont **en cours** dans FabBoard : des sous-domaines sont développés, pas la généralisation entière. Les essais utilisateur restent dans leurs actions existantes, sans les dupliquer ni les marquer acceptés.
 

@@ -1,11 +1,11 @@
 ---
 id: R-037
 titre: "G — congés variables"
-resume: "Premier raccord à rayon linéaire intégré ; restent les autres configurations et raccords variables multiples."
+resume: "Un ou deux congés de loi affine sur un bloc droit, avec quatre ellipses pour deux arêtes opposées."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13
-maj: 2026-11-18
+maj: 2026-11-19
 livree:
 ---
 
@@ -33,11 +33,11 @@ Loi identifiable, enveloppe régulière, couverture et écart continus, volume e
 
 Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions FabBoard ; ne pas les dupliquer au niveau de ce chantier global.
 
-## État consolidé — 18 novembre 2026
+## État consolidé
 
-R-082 intégré et à tester : raccord convexe linéaire borné avec deux ellipses exactes. Reste : autres configurations et raccords variables multiples. La première tranche n’est pas assimilée à une reconnaissance générale.
+R-094 accepte des bandes reliant directement les deux arrêts. R-102 reconstruit deux lois affines sur un bloc commun quand les deux domaines restent disjoints. Les congés qui se rencontrent et les lois non linéaires demandent des preuves supplémentaires.
 
-L’utilisateur a autorisé la réalisation de l’ensemble. Le statut « en cours » représente ce chantier global partiellement intégré ; il ne signifie pas que tous ses domaines sont déjà disponibles. Les essais manuels ouverts ne bloquent pas les travaux indépendants restants.
+Les essais dans Fusion sont suivis dans les actions des sous-jalons.
 
 ## Historique et décisions
 
