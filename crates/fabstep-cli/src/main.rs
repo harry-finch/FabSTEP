@@ -152,16 +152,29 @@ fn run() -> Result<(), FabError> {
         {
             return Err(usage("La sortie doit porter l'extension .step ou .stp."));
         }
-        if path.exists() && fs::canonicalize(path).ok() == fs::canonicalize(&input).ok() {
+        let exists = path.try_exists().map_err(io_error)?;
+        if exists && fs::canonicalize(path).ok() == fs::canonicalize(&input).ok() {
             return Err(usage("La source et la sortie doivent être distinctes."));
         }
+        if !force && exists {
+            return Err(io_error(std::io::Error::from(
+                std::io::ErrorKind::AlreadyExists,
+            )));
+        }
     }
+    const MAX_BYTES: usize = 64 * 1024 * 1024;
     let mut bytes = Vec::new();
     fs::File::open(&input)
         .map_err(io_error)?
-        .take(64 * 1024 * 1024 + 1)
+        .take(MAX_BYTES as u64 + 1)
         .read_to_end(&mut bytes)
         .map_err(io_error)?;
+    if bytes.len() > MAX_BYTES {
+        return Err(FabError::new(
+            "input.too_large",
+            "Le fichier dépasse 64 Mio.",
+        ));
+    }
     if command == "check" {
         let document = fabstep_app::analyze_document(&bytes, format, &options)?;
         let mut bodies = Vec::with_capacity(document.bodies.len());

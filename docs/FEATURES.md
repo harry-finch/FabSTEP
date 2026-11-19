@@ -26,3 +26,7 @@ Identifiants stables ; preuves et limites dans [VALIDATION](VALIDATION.md). Vers
 | FS-020 | Congés arbitraires, intersections de perçages, surfaces libres | Recherche, non annoncés dans la v1 mécanique |
 
 L’utilisateur confirme l’aperçu et l’export natifs du boîtier à 26 faces sur la candidate. L’usage a été confirmé manuellement ; le fichier exporté a ensuite passé son réimport FreeCAD indépendant.
+
+## Atelier post-v1
+
+Le build de développement propose la reconstruction automatique avec repli contrôlé, les indications sur une zone source, la sélection de faces STEP, les profils et coupes DXF, ainsi que le mode gros STL dans un processus isolé. Le domaine vérifié de chaque famille et les essais utilisateur figurent dans [STATUS](../STATUS.md) et la [feuille de route](../ROADMAP.md).

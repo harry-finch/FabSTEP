@@ -392,3 +392,40 @@ fn rounded_mode_reports_spheres_tori_and_keeps_previous_export_on_failure() {
     assert!(error["code"].as_str().unwrap().starts_with("recognition."));
     assert_eq!(fs::read(&target).unwrap(), previous);
 }
+
+#[test]
+fn oversized_input_and_occupied_destination_fail_before_parsing() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("large.3mf");
+    fs::File::create(&source)
+        .unwrap()
+        .set_len(64 * 1024 * 1024 + 1)
+        .unwrap();
+    let check = Command::new(env!("CARGO_BIN_EXE_fabstep"))
+        .arg("check")
+        .arg(&source)
+        .arg("--json")
+        .output()
+        .unwrap();
+    assert!(!check.status.success());
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&check.stderr).unwrap()["code"],
+        "input.too_large"
+    );
+    let target = dir.path().join("existing.step");
+    fs::write(&target, b"existing").unwrap();
+    let convert = Command::new(env!("CARGO_BIN_EXE_fabstep"))
+        .arg("convert")
+        .arg(&source)
+        .arg("-o")
+        .arg(&target)
+        .arg("--json")
+        .output()
+        .unwrap();
+    assert!(!convert.status.success());
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&convert.stderr).unwrap()["code"],
+        "io.file"
+    );
+    assert_eq!(fs::read(&target).unwrap(), b"existing");
+}

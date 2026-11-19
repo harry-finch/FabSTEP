@@ -151,7 +151,7 @@ Rapport local `docs/audit-neon.md`, SHA-256 `3b6819c6683f2d29b9d8c902f50988fbcf1
 | 012 | DEFERRED | P2 | .9 | DEFERRED | Mesurer les intersections de sections indépendamment de la projection des paires candidates. Une réécriture des preuves partielles exige un gain sur un modèle concerné et la parité des refus. |
 | 013 | ADAPTED | P2 | .10 | IN_PROGRESS | Peinture et Échap, décimales pendant l’édition et export frais, focus et identité du nouvel aperçu. Préserver précision et annuler/rétablir. |
 | 014 | ADAPTED | P3 | .10 | IN_PROGRESS | Mesurer les imports ciblés d’icônes. Garder la couverture Unicode des noms de fichiers. Chunks séparés à considérer après mesure du démarrage. |
-| 015 | ADAPTED | P2 | .6 | IN_PROGRESS | La limite existante n’acceptait pas un STL tronqué comme succès. Diagnostiquer la taille avant parse pour les deux formats et refuser tôt une sortie occupée tout en conservant la publication atomique. |
+| 015 | ADAPTED | P2 | .6 | DONE | La limite existante n’acceptait pas un STL tronqué comme succès. Diagnostiquer la taille avant parse pour les deux formats et refuser tôt une sortie occupée tout en conservant la publication atomique. |
 | 016 | ADAPTED | P2/P3 | .6–.8, .10 | IN_PROGRESS | Fetch du verrou worker, publication de l’archive source, gardes ABI et relecture du type de fichier ouvert. Un lien de helper local n’authentifie pas son éditeur ; conserver le contrat développeur. Découpage C++/App, MSVC, NDEBUG et retrait de composants à reprendre selon un coût mesuré ou une cible Windows active. Corriger les repères documentaires vérifiés. |
 
 ### Plan, acceptation et réversibilité
@@ -167,3 +167,7 @@ Les lots .6 à .10 sont indépendants. Risques principaux : export d’une ancie
 | .10 | App, Viewport, Dialog, NumField, CSS, imports Svelte | Moyenne. Fraîcheur, précision, focus et picking | Tests UI, check, build, mesures avant/après ; essais clavier, export et rafraîchissement sur une vue montée. |
 | .11 | Rapport allégé versionné dans worker, superviseur, consommateurs UI | Élevée. Dépend de A-119. Versions et informations d’inspection | Cube et rampe dense, état exportable strict, refus d’un résultat incomplet, taille/RSS et compatibilité prouvées. Retour à la lecture et à l’écriture historiques. |
 | .12 | Helper dans le prochain paquet, scripts macOS, manifeste et notices | Élevée. Dépend de A-120. Fermeture des bibliothèques et anciennes archives | Vérifier les deux exécutables sans Homebrew, leurs signatures et inventaires, conversion par le helper, contrôle d’une ancienne archive. Conserver la release 1.0.0. |
+
+### .6 — CLI, CI et paquet source · DONE / PASS
+
+AUD-015 et partie d’AUD-016. Le CLI refuse la taille excessive et la destination occupée avant analyse. L’archive source est publiée en une opération sans écrasement, inclut les en-têtes .hxx et les trois STEP de référence explicitement versionnés. La CI récupère aussi le lockfile du helper. Treize tests CLI réussis. Python système : 14 réussis et 11 conditionnels ignorés. Une copie Git propre du projet avec le correctif produit une archive lisible de 1 061 entrées, manifeste compris. Contrôles détaillés sous `artifacts/audit-neon/`.

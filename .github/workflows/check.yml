@@ -29,5 +29,6 @@ jobs:
           npm --prefix ui ci
           cargo fetch --locked
           cargo fetch --manifest-path crates/fabstep-desktop/Cargo.toml --locked
+          cargo fetch --manifest-path crates/fabstep-worker/Cargo.toml --locked
       - name: Validate
         run: sh scripts/check.sh

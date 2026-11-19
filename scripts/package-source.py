@@ -9,6 +9,8 @@ import gzip
 import hashlib
 import io
 import json
+import os
+import tempfile
 from pathlib import Path
 import subprocess
 import tarfile
@@ -17,7 +19,12 @@ import tomllib
 ROOT = Path(__file__).resolve().parent.parent
 TREES = ("crates", "ui", "scripts", "fixtures", "docs", "packaging", ".github")
 EXCLUDED = {"target", "node_modules", "dist", "gen", ".vite", "__pycache__", ".DS_Store"}
-SOURCE_SUFFIXES = {".rs", ".toml", ".lock", ".json", ".stl", ".3mf", ".py", ".ts", ".js", ".svelte", ".css", ".svg", ".png", ".html", ".sh", ".md", ".yml", ".yaml", ".txt", ".cpp", ".h", ".hpp"}
+SOURCE_SUFFIXES = {".rs", ".toml", ".lock", ".json", ".stl", ".3mf", ".py", ".ts", ".js", ".svelte", ".css", ".svg", ".png", ".html", ".sh", ".md", ".yml", ".yaml", ".txt", ".cpp", ".h", ".hpp", ".hxx"}
+REFERENCE_STEPS = {
+    "crates/fabstep-cad/tests/fixtures/elliptical_ring.step",
+    "fixtures/m6a_rounded_box_rotated.step",
+    "fixtures/oblique_pocket/freecad_reference.step",
+}
 SOURCE_NAMES = {"LICENSE", "LICENSE-MIT", "LICENSE-APACHE", "LICENSE_MIT", "LICENSE_APACHE-2.0", ".gitignore"}
 
 
@@ -63,7 +70,7 @@ def source_files():
         if path.is_file():
             if any(part.startswith(".") and part not in {".github", ".gitignore"} for part in relative.parts):
                 raise ValueError(f"Review hidden source file before archiving: {relative}")
-            if path.suffix not in SOURCE_SUFFIXES and path.name not in SOURCE_NAMES:
+            if path.suffix not in SOURCE_SUFFIXES and path.name not in SOURCE_NAMES and relative.as_posix() not in REFERENCE_STEPS:
                 raise ValueError(f"Review unexpected source file before archiving: {relative}")
             yield path, relative.as_posix()
         else:
@@ -86,11 +93,16 @@ def main():
     manifest = {"version": version, "scope": "FabSTEP project sources; dependencies pinned by lockfiles, not vendored", "files": {name: hashlib.sha256(data).hexdigest() for name, data, _ in entries}}
     entries.append(("SOURCE-MANIFEST.json", (json.dumps(manifest, indent=2, ensure_ascii=False) + "\n").encode(), False))
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    with args.output.open("xb") as output, gzip.GzipFile(filename="", mode="wb", fileobj=output, mtime=0) as compressed, tarfile.open(fileobj=compressed, mode="w|") as archive:
-        for name, data, executable in entries:
-            info = tarfile.TarInfo(f"{prefix}/{name}")
-            info.size, info.mode, info.mtime = len(data), 0o755 if executable else 0o644, 0
-            archive.addfile(info, io.BytesIO(data))
+    # Same-filesystem link publishes only the finished archive and refuses an
+    # existing destination atomically, including concurrent invocations.
+    with tempfile.TemporaryDirectory(dir=output.parent) as directory:
+        staged = Path(directory) / "snapshot.tar.gz"
+        with staged.open("xb") as stream, gzip.GzipFile(filename="", mode="wb", fileobj=stream, mtime=0) as compressed, tarfile.open(fileobj=compressed, mode="w|") as archive:
+            for name, data, executable in entries:
+                info = tarfile.TarInfo(f"{prefix}/{name}")
+                info.size, info.mode, info.mtime = len(data), 0o755 if executable else 0o644, 0
+                archive.addfile(info, io.BytesIO(data))
+        os.link(staged, args.output)
     print(json.dumps({"archive": str(args.output), "sha256": hashlib.sha256(args.output.read_bytes()).hexdigest(), "files": len(entries), "version": version}))
 
 

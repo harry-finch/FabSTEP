@@ -71,6 +71,23 @@ class SourceSnapshotTests(unittest.TestCase):
         self.assertIn(message, stderr.getvalue())
         self.assertFalse(self.output.exists())
 
+    def test_reviewed_geometry_sources_are_included(self):
+        for name in (*PACKAGE.REFERENCE_STEPS, "crates/cad/src/geometry.hxx"):
+            self.write(name, "reviewed fixture")
+        self.commit()
+        self.archive()
+        with tarfile.open(self.output) as archive:
+            for name in (*PACKAGE.REFERENCE_STEPS, "crates/cad/src/geometry.hxx"):
+                self.assertIn("FabSTEP-1.0.0/" + name, archive.getnames())
+
+    def test_write_failure_leaves_no_visible_destination(self):
+        with patch.object(tarfile.TarFile, "addfile", side_effect=OSError("write failed")):
+            with self.assertRaisesRegex(OSError, "write failed"):
+                self.archive()
+        self.assertFalse(self.output.exists())
+        self.archive()
+        self.assertTrue(self.output.is_file())
+
     def test_clean_archive_hashes_modes_and_determinism(self):
         first = self.archive()
         second_path = self.directory / "second.tar.gz"

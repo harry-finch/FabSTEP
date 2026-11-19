@@ -1,6 +1,6 @@
 # État — 19 novembre 2026
 
-**V1 mécanique 1.0.0 acceptée ; extensions post-v1 dans le build de développement.** Rust/OCCT, Svelte 5/Tauri, GPL-3.0-or-later. Branche de développement : `fabboard/mise-d-equerre` ; nettoyage local sur `fabboard/nettoyage`, sans modification de la branche par défaut ni du paquet release. Historique et mesures détaillés dans [DEVLOG](DEVLOG.md) et [VALIDATION](docs/VALIDATION.md), suivi utilisateur dans [ROADMAP](ROADMAP.md).
+**V1 mécanique 1.0.0 acceptée ; extensions post-v1 dans le build de développement.** Rust/OCCT, Svelte 5/Tauri, GPL-3.0-or-later. La base géométrique est sur `fabboard/geometrie`. L’intégration NEON se déroule sur `audit/neon`. Les décisions et résultats par lot figurent dans le [registre R-112](docs/INT_AUDIT_01.md#neon--audit-du-19-novembre-2026-r-112). Historique et mesures détaillés dans [DEVLOG](DEVLOG.md) et [VALIDATION](docs/VALIDATION.md), suivi utilisateur dans [ROADMAP](ROADMAP.md).
 
 ## Version et validation courantes
 
