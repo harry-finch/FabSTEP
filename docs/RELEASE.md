@@ -4,23 +4,26 @@ La version locale **1.0.0** inclut les quatre pièces du [corpus mécanique ind�
 
 ## Construire et vérifier
 
-Cible actuellement qualifiée : **Apple Silicon, macOS 26.0 ou ultérieur**. Le minimum est vérifié sur l’exécutable et chaque bibliothèque, pas seulement déclaré dans le plist. La fermeture Homebrew de ce poste impose cette cible ; Intel et les macOS antérieurs nécessitent une chaîne de compilation et une qualification distinctes.
+Cible actuellement qualifiée : **Apple Silicon, macOS 26.0 ou ultérieur**. Le minimum est vérifié sur chaque exécutable et chaque bibliothèque, pas seulement déclaré dans le plist. La fermeture Homebrew de ce poste impose cette cible ; Intel et les macOS antérieurs nécessitent une chaîne de compilation et une qualification distinctes.
 
 Prérequis de construction : Rust 1.88 avec sa cible `aarch64-apple-darwin`, Node 26, npm, Python 3.11 ou ultérieur, outils de développement Apple et OCCT Homebrew 7.9.3. Le verrou npm est autonome et utilise les archives du registre ; aucun lien vers le dossier FabWeave n’est nécessaire.
 
 ```sh
 npm --prefix ui ci
 sh scripts/check.sh
-sh scripts/build-macos-release.sh
+dossier_candidat=artifacts/release/candidate
+sh scripts/build-macos-release.sh "$dossier_candidat"
 ```
 
 Le script fixe `MACOSX_DEPLOYMENT_TARGET=26.0` pour Rust et C++, compile avec les verrous et sans téléchargement Cargo, puis produit un nouveau dossier `artifacts/release/<version>/`. Il refuse de remplacer un dossier de livraison existant. Pour une nouvelle qualification du même numéro, passer un nouveau chemin au script.
 
 Le dossier contient l’application, le ZIP, son empreinte SHA-256 et le rapport de validation. Le bundle intègre ses bibliothèques dans `Contents/Frameworks`, leurs liens `@loader_path`, un inventaire et les notices sous `Contents/Resources/Licenses`. Les recherches de bibliothèques héritées du poste de construction sont supprimées. Les textes supplémentaires de licences sont épinglés avec leur provenance sous `packaging/macos/`.
 
+Depuis R-112, le manifeste v2 inventorie `Contents/MacOS/FabSTEP` et `Contents/MacOS/fabstep-worker`, l’empreinte du helper et les bibliothèques nécessaires à chaque binaire. La signature du bundle couvre l’exécutable principal. La recette construit le bureau avec les limites ordinaires et le helper avec la capacité gros STL. L’étape de validation exécute quatre conversions CLI et le cube par les deux versions du protocole privé du helper, avec les lectures de Homebrew bloquées. L’archive historique utilise toujours son manifeste initial et se vérifie avec le CLI de la même génération.
+
 ```sh
 python3 scripts/package-macos.py verify \
-  artifacts/release/1.0.0/FabSTEP-1.0.0-macOS-arm64.zip \
+  "$dossier_candidat/FabSTEP-1.0.0-macOS-arm64.zip" \
   --smoke-cli artifacts/macos-build/aarch64-apple-darwin/release/fabstep \
   --require-no-homebrew
 ```

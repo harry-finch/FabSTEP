@@ -14,8 +14,8 @@ export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/artifacts/macos-build}"
 export HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-/opt/homebrew}"
 export OCCT_ROOT="${OCCT_ROOT:-$HOMEBREW_PREFIX/opt/opencascade}"
 
-metadata=$(mktemp -t fabstep-release-metadata)
-trap 'rm -f "$metadata"' EXIT
+metadata=$(mktemp -d -t fabstep-release-metadata)
+trap 'rm -rf "$metadata"' EXIT
 python3 scripts/package-macos.py preflight
 npm --prefix ui run build
 cargo rustc --offline --locked --release --target "$target" \
@@ -23,9 +23,16 @@ cargo rustc --offline --locked --release --target "$target" \
     -- -C link-arg=-Wl,-headerpad_max_install_names
 cargo rustc --offline --locked --release --target "$target" -p fabstep-cli \
     -- -C link-arg=-Wl,-headerpad_max_install_names
+cargo rustc --offline --locked --release --target "$target" \
+    --manifest-path crates/fabstep-worker/Cargo.toml \
+    -- -C link-arg=-Wl,-headerpad_max_install_names
 cargo metadata --offline --locked --filter-platform "$target" --format-version 1 \
-    --manifest-path crates/fabstep-desktop/Cargo.toml --features custom-protocol > "$metadata"
+    --manifest-path crates/fabstep-desktop/Cargo.toml --features custom-protocol > "$metadata/desktop.json"
+cargo metadata --offline --locked --filter-platform "$target" --format-version 1 \
+    --manifest-path crates/fabstep-worker/Cargo.toml > "$metadata/worker.json"
 
 binaries="$CARGO_TARGET_DIR/$target/release"
 python3 scripts/package-macos.py package "$binaries/fabstep-desktop" \
-    --smoke-cli "$binaries/fabstep" --cargo-metadata "$metadata" "$@"
+    --worker "$binaries/fabstep-worker" --smoke-cli "$binaries/fabstep" \
+    --cargo-metadata "$metadata/desktop.json" --worker-metadata "$metadata/worker.json" \
+    --require-no-homebrew "$@"

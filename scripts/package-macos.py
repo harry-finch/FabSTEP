@@ -2,9 +2,11 @@
 """Package and verify an offline, ad-hoc-signed Apple Silicon release."""
 
 import argparse
+import ctypes
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import platform
 import plistlib
@@ -67,13 +69,14 @@ def preflight():
     require(version_tuple(platform.mac_ver()[0]) >= version_tuple(MINIMUM), f"macOS {MINIMUM} is required.")
     config = json_read(ROOT / "crates/fabstep-desktop/tauri.conf.json")
     desktop = tomllib.loads((ROOT / "crates/fabstep-desktop/Cargo.toml").read_text())
+    worker = tomllib.loads((ROOT / "crates/fabstep-worker/Cargo.toml").read_text())
     workspace = tomllib.loads((ROOT / "Cargo.toml").read_text())
     lock = json_read(ROOT / "ui/package-lock.json")
     version = config["version"]
     require(
-        version == desktop["package"]["version"] == workspace["workspace"]["package"]["version"]
+        version == desktop["package"]["version"] == worker["package"]["version"] == workspace["workspace"]["package"]["version"]
         == lock["packages"][""]["version"] == json_read(ROOT / "ui/package.json")["version"],
-        "Desktop, workspace, Tauri and UI versions must agree.",
+        "Desktop, worker, workspace, Tauri and UI versions must agree.",
     )
     for path, entry in lock["packages"].items():
         if not path:
@@ -118,9 +121,9 @@ def expand_loader(path, loader):
     return Path(path)
 
 
-def discover(entry, cellar):
+def discover(entries, cellar):
     """Resolve the local Homebrew closure before modifying any load command."""
-    pending = [entry]
+    pending = list(entries)
     images = {}
     while pending:
         path = pending.pop()
@@ -149,10 +152,10 @@ def discover(entry, cellar):
     return images
 
 
-def library_names(images, entry):
+def library_names(images, entries):
     libraries = {}
     for path, image in images.items():
-        if path == entry:
+        if path in entries:
             continue
         require(image["install_id"] is not None, f"No dylib install name: {path}")
         name = Path(image["install_id"]).name
@@ -234,11 +237,12 @@ def copy_notices(resources, libraries, cellar, metadata):
     json_write(notices / "inventory.json", {"native": packages, "web": web, "rust": rust_notices(notices, metadata)})
 
 
-def rust_notices(notices, metadata):
-    cargo = {}
+def cargo_packages(metadata, root_name):
     rust = json_read(metadata)
     resolve = rust["resolve"]
-    graph = {node["id"]: node["deps"] for node in resolve["nodes"]}
+    nodes = {node["id"]: node for node in resolve["nodes"]}
+    packages = {package["id"]: package for package in rust["packages"]}
+    require(packages[resolve["root"]]["name"] == root_name, f"Unexpected Cargo metadata root for {root_name}")
     pending = [resolve["root"]]
     selected = set()
     while pending:
@@ -246,11 +250,24 @@ def rust_notices(notices, metadata):
         if key in selected:
             continue
         selected.add(key)
-        pending.extend(dep["pkg"] for dep in graph[key] if any(kind["kind"] != "dev" for kind in dep["dep_kinds"]))
+        pending.extend(dep["pkg"] for dep in nodes[key]["deps"] if any(kind["kind"] != "dev" for kind in dep["dep_kinds"]))
+    for key in selected:
+        package = packages[key]
+        if package["name"] in ("fabstep-core", "fabstep-cad"):
+            require(("large-stl" in nodes[key]["features"]) == (root_name == "fabstep-worker"),
+                    f"Unexpected source-size profile for {package['name']} in {root_name}.")
+        if package["source"] is not None:
+            yield package
+
+
+def rust_notices(notices, metadata):
+    cargo = {}
+    selected = {}
+    for root_name, path in metadata.items():
+        for package in cargo_packages(path, root_name):
+            selected[package["id"]] = package
     supplements = json_read(RUST_NOTICES / "provenance.json")
-    for package in rust["packages"]:
-        if package["source"] is None or package["id"] not in selected:
-            continue
+    for package in selected.values():
         key = f"{package['name']}-{package['version']}"
         folder = notices / "rust" / key
         base = Path(package["manifest_path"]).parent
@@ -299,9 +316,34 @@ def notice_files(directory):
     )
 
 
+def executable_records(manifest):
+    if "schema_version" not in manifest:
+        return {"FabSTEP": manifest["executable"]}
+    require(manifest["schema_version"] == 2, "Unsupported dependency manifest version.")
+    records = manifest["executables"]
+    require(set(records) == {"FabSTEP", "fabstep-worker"}, "The manifest requires the desktop and its worker.")
+    return records
+
+
+def bundled_closure(executable, libraries):
+    """Reachable bundled dylibs with their rewritten install names."""
+    found = set()
+    pending = list(executable["dependencies"])
+    while pending:
+        dependency = pending.pop()
+        if dependency.startswith(APPLE_LIBRARIES):
+            continue
+        name = Path(dependency).name
+        require(name in libraries, f"Missing library {dependency}")
+        if name not in found:
+            found.add(name)
+            pending.extend(libraries[name]["dependencies"])
+    return found
+
+
 def verify_app(app):
     contents = app / "Contents"
-    executable = contents / "MacOS/FabSTEP"
+    macos = contents / "MacOS"
     frameworks = contents / "Frameworks"
     info = plistlib.loads((contents / "Info.plist").read_bytes())
     manifest = json_read(contents / "Resources/dependencies.json")
@@ -309,18 +351,22 @@ def verify_app(app):
     require(info["FabSTEPReleaseVersion"] == manifest["version"], "Incorrect version.")
     require(manifest["architecture"] == ARCH, "Incorrect architecture.")
     require(not any(path.is_symlink() for path in app.rglob("*")), "Unexpected symlink in bundle.")
+    executables = executable_records(manifest)
+    require({path.name for path in macos.iterdir()} == set(executables), "Unexpected executable set.")
     libraries = {path.name: path for path in frameworks.iterdir()}
     require(libraries and set(libraries) == set(manifest["libraries"]), "Unexpected library set.")
-    for path in (executable, *libraries.values()):
+    for path in (*macos.iterdir(), *libraries.values()):
         image = inspect_image(path)
-        library = path != executable
-        record = manifest["libraries"][path.name] if library else manifest["executable"]
+        library = path.parent == frameworks
+        record = manifest["libraries"][path.name] if library else executables[path.name]
         require(image["minimum"] == record["minimum_macos"], f"Deployment target changed: {path.name}")
         require(image["dependencies"] == record["dependencies"], f"Dependencies changed: {path.name}")
         require(not image["rpaths"], f"Unexpected LC_RPATH in {path.name}")
         require(image["install_id"] == ("@loader_path/" + path.name if library else None), f"Incorrect install ID: {path.name}")
-        if library:
-            require(record["sha256"] == digest(path), f"Library hash mismatch: {path.name}")
+        if library or path.name == "fabstep-worker":
+            require(record["sha256"] == digest(path), f"Image hash mismatch: {path.name}")
+        if not library:
+            run("/usr/bin/codesign", "--verify", "--strict", path)
         prefix = "@loader_path/" if library else "@loader_path/../Frameworks/"
         for name in image["dependencies"]:
             require(
@@ -328,6 +374,8 @@ def verify_app(app):
                 f"External or unresolved dependency {name} in {path.name}",
             )
     run("/usr/bin/codesign", "--verify", "--deep", "--strict", app)
+    reached = set().union(*(bundled_closure(record, manifest["libraries"]) for record in executables.values()))
+    require(reached == set(libraries), "The bundled libraries differ from the executable closures.")
     return manifest
 
 
@@ -375,43 +423,79 @@ def verify_smoke_conversion(fixture, manifest, surfaces, result, step):
     return {"fixture": fixture, **{key: cad[key] for key in ("solids", "faces", *face_types, "volume_mm3", "bounds_mm")}}
 
 
-def smoke(cli, app, work, brew, require_sandbox, version):
-    images = discover(cli, (brew / "Cellar").resolve())
-    names = library_names(images, cli)
+def traced_run(sandbox, executable, arguments, work, frameworks, libraries):
+    process = subprocess.run(
+        (*sandbox, executable, *arguments), cwd=work, env={"PATH": "/usr/bin:/bin", "DYLD_PRINT_LIBRARIES": "1"},
+        capture_output=True, text=True, check=True, timeout=120,
+    )
+    expected = {str((frameworks / name).resolve()) for name in libraries}
+    actual = {
+        str(Path(match[1]).resolve()) for line in process.stderr.splitlines()
+        if (match := re.match(r"dyld\[\d+\]:.*? (/.*)$", line)) and not match[1].startswith(APPLE_LIBRARIES)
+    }
+    require(expected <= actual, f"Incomplete dyld trace for {executable.name}: {sorted(expected - actual)}")
+    require(actual <= expected | {str(executable.resolve())}, f"Unexpected loaded images: {sorted(actual - expected)}")
+    return process.stdout
+
+
+def smoke_worker(app, work, sandbox, manifest, version):
+    job = work / f"worker job v{version}"
+    job.mkdir(mode=0o700)
+    shutil.copyfile(ROOT / "fixtures/cube.stl", job / "source.stl")
+    json_write(job / "request.json", {
+        "version": version, "request_id": 7, "source_id": 3, "options": {
+            "input_unit": "mm", "reconstruction": "auto", "plane_tolerance_mm": 1e-6,
+            "weld_tolerance_mm": 1e-6, "cylinder_fit_tolerance_mm": 1e-5, "max_deviation_mm": 0.05,
+        },
+    })
+    worker = app / "Contents/MacOS/fabstep-worker"
+    needed = bundled_closure(manifest["executables"][worker.name], manifest["libraries"])
+    traced_run(sandbox, worker, ("--job-dir", job), work, app / "Contents/Frameworks", needed)
+    done = json_read(job / "completion.json")
+    require(done["version"] == version and done["status"] == "success" and done["request_id"] == 7 and done["source_id"] == 3,
+            "The relocated worker failed to complete its job.")
+    report = json_read(job / "report.json")
+    if version == 2:
+        require(report["version"] == version, "Unexpected compact report version.")
+        report = report["report"]
+    cad = report["cad"]
+    step = (job / "result.step").read_bytes()
+    require(cad["solids"] == 1 and cad["faces"] == cad["planar_faces"] == 6
+            and math.isclose(cad["volume_mm3"], 1.0, rel_tol=1e-7)
+            and step.startswith(b"ISO-10303-21;") and step.count(b"PLANE(") == 6,
+            "Unexpected geometry from the relocated worker.")
+    return {"protocol": version, "fixture": "cube.stl", "solids": 1, "faces": 6, "volume_mm3": cad["volume_mm3"],
+            "dyld_closure_confirmed": True}
+
+
+def smoke(cli, app, work, brew, require_sandbox, manifest):
+    images = discover([cli], (brew / "Cellar").resolve())
+    names = library_names(images, [cli])
     frameworks = app / "Contents/Frameworks"
     require(set(names.values()) <= {path.name for path in frameworks.iterdir()}, "Smoke CLI needs additional dylibs.")
+    sandbox = homebrew_sandbox(brew, next(iter(names)))
+    require(sandbox or not require_sandbox, "The Homebrew read-denial profile is unavailable.")
+    result = {"homebrew_reads_blocked": bool(sandbox), "dyld_closure_confirmed": True, "conversions": []}
+    if "fabstep-worker" in executable_records(manifest):
+        result["worker"] = [smoke_worker(app, work, sandbox, manifest, version) for version in (1, 2)]
     destination = app / "Contents/MacOS/fabstep-smoke"
     try:
         relink(cli, destination, images[cli], names, False)
-        sandbox = homebrew_sandbox(brew, next(iter(names)))
-        require(sandbox or not require_sandbox, "The Homebrew read-denial profile is unavailable.")
         cases = [
             ("m5c_icosphere.stl", "m5c", (0, 0, 0, 1, 0)),
             ("m5c_sphere_instances.3mf", "m5c", (0, 0, 0, 1, 0)),
         ]
-        if version_tuple(version.split("-", 1)[0]) >= (1, 0, 0):
+        if version_tuple(manifest["version"].split("-", 1)[0]) >= (1, 0, 0):
             cases.extend([
                 ("m5d_ring_torus.stl", "m5d", (0, 0, 0, 0, 1)),
                 ("m6a_rounded_box_rotated.stl", "m6a", (6, 12, 0, 8, 0)),
             ])
-        expected = {str((frameworks / name).resolve()) for name in names.values()}
-        results = []
-        for fixture, manifest, surfaces in cases:
+        for fixture, reference, surfaces in cases:
             output = work / (fixture + ".step")
-            process = subprocess.run(
-                (*sandbox, destination, "convert", ROOT / "fixtures" / fixture, "--mode", "surfaces", "--json", "-o", output),
-                cwd=work, env={"PATH": "/usr/bin:/bin", "DYLD_PRINT_LIBRARIES": "1"},
-                capture_output=True, text=True, check=True, timeout=120,
-            )
-            loaded = [
-                path for line in process.stderr.splitlines()
-                if (match := re.match(r"dyld\[\d+\]:.*? (/.*)$", line)) and (path := match[1])
-            ]
-            actual = {str(Path(path).resolve()) for path in loaded if not path.startswith(APPLE_LIBRARIES)}
-            require(expected <= actual, "The dyld trace did not confirm the full bundled library closure.")
-            require(actual <= expected | {str(destination.resolve())}, f"Unexpected loaded images: {sorted(actual - expected)}")
-            results.append(verify_smoke_conversion(fixture, manifest, surfaces, json.loads(process.stdout), output.read_bytes()))
-        return {"homebrew_reads_blocked": bool(sandbox), "dyld_closure_confirmed": True, "conversions": results}
+            arguments = ("convert", ROOT / "fixtures" / fixture, "--mode", "surfaces", "--json", "-o", output)
+            report = traced_run(sandbox, destination, arguments, work, frameworks, names.values())
+            result["conversions"].append(verify_smoke_conversion(fixture, reference, surfaces, json.loads(report), output.read_bytes()))
+        return result
     finally:
         destination.unlink(missing_ok=True)
 
@@ -439,9 +523,19 @@ def verify_archive(archive, brew, cli=None, require_sandbox=False):
         result = {"archive": archive.name, "sha256": expected.split()[0], "libraries": len(manifest["libraries"]),
                   "minimum_macos": MINIMUM, "architecture": ARCH, "signature_verified": True}
         if cli:
-            result["smoke"] = smoke(cli.resolve(strict=True), app, work, brew, require_sandbox, manifest["version"])
+            result["smoke"] = smoke(cli.resolve(strict=True), app, work, brew, require_sandbox, manifest)
             verify_app(app)
         return result
+
+
+def publish_directory(stage, output):
+    # Darwin's RENAME_EXCL also refuses an existing empty directory.
+    rename = ctypes.CDLL(None, use_errno=True).renamex_np
+    rename.argtypes = (ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint)
+    rename.restype = ctypes.c_int
+    if rename(os.fsencode(stage), os.fsencode(output), 0x00000004) != 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error), str(output))
 
 
 def package(args):
@@ -453,10 +547,13 @@ def package(args):
     require(not output.exists(), f"Output already exists: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
     cellar = (args.brew_prefix / "Cellar").resolve()
-    entry = args.desktop.resolve(strict=True)
-    images = discover(entry, cellar)
-    names = library_names(images, entry)
-    require(images[entry]["minimum"] == MINIMUM, f"Desktop must be compiled with MACOSX_DEPLOYMENT_TARGET={MINIMUM}.")
+    entries = {"FabSTEP": args.desktop.resolve(strict=True), "fabstep-worker": args.worker.resolve(strict=True)}
+    require(entries["FabSTEP"] != entries["fabstep-worker"], "Desktop and worker must be separate executables.")
+    images = discover(entries.values(), cellar)
+    names = library_names(images, entries.values())
+    for entry in entries.values():
+        require(images[entry]["minimum"] == MINIMUM and not images[entry]["install_id"],
+                f"{entry.name} must be an executable built with MACOSX_DEPLOYMENT_TARGET={MINIMUM}.")
     require(names, "Expected a dynamically linked Open CASCADE library closure.")
     with tempfile.TemporaryDirectory(prefix=".fabstep-release-", dir=output.parent) as path:
         stage = Path(path) / "candidate"
@@ -467,8 +564,15 @@ def package(args):
         resources = contents / "Resources"
         for folder in (macos, frameworks, resources):
             folder.mkdir(parents=True)
-        executable = macos / "FabSTEP"
-        relink(entry, executable, images[entry], names, False)
+        executables = {}
+        for name, source in entries.items():
+            destination = macos / name
+            relink(source, destination, images[source], names, False)
+            image = inspect_image(destination)
+            executables[name] = {"minimum_macos": image["minimum"], "dependencies": image["dependencies"]}
+            # Signing the outer app updates its main executable's signature.
+            if name == "fabstep-worker":
+                executables[name]["sha256"] = digest(destination)
         libraries = {}
         for source, name in sorted(names.items(), key=lambda item: item[1]):
             destination = frameworks / name
@@ -479,15 +583,14 @@ def package(args):
                 "original_sha256": digest(source), "sha256": digest(destination),
                 "dependencies": image["dependencies"], "minimum_macos": image["minimum"],
             }
-        image = inspect_image(executable)
         json_write(resources / "dependencies.json", {
-            "architecture": ARCH, "minimum_macos": MINIMUM, "version": version, "libraries": libraries,
-            "executable": {"minimum_macos": image["minimum"], "dependencies": image["dependencies"]},
+            "schema_version": 2, "architecture": ARCH, "minimum_macos": MINIMUM, "version": version,
+            "libraries": libraries, "executables": executables,
             "lockfiles_sha256": {
-                name: digest(ROOT / name) for name in ("crates/fabstep-desktop/Cargo.lock", "ui/package-lock.json")
+                name: digest(ROOT / name) for name in ("crates/fabstep-desktop/Cargo.lock", "crates/fabstep-worker/Cargo.lock", "ui/package-lock.json")
             },
         })
-        copy_notices(resources, names, cellar, args.cargo_metadata)
+        copy_notices(resources, names, cellar, {"fabstep-desktop": args.cargo_metadata, "fabstep-worker": args.worker_metadata})
         shutil.copyfile(ROOT / "crates/fabstep-desktop/icons/icon.png", resources / "icon.png")
         (contents / "Info.plist").write_bytes(plistlib.dumps({
             "CFBundleDisplayName": "FabSTEP", "CFBundleExecutable": "FabSTEP", "CFBundleIconFile": "icon.png",
@@ -502,14 +605,11 @@ def package(args):
         archive.with_suffix(".zip.sha256").write_text(f"{digest(archive)}  {archive.name}\n", encoding="ascii")
         validation = verify_archive(archive, args.brew_prefix, args.smoke_cli.resolve(strict=True), args.require_no_homebrew)
         json_write(stage / "validation.json", validation)
-        require(not output.exists(), f"Output already exists: {output}")
-        stage.rename(output)
+        publish_directory(stage, output)
     print(output / archive.name)
 
 
 def main():
-    import os
-
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("preflight")
@@ -517,6 +617,8 @@ def main():
     builder.add_argument("desktop", type=Path)
     builder.add_argument("output", type=Path, nargs="?")
     builder.add_argument("--cargo-metadata", type=Path, required=True)
+    builder.add_argument("--worker", type=Path, required=True)
+    builder.add_argument("--worker-metadata", type=Path, required=True)
     verifier = commands.add_parser("verify")
     verifier.add_argument("archive", type=Path)
     for command in (builder, verifier):
