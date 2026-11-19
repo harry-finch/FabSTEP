@@ -2543,3 +2543,5 @@ V-1252, complément des unités. Onze cas indépendants couvrent notamment un mo
 ## V-1254 — Réserve de soudage pour la source brute du helper
 
 Une occurrence de sommet de la rampe dense a été décalée de 0,000019997 mm avant écriture du STL. Avec un soudage de 0,000050000 mm, le helper retourne un solide de 659 faces et 93,536793075 mm³. La borne continue enregistrée inclut le soudage et atteint 0,013798369 mm. Le détecteur et la construction native se partagent le budget restant après soudage. Deux tests ciblés contrôlent également le seuil de refus, les identités source et les doubles attributions.
+
+**Localiser le coût des interférences.** `sh scripts/qualify-atlas-interference.sh artifacts/atlas-interference --ruled-faces fichier.step` examine chaque face de raccord réglée avec le test d’auto-intersection individuel d’OCCT. Les 246 raccords de la rampe publique et les 14 882 du STEP expérimental de Flansch passent ce test. Le contrôle des seules faces de Flansch, lecture comprise, dure 174 s. Le contrôle obligatoire des intersections entre faces distinctes se poursuit dans le helper.

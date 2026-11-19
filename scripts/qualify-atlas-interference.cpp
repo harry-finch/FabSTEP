@@ -4,6 +4,9 @@
 #include <BRepBuilderAPI_MakePolygon.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <TopExp.hxx>
+#include <BRepAdaptor_Surface.hxx>
+#include <IntTools_FaceFace.hxx>
+#include <STEPControl_Reader.hxx>
 #include <iostream>
 
 namespace {
@@ -53,8 +56,44 @@ void check_case(bool split, bool intersect) {
   std::cout << "whole=" << whole.IsValid() << " bounded=" << valid << " leaf-a=" << owner_a
             << " leaf-b=" << owner_b << " faces=" << faces.Extent() << "\n";
 }
+// Mirrors the individual surface test in OCCT's BOPAlgo_CheckerSI 7.9 for
+// residual spline faces; the complete solid still requires its inter-face check.
+void check_ruled_faces(const char *path) {
+  auto shape = [&] {
+    STEPControl_Reader reader;
+    if (reader.ReadFile(path) != IFSelect_RetDone || reader.TransferRoots() != 1)
+      throw std::runtime_error("Cannot read one STEP root.");
+    return reader.OneShape();
+  }();
+  TopTools_IndexedMapOfShape faces;
+  TopExp::MapShapes(shape, TopAbs_FACE, faces);
+  int checked = 0, invalid = 0, incomplete = 0;
+  for (int index = 1; index <= faces.Extent(); ++index) {
+    const auto face = TopoDS::Face(faces(index));
+    const auto type = BRepAdaptor_Surface(face).GetType();
+    if (type != GeomAbs_BSplineSurface && type != GeomAbs_BezierSurface)
+      continue;
+    IntTools_FaceFace check;
+    check.Perform(face, face, false);
+    ++checked;
+    if (!check.IsDone())
+      ++incomplete;
+    else if (check.Lines().Length() || check.Points().Length())
+      ++invalid;
+  }
+  std::cout << "spline_faces=" << checked << " self_intersections=" << invalid << " incomplete=" << incomplete
+            << "\n";
+  if (!checked || invalid || incomplete)
+    throw std::runtime_error("A ruled face could not be verified.");
+}
 } // namespace
-int main() try {
+int main(int argc, char **argv) try {
+  if (argc == 3 && std::string(argv[1]) == "--ruled-faces") {
+    check_ruled_faces(argv[2]);
+    return 0;
+  }
+  if (argc != 1)
+    throw std::runtime_error("Expected --ruled-faces path.step or no arguments.");
   for (bool split : {false, true})
     for (bool intersect : {false, true})
       check_case(split, intersect);
