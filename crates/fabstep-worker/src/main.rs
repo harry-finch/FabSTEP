@@ -165,7 +165,7 @@ impl Drop for Temporary {
     }
 }
 
-/// No destination is touched until serialization/write and file sync succeed.
+/// Durable outputs are synced before publication. Progress lives only for the job.
 /// Renames stay in the private job directory, on the same filesystem.
 fn atomic_publish(
     directory: &Path,
@@ -193,7 +193,9 @@ fn atomic_publish(
         ));
     }
     result?;
-    writer.file.sync_all().map_err(io_error)?;
+    if name != "progress.json" {
+        writer.file.sync_all().map_err(io_error)?;
+    }
     drop(writer);
     fs::rename(&temporary.0, directory.join(name)).map_err(io_error)
 }
@@ -531,6 +533,8 @@ mod tests {
             "worker.output_too_large"
         );
         assert_eq!(fs::read(job.0.join("progress.json")).unwrap(), b"previous");
+        atomic_bytes(&job.0, "progress.json", 4, b"next").unwrap();
+        assert_eq!(fs::read(job.0.join("progress.json")).unwrap(), b"next");
         assert_eq!(fs::read_dir(&job.0).unwrap().count(), 1);
     }
 

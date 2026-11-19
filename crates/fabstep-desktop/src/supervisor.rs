@@ -332,6 +332,9 @@ fn read_limited(path: &Path, limit: usize) -> Result<Vec<u8>, FabError> {
     let file = File::open(path).map_err(io_error)?;
     // Atomic progress replacement may change the path between stat and open.
     let metadata = file.metadata().map_err(io_error)?;
+    if !metadata.is_file() {
+        return Err(protocol());
+    }
     if metadata.len() > limit as u64 {
         return Err(problem(
             "output_too_large",

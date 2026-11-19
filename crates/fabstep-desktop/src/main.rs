@@ -992,21 +992,9 @@ async fn export_face_dxf(
         {
             return Err(FabError::new("io.extension", "Choisissez un fichier .dxf."));
         }
-        // Keep the identity guard through the atomic destination replacement,
-        // as for STEP export. A changed selection during the dialog is refused.
-        let cache = state.inner.lock().map_err(lock_error)?;
-        if !cache.current_face_context(&context) {
-            return Err(stale());
-        }
-        let mut file = tempfile::NamedTempFile::new_in(
-            path.parent()
-                .ok_or_else(|| FabError::new("io.path", "Dossier de destination absent."))?,
-        )
-        .map_err(io_error)?;
-        file.write_all(&bytes).map_err(io_error)?;
-        file.as_file().sync_all().map_err(io_error)?;
-        file.persist(&path).map_err(|e| io_error(e.error))?;
-        Ok(Some(path.to_string_lossy().into_owned()))
+        publish_export(&state, &path, &bytes, |cache| {
+            cache.current_face_context(&context)
+        })
     })
     .await
     .map_err(|e| FabError::new("engine.task", e.to_string()))?
@@ -1020,16 +1008,12 @@ async fn export_step(
     state: State<'_, Arc<EngineState>>,
 ) -> Result<Option<String>, FabError> {
     let state = Arc::clone(state.inner());
-    {
+    let (source_id, step, epoch) = {
         let cache = state.inner.lock().map_err(lock_error)?;
-        if cache.revision != request_id
-            || cache.result.as_ref().is_none_or(|r| {
-                r.request_id != request_id || Some(r.source_id) != cache.expected_source
-            })
-        {
-            return Err(stale());
-        }
-    }
+        let source_id = cache.expected_source.ok_or_else(stale)?;
+        let (step, epoch) = cache.result_snapshot(request_id, source_id)?;
+        (source_id, step, epoch)
+    };
     let name = std::path::Path::new(&suggested_name)
         .file_name()
         .and_then(|s| s.to_str())
@@ -1057,28 +1041,39 @@ async fn export_step(
                 "Choisissez un fichier .step ou .stp.",
             ));
         }
-        let cache = state.inner.lock().map_err(lock_error)?;
-        if cache.revision != request_id {
-            return Err(stale());
-        }
-        let result = cache
-            .result
-            .as_ref()
-            .filter(|r| r.request_id == request_id && Some(r.source_id) == cache.expected_source)
-            .ok_or_else(stale)?;
-        let mut file = tempfile::NamedTempFile::new_in(
-            path.parent()
-                .ok_or_else(|| FabError::new("io.path", "Dossier de destination absent."))?,
-        )
-        .map_err(io_error)?;
-        file.write_all(result.step.bytes()).map_err(io_error)?;
-        file.as_file().sync_all().map_err(io_error)?;
-        file.persist(&path).map_err(|e| io_error(e.error))?;
-        Ok(Some(path.to_string_lossy().into_owned()))
+        publish_export(&state, &path, step.bytes(), |cache| {
+            cache.current_result(request_id, source_id, epoch, &step)
+        })
     })
     .await
     .map_err(|e| FabError::new("engine.task", e.to_string()))?
 }
+// Only the final rename must be serialized with invalidation. The immutable
+// export snapshot can be prepared and synced while a new request is running.
+fn publish_export(
+    state: &EngineState,
+    path: &std::path::Path,
+    bytes: &[u8],
+    current: impl Fn(&CacheState) -> bool,
+) -> Result<Option<String>, FabError> {
+    if !current(&*state.inner.lock().map_err(lock_error)?) {
+        return Err(stale());
+    }
+    let mut file = tempfile::NamedTempFile::new_in(
+        path.parent()
+            .ok_or_else(|| FabError::new("io.path", "Dossier de destination absent."))?,
+    )
+    .map_err(io_error)?;
+    file.write_all(bytes).map_err(io_error)?;
+    file.as_file().sync_all().map_err(io_error)?;
+    let cache = state.inner.lock().map_err(lock_error)?;
+    if !current(&cache) {
+        return Err(stale());
+    }
+    file.persist(path).map_err(|e| io_error(e.error))?;
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
+
 fn stale() -> FabError {
     FabError::new(
         "engine.stale",
@@ -1149,8 +1144,8 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::{
-        upload_bytes, validate_source_size, CacheState, CachedSource, DocumentStep, EngineState,
-        InputFormat, MAX_SOURCE_BYTES,
+        publish_export, stale, upload_bytes, validate_source_size, CacheState, CachedSource,
+        DocumentStep, EngineState, InputFormat, MAX_SOURCE_BYTES,
     };
     use std::sync::Arc;
 
@@ -1315,6 +1310,25 @@ mod tests {
         install(&mut c, 62, &[1]); // same bytes, new identity
         assert!(!c.current(61, 60, epoch));
         assert!(c.selection_snapshot(62, 62).is_ok());
+    }
+
+    #[test]
+    fn stale_export_preserves_destination_and_cleans_staged_file() {
+        let state = EngineState::default();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("model.step");
+        std::fs::write(&path, b"old").unwrap();
+        let checks = std::cell::Cell::new(0);
+        let outcome = publish_export(&state, &path, b"new", |_| {
+            checks.set(checks.get() + 1);
+            checks.get() == 1
+        });
+        assert_eq!(outcome.unwrap_err().code, stale().code);
+        assert_eq!(checks.get(), 2);
+        assert_eq!(std::fs::read(&path).unwrap(), b"old");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+        publish_export(&state, &path, b"new", |_| true).unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"new");
     }
 
     #[test]

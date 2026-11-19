@@ -476,19 +476,9 @@ pub(crate) async fn export_section_dxf(
         {
             return Err(FabError::new("io.extension", "Choisissez un fichier .dxf."));
         }
-        let cache = state.inner.lock().map_err(lock_error)?;
-        if !cache.current_section(&context) {
-            return Err(stale());
-        }
-        let mut file = tempfile::NamedTempFile::new_in(
-            path.parent()
-                .ok_or_else(|| FabError::new("io.path", "Dossier de destination absent."))?,
-        )
-        .map_err(io_error)?;
-        file.write_all(&bytes).map_err(io_error)?;
-        file.as_file().sync_all().map_err(io_error)?;
-        file.persist(&path).map_err(|e| io_error(e.error))?;
-        Ok(Some(path.to_string_lossy().into_owned()))
+        publish_export(&state, &path, &bytes, |cache| {
+            cache.current_section(&context)
+        })
     })
     .await
     .map_err(|e| FabError::new("engine.task", e.to_string()))?

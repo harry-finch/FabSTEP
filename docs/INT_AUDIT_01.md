@@ -146,8 +146,8 @@ Rapport local `docs/audit-neon.md`, SHA-256 `3b6819c6683f2d29b9d8c902f50988fbcf1
 | 007 | ADAPTED | P2 | .10 | IN_PROGRESS | Tableaux immuables, conversion directe des positions et rectangle de peinture partagé. Un nouveau BVH demande une mesure de latence WebKit, de mémoire et de fidélité du picking. |
 | 008 | ADAPTED | P1 | .8 | IN_PROGRESS | Mesurer le flux STEP emprunté et limiter les adaptateurs non restreints aux usages compatibles. La détection des coutures toriques exige encore les bornes UV de la face. |
 | 009 | ADAPTED | P2 | .9 | IN_PROGRESS | Mesurer l’index et les distances avec maxima, échantillons et budgets identiques. Tri, SAH, pile, normales et hachage s’évaluent indépendamment, aucune accélération présumée. |
-| 010 | ACCEPTED | P1 | .7 | IN_PROGRESS | Écriture et sync sous mutex. Deux contrôles de fraîcheur encadrent la préparation et le renommage reste sérialisé avec l’invalidation. |
-| 011 | ADAPTED | P2 | .7 | IN_PROGRESS | Snapshots de progression transitoires. Les octets STEP, rapports et fins de job nécessitent encore leur sync. Recherche multi-réglages et provenance à mesurer séparément, les réglages peuvent modifier soudage et composants. |
+| 010 | ACCEPTED | P1 | .7 | DONE | Écriture et sync sous mutex. Deux contrôles de fraîcheur encadrent la préparation et le renommage reste sérialisé avec l’invalidation. |
+| 011 | ADAPTED | P2 | .7 | DONE | Snapshots de progression transitoires. Les octets STEP, rapports et fins de job nécessitent encore leur sync. Recherche multi-réglages et provenance à mesurer séparément, les réglages peuvent modifier soudage et composants. |
 | 012 | DEFERRED | P2 | .9 | DEFERRED | Mesurer les intersections de sections indépendamment de la projection des paires candidates. Une réécriture des preuves partielles exige un gain sur un modèle concerné et la parité des refus. |
 | 013 | ADAPTED | P2 | .10 | IN_PROGRESS | Peinture et Échap, décimales pendant l’édition et export frais, focus et identité du nouvel aperçu. Préserver précision et annuler/rétablir. |
 | 014 | ADAPTED | P3 | .10 | IN_PROGRESS | Mesurer les imports ciblés d’icônes. Garder la couverture Unicode des noms de fichiers. Chunks séparés à considérer après mesure du démarrage. |
@@ -171,3 +171,7 @@ Les lots .6 à .10 sont indépendants. Risques principaux : export d’une ancie
 ### .6 — CLI, CI et paquet source · DONE / PASS
 
 AUD-015 et partie d’AUD-016. Le CLI refuse la taille excessive et la destination occupée avant analyse. L’archive source est publiée en une opération sans écrasement, inclut les en-têtes .hxx et les trois STEP de référence explicitement versionnés. La CI récupère aussi le lockfile du helper. Treize tests CLI réussis. Python système : 14 réussis et 11 conditionnels ignorés. Une copie Git propre du projet avec le correctif produit une archive lisible de 1 061 entrées, manifeste compris. Contrôles détaillés sous `artifacts/audit-neon/`.
+
+### .7 — Publication STEP/DXF et progression · DONE / PASS
+
+Le bureau écrit et synchronise le temporaire hors mutex. Le contrôle final porte sur l’identité du résultat, la révision et, pour les DXF, le contexte de face ou de coupe. Le renommage s’effectue encore sous verrou. La lecture du helper revérifie le type du descripteur ouvert. Les snapshots de progression sont remplacés atomiquement, sans synchronisation persistante de chaque mise à jour. Les sorties finales restent synchronisées. Les 52 tests bureau et les 8 tests worker passent. Revue indépendante acceptée, trois invalidations concurrentes sur 64 Mio ont conservé la destination et éliminé le temporaire. La factorisation des sept essais de paramètres reste différée jusqu’à une mesure isolant le coût et démontrant la parité des réglages.
