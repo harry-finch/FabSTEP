@@ -14,12 +14,13 @@ def require(ok, message):
         raise ValueError(message)
 
 
-def read_source(witness):
-    require(witness.stat().st_size < 32 * 1024**2, "Oversized mesh witness")
+def read_source(witness, large=False):
+    limit = 600000 if large else 100000
+    require(witness.stat().st_size < (128 if large else 32) * 1024**2, "Oversized mesh witness")
     with witness.open() as f:
         nv, nt, nb = map(int, f.readline().split()[:3])
         require(
-            3 <= nv <= 300000 and 0 < nt <= 100000 and nb <= 3 * nt,
+            3 <= nv <= 3 * limit and 0 < nt <= limit and nb <= 3 * nt,
             "Invalid source counts",
         )
         f.readline()
@@ -46,7 +47,7 @@ def edges(tri, n):
     return a, b, twin
 
 
-def measure(p, tri, a, b, twin, blocked, h):
+def measure(p, tri, a, b, twin, blocked, h, ring_fit_mm=0.0):
     cx, cy, cz, R, r = h
     rho = np.hypot(p[:, 1] - cy, p[:, 2] - cz)
     error = np.abs(np.hypot(p[:, 0] - cx, rho - R) - r)
@@ -66,7 +67,7 @@ def measure(p, tri, a, b, twin, blocked, h):
         (error[tri].max(axis=1) < 2e-5) & (hessian < 0.04) & (~blocked[tri].any(axis=1))
     )
     ids &= (span < np.pi / 2).all(axis=1)
-    constant = np.abs(uv[a] - uv[b]) < 1.5e-5
+    constant = np.abs(uv[a] - uv[b]) < np.maximum(1.5e-5, ring_fit_mm / np.array([R-r,r]))
     iso = constant.sum(axis=1) == 1
     # An exposed diagonal cannot describe a true circle on the support.
     # Peel such triangles until every retained boundary edge is isoparametric.
