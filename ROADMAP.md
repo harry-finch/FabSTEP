@@ -39,6 +39,10 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 13. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
 
+## Actions à faire
+
+- [ ] [A-123](roadmap/actions/A-123-valider-la-recuperation-des-plans-sur-deux-stl.md) Valider la récupération des plans sur deux STL tournés (valider, R-115)
+
 ## Livré
 
 ### v1.0 : V1 mécanique et paquet macOS local
