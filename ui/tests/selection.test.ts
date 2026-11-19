@@ -198,6 +198,10 @@ test('cross-drill attribution bounds all three cylinder domains and preserves le
   });
   body.rounded_recognition!.triangle_faces[2].index=3;
   assert.equal(attributions([body])[0].families,null);
+  body.rounded_recognition!.model.cross_drill!.stock_fillet={radius_mm:1.5,y_sign:-1,z_sign:1};
+  assert.deepEqual(attributions([body])[0].families,['cross_drill','cross_drill','cross_drill']);
+  body.rounded_recognition!.triangle_faces[2].index=4;
+  assert.equal(attributions([body])[0].families,null);
   body.rounded_recognition!.triangle_faces[2].index=2;
   delete body.rounded_recognition!.model.cross_drill;
   assert.equal(attributions([body])[0].families,null);
@@ -205,6 +209,23 @@ test('cross-drill attribution bounds all three cylinder domains and preserves le
   assert.deepEqual(attributions([body])[0].families,['plane','plane','plane']);
 });
 
+
+test('shaft and transverse bore require two distinct cylindrical wall indices', () => {
+  const body = {
+    id:'shaft',analysis:{mesh:{triangles:[[0,1,2],[2,3,0],[3,4,5]]}},
+    rounded_recognition:{
+      model:{revolved:{mixed:{planes:[{},{}],cylinders:[],partial_cylinders:[]},cones:[]},
+        spheres:[],tori:[],drilled_shaft:{}},
+      triangle_faces:[{kind:'shaft_wall',index:0},{kind:'shaft_wall',index:1},{kind:'plane',index:1}]
+    }
+  } as unknown as BodyResult;
+  assert.deepEqual(attributions([body])[0].families,['shaft_wall','shaft_wall','plane']);
+  body.rounded_recognition!.triangle_faces[1].index=2;
+  assert.equal(attributions([body])[0].families,null);
+  body.rounded_recognition!.triangle_faces[1].index=1;
+  delete body.rounded_recognition!.model.drilled_shaft;
+  assert.equal(attributions([body])[0].families,null);
+});
 
 test('smooth revolution attribution requires its single explicit domain and preserves legacy planes', () => {
   const body = {
