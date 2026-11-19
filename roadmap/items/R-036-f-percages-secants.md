@@ -5,7 +5,7 @@ resume: "Les perçages centrés et orthogonaux sont reconnus dans les blocs droi
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13
-maj: 2026-11-18
+maj: 2026-11-19
 livree:
 ---
 
@@ -86,3 +86,5 @@ R-083 a intégré F1. R-091 élargit le rapport de rayons aux couples dont l’e
 R-092 traite le contour fragmenté du bloc incliné décrit dans V-1219. Les deux densités de maillage dans les deux poses sont reconstruites aux seuils initiaux. Qualification et témoin de non-régression du mode Plans dans V-1220. Pour étendre F, restent les axes décentrés ou obliques entre eux, les rapports hors du domaine prouvé et les intersections multiples.
 
 R-096 — Reconstruire les deux intersections partagées lorsque le petit perçage est décentré par rapport au grand. Voir V-1224.
+
+R-105 — Reconstruire les deux intersections transverses de perçages dont les axes se croisent dans un prisme à quatre bouches circulaires. Voir V-1235.

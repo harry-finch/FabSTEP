@@ -220,3 +220,28 @@ fn radius_uncertainty_must_clear_the_ratio_boundary() {
         "cad.invalid_model"
     );
 }
+
+#[test]
+fn an_inclined_model_rejects_inconsistent_axes_supports_or_branch_witnesses() {
+    let base = from_source(include_bytes!(
+        "../../../fixtures/oblique_cross_drill/angle-60-coarse.stl"
+    ));
+    assert!(base.cross_drill.as_ref().unwrap().large_axis_cosine.abs() > 0.4);
+    for mutate in [
+        (|m: &mut RoundedModel| m.cross_drill.as_mut().unwrap().large_axis_cosine = f64::NAN)
+            as fn(&mut RoundedModel),
+        |m| m.cross_drill.as_mut().unwrap().large_axis_cosine = 0.6,
+        |m| m.cross_drill.as_mut().unwrap().large_axis_cosine *= -1.,
+        |m| m.cross_drill.as_mut().unwrap().small_offset = [0.2, 0.],
+        |m| m.cross_drill.as_mut().unwrap().branches.swap(0, 1),
+        |m| m.cross_drill.as_mut().unwrap().rims.swap(2, 3),
+        |m| m.revolved.mixed.planes[2].loops.truncate(1),
+    ] {
+        let mut bad = base.clone();
+        mutate(&mut bad);
+        assert_eq!(
+            build_rounded_step(&bad).unwrap_err().code,
+            "cad.invalid_model"
+        );
+    }
+}

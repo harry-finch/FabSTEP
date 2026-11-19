@@ -385,6 +385,27 @@ fn recognize_policy_with_proofs(
         Some(p) => (p, &alternate_rims),
         None => (&segmentation, &rims),
     };
+    // A thin binary triangle may split a planar mouth by its normal before
+    // the ordinary distance-based retry can see a closed ring. Recover just
+    // the six exterior supports and re-prove the complete F body afterwards.
+    let support_partition = if (2..4).contains(&bore_rims.len())
+        && bore_rims
+            .iter()
+            .all(|r| bore_partition.model.faces[r.region].loops.get(1) == Some(&r.vertices))
+    {
+        crate::planar::cross_drill_supports(&a.mesh, o.plane_tolerance_mm, &mut work)?
+    } else {
+        None
+    };
+    let recovered_rims = match &support_partition {
+        Some(p) => segmented_rims(a, o, p, &mut work)?,
+        None => Vec::new(),
+    };
+    let (bore_partition, bore_rims) = if recovered_rims.len() == 4 {
+        (support_partition.as_ref().unwrap(), &recovered_rims)
+    } else {
+        (bore_partition, bore_rims)
+    };
     if bore_rims.len() == 4 {
         match crate::cross_drill::candidate(
             a,

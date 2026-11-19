@@ -164,3 +164,52 @@ fn touching_cross_drill_bodies_are_refused() {
         .expect("touching sources accepted");
     assert_eq!(error.code, "cad.bodies_not_separated");
 }
+
+#[test]
+fn an_inclined_and_an_orthogonal_bore_pair_keep_independent_native_frames() {
+    let inclined = include_bytes!("../../../fixtures/oblique_cross_drill/angle-75-coarse.stl");
+    let (input, source) = interleaved_stl(inclined, [72., 0., 0.]);
+    let result = convert_document_with_provenance(&input, InputFormat::Stl, &options()).unwrap();
+    let cad = &result.report.cad;
+    assert_eq!(
+        (
+            cad.solids,
+            cad.faces,
+            cad.planar_faces,
+            cad.cylindrical_faces
+        ),
+        (2, 18, 12, 6)
+    );
+    let read = result.step.result_faces().unwrap();
+    assert_eq!(read.source_correspondence.status, "exact");
+    for (i, body) in result.report.bodies.iter().enumerate() {
+        let drill = body
+            .conversion
+            .rounded_recognition
+            .as_ref()
+            .unwrap()
+            .model
+            .cross_drill
+            .as_ref()
+            .unwrap();
+        if i == 0 {
+            assert!((drill.large_axis_cosine.abs() - 75_f64.to_radians().cos()).abs() < 2e-6);
+        } else {
+            assert_eq!(drill.large_axis_cosine, 0.);
+        }
+        let mut source_faces = Vec::new();
+        let mut solids = BTreeSet::new();
+        for row in read
+            .source_correspondence
+            .faces
+            .iter()
+            .filter(|r| r.analysis_body_id == body.id)
+        {
+            source_faces.extend(row.source_triangle_ids.iter().copied());
+            solids.insert(read.result.faces[row.face_id].solid_id);
+        }
+        source_faces.sort_unstable();
+        assert_eq!(source_faces, source[i]);
+        assert_eq!(solids.len(), 1);
+    }
+}

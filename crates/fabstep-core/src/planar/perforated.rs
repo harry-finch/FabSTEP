@@ -111,6 +111,102 @@ impl Search<'_> {
     }
 }
 
+/// A bounded alternative for F when at least two circular mouth loops already
+/// exist. Large source triangles provide plane hypotheses. The entire mesh
+/// must lie on their material side. Each assigned triangle is checked against
+/// the fixed plane, then the full nine-domain proof checks its orientation,
+/// adjacency, extent, trim cycles and distance to the reconstructed support.
+pub(crate) fn cross_drill_supports(
+    mesh: &Mesh,
+    tolerance: f64,
+    work: &mut crate::recognition::Work,
+) -> Result<Option<Segmentation>, FabError> {
+    let count = mesh.triangles.len();
+    if count > 8192 - 6 || count == 0 {
+        return Ok(None);
+    }
+    let normals = triangle_normals(mesh);
+    let mut seeds: Vec<_> = mesh
+        .triangles
+        .iter()
+        .enumerate()
+        .map(|(id, t)| {
+            let [p, q, r] = t.map(|v| mesh.vertices[v]);
+            (norm(cross(sub(q, p), sub(r, p))), id)
+        })
+        .collect();
+    work.spend(count * (count.ilog2() as usize + 3))?;
+    seeds.sort_unstable_by(|a, b| b.0.total_cmp(&a.0).then(a.1.cmp(&b.1)));
+    let mut regions = vec![usize::MAX; count];
+    let mut faces = Vec::<PlanarFace>::new();
+    let mut checks = 0;
+    for &(_, id) in seeds.iter().take(64) {
+        if regions[id] != usize::MAX {
+            continue;
+        }
+        let origin = mesh.vertices[mesh.triangles[id][0]];
+        let n = normals[id];
+        if faces.iter().any(|f| dot(f.normal, n) > 1. - 1e-8) {
+            continue;
+        }
+        work.spend(mesh.vertices.len() + 4 * count)?;
+        let distance = |v: V| dot(sub(v, origin), n);
+        if mesh.vertices.iter().any(|&v| distance(v) > tolerance) {
+            continue;
+        }
+        let region: BTreeSet<_> = mesh
+            .triangles
+            .iter()
+            .enumerate()
+            .filter(|(i, t)| {
+                dot(normals[*i], n) > 0.9
+                    && t.iter()
+                        .all(|&v| distance(mesh.vertices[v]).abs() <= tolerance)
+            })
+            .map(|(i, _)| i)
+            .collect();
+        if region.len() < 2 || region.iter().any(|i| regions[*i] != usize::MAX) {
+            continue;
+        }
+        let loops = match boundaries(mesh, &region)
+            .and_then(|lp| validate_loops(mesh, lp, origin, n, &mut checks))
+        {
+            Ok(lp) if (1..=2).contains(&lp.len()) => lp,
+            Err(e) if e.code == "planar.too_complex" => return Ok(None),
+            _ => continue,
+        };
+        for &i in &region {
+            regions[i] = faces.len();
+        }
+        faces.push(PlanarFace { normal: n, loops });
+        if faces.len() == 6 {
+            break;
+        }
+    }
+    work.spend(checks)?;
+    if faces.len() != 6 || faces.iter().filter(|f| f.loops.len() == 2).count() != 4 {
+        return Ok(None);
+    }
+    for (i, region) in regions.iter_mut().enumerate() {
+        if *region == usize::MAX {
+            *region = faces.len();
+            faces.push(PlanarFace {
+                normal: normals[i],
+                loops: vec![mesh.triangles[i].to_vec()],
+            });
+        }
+    }
+    Ok(Some(Segmentation {
+        model: PlanarModel {
+            vertices: mesh.vertices.clone(),
+            faces,
+        },
+        approximate_faces: 0,
+        triangle_regions: regions,
+        checks_used_before_retry: None,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

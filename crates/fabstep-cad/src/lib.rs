@@ -272,6 +272,7 @@ struct NativeCrossDrill {
     axes: [[f64; 3]; 3],
     half: [f64; 3],
     radii: [f64; 2],
+    large_axis_cosine: f64,
 }
 
 #[repr(C)]
@@ -1935,7 +1936,13 @@ fn build_cross_drill(
     let [r, big] = f.radii;
     let [hx, hy, hz] = f.half_lengths;
     let [dx, dy] = f.small_offset;
-    if m.planes.len() != 6
+    let cosine = f.large_axis_cosine;
+    let sine = ((1. - cosine) * (1. + cosine)).sqrt();
+    if !cosine.is_finite()
+        || cosine.abs() > 0.51
+        || sine < 0.85
+        || (cosine != 0. && (dx != 0. || dy != 0.))
+        || m.planes.len() != 6
         || m.rings.len() != 4
         || m.vertices.len() > MAX_SOURCE_VERTICES
         || !m.cylinders.is_empty()
@@ -2004,12 +2011,19 @@ fn build_cross_drill(
     {
         return Err(invalid());
     }
+    let stock = [std::array::from_fn(|i| sine * x[i] + cosine * z[i]), y, z];
+    if cosine != 0.
+        && (hx - cosine.abs() * hz - sine * r <= 2. * witness.max(1e-7)
+            || hz - cosine.abs() * hx - sine * big <= 2. * witness.max(1e-7))
+    {
+        return Err(invalid());
+    }
     let mut used = [false; 4];
     let mut corners = [None; 8];
     for (face, p) in m.planes.iter().enumerate() {
         let axis = face % 3;
         let sign = if face < 3 { -1. } else { 1. };
-        let normal = f.axes[axis].map(|v| sign * v);
+        let normal = stock[axis].map(|v| sign * v);
         if norm(sub(p.normal, normal)) > 1e-10 || !unit_direction(&p.normal) {
             return Err(invalid());
         }
@@ -2024,7 +2038,8 @@ fn build_cross_drill(
         }
         let mut mask = 0u8;
         for &id in vertices {
-            let at = local(id)?;
+            let [u, y, z] = local(id)?;
+            let at = [sine * u + cosine * z, y, z];
             let bits: usize = (0..3).map(|k| usize::from(at[k] > 0.) << k).sum();
             let goal = std::array::from_fn(|k| {
                 if bits & (1 << k) != 0 {
@@ -2033,8 +2048,9 @@ fn build_cross_drill(
                     -f.half_lengths[k]
                 }
             });
+            let [dl, dy, dz] = sub(at, goal);
             if at[axis] * sign <= 0.
-                || norm(sub(at, goal)) > witness
+                || norm([(dl - cosine * dz) / sine, dy, dz]) > witness
                 || mask & (1 << bits) != 0
                 || corners[bits].is_some_and(|previous| previous != id)
             {
@@ -2072,7 +2088,7 @@ fn build_cross_drill(
             || !curve.center.iter().all(|x| x.is_finite())
             || !unit_direction(&curve.axis)
             || norm(sub(curve.center, center)) > numerical
-            || norm(sub(curve.axis, f.axes[axis])) > 1e-10
+            || norm(sub(curve.axis, stock[axis])) > 1e-10
             || (curve.radius_mm - if slot < 2 { r } else { big }).abs() > numerical
         {
             return Err(invalid());
@@ -2092,9 +2108,14 @@ fn build_cross_drill(
             let t = (y - dy).atan2(x - dx);
             let ideal_y = dy + r * t.sin();
             let stop = (big * big - ideal_y * ideal_y).sqrt() * if branch == 0 { -1. } else { 1. };
+            let ideal_x = dx + r * t.cos();
             if !stop.is_finite()
-                || (branch == 0) != (z < 0.)
-                || norm([x - dx - r * t.cos(), y - ideal_y, z - stop]) > witness
+                || (branch == 0) != (sine * z - cosine * x < 0.)
+                || norm([
+                    x - ideal_x,
+                    y - ideal_y,
+                    z - (stop + cosine * ideal_x) / sine,
+                ]) > witness
             {
                 return Err(invalid());
             }
@@ -2113,6 +2134,7 @@ fn build_cross_drill(
         }
     }
     let domain = NativeCrossDrill {
+        large_axis_cosine: cosine,
         small_offset: f.small_offset,
         center: f.center,
         axes: f.axes,

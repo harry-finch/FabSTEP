@@ -34,3 +34,9 @@ Corpus paramétrique indépendant, variantes de placement/rayon/tessellation, n�
 ## Extension F2 du 18 novembre 2026
 
 R-091 conserve les quatre anneaux, les deux branches et les trois propriétaires de ce contrat. Les mesures permettent d’étendre le rapport petit/grand rayon strictement sous deux tiers si la marge couvre l’incertitude des deux rayons. Les contrôles du certificat et les essais au seuil sont référencés dans [V-1219](../VALIDATION.md#v-1219--r-091-perçages-sécants-de-rayons-plus-proches).
+
+## Extensions aux axes décentrés ou obliques
+
+R-096 conserve le déplacement transversal de deux axes orthogonaux. R-105 conserve le cosinus de l’angle des axes dans un repère orthonormé local. Sa valeur par défaut de zéro préserve les modèles orthogonaux. Dans le cas oblique, le prisme a des faces perpendiculaires aux deux axes et les quatre bouches sont circulaires. Les deux centres coïncident. Le bloc et le volume d’intersection des cylindres acquièrent le facteur 1/sin(angle). Chaque longueur de perçage reste mesurée selon son axe physique.
+
+Une segmentation locale peut compléter deux ou trois bouches détectées sur une petite pièce. Elle prend pour hypothèses six supports extérieurs, puis vérifie les triangles, contours, propriétaires, quatre bouches et deux cycles dans le même budget de reconstruction. Le certificat natif contrôle les intervalles sur les courbes et leurs représentations paramétriques après transfert. Les preuves sont consignées dans V-1224 et V-1235.
