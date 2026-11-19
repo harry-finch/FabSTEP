@@ -4,6 +4,7 @@
 #include <BRepMesh_IncrementalMesh.hxx>
 #include <BRepPrimAPI_MakeTorus.hxx>
 #include <BRepTools.hxx>
+#include <ElSLib.hxx>
 #include <STEPControl_Reader.hxx>
 #include <TopExp.hxx>
 #include <TopTools_IndexedMapOfShape.hxx>
@@ -11,6 +12,39 @@
 #include <iostream>
 #include <string>
 
+namespace {
+void check_metric(double deflection) {
+  using UV = trimmed_torus_mesh::UV;
+  for (double major : {2.01, 3.9, 15.}) {
+    constexpr double minor = 2.;
+    const gp_Torus surface(gp_Ax3(), major, minor);
+    for (double start : {-0.2, 1.1, 2.8, 5.9}) {
+      const std::array<UV, 4> corners{
+          {{.3, start}, {1.5, start}, {1.5, start + 1.2}, {.3, start + 1.2}}};
+      std::vector<UV> loop;
+      for (int k = 0; k < 4; ++k)
+        for (int j = 0; j < 96; ++j) {
+          const auto a = corners[k], b = corners[(k + 1) % 4];
+          double t = j / 96.;
+          loop.push_back({a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t});
+        }
+      const auto mesh = trimmed_torus_mesh::build(loop, major, minor, deflection, 100000);
+      auto value = [&](UV uv) { return ElSLib::Value(uv[0], uv[1], surface).XYZ(); };
+      for (auto tri : mesh.triangles) {
+        auto a = mesh.points[tri[0]], b = mesh.points[tri[1]], c = mesh.points[tri[2]];
+        for (int j = 0; j <= 4; ++j)
+          for (int k = 0; k <= 4 - j; ++k) {
+            double u = j * .25, v = k * .25, w = 1. - u - v;
+            UV uv{a[0] * u + b[0] * v + c[0] * w, a[1] * u + b[1] * v + c[1] * w};
+            const auto difference = value(uv) - (value(a) * u + value(b) * v + value(c) * w);
+            if (difference.Modulus() > mesh.bound + 1e-10)
+              throw std::runtime_error("torus interpolation bound");
+          }
+      }
+    }
+  }
+}
+} // namespace
 int main(int argc, char **argv) {
   if (argc != 3)
     return 2;
@@ -18,6 +52,7 @@ int main(int argc, char **argv) {
     TopoDS_Shape shape;
     const bool self = std::string(argv[1]) == "--self-test";
     if (self) {
+      check_metric(std::stod(argv[2]));
       gp_Ax2 axis(gp_Pnt(11, 2, -6), gp_Dir(.2, .5, 1));
       shape = BRepPrimAPI_MakeTorus(axis, 10, 2, -.8, .6, 3.7).Shape();
     } else {

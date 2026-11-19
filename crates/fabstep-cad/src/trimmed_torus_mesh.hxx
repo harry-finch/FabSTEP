@@ -106,14 +106,28 @@ inline Mesh build(std::vector<UV> wire, double major, double minor, double defle
   }
   require(area2 > 0. && high[0] - low[0] <= tau + 1e-6 && high[1] - low[1] <= tau + 1e-6,
           "unwrapped trim");
-  // Hessian of the torus: |Suu|<=R+r, |Svv|<=r, |Suv|<=r.
-  // Suv is orthogonal to both pure derivatives. With A=R+r and B=r,
-  // 4 B² du² dv² <= (B/A) (A du² + B dv²)² bounds the mixed contribution.
-  // Also bound the variation of the analytic unit normal across each triangle:
-  // its spherical coordinates give ds² <= du² + dv².
-  const double factor = std::sqrt(1. + minor / (major + minor));
+  // Put A=R+r cos(v). Squaring the directional second derivative gives
+  // A² du⁴ + 2 q du²dv² + r² dv⁴, with q=Rr cos(v)+2r²-r² cos²(v).
+  // Bound q at the maximum of this concave quadratic over the actual chart.
+  // The resulting diagonal metric bounds the interpolation error in every
+  // direction. The same metric also limits angular variation (ds²<=du²+dv²).
+  double min_cos = -1., max_cos = 1.;
+  if (std::abs(low[1]) < 1000. && std::abs(high[1]) < 1000.) {
+    const double a = low[1] - 1e-11, b = high[1] + 1e-11;
+    const auto contains_phase = [&](double phase) {
+      return std::ceil((a - phase) / tau) <= std::floor((b - phase) / tau);
+    };
+    if (!contains_phase(0.))
+      max_cos = std::min(1., std::max(std::cos(a), std::cos(b)) + 1e-12);
+    if (!contains_phase(tau * .5))
+      min_cos = std::max(-1., std::min(std::cos(a), std::cos(b)) - 1e-12);
+  }
+  const double max_major = major + minor * max_cos;
+  const double c = std::clamp(major / (2. * minor), min_cos, max_cos);
+  const double mixed = minor * (major * c + minor * (2. - c * c));
+  const double factor = std::sqrt(std::max(1., mixed / (max_major * minor))) * (1. + 1e-12);
   const double angular_scale2 = 8. * deflection / (angle * angle);
-  const UV scales{std::sqrt(std::max(angular_scale2, factor * (major + minor))),
+  const UV scales{std::sqrt(std::max(angular_scale2, factor * max_major)),
                   std::sqrt(std::max(angular_scale2, factor * minor))};
   const double radius = std::sqrt(2. * deflection);
   auto scaled = [&](UV a) { return UV{(a[0] - low[0]) * scales[0], (a[1] - low[1]) * scales[1]}; };
@@ -121,7 +135,7 @@ inline Mesh build(std::vector<UV> wire, double major, double minor, double defle
   for (auto a : wire)
     pts.push_back(scaled(a));
   const auto extent = scaled(high);
-  const double side = 1.52 * radius, row = std::sqrt(0.75) * side;
+  const double side = 1.69 * radius, row = std::sqrt(0.75) * side;
   require(extent[0] / side < limit && extent[1] / row < limit, "grid budget");
   require((extent[1] / row + 1.) * n <= 20000000., "scanline work budget");
   // Scanline parity on the bounded orthogonal wire.
