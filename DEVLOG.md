@@ -529,3 +529,5 @@ Les deux applications à tester, le helper, les fichiers CAO, corpus, rapports, 
 Tests, Clippy, vérifications UI et builds après nettoyage non exécutés : la skill demande de consulter l’utilisateur avant cette recompilation complète. [A-098](roadmap/actions/A-098-choisir-quand-recompiler-fabstep-apres-nettoyage.md) conserve ce choix, le coût et les commandes de reprise (`npm --prefix ui ci`, `scripts/check.sh`, puis `scripts/build-macos-dev.sh` pour le paquet de développement). Aucun merge ni push.
 
 L’utilisateur a ensuite choisi de reporter explicitement les tests et le build au prochain développement. A-098 est close avec cette réponse ; aucun succès de tests après nettoyage n’est revendiqué.
+
+**19 novembre 2026 — R-111 et helper pour les surfaces toriques.** Quatre solides à retour axial sont qualifiés dans V-1248. L’extension au mode Auto pour gros STL, les essais indépendants et les mesures de coût figurent dans V-1249 à V-1251. La rampe publique dense passe la conversion complète. L’essai du fichier Flansch suit dans R-085.

@@ -1,7 +1,7 @@
 ---
 id: R-033
 titre: "C2 — profils de révolution courbes"
-resume: "Profils toriques, méridiennes cubiques mono- ou bi-travée, pointe axiale et premier domaine sur tessellation irrégulière."
+resume: "Révolutions toriques ou cubiques, une ou deux travées, pointe axiale, maillage irrégulier et retour axial vérifié."
 statut: a-tester
 jalon: post-v1
 cree: 2026-11-13

@@ -99,7 +99,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 43. **[R-080 Qualifier les 231 584 plans restants de Flansch](roadmap/items/R-080-qualifier-les-231-584-plans-restants-de-flansch.md)** · À tester · jalon post-v1
    Après les quatre grandes zones reconstruites, Flansch conserve 231 584 faces planes et 24 surfaces analytiques. Identifier les zones encore facettisées et leurs familles possibles avant toute nouvelle extension ou proposition de plafond ; la validation native dense reste un obstacle séparé.
 44. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · À tester · jalon post-v1
-   Profils toriques, méridiennes cubiques mono- ou bi-travée, pointe axiale et premier domaine sur tessellation irrégulière.
+   Révolutions toriques ou cubiques, une ou deux travées, pointe axiale, maillage irrégulier et retour axial vérifié.
 45. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · À tester · jalon post-v1
    Congés constants de fond de poche avec butées, coins, U ou circuit fermé.
 46. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · À tester · jalon post-v1
