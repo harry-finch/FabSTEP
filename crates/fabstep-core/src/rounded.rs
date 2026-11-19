@@ -1322,7 +1322,7 @@ fn classify(
     // The fallback uses the exact original circle measurements. Preserve
     // one scalar per ring before the historical classifier canonicalizes
     // radii instead of projecting every source vertex a second time.
-    let measured_radii = if nodes.len() >= 5 {
+    let measured_radii = if nodes.len() >= 5 || rims.len() == 2 {
         work.spend(nodes.len())?;
         nodes.iter().map(|node| node.radius).collect()
     } else {

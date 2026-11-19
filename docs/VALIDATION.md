@@ -2449,3 +2449,7 @@ Trois STL issus de deux dessins FreeCAD produisent deux plans et une révolution
 ## V-1235 — Deux axes de perçage obliques entre eux
 
 Les maillages indépendants de 1 088, 1 562, 1 068 et 1 556 triangles à 60° et 75° produisent six plans et trois faces cylindriques. Le réimport et la lecture FreeCAD contrôlent quatre bouches et deux courbes d’intersection. Les p-courbes et les courbes 3D sont certifiées à 0,0000001 mm. Les volumes analytiques valent 23 856,17586745 et 21 089,93782459 mm³. La borne continue source atteint au plus 0,010555 mm. Le test à trois bouches conserve la matière, le document mixte conserve ses deux corps et les angles falsifiés sont refusés. Les commandes se trouvent dans [le corpus](../fixtures/oblique_cross_drill/README.md).
+
+## V-1236 — Révolution à deux cubiques tangentes sur un maillage irrégulier
+
+Quatre maillages indépendants de 4 442 à 7 916 triangles donnent deux plans et une seule face de révolution après réimport. La position du raccord est estimée entre les hauteurs mesurées. Le test contrôle la continuité des tangentes, la partition source et une borne maximale de 0,049746 mm pour un budget de 0,05 mm. Une rupture de tangente conserve le refus. Les commandes et les références FreeCAD figurent dans [le corpus](../fixtures/irregular_revolution/README.md).

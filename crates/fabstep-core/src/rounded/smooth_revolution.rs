@@ -12,6 +12,7 @@
 //! boundaries and vertices. The same argument on each cap's cyclic polygon
 //! proves its planar interior before extending the inscribed rim to the disk.
 mod irregular;
+mod irregular_joint;
 use super::*;
 use crate::{planar::Segmentation, CubicRevolutionSpan, SmoothRevolution};
 
@@ -471,7 +472,7 @@ pub(super) fn candidate(
     if pole {
         return structured;
     }
-    let Some(samples) = irregular::samples(a, s, nodes, cap_regions, frame, work)? else {
+    let Some(samples) = irregular::samples::<17>(a, s, nodes, cap_regions, frame, work)? else {
         return structured;
     };
     certify(a, s, nodes, frame, o, work, cap_regions, Some(&samples))
@@ -490,12 +491,23 @@ fn certify(
 ) -> Result<Option<RoundedRecognition>, FabError> {
     let last = nodes.len() - 1;
     let pole = nodes[0].radius == 0.;
-    let fitting = samples.unwrap_or(nodes);
+    let dense;
+    let mut fitting = samples.unwrap_or(nodes);
     let profile = if samples.is_some() {
-        fit(fitting, o).map(|first| Profile {
-            first,
-            second: None,
-        })
+        if let Some(first) = fit(fitting, o) {
+            Some(Profile {
+                first,
+                second: None,
+            })
+        } else if let Some(measured) =
+            irregular::samples::<65>(a, s, nodes, cap_regions, frame, work)?
+        {
+            dense = measured;
+            fitting = &dense;
+            irregular_joint::fit(fitting, o, work)?
+        } else {
+            None
+        }
     } else {
         fit_profile(nodes, o, work)?
     };
@@ -524,12 +536,12 @@ fn certify(
         work.spend(2 * 9 * 9 * 9)?;
         if !excludes_circle(
             a,
-            &nodes[..=*split],
+            &fitting[..=*split],
             frame,
             o.cylinder_fit_tolerance_mm + roundoff,
         ) || !excludes_circle(
             a,
-            &nodes[*split..],
+            &fitting[*split + usize::from(samples.is_some())..],
             frame,
             o.cylinder_fit_tolerance_mm + roundoff,
         ) {
@@ -661,17 +673,72 @@ fn certify(
             }],
         })
         .collect();
+    let (fitted_message, bound_message) = if irregular_points.is_some() {
+        (
+            if f.second_span.is_some() {
+                "Une méridienne à deux travées cubiques tangentes est ajustée aux sommets de la paroi entre les disques mesurés."
+            } else {
+                "La méridienne cubique est ajustée aux sommets de la paroi entre les deux disques mesurés."
+            },
+            "La borne couvre les extrémités et chaque triangle, avec soudage, projection radiale continue et réserve native.",
+        )
+    } else {
+        (
+            "Une méridienne cubique ajustée aux anneaux mesurés représente la paroi de révolution.",
+            "La borne couvre les extrémités et chaque triangle de la paroi, avec soudage, interpolation angle–hauteur et réserve native.",
+        )
+    };
     Ok(Some(RoundedRecognition {
-        triangle_faces:owners,
-        model:RoundedModel {
-            revolved:RevolvedModel{mixed:MixedModel{vertices:a.mesh.vertices.clone(),rings,planes,cylinders:vec![],arcs:vec![],elliptic_arcs:vec![],partial_cylinders:vec![]},cones:vec![]},
-            spheres:vec![],tori:vec![],partial_cones:vec![],octants:vec![],linear_blend:None,unequal_pocket:None,cross_drill:None,torus_sectors: vec![], smooth_revolution:Some(Box::new(f)),
+        triangle_faces: owners,
+        model: RoundedModel {
+            revolved: RevolvedModel {
+                mixed: MixedModel {
+                    vertices: a.mesh.vertices.clone(),
+                    rings,
+                    planes,
+                    cylinders: vec![],
+                    arcs: vec![],
+                    elliptic_arcs: vec![],
+                    partial_cylinders: vec![],
+                },
+                cones: vec![],
+            },
+            spheres: vec![],
+            tori: vec![],
+            partial_cones: vec![],
+            octants: vec![],
+            linear_blend: None,
+            unequal_pocket: None,
+            cross_drill: None,
+            torus_sectors: vec![],
+            smooth_revolution: Some(Box::new(f)),
         },
-        report:RecognitionReport {
-            cylinders:0,cones:0,spheres:0,tori:0,toroidal_fillets:0,revolutions:1,
-            max_radial_residual_mm:bound.residual,max_wall_residual_mm:wall,max_chord_error_mm:bound.curvature,max_deviation_bound_mm:deviation,expected_volume_mm3:v,
-            diagnostics:vec![Diagnostic{code:"reconstruction.fitted_revolution".into(),severity:Severity::Warning,count:1,message:if samples.is_some() {"La méridienne cubique est ajustée aux sommets de la paroi entre les deux disques mesurés."} else {"Une méridienne cubique ajustée aux anneaux mesurés représente la paroi de révolution."}.into()},
-                Diagnostic{code:"recognition.bound_scope".into(),severity:Severity::Info,count:1,message:"La borne couvre les extrémités et chaque triangle de la paroi, avec soudage, interpolation angle–hauteur et réserve native.".into()}],
-        }
+        report: RecognitionReport {
+            cylinders: 0,
+            cones: 0,
+            spheres: 0,
+            tori: 0,
+            toroidal_fillets: 0,
+            revolutions: 1,
+            max_radial_residual_mm: bound.residual,
+            max_wall_residual_mm: wall,
+            max_chord_error_mm: bound.curvature,
+            max_deviation_bound_mm: deviation,
+            expected_volume_mm3: v,
+            diagnostics: vec![
+                Diagnostic {
+                    code: "reconstruction.fitted_revolution".into(),
+                    severity: Severity::Warning,
+                    count: 1,
+                    message: fitted_message.into(),
+                },
+                Diagnostic {
+                    code: "recognition.bound_scope".into(),
+                    severity: Severity::Info,
+                    count: 1,
+                    message: bound_message.into(),
+                },
+            ],
+        },
     }))
 }
