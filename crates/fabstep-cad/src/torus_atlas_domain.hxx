@@ -1,3 +1,4 @@
+#include "torus_atlas_triangle_mesh.hxx"
 namespace atlas_domain {
 inline std::optional<gp_Pnt> pole(const TopoDS_Face &face, const TopoDS_Edge &edge) {
   if (auto point = atlas_triangle::corner(edge, face); point && atlas_triangle::matches(face))
@@ -156,12 +157,15 @@ bool matches(const TopTools_IndexedMapOfShape &faces) {
 struct Policy {
   double deflection;
   bool candidate(const TopoDS_Face &f) const {
-    return trimmed_torus_mesh::supports(f) || bool(trimfan::profile(f, deflection, mesh_angle));
+    return trimmed_torus_mesh::supports(f) || atlas_triangle::matches(f) ||
+           bool(trimfan::profile(f, deflection, mesh_angle));
   }
   template <class Samples>
   Handle(Poly_Triangulation) mesh(const TopoDS_Face &f, size_t remaining, const Samples &samples) const {
     if (BRepAdaptor_Surface(f, false).GetType() == GeomAbs_Torus)
       return trimmed_torus_mesh::mesh(f, deflection, mesh_angle, remaining, samples);
+    if (atlas_triangle::matches(f))
+      return atlas_triangle_mesh::mesh(f, remaining, deflection, mesh_angle, samples);
     return trimfan::mesh(f, deflection, mesh_angle, samples);
   }
   std::optional<gp_Pnt> pole(const TopoDS_Face &f, const TopoDS_Edge &e) const {

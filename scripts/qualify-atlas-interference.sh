@@ -16,4 +16,5 @@ build_and_run() {
 build_and_run qualify-atlas-interference "$@"
 if [ "$#" -eq 0 ]; then
   build_and_run qualify-atlas-triangle
+  build_and_run qualify-atlas-triangle-mesh
 fi
