@@ -780,6 +780,7 @@ dependencies = [
  "fabstep-import",
  "fabstep-verify",
  "serde",
+ "unicode-segmentation",
 ]
 
 [[package]]

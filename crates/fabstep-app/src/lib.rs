@@ -18,6 +18,7 @@ pub use fabstep_core::{SOURCE_MAX_TRIANGLES, SOURCE_MAX_VERTICES};
 mod control;
 use control::{controlled, ConversionControl};
 pub use control::{ConversionCheckpoint, ConversionPhase};
+mod product_name;
 mod document;
 pub use document::*;
 pub mod isolated_report;

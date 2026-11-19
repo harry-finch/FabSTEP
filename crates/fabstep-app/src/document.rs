@@ -1,4 +1,5 @@
 //! Documents placés en millimètres, sans fusion ni export partiel.
+use crate::product_name::product_name;
 use crate::{
     controlled, convert_analysis_with_face_tokens, convert_analysis_with_recognized,
     precision_diagnostic, triangle_model, ConversionCheckpoint, ConversionControl, ConversionPhase,
@@ -1469,23 +1470,6 @@ fn planar_source_faces(
 
 fn body_error(e: FabError, id: &str, name: &str) -> FabError {
     e.with_body(id, name)
-}
-
-fn product_name(name: &str, fallback: &str) -> String {
-    let mut clean: String = name
-        .chars()
-        .filter(|c| !c.is_control())
-        .map(|c| if c == '\\' { '/' } else { c })
-        .collect();
-    clean = clean.trim().to_owned();
-    while clean.len() > 60 {
-        clean.pop();
-    }
-    if clean.is_empty() {
-        fallback.into()
-    } else {
-        clean
-    }
 }
 
 #[cfg(test)]

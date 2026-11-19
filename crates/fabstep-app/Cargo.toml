@@ -17,6 +17,7 @@ fabstep-cad.workspace = true
 fabstep-verify.workspace = true
 fabstep-import.workspace = true
 serde.workspace = true
+unicode-segmentation = "1.13.3"
 
 [dev-dependencies]
 serde_json.workspace = true

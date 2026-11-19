@@ -273,3 +273,35 @@ fn tolerance_snapshot_is_independent_of_later_options_and_stl_unit_preference() 
         .iter()
         .any(|d| d.code == "precision.custom_tolerances"));
 }
+
+#[test]
+fn step_product_name_ends_at_grapheme_boundary_and_report_keeps_source() {
+    let bytes = fixture("m3_name_grapheme");
+    let result = convert_document(&bytes, InputFormat::ThreeMf, &Options::default()).unwrap();
+    let prefix = "P".repeat(59);
+    assert_eq!(
+        result.report.bodies[0].name,
+        format!("{prefix}e\u{301} long")
+    );
+    assert_eq!(result.report.cad.solids, 1);
+    assert_eq!(
+        result
+            .report
+            .diagnostics
+            .iter()
+            .find(|d| d.code == "document.product_names_adapted")
+            .unwrap()
+            .count,
+        1
+    );
+    let step = std::str::from_utf8(&result.step_bytes).unwrap();
+    assert!(
+        step.contains(&format!("'{prefix}")),
+        "{}",
+        step.lines()
+            .filter(|s| s.contains("PPPP"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    assert!(!step.contains(&format!("{prefix}e")));
+}
