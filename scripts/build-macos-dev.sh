@@ -4,11 +4,11 @@ set -eu
 cd "$(dirname "$0")/.."
 npm --prefix ui run build
 cargo build --manifest-path crates/fabstep-desktop/Cargo.toml --features custom-protocol --locked
-cargo build --manifest-path crates/fabstep-worker/Cargo.toml --locked
+cargo build --release --manifest-path crates/fabstep-worker/Cargo.toml --locked
 app_dir="artifacts/FabSTEP.app/Contents"
 mkdir -p "$app_dir/MacOS" "$app_dir/Resources"
 cp crates/fabstep-desktop/target/debug/fabstep-desktop "$app_dir/MacOS/FabSTEP"
-cp crates/fabstep-worker/target/debug/fabstep-worker "$app_dir/MacOS/fabstep-worker"
+cp crates/fabstep-worker/target/release/fabstep-worker "$app_dir/MacOS/fabstep-worker"
 cp crates/fabstep-desktop/icons/icon.png "$app_dir/Resources/icon.png"
 python3 - "$app_dir/Info.plist" <<'PY'
 import json
