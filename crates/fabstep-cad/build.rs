@@ -16,6 +16,7 @@ fn main() {
         "trim_native_fan_mesh.hxx",
         "trimmed_torus_mesh.hxx",
         "torus_atlas_abi.hxx",
+        "torus_atlas_arc_law.hxx",
         "torus_atlas_faces.hxx",
         "torus_atlas_interference.hxx",
         "torus_atlas_filter.hxx",

@@ -2,6 +2,7 @@
 #include "trimmed_torus_mesh.hxx"
 #include "trim_native_fan_mesh.hxx"
 #include "torus_atlas_abi.hxx"
+#include "torus_atlas_arc_law.hxx"
 #include "torus_atlas_interference.hxx"
 #include "torus_atlas_fan.hxx"
 #include "torus_atlas_triangle.hxx"
