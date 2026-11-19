@@ -2561,3 +2561,5 @@ Le découpage spatial de Flansch donne 6 949 groupes à contrôler. Les bancs 
 | Couvrir les portions toriques dans le repère UV | 46 125 → 29 804 paires tore/autre, 433 groupes modifiés sur 6 949. Sur neuf groupes concernés, 67,83 → 47,13 s CPU, dont 16,62 s gagnées dans un seul groupe | Poursuivre uniquement avec une mesure du contrôle entier |
 
 La priorité pour Flansch est de réduire le coût du contrôle exact des intersections arête/face et face/face sur les raccords. La reconnaissance des supports, l’écriture, la relecture géométrique, le maillage et la distance ont chacun un témoin reproductible.
+
+**Contre-épreuve en mode ordinaire.** Le fichier privé `body 26mm.stl`, converti en mode Auto avec le CLI optimisé et l’unité millimètre, donne un solide relu de 10 869 faces, dont 14 cylindres et 7 cônes. Son volume vaut 17 053,652459 mm³. Les écarts échantillonnés source vers résultat et retour sont de 0,002619 et 0,003052 mm. Le fichier source et son STEP restent locaux.
