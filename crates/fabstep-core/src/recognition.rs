@@ -17,6 +17,14 @@ impl Work {
         self.0
     }
 
+    pub(crate) fn reserve_optional(&mut self, count: usize) -> bool {
+        if count > MAX_WORK.saturating_sub(self.0) {
+            return false;
+        }
+        self.0 += count;
+        true
+    }
+
     pub(crate) fn spend(&mut self, count: usize) -> Result<(), FabError> {
         self.0 = self.0.saturating_add(count);
         if self.0 > MAX_WORK {

@@ -2,7 +2,7 @@
 id: R-117
 titre: "Proposer des cylindres, cônes et sphères par normales sur bandes résiduelles"
 resume: "Utiliser les rayons de normales et l'angle de normale constant sur les chaînes de bandes non planes pour découvrir des parois interrompues, en conservant toutes les preuves géométriques existantes."
-statut: specifiee
+statut: en-cours
 jalon: v1.0
 cree: 2026-11-19
 maj: 2026-11-19
@@ -49,3 +49,7 @@ Aujourd’hui, la reconnaissance de cylindres, cônes et sphères repose princip
 
 - Inspecter dans FabSTEP et dans Fusion les STEP produits sur les témoins de parois cylindriques et coniques interrompues.
 - Vérifier sur une pièce réelle comportant des parois partielles si la réduction du nombre de facettes est utile sans dégrader la géométrie.
+
+## Tranche intégrée au bureau
+
+Auto reconstruit les bandes cylindriques étroites à deux bords parallèles dans le domaine décrit en V-1269. Les deux petits fichiers de recette sont `fixtures/r117-narrow-cylinder.stl` et `fixtures/r117-narrow-fillet.stl`. Le premier passe de 16 à 5 faces, le second de 19 à 8. Le jalon reste en cours pour les bords interrompus et les domaines coniques et sphériques.

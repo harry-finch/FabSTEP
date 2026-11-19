@@ -8,6 +8,7 @@ use crate::{
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::f64::consts::{PI, TAU};
 pub(crate) mod chain;
+mod normal_bands;
 mod short;
 
 type P2 = [f64; 2];
@@ -213,6 +214,7 @@ struct Proven {
     chord: f64,
     wall: f64,
 }
+#[derive(Default)]
 pub(crate) struct Residual {
     pub rejected: usize,
     pub radial: f64,
@@ -644,13 +646,13 @@ fn augment_policy(
     automatic: bool,
 ) -> Result<Residual, FabError> {
     let mut candidates = candidates(model, o, work)?;
-    if candidates.is_empty() {
-        return Ok(Residual {
-            rejected: 0,
-            radial: 0.,
-            chord: 0.,
-            wall: 0.,
-        });
+    let normal_ends = if candidates.is_empty() && automatic {
+        normal_bands::ends(model, a.mesh.triangles.len(), work)
+    } else {
+        None
+    };
+    if candidates.is_empty() && normal_ends.is_none() {
+        return Ok(Residual::default());
     }
     let adjacency = crate::pipeline::validate_topology(&a.mesh)?;
     let mut edges: BTreeMap<Edge, Vec<usize>> = BTreeMap::new();
@@ -661,6 +663,12 @@ fn augment_policy(
         }
         for (u, v) in [(a, b), (b, c), (c, a)] {
             edges.entry(edge(u, v)).or_default().push(t);
+        }
+    }
+    if let Some(ends) = normal_ends {
+        candidates = normal_bands::nominate(ends, &a.mesh, model, owners, &edges, o);
+        if candidates.is_empty() {
+            return Ok(Residual::default());
         }
     }
     let mut matches = vec![0_usize; candidates.len()];
@@ -692,7 +700,11 @@ fn augment_policy(
     }
     // Only historical, fully proven patches can support this second pass.
     // Newly admitted short arcs never seed another short-arc search.
-    let short = short::candidates(model, &candidates, &patches, o, work)?;
+    let short = if normal_ends.is_some() {
+        Vec::new()
+    } else {
+        short::candidates(model, &candidates, &patches, o, work)?
+    };
     let first_short = candidates.len();
     let short_supports: Vec<_> = short.iter().map(|c| c.supports).collect();
     candidates.extend(short.into_iter().map(|c| c.candidate));
