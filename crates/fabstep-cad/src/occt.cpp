@@ -131,7 +131,8 @@ struct UnequalPocketData {
 };
 
 struct SmoothRevolutionData {
-  double origin[3], axis[3], height, radii[4], knot, next_radii[3];
+  double origin[3], axis[3], height, radii[4], knot, next_radii[3], axial[2];
+  int returning;
 };
 
 struct StepOutput {
@@ -2736,8 +2737,12 @@ std::vector<RevolutionGrid> check_meshing_resolution(const TopoDS_Shape& shape, 
       // (radius*du² + 2*first*du*dt + second*dt²)/8.
       const double du = std::min(mesh_angle,std::sqrt(8.*deflection/(3.*radius)));
       const double u = std::ceil((wall.LastUParameter()-wall.FirstUParameter())/du);
+      // A fold in z has no positive axial speed bound. Its monotone radial
+      // derivative bounds the meridian speed even at either turning point.
+      const double min_speed = d.returning ? 3.*std::min({std::abs(d.radii[1]-d.radii[0]),
+          std::abs(d.radii[2]-d.radii[1]), std::abs(d.radii[3]-d.radii[2])}) : d.height;
       const double v = std::ceil(std::max({1.,std::sqrt(3.*second/(8.*deflection)),
-                                           3.*first*du/(4.*deflection), second/(mesh_angle*d.height)}));
+                                           3.*first*du/(4.*deflection), second/(mesh_angle*min_speed)}));
       const double triangles = 2.*u*v + 2.*u;
       if (!std::isfinite(triangles) || triangles > mesh_triangle_limit - estimated_curved_triangles)
         throw too_complex;

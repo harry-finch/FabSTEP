@@ -13,6 +13,7 @@
 //! proves its planar interior before extending the inscribed rim to the disk.
 mod irregular;
 mod irregular_joint;
+pub(super) mod returning;
 use super::*;
 use crate::{planar::Segmentation, CubicRevolutionSpan, SmoothRevolution};
 
@@ -211,6 +212,27 @@ fn spans(f: &SmoothRevolution) -> impl Iterator<Item = (f64, f64, [f64; 4])> + '
 }
 
 pub(super) fn volume(f: &SmoothRevolution) -> Result<f64, FabError> {
+    if let Some([q1, q2]) = f.axial_controls_mm {
+        // Signed volume pi * integral r(t)^2 z'(t) dt. Both factors
+        // are quadratic Bernstein polynomials in the affine radial chart.
+        let (a, b) = (f.radii_mm[0], f.radii_mm[3]);
+        let r2 = [a * a, a * b, b * b];
+        let dz = [3. * q1, 3. * (q2 - q1), 3. * (f.height_mm - q2)];
+        let binom2 = [1., 2., 1.];
+        let binom4 = [1., 4., 6., 4., 1.];
+        let mut sum = Sum::default();
+        for i in 0..3 {
+            for j in 0..3 {
+                sum.add(r2[i] * dz[j] * binom2[i] * binom2[j] / (5. * binom4[i + j]));
+            }
+        }
+        let v = PI * sum.get();
+        return if v.is_finite() && v > 0. {
+            Ok(v)
+        } else {
+            Err(unproven("volume du retour axial indéterminé"))
+        };
+    }
     let c3 = [1., 3., 3., 1.];
     let c6 = [1., 6., 15., 20., 15., 6., 1.];
     let mut sum = Sum::default();
@@ -548,11 +570,12 @@ fn certify(
             return Ok(None);
         }
     }
-    let mut f = SmoothRevolution {
+    let f = SmoothRevolution {
         origin,
         axis: frame.axis,
         height_mm: height,
         radii_mm: b,
+        axial_controls_mm: None,
         second_span: profile.second.map(|(_, s)| s),
         pole_vertex: pole.then(|| nodes[0].vertices[0]),
         rings: if pole { [0, 0] } else { [0, 1] },
@@ -646,6 +669,48 @@ fn certify(
     if pole && fan_edges != boundary(&nodes[1].vertices) {
         return Err(unproven("le pôle ne couvre pas le premier anneau"));
     }
+    let (fitted_message, bound_message) = if irregular_points.is_some() {
+        (
+            if f.second_span.is_some() {
+                "Une méridienne à deux travées cubiques tangentes est ajustée aux sommets de la paroi entre les disques mesurés."
+            } else {
+                "La méridienne cubique est ajustée aux sommets de la paroi entre les deux disques mesurés."
+            },
+            "La borne couvre les extrémités et chaque triangle, avec soudage, projection radiale continue et réserve native.",
+        )
+    } else {
+        (
+            "Une méridienne cubique ajustée aux anneaux mesurés représente la paroi de révolution.",
+            "La borne couvre les extrémités et chaque triangle de la paroi, avec soudage, interpolation angle–hauteur et réserve native.",
+        )
+    };
+    finish(
+        a,
+        o,
+        nodes,
+        frame,
+        bound,
+        roundoff,
+        f,
+        owners,
+        (fitted_message, bound_message),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finish(
+    a: &Analysis,
+    o: &Options,
+    nodes: &[Node],
+    frame: &Frame,
+    bound: Bound,
+    roundoff: f64,
+    mut f: SmoothRevolution,
+    owners: Vec<RoundedFaceRef>,
+    (fitted_message, bound_message): (&str, &str),
+) -> Result<Option<RoundedRecognition>, FabError> {
+    let last = nodes.len() - 1;
+    let pole = f.pole_vertex.is_some();
     f.witness_tolerance_mm = bound.residual + roundoff;
     let wall = roundoff + NATIVE_RESERVE_MM;
     let deviation = o.weld_tolerance_mm + bound.residual + bound.curvature + wall;
@@ -673,21 +738,6 @@ fn certify(
             }],
         })
         .collect();
-    let (fitted_message, bound_message) = if irregular_points.is_some() {
-        (
-            if f.second_span.is_some() {
-                "Une méridienne à deux travées cubiques tangentes est ajustée aux sommets de la paroi entre les disques mesurés."
-            } else {
-                "La méridienne cubique est ajustée aux sommets de la paroi entre les deux disques mesurés."
-            },
-            "La borne couvre les extrémités et chaque triangle, avec soudage, projection radiale continue et réserve native.",
-        )
-    } else {
-        (
-            "Une méridienne cubique ajustée aux anneaux mesurés représente la paroi de révolution.",
-            "La borne couvre les extrémités et chaque triangle de la paroi, avec soudage, interpolation angle–hauteur et réserve native.",
-        )
-    };
     Ok(Some(RoundedRecognition {
         triangle_faces: owners,
         model: RoundedModel {
