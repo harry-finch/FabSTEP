@@ -3,6 +3,7 @@
 #include <GeomToStep_MakeToroidalSurface.hxx>
 #include <Geom2d_Curve.hxx>
 #include <Geom_Curve.hxx>
+#include <StepGeom_Plane.hxx>
 #include <gp_Ax3.hxx>
 #include <iostream>
 namespace {
@@ -15,7 +16,9 @@ Handle(StepGeom_CartesianPoint) point(const gp_Pnt &pos) {
   out->Init3D(new TCollection_HAsciiString(""), pos.X(), pos.Y(), pos.Z());
   return out;
 }
-void sample(bool varying_u, double delta, double middle_motion, bool expected) {
+enum class Control { Original, Plane, Inches, NonIso, Degrees };
+void sample(bool varying_u, double delta, double middle_motion, bool expected,
+            Control control = Control::Original) {
   Handle(TCollection_HAsciiString) name = new TCollection_HAsciiString("");
   Handle(Geom_ToroidalSurface) geom =
       new Geom_ToroidalSurface(gp_Ax3(gp_Pnt(7, -2, 11), gp_Dir(1, 2, 3), gp_Dir(2, -1, 0)), 26., 3.);
@@ -42,6 +45,10 @@ void sample(bool varying_u, double delta, double middle_motion, bool expected) {
   for (int i = 1; i <= 2; ++i) {
     Handle(StepGeom_CartesianPoint) q = new StepGeom_CartesianPoint;
     auto p = i == 1 ? first : last;
+    if (control == Control::NonIso && i == 2)
+      p.SetY(p.Y() + .01);
+    if (control == Control::Degrees)
+      p.SetXY(p.XY() * (180. / 3.141592653589793));
     q->Init2D(name, p.X(), p.Y());
     uvs->SetValue(i, q);
   }
@@ -54,6 +61,8 @@ void sample(bool varying_u, double delta, double middle_motion, bool expected) {
   rep->Init(name, items, {});
   Handle(StepGeom_Pcurve) pc = new StepGeom_Pcurve;
   pc->Init(name, torus, rep);
+  if (control == Control::Plane)
+    pc->SetBasisSurface(new StepGeom_Plane);
   Handle(StepGeom_HArray1OfPcurveOrSurface) uses = new StepGeom_HArray1OfPcurveOrSurface(1, 1);
   StepGeom_PcurveOrSurface item;
   item.SetValue(pc);
@@ -62,6 +71,8 @@ void sample(bool varying_u, double delta, double middle_motion, bool expected) {
   sc->Init(name, arc, uses, StepGeom_pscrPcurveS1);
   Handle(StepData_StepModel) model = new StepData_StepModel;
   model->AddEntity(sc);
+  if (control == Control::Inches)
+    model->SetWriteLengthUnit(25.4);
   require(atlas_pcurve::align(model) == size_t(expected));
   require(atlas_pcurve::align(model) == 0);
   if (expected) {
@@ -91,7 +102,9 @@ int main() try {
   sample(true, .04, .001, false);
   sample(true, 1e-4, 0, false);
   sample(true, .7, 0, false);
-  std::cout << "Toric p-curves: two isos, two orientations, immutable 3D arcs, idempotence and three "
+  for (auto c : {Control::Plane, Control::Inches, Control::NonIso, Control::Degrees})
+    sample(true, .04, 0, false, c);
+  std::cout << "Toric p-curves: two isos, two orientations, immutable 3D arcs, idempotence and seven "
                "refusals passed.\n";
   return 0;
 } catch (const std::exception &e) {
