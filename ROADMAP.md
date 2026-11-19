@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 112** (21 %)
+**Avancement : 23 livrés sur 115** (20 %)
 
 ## Restant à faire
 
@@ -135,7 +135,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 61. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
 62. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon post-v1
-   Sur Flansch, le laboratoire réimporte 2 083 faces et retrouve leurs deux contours sur le STL. Raccorder les 80 126 triangles restants, puis valider le solide dans FabSTEP.
+   Flansch compte 43 zones toriques et un BRep de laboratoire de 46 671 faces. Qualifier le contrôle complet des interférences dans les limites du helper avant d’autoriser son export.
 63. **[R-086 D/E — poche borgne à congé de fond arrêté](roadmap/items/R-086-d-e-poche-borgne-a-conge-de-fond-arrete.md)** · À tester · jalon post-v1
    Auto reconstruit un congé intérieur à deux butées, même quand ses extrémités comportent des nombres de facettes différents.
 64. **[R-087 D/E — congé de poche arrêté par une paroi oblique](roadmap/items/R-087-d-e-conge-de-poche-arrete-par-une-paroi-oblique.md)** · À tester · jalon post-v1
@@ -190,6 +190,12 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Reconnaître un retour axial sur un profil de rayon monotone et conserver les deux disques mesurés.
 89. **[R-112 Intégrer les recommandations NEON vérifiées](roadmap/items/R-112-integrer-les-recommandations-neon-verifiees.md)** · À tester · jalon audit
    Suivi des seize constats et des reports dans docs/INT_AUDIT_01.md, section NEON. Contrôle atlas restant lié à R-085.
+90. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · Idée
+   Comparer une découpe plane de tore et une paroi cylindrique ou conique interrompue sur des solides indépendants. Prouver la courbe commune, la provenance et la fidélité avant toute extension du modèle.
+91. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · Idée
+   Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto.
+92. **[R-115 Récupérer les plans fragmentés par la quantification du STL](roadmap/items/R-115-recuperer-les-plans-fragmentes-par-la.md)** · Idée
+   Essayer une graine de grande aire sur les régions planes fragmentées en f32. Vérifier le contour, la provenance et les plis sur des solides avant de retenir une seconde segmentation.
 
 ## Actions à faire
 

@@ -1,7 +1,7 @@
 ---
 id: R-085
 titre: "Reconstruire les raccords toriques partiels du pourtour de Flansch"
-resume: "Sur Flansch, le laboratoire réimporte 2 083 faces et retrouve leurs deux contours sur le STL. Raccorder les 80 126 triangles restants, puis valider le solide dans FabSTEP."
+resume: "Flansch compte 43 zones toriques et un BRep de laboratoire de 46 671 faces. Qualifier le contrôle complet des interférences dans les limites du helper avant d’autoriser son export."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-18
