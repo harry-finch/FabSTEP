@@ -2515,3 +2515,7 @@ La rampe publique indépendante à 8 232 triangles se réimporte avec 4 363 
 ## V-1248 — Révolutions à retour axial
 
 Quatre STL de FreeCAD couvrent deux orientations et deux résolutions. Chaque STEP relu présente deux disques et une révolution cubique. Les retours axiaux mesurent 2,008 et 1,431 mm. La comparaison au support de référence porte sur 980 points et 120 sondes de matière, avec un écart maximal de 0,0000000914 mm. Un essai CLI à 0,05 mm donne une borne continue de 0,048982 mm et des écarts échantillonnés de 0,010956 et 0,010199 mm. Les tests de refus couvrent un repli dégénéré, un point aberrant, les disques manquants et le budget insuffisant. Sources et commande de reproduction dans `fixtures/returning_meridian/README.md`.
+
+## V-1249 — Tessellation bornée des secteurs intérieurs de tore
+
+La borne de courbure dépend de l’intervalle angulaire réellement couvert par chaque triangle. Douze secteurs analytiques, dont une couture et la paroi intérieure d’un tore à petit rayon intérieur, passent le contrôle indépendant. Sur le même ensemble de secteurs à 0,005 mm, la tessellation passe de 134 157 à 42 339 triangles. La plus grande borne obtenue est de 0,004987 mm. Le décompte expérimental de 99 494 triangles pour le modèle privé entier précède sa certification finale.
