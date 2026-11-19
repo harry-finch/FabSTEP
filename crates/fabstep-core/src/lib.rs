@@ -1,6 +1,7 @@
 //! Géométrie pure et déterministe de FabSTEP, en millimètres.
 use serde::{Deserialize, Serialize};
 mod height_patch;
+pub mod torus_atlas;
 pub use height_patch::{recognize_height_patch, HeightPatch, HeightPatchRecognition};
 
 /// Source-only storage bounds. The larger profile is compiled only into the
