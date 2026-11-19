@@ -15,7 +15,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tempfile = "3"
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 fabstep-core = { path = "../fabstep-core" }
 fabstep-app = { path = "../fabstep-app" }

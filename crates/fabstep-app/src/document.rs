@@ -10,8 +10,10 @@ use fabstep_core::{
     GuidanceFamily, InputUnit, Mesh, Options, ReconstructionMode, Severity,
 };
 use serde::{Deserialize, Serialize};
+mod deviation;
 #[cfg(feature = "large-stl")]
 mod torus_atlas;
+pub use deviation::DisplayDeviationMap;
 use std::sync::{Arc, OnceLock};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -190,7 +192,7 @@ pub struct DocumentConversion {
 pub struct DocumentStep {
     bytes: Vec<u8>,
     source_faces: Vec<ResultFaceSource>,
-    guidance_source: Option<GuidanceSource>,
+    source: Option<ConversionSource>,
     // This mapping is valid only for these immutable bytes and trusted sidecar.
     // No native object or display/audit tessellation is retained.
     source_correspondence: OnceLock<ResultSourceCorrespondence>,
@@ -199,7 +201,7 @@ pub struct DocumentStep {
 }
 
 #[derive(Debug, Clone)]
-struct GuidanceSource {
+struct ConversionSource {
     bytes: Arc<Vec<u8>>,
     format: InputFormat,
     options: Options,
@@ -213,7 +215,7 @@ impl DocumentStep {
         Self {
             bytes,
             source_faces: Vec::new(),
-            guidance_source: None,
+            source: None,
             source_correspondence: OnceLock::new(),
             #[cfg(test)]
             result_inspections: std::sync::atomic::AtomicUsize::new(0),
@@ -224,18 +226,24 @@ impl DocumentStep {
         &self.bytes
     }
 
+    fn guidance_source(&self) -> Option<&ConversionSource> {
+        self.source.as_ref().filter(|source| {
+            matches!(
+                source.options.reconstruction,
+                ReconstructionMode::Planar | ReconstructionMode::Auto
+            )
+        })
+    }
+
     /// Whether this immutable result carries accepted manual indications.
     pub fn has_guidance_hints(&self) -> bool {
-        self.guidance_source
-            .as_ref()
-            .is_some_and(|s| !s.hints.is_empty())
+        self.guidance_source().is_some_and(|s| !s.hints.is_empty())
     }
 
     /// The host verifies this exact source allocation before consuming a result.
     /// Guidance never accepts replacement bytes or settings from the UI.
     pub fn is_guidance_source(&self, bytes: &Arc<Vec<u8>>, format: InputFormat) -> bool {
-        self.guidance_source
-            .as_ref()
+        self.guidance_source()
             .is_some_and(|source| source.format == format && Arc::ptr_eq(&source.bytes, bytes))
     }
 
@@ -284,7 +292,7 @@ impl DocumentStep {
         control: &mut ConversionControl<'_>,
     ) -> Result<ProvenancedDocumentConversion, FabError> {
         control.check(ConversionPhase::ResultInspection, None)?;
-        let source = self.guidance_source.as_ref().ok_or_else(|| {
+        let source = self.guidance_source().ok_or_else(|| {
             FabError::new(
                 "guidance.provenance_unavailable",
                 "L’indication exige la provenance exacte d’un résultat Plans courant.",
@@ -394,7 +402,7 @@ impl DocumentStep {
     ) -> Result<ProvenancedDocumentConversion, FabError> {
         controlled(check_current, |control| {
             Self::rebuild_guidance(
-                self.guidance_source.clone().ok_or_else(|| {
+                self.guidance_source().cloned().ok_or_else(|| {
                     FabError::new(
                         "guidance.provenance_unavailable",
                         "La session guidée est indisponible.",
@@ -416,7 +424,7 @@ impl DocumentStep {
     ) -> Result<ProvenancedDocumentConversion, FabError> {
         controlled(check_current, |control| {
             control.check(ConversionPhase::Analysis, None)?;
-            let mut source = self.guidance_source.clone().ok_or_else(|| {
+            let mut source = self.guidance_source().cloned().ok_or_else(|| {
                 FabError::new(
                     "guidance.provenance_unavailable",
                     "La session guidée est indisponible.",
@@ -438,7 +446,7 @@ impl DocumentStep {
     }
 
     fn rebuild_guidance(
-        mut source: GuidanceSource,
+        mut source: ConversionSource,
         control: &mut ConversionControl<'_>,
     ) -> Result<ProvenancedDocumentConversion, FabError> {
         let (document, body_sources) = control.run(ConversionPhase::Analysis, None, || {
@@ -454,7 +462,7 @@ impl DocumentStep {
             DocumentOutput::WithProvenance,
         )?;
         source.hints = result.report.guidance_hints.clone();
-        result.step.guidance_source = Some(source);
+        result.step.source = Some(source);
         Ok(result)
     }
 
@@ -466,7 +474,7 @@ impl DocumentStep {
     ) -> Result<Vec<usize>, FabError> {
         controlled(check_current, |control| {
             control.check(ConversionPhase::ResultInspection, None)?;
-            let source = self.guidance_source.as_ref().ok_or_else(|| {
+            let source = self.guidance_source().ok_or_else(|| {
                 FabError::new(
                     "guidance.provenance_unavailable",
                     "La sélection de paroi exige une provenance exacte.",
@@ -882,18 +890,13 @@ pub fn convert_document_with_provenance(
             control,
             DocumentOutput::WithProvenance,
         )?;
-        if matches!(
-            options.reconstruction,
-            ReconstructionMode::Planar | ReconstructionMode::Auto
-        ) {
-            result.step.guidance_source = Some(GuidanceSource {
-                bytes: Arc::new(bytes.to_vec()),
-                format,
-                options: options.clone(),
-                hints: Vec::new(),
-                next_hint_id: 1,
-            });
-        }
+        result.step.source = Some(ConversionSource {
+            bytes: Arc::new(bytes.to_vec()),
+            format,
+            options: options.clone(),
+            hints: Vec::new(),
+            next_hint_id: 1,
+        });
         Ok(result)
     })
 }
@@ -926,18 +929,13 @@ pub fn convert_shared_document_with_provenance_controlled(
             control,
             DocumentOutput::WithProvenance,
         )?;
-        if matches!(
-            options.reconstruction,
-            ReconstructionMode::Planar | ReconstructionMode::Auto
-        ) {
-            result.step.guidance_source = Some(GuidanceSource {
-                bytes,
-                format,
-                options: options.clone(),
-                hints: Vec::new(),
-                next_hint_id: 1,
-            });
-        }
+        result.step.source = Some(ConversionSource {
+            bytes,
+            format,
+            options: options.clone(),
+            hints: Vec::new(),
+            next_hint_id: 1,
+        });
         Ok(result)
     })
 }
@@ -1240,7 +1238,7 @@ fn convert_analyzed_document(
         step: DocumentStep {
             bytes: step_bytes,
             source_faces,
-            guidance_source: None,
+            source: None,
             source_correspondence: OnceLock::new(),
             #[cfg(test)]
             result_inspections: std::sync::atomic::AtomicUsize::new(0),

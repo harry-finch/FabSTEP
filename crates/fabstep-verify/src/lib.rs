@@ -50,6 +50,49 @@ pub fn compare_meshes(
     })
 }
 
+/// Exact unsigned distance from each display vertex to the closest source
+/// triangle. A single tree and work allowance cover the entire document.
+pub fn vertex_distances_controlled(
+    source: &Mesh,
+    vertices: &[[f64; 3]],
+    check_current: &mut impl FnMut() -> Result<(), FabError>,
+) -> Result<Vec<f64>, FabError> {
+    check_current()?;
+    if vertices.is_empty()
+        || vertices.len() > MAX_VERTICES
+        || vertices.iter().flatten().any(|x| !x.is_finite())
+    {
+        return Err(invalid("Sommets de la tessellation d’affichage invalides."));
+    }
+    let tree = Tree::new(source)?;
+    measure_vertices(&tree, vertices, &mut Work(0), check_current)
+}
+
+fn measure_vertices(
+    tree: &Tree,
+    vertices: &[Point],
+    work: &mut Work,
+    check_current: &mut impl FnMut() -> Result<(), FabError>,
+) -> Result<Vec<f64>, FabError> {
+    let mut distances = Vec::with_capacity(vertices.len());
+    let mut stack = Vec::with_capacity(32);
+    let mut last = None;
+    let mut next_check = 0;
+    for &point in vertices {
+        if work.0 >= next_check {
+            check_current()?;
+            next_check = work.0 + 4096;
+        }
+        // Only a zero distance can end this individual nearest-point search early.
+        distances.push(
+            tree.maximum_squared(point, 0., &mut last, work, &mut stack)?
+                .sqrt(),
+        );
+    }
+    check_current()?;
+    Ok(distances)
+}
+
 fn invalid(message: &str) -> FabError {
     FabError::new("validation.distance_invalid_mesh", message)
 }
@@ -567,6 +610,58 @@ mod tests {
                 assert_eq!(actual.to_bits(), exhaustive.to_bits(), "{point:?}");
             }
         }
+    }
+
+    #[test]
+    fn display_distances_match_exhaustive_per_vertex_including_decreasing_distances() {
+        let mut mesh = square(0.);
+        for level in 1..9 {
+            let other = square(f64::from(level) * 4.);
+            let start = mesh.vertices.len();
+            mesh.vertices.extend(other.vertices);
+            mesh.triangles
+                .extend(other.triangles.into_iter().map(|t| t.map(|i| i + start)));
+        }
+        let points = [
+            [0.3, 0.4, -8.],
+            [0., 0., 32.],
+            [0., 0., 24.75],
+            [0.25, 0.5, -2.],
+            [4., 3., 6.],
+        ];
+        let result = vertex_distances_controlled(&mesh, &points, &mut || Ok(())).unwrap();
+        let exhaustive: Vec<_> = points
+            .iter()
+            .map(|&p| {
+                mesh.triangles
+                    .iter()
+                    .map(|t| triangle_distance_squared(p, t.map(|i| mesh.vertices[i])))
+                    .fold(f64::INFINITY, f64::min)
+                    .sqrt()
+                    .to_bits()
+            })
+            .collect();
+        assert_eq!(
+            result.into_iter().map(f64::to_bits).collect::<Vec<_>>(),
+            exhaustive
+        );
+        assert!(vertex_distances_controlled(&mesh, &[[f64::NAN; 3]], &mut || Ok(())).is_err());
+        assert!(
+            vertex_distances_controlled(&mesh, &vec![[0.; 3]; MAX_VERTICES + 1], &mut || Ok(()))
+                .is_err()
+        );
+        let tree = Tree::new(&mesh).unwrap();
+        assert_eq!(
+            measure_vertices(&tree, &points, &mut Work(MAX_WORK), &mut || Ok(()))
+                .unwrap_err()
+                .code,
+            "validation.distance_budget"
+        );
+        let err = vertex_distances_controlled(&mesh, &points, &mut || {
+            Err(FabError::new("engine.stale", "Test."))
+        })
+        .unwrap_err();
+        assert_eq!(err.code, "engine.stale");
     }
 
     #[test]

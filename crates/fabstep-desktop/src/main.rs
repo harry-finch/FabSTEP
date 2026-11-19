@@ -19,6 +19,7 @@ use tauri::{
 };
 use tauri_plugin_dialog::DialogExt;
 
+mod deviation;
 mod progress;
 mod section;
 mod source_section;
@@ -67,6 +68,9 @@ struct CachedSource {
     bytes: Arc<Vec<u8>>,
 }
 struct CachedStep {
+    display: Option<Arc<DocumentResultFaces>>,
+    deviation_generation: u64,
+    deviation_cancelled: bool,
     request_id: u64,
     source_id: u64,
     step: Arc<DocumentStep>,
@@ -344,6 +348,9 @@ impl CacheState {
         let step = Arc::new(step);
         self.guidance_session = Some(Arc::clone(&step));
         self.result = Some(CachedStep {
+            display: None,
+            deviation_generation: 0,
+            deviation_cancelled: false,
             request_id,
             source_id,
             step,
@@ -498,7 +505,7 @@ struct ResultFacesResponse {
     request_id: u64,
     source_id: u64,
     #[serde(flatten)]
-    report: DocumentResultFaces,
+    report: Arc<DocumentResultFaces>,
 }
 
 #[derive(Serialize)]
@@ -560,11 +567,18 @@ async fn result_faces(
     state: State<'_, Arc<EngineState>>,
 ) -> Result<ResultFacesResponse, FabError> {
     let state = Arc::clone(state.inner());
-    let (step, epoch) = state
-        .inner
-        .lock()
-        .map_err(lock_error)?
-        .result_snapshot(request_id, source_id)?;
+    let (step, epoch) = {
+        let cache = state.inner.lock().map_err(lock_error)?;
+        let snapshot = cache.result_snapshot(request_id, source_id)?;
+        if let Some(display) = cache.result.as_ref().and_then(|r| r.display.clone()) {
+            return Ok(ResultFacesResponse {
+                request_id,
+                source_id,
+                report: display,
+            });
+        }
+        snapshot
+    };
     let task_step = Arc::clone(&step);
     let worker_state = Arc::clone(&state);
     let report = tauri::async_runtime::spawn_blocking(move || {
@@ -582,20 +596,24 @@ async fn result_faces(
         })
     })
     .await;
-    // Reject changed result identity, including a replacement at the same revision,
-    // before returning either the inspection or its failure. Never mutate the cache.
-    if !state
-        .inner
-        .lock()
-        .map_err(lock_error)?
-        .current_result(request_id, source_id, epoch, &step)
-    {
+    let mut cache = state.inner.lock().map_err(lock_error)?;
+    if !cache.current_result(request_id, source_id, epoch, &step) {
         return Err(stale());
     }
+    let report = report.map_err(|e| FabError::new("engine.task", e.to_string()))??;
+    // Concurrent reads of the same STEP must publish one identical array of
+    // display vertices. The heatmap always samples that exact array.
+    let display = cache
+        .result
+        .as_mut()
+        .ok_or_else(stale)?
+        .display
+        .get_or_insert_with(|| Arc::new(report))
+        .clone();
     Ok(ResultFacesResponse {
         request_id,
         source_id,
-        report: report.map_err(|e| FabError::new("engine.task", e.to_string()))??,
+        report: display,
     })
 }
 
@@ -1100,6 +1118,8 @@ fn main() {
             preview_document,
             selection_topology,
             result_faces,
+            deviation::result_deviation_map,
+            deviation::cancel_deviation_map,
             set_face_profile_context,
             face_profile,
             export_face_dxf,
@@ -1204,6 +1224,58 @@ mod tests {
             format: InputFormat::Stl,
             bytes: Arc::new(data.to_vec()),
         });
+    }
+
+    #[test]
+    fn deviation_cancellation_stale_inspection_and_replacement_preserve_export() {
+        let mut cache = CacheState::default();
+        install_guidance_base(&mut cache, 30);
+        let (step, epoch) = cache.result_snapshot(30, 30).unwrap();
+        let result = cache.result.as_mut().unwrap();
+        assert_eq!(
+            result.start_deviation(1).unwrap_err().code,
+            "step.deviation_unavailable"
+        );
+        result.display = Some(Arc::new(step.result_faces().unwrap()));
+        result.cancel_deviation(2);
+        assert_eq!(result.start_deviation(2).unwrap_err().code, "engine.stale");
+        result.start_deviation(3).unwrap();
+        result.cancel_deviation(2); // stale cancellation after a newer start
+        assert!(cache.current_deviation(30, 30, epoch, &step, 3));
+        cache.result.as_mut().unwrap().cancel_deviation(3);
+        assert!(!cache.current_deviation(30, 30, epoch, &step, 3));
+        assert!(cache.current_result(30, 30, epoch, &step));
+        let simulated_budget_refusal = step.display_deviations_controlled(
+            cache.result.as_ref().unwrap().display.as_ref().unwrap(),
+            &mut || {
+                Err(fabstep_core::FabError::new(
+                    "validation.distance_budget",
+                    "Test.",
+                ))
+            },
+        );
+        assert_eq!(
+            simulated_budget_refusal.unwrap_err().code,
+            "validation.distance_budget"
+        );
+        assert!(Arc::ptr_eq(
+            &cache.result_snapshot(30, 30).unwrap().0,
+            &step
+        ));
+        cache.result.as_mut().unwrap().start_deviation(4).unwrap();
+        // Identical STEP bytes with a new publication at the same revision.
+        cache
+            .finish(
+                30,
+                30,
+                epoch,
+                DocumentStep::untracked(step.bytes().to_vec()),
+            )
+            .unwrap();
+        assert!(!cache.current_deviation(30, 30, epoch, &step, 4));
+        assert!(cache.result.as_ref().unwrap().display.is_none());
+        cache.invalidate(31, Some(30)).unwrap();
+        assert!(!cache.current_deviation(30, 30, epoch, &step, 4));
     }
 
     #[test]
