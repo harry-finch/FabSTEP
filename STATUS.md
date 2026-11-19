@@ -47,7 +47,7 @@ Ces lots sont à tester dans FabBoard. Les détails de portée et de preuve sont
 
 Import ordinaire : 32 corps, 64 Mio et 100 000 triangles après placement. Le mode gros STL accepté utilise un helper séparé `large-stl`, source jusqu’à 600 000 triangles et 1 800 000 sommets, annulation, surveillance RSS/empreinte physique à 4 Gio et délai de 30 minutes. Les plafonds résultat/tessellation et 3MF restent inchangés ; le bureau n’active jamais cette feature (ADR-0034).
 
-Le dernier verdict du helper livré sur Flansch est un refus à 231 608 faces. En laboratoire, le solide de 13 802 faces se réimporte et se remaille en 82 602 triangles. La preuve de fidélité sur ce témoin donne 0,011553 mm et 0,009856 mm dans les deux sens (V-1242/V-1245). Une seconde voie découvre 43 domaines directement dans le STL et prévoit 46 671 faces intégralement attribuées (V-1244). La CAO et le budget du helper doivent se vérifier sur ce second solide.
+Le helper Auto reconstruit la rampe publique de 194 694 triangles en 659 faces. Sur Flansch, la reconnaissance directe attribue 493 542 triangles à 43 surfaces toriques et conserve les autres facettes. Le solide de laboratoire est relu avec 46 671 faces et remesuré avec 98 576 triangles. Écarts bidirectionnels de 0,011553 mm et 0,010018 mm (V-1252/V-1253). Le résultat exportable dépend encore du passage des contrôles d’interférences dans le helper. Les deux limites de 4 Gio et 30 min sont conservées.
 
 ## Reprise après cette session
 
@@ -64,6 +64,6 @@ Lire les consignes du projet, le tableau ci-dessous et les actions FabBoard pour
 
 Les domaines spécifiés de C2/D/E/F/G sont **à tester**. La validation manuelle reste portée par chaque sous-jalon. Les limites dans la dernière colonne décrivent la portée géométrique démontrée.
 
-**Reprise Flansch — R-085.** V-1237 à V-1246 donnent les commandes de qualification du STEP fermé, du maillage partagé, de la reconnaissance directe et du certificat de source. Le prochain verdict attendu est celui du helper sur le fichier original, avec les plafonds ADR-0034.
+**Reprise Flansch — R-085.** V-1237 à V-1253 donnent les commandes de qualification du STEP fermé, du maillage partagé, de la reconnaissance directe et du certificat de source. Le prochain verdict attendu est celui du helper sur le fichier original, avec les plafonds ADR-0034.
 
 Les commandes de validation/build sont dans README/AGENTS et `scripts/check.sh` / `scripts/build-macos-dev.sh`. Les preuves F1/C2b/R-085 sont consignées dans V-1205/V-1206/V-1208/V-1209/V-1210 et ADR-0038/0039/0040. Les journaux locaux sous `artifacts/f-next/`, `artifacts/c2-next/` et `artifacts/r085-*/` sont ignorés par Git ; les tests, générateurs et corpus nécessaires à leur reproduction sont versionnés. Ne pas considérer ces journaux locaux comme une dépendance de reprise sur un autre poste.
