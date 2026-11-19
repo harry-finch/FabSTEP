@@ -59,3 +59,7 @@ Pour les cônes et les sphères, la découverte par les normales est qualifiée 
 ## Secteur conique à deux arcs parallèles
 
 Auto regroupe les rangées du demi-tronc de cône public `fixtures/r117-half-frustum.stl`. Les deux arcs et les deux génératrices délimitent une seule paroi. Sur cette pièce de quatre rangées, le STEP passe de 195 plans à trois plans et un cône. Les 192 triangles de la paroi ont une attribution exacte. Les témoins elliptique, bombé et hors budget conservent leurs facettes. L’extension sphérique est suivie dans ce même jalon.
+
+## Intégration dans Auto
+
+L’octant fermé par trois plans radiaux complète les secteurs cylindriques et coniques prouvés. Le grand arc de l’arbre à bossage longitudinal a été vérifié au moyen d’un dessin FreeCAD indépendant, sans modification du reconnaisseur existant. Voir V-1269 et V-1274 pour les cas positifs, les écarts et les refus.

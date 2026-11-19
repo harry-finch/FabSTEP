@@ -61,6 +61,9 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
 - [ ] [A-130](roadmap/actions/A-130-essayer-l-historique-des-corrections-sur-une.md) Essayer l’historique des corrections sur une pièce (tester, R-049)
 - [ ] [A-131](roadmap/actions/A-131-verifier-les-dialogues-natifs-d-ouverture-et-d.md) Vérifier les dialogues natifs d’ouverture et d’export (tester, R-023)
 - [ ] [A-132](roadmap/actions/A-132-verifier-le-nom-3mf-tronque-dans-la-cao.md) Vérifier le nom 3MF tronqué dans la CAO (tester, R-024)
+- [ ] [A-133](roadmap/actions/A-133-verifier-les-deux-parois-de-l-arbre-perce.md) Vérifier les deux parois de l’arbre percé (tester, R-113)
+- [ ] [A-134](roadmap/actions/A-134-verifier-le-conge-et-les-percages-sur-le-meme.md) Vérifier le congé et les perçages sur le même bloc (tester, R-114)
+- [ ] [A-135](roadmap/actions/A-135-verifier-l-octant-spherique-et-le-secteur.md) Vérifier l’octant sphérique et le secteur conique (tester, R-117)
 
 ## Livré
 

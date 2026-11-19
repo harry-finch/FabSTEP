@@ -2861,3 +2861,21 @@ Les sept montages ont été mesurés dans les deux variantes. Une WebView de ré
 Sur deux STL indépendants de 982 et 1 878 triangles, Auto construit six plans et quatre cylindres dont le congé extérieur. Les parois reçoivent respectivement 678 et 1 290 triangles, les plans 304 et 588. Les quatre arêtes du congé ont deux usages opposés. Une géométrie transformée retrouve les mêmes familles. Les cas de revendication commune et de congé déformé conservent le repli.
 
 L’ABI native sur les quatre coins possibles donne dix faces pour 5 733,46607566 mm³. FreeCAD retrouve un solide fermé de dix faces aux deux densités. Son contrôle avancé BOP signale `GeomAbs_C0` sur les trois arêtes spline entre les parois des perçages, déjà présentes dans le domaine historique. Les quatre arêtes du congé passent ce contrôle. Les distances échantillonnées source → STEP / STEP → source valent 0,010154 / 0,010561 mm au premier maillage et 0,003588 / 0,003669 mm au second.
+
+## V-1273 — Arbre à perçage transversal (R-113)
+
+| Témoin STL f32 | Triangles attribués | Faces STEP | Volume OCCT en mm³ | Distances échantillonnées aller / retour en mm |
+|---|---:|---:|---:|---|
+| Ø20, grossier | 428 / 428 | 4 | 4 686,771263 | 0,036058 / 0,036321 |
+| Ø20, fin | 644 / 644 | 4 | 4 686,771178 | 0,009008 / 0,009010 |
+| Ø19,4, variante | 648 / 648 | 4 | 4 301,440859 | 0,008737 / 0,008740 |
+
+Les deux disques, le cylindre extérieur et la paroi du perçage reçoivent les propriétaires attendus. Le contrôle natif vérifie les deux branches, leurs traces sur chaque cylindre, le centre du perçage et les paramètres des supports avant et après transfert. Une source tournée et déplacée est acceptée. Un sommet de jonction déformé, une inversion de cycle, un rayon non fini et une position axiale falsifiée sont couverts par les tests de refus.
+
+Le volume du puits enlève du cylindre le volume de l’intersection. Le développement de la racine carrée, les moments pairs de la projection du disque et la majoration du reste fournissent un intervalle à arrondi dirigé. Le laboratoire public des perçages compare cet intervalle à une quadrature indépendante dans douze configurations. La largeur maximale mesurée est de 1,75 × 10⁻⁹ mm³.
+
+## V-1274 — Bandes coniques, octant découpé et arbre à bossage (R-117)
+
+- Demi-tronc de cône à quatre rangées. L’ancien parcours construisait 195 plans. Auto relit trois plans et un cône, avec une attribution exacte des 192 triangles de la paroi et un volume de 36,5210 mm³. Le maillage tourné conserve ses faces. Les variantes elliptique et bombée restent facettisées.
+- Octant découpé de rayon 5 mm. Les 378 triangles donnent trois plans et une face sphérique, contre 361 plans avant l’extension. Les 324 triangles sphériques et 54 triangles plans sont attribués. Le volume relu vaut 65,44984695 mm³ et les distances échantillonnées 0,013545 / 0,014828 mm. Les trois profils DXF comprennent chacun deux rayons et un quart de cercle. L’ellipsoïde, le coin déplacé et le bord falsifié font partie des refus.
+- Arbre de rayon 5 mm à bossage longitudinal sur toute sa hauteur. Les deux maillages (168 et 300 triangles) étaient déjà pris en charge par le domaine cylindrique existant. La qualification vérifie le grand arc de 286,26°, ses quatre voisins, six faces au total et un volume de 344,583010 mm³. Les mesures maximales aux deux densités sont de 0,009747 et 0,002927 mm. Une déformation elliptique conserve 45 puis 78 plans.

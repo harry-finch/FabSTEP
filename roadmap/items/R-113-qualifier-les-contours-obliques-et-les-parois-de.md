@@ -38,3 +38,7 @@ Valider la qualification de la lèvre et de l’arbre percé, et choisir la suit
 ## Résultats
 
 La lèvre torique et son plan partagent deux branches. Le banc vérifie leur couverture et leur écart sur tout le bord aux deux densités. L’arbre percé est également reconnu depuis ses seuls triangles dans le prototype. Les deux STL donnent un solide STEP valide à quatre faces et conservent tous leurs propriétaires source. Une seconde pièce de dimensions différentes passe le même contrôle. Auto produit encore des facettes sur ces témoins. L’intégration dans le bureau demande un domaine natif pour la paroi extérieure percée. Les résultats, contre-exemples et commandes figurent en V-1264.
+
+## Intégration dans Auto
+
+Le domaine de l’arbre percé est intégré dans Auto après l’accord A-125. Les trois maillages et les contrôles de provenance, de transfert et de volume sont détaillés en V-1273. La lèvre torique coupée obliquement demeure une qualification de laboratoire.

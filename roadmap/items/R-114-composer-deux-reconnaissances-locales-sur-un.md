@@ -43,3 +43,7 @@ Auto reconnaît les opérations isolées aux deux densités. Sur la pièce combi
 Le banc `scripts/qualify-r114-composition-freecad.py` compare les triangles de petits STL aux faces de deux dessins de référence. Une opération possède ses triangles source. À la frontière, deux usages d’une même arête doivent être complets et orientés en sens opposés. Le banc refuse les candidats qui revendiquent un même triangle, ainsi que les frontières manquantes ou inversées. Il vérifie le verdict dans les deux ordres d’insertion.
 
 Le témoin disjoint couvre le congé et les perçages sur deux densités. Le contre-exemple contient deux trous transversaux qui rejoignent le même trou longitudinal. Les deux opérations qui voudraient chacune reconstruire ce trou revendiquent 524 puis 978 triangles en commun. La découverte de ces domaines directement dans Auto et leur construction native restent à développer.
+
+## Intégration dans Auto
+
+L’extension approuvée construit maintenant les dix faces sur les deux maillages disjoints. La qualification de la revendication commune, les résultats FreeCAD et les avertissements des trois arêtes des perçages figurent en V-1272.
