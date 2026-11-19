@@ -2,7 +2,6 @@
 //! Four disjoint charts, four closed rims and opposite source incidences are
 //! required. Neither CAD labels nor nominal fixture dimensions enter the fit.
 use crate::math::{cross, dot, norm, scale, sub, Sum, V};
-use crate::planar::Segmentation;
 use crate::recognition::Work;
 use crate::rounded::Rim;
 use crate::*;
@@ -246,82 +245,118 @@ fn single_cycle(edges: &[(usize, usize)]) -> Option<Vec<usize>> {
     }
     (curr == start && ids.len() == edges.len()).then_some(ids)
 }
-pub(crate) fn candidate(
-    a: &Analysis,
-    s: &Segmentation,
-    rims: &[Rim],
-    o: &Options,
-    work: &mut Work,
-) -> Option<RoundedRecognition> {
-    let first = rims.first()?;
+/// Quantization can break both analytic rim seeds at a thin cap triangle.
+/// Nominate planar clusters by adjacent normals, then recheck the whole
+/// planar disk and its circle using the source coordinates and absolute fit.
+fn recovered_caps(mesh: &Mesh, adjacency: &[Vec<usize>], tol: f64) -> Option<[Rim; 2]> {
+    let areas: Vec<_> = mesh
+        .triangles
+        .iter()
+        .map(|t| {
+            let [a, b, c] = t.map(|v| mesh.vertices[v]);
+            cross(sub(b, a), sub(c, a))
+        })
+        .collect();
+    let normals = areas
+        .iter()
+        .copied()
+        .map(unit)
+        .collect::<Option<Vec<_>>>()?;
+    let mut visited = vec![false; areas.len()];
+    let mut caps = Vec::new();
+    for seed in 0..areas.len() {
+        if visited[seed] {
+            continue;
+        }
+        visited[seed] = true;
+        let mut region = vec![seed];
+        let mut next = 0;
+        while next < region.len() {
+            let t = region[next];
+            next += 1;
+            for &n in &adjacency[t] {
+                if !visited[n] && dot(normals[t], normals[n]) > 1. - 5e-7 {
+                    visited[n] = true;
+                    region.push(n);
+                }
+            }
+        }
+        if region.len() < 6 {
+            continue;
+        }
+        let mut edges = BTreeSet::new();
+        let mut sum = [0.; 3];
+        for &t in &region {
+            for (k, c) in sum.iter_mut().enumerate() {
+                *c += areas[t][k];
+            }
+            let ids = mesh.triangles[t];
+            for i in 0..3 {
+                let (a, b) = (ids[i], ids[(i + 1) % 3]);
+                if !edges.remove(&(b, a)) && !edges.insert((a, b)) {
+                    return None;
+                }
+            }
+        }
+        let Some(axis) = unit(sum) else {
+            continue;
+        };
+        let Some(vertices) = single_cycle(&edges.into_iter().collect::<Vec<_>>()) else {
+            continue;
+        };
+        let points: Vec<_> = vertices.iter().map(|&v| mesh.vertices[v]).collect();
+        let Some((center, radius)) = circle(&points, axis, tol) else {
+            continue;
+        };
+        if region
+            .iter()
+            .flat_map(|&i| mesh.triangles[i])
+            .any(|v| dot(sub(mesh.vertices[v], center), axis).abs() > tol)
+        {
+            continue;
+        }
+        caps.push(Rim {
+            center,
+            axis,
+            radius,
+            vertices,
+            region: seed,
+        });
+        if caps.len() > 2 {
+            return None;
+        }
+    }
+    caps.try_into().ok()
+}
+
+pub(crate) fn candidate(a: &Analysis, o: &Options, work: &mut Work) -> Option<RoundedRecognition> {
     let mesh = &a.mesh;
     let n = mesh.triangles.len();
-    if n > MAX_TRIANGLES
-        || mesh.vertices.len() > 3 * MAX_TRIANGLES
-        || rims.len() > 2
-        || rims
+    if !(48..=MAX_TRIANGLES).contains(&n) || mesh.vertices.len() > 3 * MAX_TRIANGLES {
+        return None;
+    }
+    // The new pass runs only on a fully faceted Auto result. Charge the
+    // finite topology, clustering, both fits, four charts and rim cycles
+    // before allocating optional tables. Historical budgets are untouched.
+    if !work.reserve_optional(n * 400 + mesh.vertices.len() * 64 + 8192)
+        || mesh
+            .vertices
             .iter()
-            .any(|rim| s.model.faces[rim.region].loops.len() != 1)
+            .flatten()
+            .any(|v| !v.is_finite() || v.abs() > 1024.)
+        || !a
+            .model
+            .faces
+            .iter()
+            .any(|f| f.loops.len() == 1 && f.loops[0].len() >= 8)
     {
         return None;
     }
     let tol = o.cylinder_fit_tolerance_mm.min(1e-5);
     let budget = o.max_deviation_mm.min(0.05);
-    if rims
-        .get(1)
-        .is_some_and(|other| (other.radius - first.radius).abs() > tol)
-    {
-        return None;
-    }
-    if !work.reserve_optional(n * 260 + mesh.vertices.len() * 64 + 8192) {
-        return None;
-    }
-    if mesh
-        .vertices
-        .iter()
-        .flatten()
-        .any(|v| !v.is_finite() || v.abs() > 1024.)
-    {
-        return None;
-    }
-    // A planar seed can split a cap at a very thin f32 triangle. One
-    // circular end already determines its opposite supporting plane. Prove
-    // the complete source cycle there before fitting the second circle.
-    let bottom = first;
-    let inward = scale(s.model.faces[first.region].normal, -1.);
-    let recovered;
-    let top = if rims.len() == 2 {
-        &rims[1]
-    } else {
-        let heights: Vec<_> = mesh
-            .vertices
-            .iter()
-            .map(|&p| dot(sub(p, first.center), inward))
-            .collect();
-        let high = heights.iter().copied().fold(f64::NEG_INFINITY, f64::max);
-        let mut edges = BTreeSet::new();
-        for ids in &mesh.triangles {
-            if ids.iter().all(|&v| high - heights[v] <= tol) {
-                for j in 0..3 {
-                    let (a, b) = (ids[j], ids[(j + 1) % 3]);
-                    if !edges.remove(&(b, a)) && !edges.insert((a, b)) {
-                        return None;
-                    }
-                }
-            }
-        }
-        let vertices = single_cycle(&edges.into_iter().collect::<Vec<_>>())?;
-        let points: Vec<_> = vertices.iter().map(|&v| mesh.vertices[v]).collect();
-        let (center, radius) = circle(&points, inward, tol)?;
-        recovered = Rim {
-            center,
-            radius,
-            axis: inward,
-            vertices,
-            region: usize::MAX,
-        };
-        &recovered
-    };
+    let adjacency = crate::pipeline::validate_topology(mesh).ok()?;
+    let [bottom, top] = recovered_caps(mesh, &adjacency, tol)?;
+    let inward = scale(bottom.axis, -1.);
     let axis = unit(sub(top.center, bottom.center))?;
     let height = norm(sub(top.center, bottom.center));
     let radius = (top.radius + bottom.radius) * 0.5;
@@ -564,4 +599,27 @@ pub(crate) fn candidate(
             cross_drill: None,
         },
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn optional_search_declines_before_allocations_when_budget_or_size_excludes_it() {
+        let o = Options::default();
+        let mut data = crate::analyze_stl(
+            include_bytes!("../../../fixtures/r113-cross-bored-shaft.stl"),
+            &o,
+        )
+        .unwrap();
+        let mut work = Work::default();
+        work.spend(9_999_999).unwrap();
+        assert!(candidate(&data, &o, &mut work).is_none());
+        assert_eq!(work.used_for_test(), 9_999_999);
+        data.mesh.triangles.resize(MAX_TRIANGLES + 1, [0, 1, 2]);
+        let mut available = Work::default();
+        assert!(candidate(&data, &o, &mut available).is_none());
+        assert_eq!(available.used_for_test(), 0);
+    }
 }

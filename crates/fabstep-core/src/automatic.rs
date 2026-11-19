@@ -113,6 +113,20 @@ fn recognize(
         return Ok(result);
     }
     crate::partial::chain::augment(a, &mut result, o, scope)?;
+    if scope.is_none()
+        && result.report.cylinders
+            + result.report.cones
+            + result.report.spheres
+            + result.report.tori
+            + result.report.revolutions
+            == 0
+    {
+        if let Some(shaft) =
+            crate::drilled_shaft::candidate(a, o, &mut crate::recognition::Work::default())
+        {
+            return Ok(shaft);
+        }
+    }
     safe_planes(a, &mut result)?;
     if scope.is_none() {
         recover_planar_output(a, o, &mut result)?;

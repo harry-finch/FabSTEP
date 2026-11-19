@@ -88,14 +88,42 @@ fn reimport_recovers_four_faces_and_all_independently_labelled_source_triangles(
 
 #[test]
 fn rotated_f32_source_and_off_support_counterexample() {
-    let bytes = transformed(COARSE, |[x, y, z]| {
-        [12. + x * 0.8 - z * 0.6, 2. + y, 8. + x * 0.6 + z * 0.8]
+    // The independent qualification uses Rodrigues' rotation about (1,3,2),
+    // followed by translation and a fresh f32 encoding of every coordinate.
+    let rotated = transformed(COARSE, |p| {
+        let p = p.map(f64::from);
+        let axis = [1., 3., 2.].map(|x| x / 14_f64.sqrt());
+        let dot: f64 = axis.iter().zip(p).map(|(&a, b)| a * b).sum();
+        let (s, c) = 0.89_f64.sin_cos();
+        std::array::from_fn(|i| {
+            let j = (i + 1) % 3;
+            let k = (i + 2) % 3;
+            (c * p[i]
+                + s * (axis[j] * p[k] - axis[k] * p[j])
+                + (1. - c) * dot * axis[i]
+                + [15., -7., 21.][i]) as f32
+        })
     });
-    let doc = convert_document_with_provenance(&bytes, InputFormat::Stl, &options()).unwrap();
-    assert_eq!(
-        (doc.report.cad.faces, doc.report.cad.cylindrical_faces),
-        (4, 2)
-    );
+    for bytes in [
+        rotated,
+        transformed(COARSE, |[x, y, z]| {
+            [12. + x * 0.8 - z * 0.6, 2. + y, 8. + x * 0.6 + z * 0.8]
+        }),
+    ] {
+        let doc = convert_document_with_provenance(&bytes, InputFormat::Stl, &options()).unwrap();
+        assert_eq!(
+            (doc.report.cad.faces, doc.report.cad.cylindrical_faces),
+            (4, 2)
+        );
+        assert_eq!(
+            doc.step
+                .result_faces()
+                .unwrap()
+                .source_correspondence
+                .status,
+            "exact"
+        );
+    }
     // Perturb one complete shared-vertex occurrence, keeping the mesh closed.
     let o = options();
     let a = fabstep_core::analyze_stl(COARSE, &o).unwrap();

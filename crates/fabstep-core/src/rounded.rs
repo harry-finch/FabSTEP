@@ -374,12 +374,6 @@ fn recognize_policy_with_proofs(
         }
     }
     let rims = segmented_rims(a, o, &segmentation, &mut work)?;
-    if automatic && scope.is_none() {
-        if let Some(result) = crate::drilled_shaft::candidate(a, &segmentation, &rims, o, &mut work)
-        {
-            return Ok(result);
-        }
-    }
     // A larger segmentation tolerance can split a mouth when it changes the
     // seed order. Try the witnessed openings first, retaining the ordinary
     // partition for the other recognizers and the faceted fallback.
