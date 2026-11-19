@@ -852,3 +852,31 @@ test('dense consent resets on a new file and cancellation during upload prevents
   assert.equal(f.count('upload_source'), 1);
   assert.equal(f.count('convert_large_document'), 0);
 });
+
+test('guided history survives refused edits, recalculates an empty set and expires with the source', async () => {
+  const f = fixture();
+  f.ready();
+  f.state.guidanceHints = [hint];
+  f.state.guidanceHistory = { undo:true, redo:false };
+  const edit = f.workflow.mutateGuidance('edit_guidance', { hintId:hint.hint_id, family:'cone' });
+  assert.equal(f.workflow.canExport(), false);
+  assert.deepEqual(f.latest('edit_guidance').args, { requestId:f.state.current, sourceId:7, baseRequestId:f.state.current - 1, hintId:hint.hint_id, family:'cone' });
+  f.latest('edit_guidance').pending.reject({code:'guidance.cone_unproven'});
+  await edit;
+  assert.deepEqual(f.state.guidanceHints, [hint]);
+  assert.equal(f.state.guidanceHistory?.undo, true);
+  const undo = f.workflow.mutateGuidance('undo_guidance');
+  f.latest('undo_guidance').pending.resolve({...result(f.state.current), guidance_history:{undo:false, redo:true}});
+  await undo;
+  assert.deepEqual(f.state.guidanceHints, []);
+  assert.deepEqual(f.state.guidanceHistory, {undo:false, redo:true});
+  assert.equal(f.workflow.canExport(), true);
+  const redo = f.workflow.mutateGuidance('redo_guidance');
+  const old = f.state.current;
+  f.workflow.setSource(new Uint8Array([0]));
+  f.latest('redo_guidance').pending.resolve({...result(old, [hint]), guidance_history:{undo:true, redo:false}});
+  await redo;
+  assert.equal(f.state.guidanceHistory, undefined);
+  assert.deepEqual(f.state.guidanceHints, []);
+  assert.equal(f.workflow.canExport(), false);
+});

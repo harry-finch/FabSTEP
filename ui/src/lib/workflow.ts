@@ -3,7 +3,7 @@ import { validPreferences } from './editing.ts';
 import { acceptsGuidedResult } from './guided.ts';
 import { uploadSource, type SourceBridge } from './source.ts';
 import type { Key } from './i18n.svelte';
-import type { ConversionResult, DocumentPreview, GuidedFamily, GuidedReport, Options, Result } from './types.ts';
+import type { ConversionResult, DocumentPreview, GuidanceHistory, GuidedFamily, GuidedReport, Options, Result } from './types.ts';
 export type WorkflowState = {
   largeTriangles: number | null;
   largeAccepted: boolean;
@@ -38,6 +38,7 @@ export type WorkflowState = {
   } | null;
   topologyState: 'pending' | 'ready' | 'unavailable';
   guidanceHints: GuidedReport[];
+  guidanceHistory?: GuidanceHistory;
   guidedAttempt: {
     requestId: number;
     status: 'pending' | 'success' | 'refused';
@@ -82,6 +83,7 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     deps.clearParameterSearch();
     state.guidedAttempt = null;
     state.guidanceHints = [];
+    state.guidanceHistory = undefined;
     state.current++;
     deps.resetSourceInspection(!preservePreview);
     deps.resetStepInspection();
@@ -247,6 +249,7 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     state.result = null;
     state.guidedAttempt = null;
     state.guidanceHints = [];
+    state.guidanceHistory = undefined;
   }
 
   function canReconstruct() {
@@ -297,7 +300,7 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     }
   }
 
-  async function mutateGuidance(command: 'guided_convert' | 'remove_guidance' | 'recompute_guidance' | 'apply_similar_guided_regions', payload: {
+  async function mutateGuidance(command: 'guided_convert' | 'remove_guidance' | 'edit_guidance' | 'undo_guidance' | 'redo_guidance' | 'recompute_guidance' | 'apply_similar_guided_regions', payload: {
     searchId?: number;
     candidateIds?: number[];
     faceIds?: number[];
@@ -334,6 +337,7 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
       }
       state.result = converted;
       state.guidanceHints = converted.guidance_hints;
+      state.guidanceHistory = converted.guidance_history;
       state.guidedAttempt = state.guidanceHints.length ? { requestId: id, status: 'success' } : null;
       state.selectedId = '';
       if (state.preview) {

@@ -1,12 +1,36 @@
 ---
-id: "R-049"
+id: R-049
 titre: "I3 — éditer les indications"
 resume: "Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source"
-statut: "idee"
-jalon: "atelier"
-cree: "2026-11-13"
-maj: "2026-11-13"
+statut: a-tester
+jalon: atelier
+cree: 2026-11-13
+maj: 2026-11-19
+livree:
 ---
+## But
+
+Modifier une indication validée et revenir sur les essais de la session.
+
+## Inclus
+
+Éditer la famille, retirer l’indication, annuler et rétablir, y compris pour un groupe de parois similaires. Recalculer, vérifier et comparer en vues Source et STEP.
+
+## Hors périmètre
+
+Historique de la session locale sur un maillage ordinaire. La sauvegarde de projets et le mode gros STL ne stockent pas cet historique.
+
+## Dépendances
+
+Provenance du maillage et validations du résultat natif.
+
+## Critères d'acceptation
+
+Un refus conserve les indications, bloque l’export périmé et permet une nouvelle action. Un nouveau choix efface la branche de rétablissement. La mémoire de l’historique est bornée.
+
+## Vérifications de l'utilisateur
+
+Sur un bossage, essayer un cylindre, modifier la famille, annuler puis rétablir. Comparer les vues et vérifier la disponibilité de l’export.
 
 | I3 — éditer les indications | Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source | Indications attachées à l’identité/révision de source ; résultats anciens non exportables ; limites de zones/triangles/travail ; hypothèses contradictoires signalées | Plusieurs indications et retrait individuel disponibles avec I2b. Édition, annuler/rétablir et persistance intersessions restent à développer |
 

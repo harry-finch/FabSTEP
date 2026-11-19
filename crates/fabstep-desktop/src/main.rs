@@ -821,6 +821,67 @@ async fn guided_convert(
     })
 }
 
+enum GuidanceChange {
+    Edit(u64, String),
+    Remove(u64),
+    Undo,
+    Redo,
+    Recompute,
+}
+
+#[tauri::command]
+async fn edit_guidance(
+    request_id: u64,
+    source_id: u64,
+    base_request_id: u64,
+    hint_id: u64,
+    family: String,
+    state: State<'_, Arc<EngineState>>,
+) -> Result<Response<DocumentReport>, FabError> {
+    mutate_guidance_session(
+        request_id,
+        source_id,
+        base_request_id,
+        GuidanceChange::Edit(hint_id, family),
+        Arc::clone(state.inner()),
+    )
+    .await
+}
+
+#[tauri::command]
+async fn undo_guidance(
+    request_id: u64,
+    source_id: u64,
+    base_request_id: u64,
+    state: State<'_, Arc<EngineState>>,
+) -> Result<Response<DocumentReport>, FabError> {
+    mutate_guidance_session(
+        request_id,
+        source_id,
+        base_request_id,
+        GuidanceChange::Undo,
+        Arc::clone(state.inner()),
+    )
+    .await
+}
+
+#[tauri::command]
+async fn redo_guidance(
+    request_id: u64,
+    source_id: u64,
+    base_request_id: u64,
+    state: State<'_, Arc<EngineState>>,
+) -> Result<Response<DocumentReport>, FabError> {
+    mutate_guidance_session(
+        request_id,
+        source_id,
+        base_request_id,
+        GuidanceChange::Redo,
+        Arc::clone(state.inner()),
+    )
+    .await
+}
+
 #[tauri::command]
 async fn remove_guidance(
     request_id: u64,
@@ -833,7 +894,7 @@ async fn remove_guidance(
         request_id,
         source_id,
         base_request_id,
-        Some(hint_id),
+        GuidanceChange::Remove(hint_id),
         Arc::clone(state.inner()),
     )
     .await
@@ -850,7 +911,7 @@ async fn recompute_guidance(
         request_id,
         source_id,
         base_request_id,
-        None,
+        GuidanceChange::Recompute,
         Arc::clone(state.inner()),
     )
     .await
@@ -860,7 +921,7 @@ async fn mutate_guidance_session(
     request_id: u64,
     source_id: u64,
     base_request_id: u64,
-    remove_hint_id: Option<u64>,
+    change: GuidanceChange,
     state: Arc<EngineState>,
 ) -> Result<Response<DocumentReport>, FabError> {
     let (step, epoch) = state
@@ -873,9 +934,16 @@ async fn mutate_guidance_session(
     let observer = progress.observer();
     let computed = tauri::async_runtime::spawn_blocking(move || {
         let mut check_current = |checkpoint| observer.checkpoint(checkpoint);
-        match remove_hint_id {
-            Some(id) => step.remove_guidance_controlled(id, &mut check_current),
-            None => step.recompute_guidance_controlled(&mut check_current),
+        match change {
+            GuidanceChange::Edit(id, family) => step.edit_guidance_controlled(
+                id,
+                parse_guidance_family(Some(&family))?,
+                &mut check_current,
+            ),
+            GuidanceChange::Undo => step.undo_guidance_controlled(&mut check_current),
+            GuidanceChange::Redo => step.redo_guidance_controlled(&mut check_current),
+            GuidanceChange::Remove(id) => step.remove_guidance_controlled(id, &mut check_current),
+            GuidanceChange::Recompute => step.recompute_guidance_controlled(&mut check_current),
         }
     })
     .await;
@@ -1140,6 +1208,9 @@ fn main() {
             convert_document,
             search_parameters,
             guided_convert,
+            edit_guidance,
+            undo_guidance,
+            redo_guidance,
             remove_guidance,
             recompute_guidance,
             invalidate_result,

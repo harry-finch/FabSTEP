@@ -12,6 +12,9 @@ use fabstep_core::{
 };
 use serde::{Deserialize, Serialize};
 mod deviation;
+mod history;
+pub use history::GuidanceHistoryStatus;
+use history::{family_name, unknown_hint, GuidanceHistory};
 mod similar;
 pub use similar::{SimilarCandidate, SimilarRegions};
 #[cfg(feature = "large-stl")]
@@ -182,6 +185,8 @@ pub struct DocumentReport {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub guidance: Option<GuidanceReport>,
     pub guidance_hints: Vec<GuidanceReport>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub guidance_history: Option<GuidanceHistoryStatus>,
 }
 
 pub struct DocumentConversion {
@@ -210,6 +215,7 @@ struct ConversionSource {
     options: Options,
     hints: Vec<GuidanceReport>,
     next_hint_id: u64,
+    history: GuidanceHistory,
 }
 
 impl DocumentStep {
@@ -358,14 +364,7 @@ impl DocumentStep {
         selected_source_triangle_ids.dedup();
         let guidance = GuidanceReport {
             hint_id: source.next_hint_id,
-            family: match family {
-                GuidanceFamily::Cylinder => "cylinder",
-                GuidanceFamily::Cone => "cone",
-                GuidanceFamily::Plane => "plane",
-                GuidanceFamily::Auto => "auto",
-                GuidanceFamily::Torus => "torus",
-                GuidanceFamily::Sphere => "sphere",
-            },
+            family: family_name(family),
             selected_face_ids,
             preview_body_id: first.preview_body_id.clone(),
             analysis_body_id: first.analysis_body_id.clone(),
@@ -390,6 +389,7 @@ impl DocumentStep {
             .next_hint_id
             .checked_add(1)
             .ok_or_else(|| FabError::new("guidance.limit", "Identifiants d’indication épuisés."))?;
+        next.history.record(&source.hints);
         next.hints.push(guidance);
         Self::rebuild_guidance(next, control)
     }
@@ -404,15 +404,7 @@ impl DocumentStep {
         check_current: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
     ) -> Result<ProvenancedDocumentConversion, FabError> {
         controlled(check_current, |control| {
-            Self::rebuild_guidance(
-                self.guidance_source().cloned().ok_or_else(|| {
-                    FabError::new(
-                        "guidance.provenance_unavailable",
-                        "La session guidée est indisponible.",
-                    )
-                })?,
-                control,
-            )
+            Self::rebuild_guidance(self.session_source()?.clone(), control)
         })
     }
 
@@ -427,22 +419,13 @@ impl DocumentStep {
     ) -> Result<ProvenancedDocumentConversion, FabError> {
         controlled(check_current, |control| {
             control.check(ConversionPhase::Analysis, None)?;
-            let mut source = self.guidance_source().cloned().ok_or_else(|| {
-                FabError::new(
-                    "guidance.provenance_unavailable",
-                    "La session guidée est indisponible.",
-                )
-            })?;
+            let mut source = self.session_source()?.clone();
             let index = source
                 .hints
                 .iter()
                 .position(|hint| hint.hint_id == hint_id)
-                .ok_or_else(|| {
-                    FabError::new(
-                        "guidance.unknown_indication",
-                        "Cette indication n’appartient pas à la session courante.",
-                    )
-                })?;
+                .ok_or_else(unknown_hint)?;
+            source.history.record(&source.hints);
             source.hints.remove(index);
             Self::rebuild_guidance(source, control)
         })
@@ -464,6 +447,7 @@ impl DocumentStep {
             control,
             DocumentOutput::WithProvenance,
         )?;
+        result.report.guidance_history = source.history.status();
         source.hints = result.report.guidance_hints.clone();
         result.step.source = Some(source);
         Ok(result)
@@ -899,6 +883,7 @@ pub fn convert_document_with_provenance(
             options: options.clone(),
             hints: Vec::new(),
             next_hint_id: 1,
+            history: GuidanceHistory::default(),
         });
         Ok(result)
     })
@@ -938,6 +923,7 @@ pub fn convert_shared_document_with_provenance_controlled(
             options: options.clone(),
             hints: Vec::new(),
             next_hint_id: 1,
+            history: GuidanceHistory::default(),
         });
         Ok(result)
     })
@@ -1235,6 +1221,7 @@ fn convert_analyzed_document(
             bodies,
             cad,
             diagnostics,
+            guidance_history: None,
             guidance: guidance_hints.last().cloned(),
             guidance_hints,
         },

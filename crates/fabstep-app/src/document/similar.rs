@@ -435,6 +435,7 @@ impl DocumentStep {
                 return Err(invalid());
             }
             let mut next = self.guidance_source().cloned().ok_or_else(unavailable)?;
+            next.history.record(&next.hints);
             for p in search
                 .proposals
                 .into_iter()

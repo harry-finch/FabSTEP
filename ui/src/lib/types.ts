@@ -25,10 +25,11 @@ type CadReport = { solids: number; faces: number; planar_faces: number; cylindri
 type BodyOverview = { id: string; name: string; provenance: BodyProvenance; cad: CadReport; fidelity?: Fidelity | null };
 export type BodyResult = BodyOverview & { analysis: { mesh: Mesh; model: { vertices: number[][]; faces: { loops: number[][]; normal: number[] }[] }; report: AnalysisReport }; recognition: { extrusion: { origin: number[]; axis: number[]; x_axis: number[]; height_mm: number; outer: ProfileLoop; holes: ProfileLoop[] }; report: RecognitionReport } | null; height_patch_recognition?: HeightPatchRecognition | null; rounded_box_recognition?: RoundedBoxRecognition | null; rounded_recognition: { model: RoundedModel; report: RecognitionReport; triangle_faces: { kind: 'plane' | 'cylinder' | 'partial_cylinder' | 'partial_cone' | 'cone' | 'sphere' | 'spherical_octant' | 'linear_blend' | 'cross_drill' | 'smooth_revolution' | 'torus_sector' | 'torus'; index: number }[] } | null; revolved_recognition: { model: RevolvedModel; report: RecognitionReport; triangle_faces: { kind: 'plane' | 'cylinder' | 'cone'; index: number }[] } | null; mixed_recognition?: { model: MixedModel; report: RecognitionReport; triangle_faces: { kind: 'plane' | 'cylinder' | 'partial_cylinder'; index: number }[] } | null };
 
+export type GuidanceHistory = { undo:boolean; redo:boolean };
 export type GuidedFamily = 'sphere'|'auto'|'plane'|'cylinder'|'cone'|'torus';
 export type GuidedReport = { hint_id:number; family:GuidedFamily; selected_face_ids:number[]; preview_body_id:string; analysis_body_id:string; selected_source_triangle_ids:number[]; reconstructed_source_triangle_ids:number[] };
 type ResultOverview = { guidance_hints: GuidedReport[]; settings: Omit<Options, 'input_unit'>; request_id: number; source: Source; cad: CadReport; diagnostics: Diagnostic[] };
-export type Result = ResultOverview & { report_version?: 1; guidance?: GuidedReport | null; bodies: BodyResult[] };
+export type Result = ResultOverview & { report_version?: 1; guidance_history?: GuidanceHistory; guidance?: GuidedReport | null; bodies: BodyResult[] };
 
 /** The supervised large-STL worker transports measurements and diagnostics only. */
 type RecognitionSummary = { report: RecognitionReport };

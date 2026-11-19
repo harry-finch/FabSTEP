@@ -171,6 +171,12 @@ fn four_equal_bores_apply_together_and_leave_the_different_radius_faceted() {
     assert_eq!(all.report.cad.solids, 1);
     assert_eq!(all.report.cad.cylindrical_faces, 4);
     assert_eq!(all.report.guidance_hints.len(), 4);
+    let undo = all.step.undo_guidance_controlled(&mut |_| Ok(())).unwrap();
+    assert_eq!(undo.report.guidance_hints.len(), 1);
+    assert_eq!(undo.report.cad.cylindrical_faces, 1);
+    let redo = undo.step.redo_guidance_controlled(&mut |_| Ok(())).unwrap();
+    assert_eq!(redo.report.guidance_hints.len(), 4);
+    assert_eq!(redo.report.cad.cylindrical_faces, 4);
     assert!(all.report.bodies[0].conversion.fidelity.is_some());
     assert_eq!(
         all.step

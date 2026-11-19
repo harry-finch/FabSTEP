@@ -48,7 +48,7 @@
   import packageInfo from '../package.json';
   import { theme } from './lib/theme.svelte';
   import { i18n, LOCALES, t, type Key } from './lib/i18n.svelte';
-  import type { Options, ConversionResult, DocumentPreview, ConversionBody, SelectionTopology, ResultFaces, GuidedFamily, GuidedReport } from './lib/types';
+  import type { Options, ConversionResult, DocumentPreview, ConversionBody, SelectionTopology, ResultFaces, GuidanceHistory, GuidedFamily, GuidedReport } from './lib/types';
   const initial: Options = { input_unit:'mm', weld_tolerance_mm:0.000001, plane_tolerance_mm:0.000001, reconstruction:'auto', cylinder_fit_tolerance_mm:0.00001, max_deviation_mm:0.05 };
   let options = $state<Options>({ ...initial });
   const positiveOr = (value: unknown, fallback: number): number => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
@@ -138,6 +138,8 @@
   let sectionMode=$state<SectionManipulationMode>('translate'),sectionDragging=$state(false),sectionDisplayFrame=$state<ProfileFrame|null>(null);
   let sectionFaceBase:{id:number;frame:ProfileFrame}|null=null,sectionDragStart:{input:SectionInput;frame:ProfileFrame|null}|null=null;
   let guidanceHints = $state<GuidedReport[]>([]);
+  let guidanceHistory = $state<GuidanceHistory>();
+  const guidanceFamilies: GuidedFamily[] = ['auto', 'plane', 'cylinder', 'cone', 'sphere', 'torus'];
   let guidedAttempt = $state<{ requestId:number; status:'pending'|'success'|'refused' }|null>(null);
   const guidedRefusal = $derived(isGuidedRefusal(guidedAttempt,current,!!error));
   const errorTitle = $derived(guidedRefusal ? 'guidance.notApplied' : 'workspace.failed');
@@ -236,6 +238,11 @@
     const selectedSource = sourceSelection.bodies[0];
     sourceZone = { previewBodyId:selectedSource.previewBodyId, seed:selectedSource.triangles[0], triangles:[...selectedSource.triangles], ring:0 };
     await mutateGuidance('guided_convert', { faceIds, family });
+  }
+  function editGuidance(hint:GuidedReport, selector:HTMLSelectElement) {
+    const family = guidanceFamilies.find(value => value === selector.value);
+    selector.value = hint.family;
+    if (family && family !== hint.family) void mutateGuidance('edit_guidance', {hintId:hint.hint_id, family});
   }
   function removeGuidance(hintId:number) { void mutateGuidance('remove_guidance', { hintId }); }
   function recomputeGuidance() { void mutateGuidance('recompute_guidance'); }
@@ -425,6 +432,8 @@
     set processing(value) { processing = value; },
     get topologyState() { return topologyState; },
     set topologyState(value) { topologyState = value; },
+    get guidanceHistory() { return guidanceHistory; },
+    set guidanceHistory(value) { guidanceHistory = value; },
     get guidanceHints() { return guidanceHints; },
     set guidanceHints(value) { guidanceHints = value; },
     get guidedAttempt() { return guidedAttempt; },
@@ -474,6 +483,10 @@
   }
   function saveOptions() { if (!validPreferences(committed)) return; try { localStorage.setItem('fabstep.options.v2', JSON.stringify(committed)); } catch { /* optionnel */ } }
   function undo(redo = false) {
+    if (guidanceHistory) {
+      if (redo ? guidanceHistory.redo : guidanceHistory.undo) void mutateGuidance(redo ? 'redo_guidance' : 'undo_guidance');
+      return;
+    }
     if (!sameOptions(options, committed)) { const unitChanged = options.input_unit !== committed.input_unit; options = { ...committed }; invalidate(!unitChanged); return; }
     const from = redo ? future : history, to = redo ? history : future;
     const prev = from.pop(); if (prev) { const unitChanged = prev.input_unit !== options.input_unit; to.push({ ...committed }); committed = { ...prev }; options = { ...prev }; saveOptions(); invalidate(!unitChanged); }
@@ -867,7 +880,7 @@
           </p>
         </div>
       {/if}
-      {#if guidanceHints.length}
+      {#if guidanceHints.length || guidanceHistory}
         <Section id="guided-attempt" title={t('guidance.title')}>
           {#if guidedAttempt}
             <p class="muted" role="status">{t(`guidance.${guidedAttempt.status}`)}</p>
@@ -876,9 +889,26 @@
             <span>{t('guidance.accepted')}</span>
             <strong>{guidanceHints.length} / 16</strong>
           </div>
+          {#if guidanceHistory}
+            <div class="guidance-actions">
+              <button class="btn" disabled={busy || !!processing || !guidanceHistory.undo} onclick={() => undo()}>{t('guidance.undo')}</button>
+              <button class="btn" disabled={busy || !!processing || !guidanceHistory.redo} onclick={() => undo(true)}>{t('guidance.redo')}</button>
+            </div>
+          {/if}
           {#each guidanceHints as hint (hint.hint_id)}
             <div class="guidance-hint">
-              <strong>{t(guidedFamilyLabel(hint.family), {n:hint.hint_id})}</strong>
+              <div class="guidance-actions">
+                <select aria-label={t('guidance.editFamily', {n:hint.hint_id})}
+                  value={hint.family} disabled={busy || !!processing}
+                  onchange={e => editGuidance(hint, e.currentTarget)}>
+                  {#each guidanceFamilies as family}
+                    <option value={family}>{t(guidedFamilyLabel(family), {n:hint.hint_id})}</option>
+                  {/each}
+                </select>
+                <button class="btn" disabled={busy || !!processing}
+                  aria-label={t('guidance.removeNamed', {n:hint.hint_id})}
+                  onclick={() => removeGuidance(hint.hint_id)}>{t('guidance.remove')}</button>
+              </div>
               <Disclosure id={`guidance-trace-${hint.hint_id}`} label={t('workspace.details')}>
                 <p class="muted">
                   {(preview?.bodies.findIndex(body => body.id === hint.preview_body_id) ?? -1) + 1}
@@ -891,17 +921,9 @@
                   <strong>{hint.selected_source_triangle_ids.length} / {hint.reconstructed_source_triangle_ids.length}</strong>
                 </div>
               </Disclosure>
-              <button
-                class="btn"
-                disabled={busy || !!processing}
-                aria-label={t('guidance.removeNamed', {n:hint.hint_id})}
-                onclick={() => removeGuidance(hint.hint_id)}
-              >
-                {t('guidance.remove')}
-              </button>
             </div>
           {/each}
-          {#if canMeasureDeviation && stepDocument && !sectionActive && guidanceHints.length < 16}
+          {#if guidanceHints.length && canMeasureDeviation && stepDocument && !sectionActive && guidanceHints.length < 16}
             {#key stepDocument}
               <SimilarRegions doc={stepDocument} bridge={native()!}
                 onpreview={triangles => { similarTriangles = triangles; }}
@@ -914,7 +936,7 @@
         </Section>
       {/if}
       <div class="document-controls">
-        {#if guidanceHints.length || guidedAttempt}
+        {#if guidanceHints.length || guidanceHistory || guidedAttempt}
           <p class="message warning" role="note">{t('guidance.optionsResetWarning')}</p>
         {/if}
         {#if format === '3mf'}
@@ -1498,6 +1520,13 @@
   .message.danger {
     color: var(--danger-text);
   }
+  .guidance-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--s1);
+  }
+  .guidance-actions select { flex: 1; min-width: 0; }
   .guidance-hint {
     display: grid;
     gap: var(--s1);

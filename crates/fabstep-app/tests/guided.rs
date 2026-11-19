@@ -432,3 +432,99 @@ fn successive_native_indications_keep_prior_walls_and_remove_one_by_stable_id() 
     assert_eq!(empty.report.cad.cylindrical_faces, 0);
     assert_eq!(empty.report.cad.faces, planar.report.cad.faces);
 }
+
+#[test]
+fn editing_and_restoring_hints_reprove_the_whole_step_from_the_same_source_region() {
+    use fabstep_core::GuidanceFamily;
+    let base =
+        convert_document_with_provenance(MIXED, InputFormat::Stl, &Options::default()).unwrap();
+    let seed = wall_seed(&base.step, MIXED, 0, "stl/component/0");
+    let add = base.step.guided_cylinder(&[seed]).unwrap();
+    let hint = add.report.guidance.as_ref().unwrap();
+    let mut check = |_| Ok(());
+    let edit = add
+        .step
+        .edit_guidance_controlled(hint.hint_id, GuidanceFamily::Auto, &mut check)
+        .unwrap();
+    let edited = edit.report.guidance.as_ref().unwrap();
+    assert_eq!((edited.hint_id, edited.family), (hint.hint_id, "auto"));
+    assert_eq!(
+        edited.selected_source_triangle_ids,
+        hint.selected_source_triangle_ids
+    );
+    assert_eq!(edited.selected_face_ids, hint.selected_face_ids);
+    assert_eq!(edit.report.cad.solids, 1);
+    let denied = edit
+        .step
+        .edit_guidance_controlled(hint.hint_id, GuidanceFamily::Cone, &mut check)
+        .err()
+        .unwrap();
+    assert!(denied.code.starts_with("guidance."), "{denied:?}");
+    let mut phases = Vec::new();
+    let undo = edit
+        .step
+        .undo_guidance_controlled(&mut |cp| {
+            phases.push(cp.phase);
+            Ok(())
+        })
+        .unwrap();
+    for required in [
+        fabstep_app::ConversionPhase::Analysis,
+        fabstep_app::ConversionPhase::Build,
+        fabstep_app::ConversionPhase::AuditComparison,
+        fabstep_app::ConversionPhase::Finish,
+    ] {
+        assert!(
+            phases.contains(&required),
+            "missing validation on undo: {required:?}"
+        );
+    }
+    assert_eq!(undo.report.guidance.as_ref().unwrap().family, "cylinder");
+    assert_eq!(
+        undo.report.cad.cylindrical_faces,
+        add.report.cad.cylindrical_faces
+    );
+    assert_eq!(
+        undo.step
+            .result_faces()
+            .unwrap()
+            .source_correspondence
+            .status,
+        "exact"
+    );
+    let replay = undo.step.redo_guidance_controlled(&mut check).unwrap();
+    assert_eq!(replay.report.guidance.as_ref().unwrap().family, "auto");
+    let remove = undo.step.remove_guidance(hint.hint_id).unwrap();
+    assert!(remove.report.guidance_hints.is_empty());
+    assert_eq!(remove.report.cad.faces, base.report.cad.faces);
+    assert_eq!(
+        remove
+            .step
+            .redo_guidance_controlled(&mut check)
+            .err()
+            .unwrap()
+            .code,
+        "guidance.history_unavailable"
+    );
+    let restored = remove.step.undo_guidance_controlled(&mut check).unwrap();
+    assert_eq!(
+        restored.report.guidance.as_ref().unwrap().family,
+        "cylinder"
+    );
+    let empty = restored.step.undo_guidance_controlled(&mut check).unwrap();
+    assert!(empty.report.guidance_hints.is_empty());
+    let history = empty.report.guidance_history.unwrap();
+    assert!(!history.undo && history.redo);
+    let seed = wall_seed(&empty.step, MIXED, 0, "stl/component/0");
+    let fresh = empty.step.guided_cylinder(&[seed]).unwrap();
+    assert!(fresh.report.guidance.as_ref().unwrap().hint_id > hint.hint_id);
+    assert!(!fresh.report.guidance_history.unwrap().redo);
+    assert_eq!(
+        base.step
+            .undo_guidance_controlled(&mut check)
+            .err()
+            .unwrap()
+            .code,
+        "guidance.history_unavailable"
+    );
+}
