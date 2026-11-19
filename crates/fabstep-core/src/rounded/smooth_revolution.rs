@@ -11,6 +11,7 @@
 //! edges have consistent lifts and nonzero triangles, extending coverage to
 //! boundaries and vertices. The same argument on each cap's cyclic polygon
 //! proves its planar interior before extending the inscribed rim to the disk.
+mod irregular;
 use super::*;
 use crate::{planar::Segmentation, CubicRevolutionSpan, SmoothRevolution};
 
@@ -425,7 +426,7 @@ pub(super) fn candidate(
     let pole = nodes.first().is_some_and(|n| n.radius == 0.);
     if a.mesh.triangles.len() > MAX_TRIANGLES
         || s.model.faces.len() > MAX_REGIONS
-        || !(5..=128).contains(&nodes.len())
+        || !(2..=128).contains(&nodes.len())
         || rims.len() != if pole { 1 } else { 2 }
     {
         return Ok(None);
@@ -450,7 +451,55 @@ pub(super) fn candidate(
     if cap_regions[0] == cap_regions[1] {
         return Ok(None);
     }
-    let Some(profile) = fit_profile(nodes, o, work)? else {
+    let structured = if nodes.len() >= 5 {
+        certify(a, s, nodes, frame, o, work, cap_regions, None)
+    } else {
+        Ok(None)
+    };
+    match &structured {
+        Ok(Some(_)) => return structured,
+        Err(e)
+            if !matches!(
+                e.code.as_str(),
+                "recognition.surface_unproven" | "recognition.deviation_exceeded"
+            ) =>
+        {
+            return structured
+        }
+        _ => (),
+    }
+    if pole {
+        return structured;
+    }
+    let Some(samples) = irregular::samples(a, s, nodes, cap_regions, frame, work)? else {
+        return structured;
+    };
+    certify(a, s, nodes, frame, o, work, cap_regions, Some(&samples))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn certify(
+    a: &Analysis,
+    s: &Segmentation,
+    nodes: &[Node],
+    frame: &Frame,
+    o: &Options,
+    work: &mut Work,
+    cap_regions: [usize; 2],
+    samples: Option<&[Node]>,
+) -> Result<Option<RoundedRecognition>, FabError> {
+    let last = nodes.len() - 1;
+    let pole = nodes[0].radius == 0.;
+    let fitting = samples.unwrap_or(nodes);
+    let profile = if samples.is_some() {
+        fit(fitting, o).map(|first| Profile {
+            first,
+            second: None,
+        })
+    } else {
+        fit_profile(nodes, o, work)?
+    };
+    let Some(profile) = profile else {
         return Ok(None);
     };
     let b = profile.first;
@@ -468,7 +517,7 @@ pub(super) fn candidate(
         return Err(unproven("précision de placement insuffisante"));
     }
     work.spend(9 * 9 * 9)?;
-    if !excludes_circle(a, nodes, frame, o.cylinder_fit_tolerance_mm + roundoff) {
+    if !excludes_circle(a, fitting, frame, o.cylinder_fit_tolerance_mm + roundoff) {
         return Ok(None);
     }
     if let Some((split, _)) = &profile.second {
@@ -504,6 +553,23 @@ pub(super) fn candidate(
     };
     let tol = o.cylinder_fit_tolerance_mm;
     let points = ring_points(a, frame, nodes, &f, tol, &mut bound)?;
+    let irregular_points = if samples.is_some() {
+        Some(irregular::corrected(
+            a,
+            s,
+            cap_regions,
+            &points,
+            nodes,
+            frame,
+            &f,
+            tol,
+            &mut bound,
+        )?)
+    } else {
+        None
+    };
+    let available =
+        o.max_deviation_mm - o.weld_tolerance_mm - bound.residual - roundoff - NATIVE_RESERVE_MM;
     let mut derivatives = Derivatives::default();
     for (lo, hi, controls) in spans(&f) {
         let local = Derivatives::new(controls);
@@ -556,9 +622,12 @@ pub(super) fn candidate(
             bound.curvature = bound.curvature.max(chord);
             owners.push(RoundedFaceRef::SmoothRevolution { index: 0 });
         } else {
-            bound.curvature = bound
-                .curvature
-                .max(derivatives.triangle(mapped, nodes, height)?);
+            let chord = if let Some(projected) = &irregular_points {
+                irregular::triangle(ids.map(|i| projected[i]), &f, available, work)?
+            } else {
+                derivatives.triangle(mapped, nodes, height)?
+            };
+            bound.curvature = bound.curvature.max(chord);
             owners.push(RoundedFaceRef::SmoothRevolution { index: 0 });
         }
     }
@@ -601,7 +670,7 @@ pub(super) fn candidate(
         report:RecognitionReport {
             cylinders:0,cones:0,spheres:0,tori:0,toroidal_fillets:0,revolutions:1,
             max_radial_residual_mm:bound.residual,max_wall_residual_mm:wall,max_chord_error_mm:bound.curvature,max_deviation_bound_mm:deviation,expected_volume_mm3:v,
-            diagnostics:vec![Diagnostic{code:"reconstruction.fitted_revolution".into(),severity:Severity::Warning,count:1,message:"Une méridienne cubique ajustée aux anneaux mesurés représente la paroi de révolution.".into()},
+            diagnostics:vec![Diagnostic{code:"reconstruction.fitted_revolution".into(),severity:Severity::Warning,count:1,message:if samples.is_some() {"La méridienne cubique est ajustée aux sommets de la paroi entre les deux disques mesurés."} else {"Une méridienne cubique ajustée aux anneaux mesurés représente la paroi de révolution."}.into()},
                 Diagnostic{code:"recognition.bound_scope".into(),severity:Severity::Info,count:1,message:"La borne couvre les extrémités et chaque triangle de la paroi, avec soudage, interpolation angle–hauteur et réserve native.".into()}],
         }
     }))

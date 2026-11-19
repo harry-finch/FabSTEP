@@ -1352,7 +1352,7 @@ fn classify(
             {
                 sections
             } else {
-                if (5..=128).contains(&nodes.len()) {
+                if (2..=128).contains(&nodes.len()) {
                     return Ok(Classified::Meridian {
                         frame,
                         nodes,

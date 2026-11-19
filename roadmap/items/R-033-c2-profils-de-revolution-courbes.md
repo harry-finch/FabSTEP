@@ -5,7 +5,7 @@ resume: "Révolutions toriques composées et première méridienne cubique born�
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13
-maj: 2026-11-18
+maj: 2026-11-19
 livree:
 ---
 
@@ -69,3 +69,5 @@ R-076 ajoute les deux profils toriques composés et obtus mesurés sur Flansch ;
 R-095 — Reconstruire une paroi de révolution dont la méridienne comporte deux segments cubiques à tangente commune. Voir V-1223.
 
 R-099 — Reconstruire une méridienne cubique entre un disque et une pointe présente dans le maillage. Voir V-1227.
+
+R-104 — Reconstruire une méridienne cubique lorsque le maillage FreeCAD ne présente pas d’anneaux intérieurs complets. Voir V-1234.

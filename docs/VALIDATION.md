@@ -2441,3 +2441,7 @@ Deux pièces qui produisaient 476 et 774 plans donnent six plans et deux cônes 
 ## V-1233 — Rebord torique intérieur et extérieur sur un récipient ouvert
 
 Les quatre STL FreeCAD de 10 922 à 30 018 triangles donnent trois plans, deux cylindres et deux tores. Avant l’extension, le petit récipient conservait 4 494 ou 7 123 faces selon la densité. FreeCAD relit les volumes à moins de 0,001 mm³ des dessins de 1 978,143279 et 3 512,827228 mm³. Les sondes vérifient la matière des deux côtés du rebord et le vide au-dessus du fond. La suite `rounded_lip` couvre la pièce retournée, la provenance des deux parois toriques et une méridienne endommagée. Commandes dans [le corpus](../fixtures/rounded_lip/README.md).
+
+## V-1234 — Révolution cubique sur un maillage irrégulier
+
+Trois STL issus de deux dessins FreeCAD produisent deux plans et une révolution. Deux de ces pièces produisaient auparavant 4 276 et 3 202 plans. FreeCAD contrôle les STEP réimportés à 495 positions, avec un écart radial maximal de 0,000000252 mm au profil dessiné. Le quatrième STL s’écarte réellement du profil de 0,08637 mm et conserve le refus analytique au budget de 0,05 mm. Les commandes, profils et densités figurent dans [le corpus](../fixtures/irregular_revolution/README.md).
