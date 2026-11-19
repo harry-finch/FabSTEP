@@ -541,3 +541,12 @@ Tests, Clippy, vérifications UI et builds après nettoyage non exécutés : la 
 L’utilisateur a ensuite choisi de reporter explicitement les tests et le build au prochain développement. A-098 est close avec cette réponse ; aucun succès de tests après nettoyage n’est revendiqué.
 
 **19 novembre 2026 — R-111 et helper pour les surfaces toriques.** Quatre solides à retour axial sont qualifiés dans V-1248. L’extension au mode Auto pour gros STL, les essais indépendants et les mesures de coût figurent dans V-1249 à V-1251. La rampe publique dense passe la conversion complète. L’essai du fichier Flansch suit dans R-085.
+
+
+## 2026-11-19 — Second nettoyage local A+B
+
+Sur `fabboard/nettoyage-2026-11-19`, issue de `main` à `5f901e88`, l’inventaire est parti d’un dépôt propre. Les sorties Cargo supplémentaires sous `artifacts/` ont été identifiées par leurs marqueurs et inspectées ; l’essai à blanc des 36 chemins a réussi. L’utilisateur a ensuite confirmé la liste [A-122](roadmap/actions/A-122-choisir-le-second-nettoyage-de-fabstep.md) par « oui vas y ».
+
+`fabboard clean trash` a déplacé les 35 chemins reconstructibles et `.DS_Store`, sans refus, soit 18 156 703 744 octets (16,9 Gio). Le projet passe de 23 940 857 856 à 5784166400 octets, soit 22,3 à 5,4 Gio. Les éléments restent récupérables dans la Corbeille, où ils occupent encore le disque. Les caches du formateur Python sont conservés comme prévu (6914048 octets détectés par le scan).
+
+Les 36 chemins approuvés sont absents et aucun fichier suivi n’est supprimé. Les empreintes de contenu SHA-256 des deux applications FabSTEP et du dossier entier de la candidate NEON sont identiques avant/après. Les corpus, CAO, rapports, journaux, sources de laboratoire, illustrations et historiques restent en place. `cargo fmt --all -- --check` et `git diff --check` ont réussi ; aucun test, Clippy, contrôle UI ou build après nettoyage n’est revendiqué. Le report au prochain développement conserve la préférence exprimée dans A-098 et reprise dans la proposition A-122 approuvée. Réinstaller les dépendances UI via `npm --prefix ui ci` avant `scripts/check.sh` ; conserver la compilation du worker séparée du bureau. Aucun merge ni push.
