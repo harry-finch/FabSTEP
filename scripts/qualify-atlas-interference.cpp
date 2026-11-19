@@ -21,6 +21,35 @@ TopoDS_Face triangle(gp_Pnt a, gp_Pnt b, gp_Pnt c) {
   return BRepBuilderAPI_MakeFace(BRepBuilderAPI_MakePolygon(a, b, c, true).Wire()).Face();
 }
 
+bool bounded_valid(atlas_interference::Checker &checker, const TopTools_IndexedMapOfShape &faces) {
+  try {
+    checker.run(faces);
+    return true;
+  } catch (const atlas_interference::Failure &) {
+    return false;
+  }
+}
+
+void open_face_wire() {
+  const auto closed = triangle({0, 0, 0}, {3, 0, 0}, {0, 2, 0});
+  auto face = TopoDS::Face(closed.EmptyCopied());
+  TopExp_Explorer edge(closed, TopAbs_EDGE);
+  BRep_Builder builder;
+  TopoDS_Wire wire;
+  builder.MakeWire(wire);
+  builder.Add(wire, edge.Current());
+  edge.Next();
+  builder.Add(wire, edge.Current());
+  builder.Add(face, wire);
+  TopTools_IndexedMapOfShape faces;
+  faces.Add(face);
+  atlas_interference::Checker checker;
+  BRepAlgoAPI_Check reference(face, false, true);
+  if (reference.HasErrors() || reference.IsValid() || bounded_valid(checker, faces))
+    throw std::runtime_error("Face with an open boundary was accepted.");
+  std::cout << "open face wire rejected\n";
+}
+
 void check_case(bool split, bool intersect) {
   const double far = split ? 900. : 12.;
   const double height = intersect ? 0. : 4.;
@@ -40,13 +69,8 @@ void check_case(bool split, bool intersect) {
   TopTools_IndexedMapOfShape faces;
   TopExp::MapShapes(shape, TopAbs_FACE, faces);
   BRepAlgoAPI_Check whole(shape, false, true);
-  bool valid = true;
   atlas_interference::Checker checker;
-  try {
-    checker.run(faces);
-  } catch (const atlas_interference::Failure &) {
-    valid = false;
-  }
+  const bool valid = bounded_valid(checker, faces);
   size_t owner_a = 0, owner_b = 0;
   for (const auto &node : checker.tree)
     if (node.left < 0) {
@@ -120,6 +144,11 @@ void near_planar_fan() {
   if (atlas_fan::circle_injective(folded, q->first, q->middle, q->last, edge.Circle().Axis().Direction(), 1e-7))
     throw std::runtime_error("Folded rational fan was eligible.");
   BRepAlgoAPI_Check old(original, false, true);
+  TopTools_IndexedMapOfShape singular;
+  singular.Add(original);
+  atlas_interference::Checker individual;
+  if (old.HasErrors() || bounded_valid(individual, singular) != old.IsValid())
+    throw std::runtime_error("Unexpected individual near-planar fan verdict.");
   auto candidate = atlas_fan::repair(original);
   if (old.IsValid() == bool(candidate))
     throw std::runtime_error("Incorrect apex repair routing.");
@@ -139,6 +168,18 @@ void near_planar_fan() {
   BRepAlgoAPI_Check complete(pair, false, true);
   if (complete.HasErrors() || !complete.IsValid() || !BRepCheck_Analyzer(pair, true, false, true).IsValid())
     throw std::runtime_error("Reconstructed torus seam is invalid.");
+  TopTools_IndexedMapOfShape adjacent;
+  TopExp::MapShapes(pair, TopAbs_FACE, adjacent);
+  atlas_interference::Checker checker;
+  if (adjacent.Extent() != 2 || !bounded_valid(checker, adjacent))
+    throw std::runtime_error("Shared torus seam was refused in one leaf.");
+  // Force a cross-leaf check of exactly these two incident faces.
+  const int left = checker.build(0, 1);
+  const int right = checker.build(1, 2);
+  const auto before = checker.groups;
+  checker.inspect(left, right);
+  if (checker.groups != before + 1)
+    throw std::runtime_error("Shared torus seam missed the cross-leaf check.");
   const auto evaluated = BRepAdaptor_Surface(*candidate);
   for (int i = 0; i <= 32; ++i)
     for (int j = 0; j <= 8; ++j) {
@@ -189,6 +230,7 @@ int main(int argc, char **argv) try {
   }
   if (argc != 1)
     throw std::runtime_error("Expected --ruled-faces path.step or no arguments.");
+  open_face_wire();
   near_planar_fan();
   for (bool split : {false, true})
     for (bool intersect : {false, true})
