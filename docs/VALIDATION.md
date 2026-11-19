@@ -2728,6 +2728,19 @@ Sur le corps privé, 29 traces sur 46 671 faces remplissent les conditions. Su
 
 Le helper de laboratoire corrigé repasse les contrôles géométriques du solide entier avant écriture et après relecture, puis retrouve une bijection entre les 46 671 étiquettes et les 46 671 faces réimportées. Les deux états comptent 31 746 plans, 43 tores et 14 882 B-splines. Le volume passe de 54 337,961918051 à 54 337,961935345 mm³. La borne géométrique du constructeur est de 0,027027217 mm et la taille du STEP est de 132 113 374 octets. Les contrôles de transfert isolés prennent 186,68 s pour un pic échantillonné de 3,28 Gio. Le laboratoire termine par une erreur volontaire. Les deux appels de contrôle des interférences ont leur propre campagne sur les formes sauvegardées.
 
+**Contrôle des interférences sur les captures.** La liste ordonnée des faces de chaque composé a été comparée à celle du dispatcher du produit. Sur la capture précédant la correction de la loi circulaire, le contrôle mono-forme OCCT accepte directement les 6 793 groupes natifs et les 6 763 groupes relus. Sur la capture corrigée, les représentations des composés, les incidences, les localisations, les orientations, les tolérances, les p-courbes et les extrémités UV mémorisées ont été comparées. Des contre-exemples modifient notamment le partage, le sens et une extrémité de couture de 10⁻⁹. Un verdict hérité exige un enregistrement complet sur le composé de référence correspondant.
+
+| État du solide corrigé | Verdict repris sur composé identique | Composés différents revérifiés par OCCT | Refus |
+|---|---:|---:|---:|
+| Natif | 6 439 | 354 | 0 |
+| Relu depuis le STEP | 6 413 | 350 | 0 |
+
+Le cumul des temps CPU des contrôles des groupes corrigés est de 13 533 s avant transfert et 13 598 s après, en incluant les mesures des composés identiques. Sur l’état de référence, environ 70 % du temps CPU provient de 442 groupes natifs et 439 groupes relus qui dépassent chacun 10 s. Le groupe (1880, 1881) réunit 80 petites B-splines et 11 plans. Il prend 65,9 s CPU avant transfert et 69,1 s après. Cette géométrie reste identique après correction de la loi de bord. Les mesures du banc réparti portent sur les contrôles OCCT, le temps mural du helper est mesuré séparément. Le résultat de chaque groupe et les empreintes des captures figurent dans `artifacts/r085-suite/full/arc/final.json` et les journaux associés.
+
+**Rejeu du paquet de développement.** Sur le STL original, le helper inclus dans `artifacts/FabSTEP.app` termine à l’échéance de 1 800,19 s. Le pic échantillonné est de 3 259 632 808 octets (3,04 Gio). Un échantillonnage de pile à la 27ᵉ minute montre les opérations arête/face du contrôle mono-forme `BRepAlgoAPI_Check` dans le dispatcher de l’atlas. Le répertoire du job ne contient ni résultat STEP ni rapport final. Le helper de cette même application réussit la rampe et le secteur publics avec les métriques indiquées plus haut.
+
+**Tests du dépôt.** `sh scripts/check.sh` passe sur macOS. Les 143 binaires de test du workspace, recompilés après la dernière correction de la courbe de bord, réussissent aussi en exécution directe : 715 tests, 18 ignorés dans la suite standard. Les 241 tests UI, les 54 tests du bureau, les 11 tests du helper, les contrôles Rust/TypeScript, le profil `large-stl` et le test supplémentaire du bureau avec le helper compilé passent. Le banc C++ public couvre le filtre d’interférences, la relecture des raccords, leur maillage et le bord circulaire dans les deux sens. L’essai manuel FabSTEP/Fusion des deux témoins R-115 reste suivi dans A-124.
+
 ## V-1263 — Plans fragmentés sur STL binaire tourné
 
 Deux solides fermés de 96 triangles utilisent le même pavage irrégulier. La première pièce est un bloc, la seconde a une pente sur une partie de sa face supérieure. Les coordonnées sont écrites en f32 après transformation. Les deux fixtures du dépôt se régénèrent avec `scripts/generate-r115-planes.py`.
