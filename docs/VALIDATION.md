@@ -2453,3 +2453,9 @@ Les maillages indépendants de 1 088, 1 562, 1 068 et 1 556 triangles à 60° et
 ## V-1236 — Révolution à deux cubiques tangentes sur un maillage irrégulier
 
 Quatre maillages indépendants de 4 442 à 7 916 triangles donnent deux plans et une seule face de révolution après réimport. La position du raccord est estimée entre les hauteurs mesurées. Le test contrôle la continuité des tangentes, la partition source et une borne maximale de 0,049746 mm pour un budget de 0,05 mm. Une rupture de tangente conserve le refus. Les commandes et les références FreeCAD figurent dans [le corpus](../fixtures/irregular_revolution/README.md).
+
+## V-1237 — Fermeture et attribution des zones résiduelles de la bride
+
+Le laboratoire raccorde les facettes restantes et remplace 68 426 triangles par 19 domaines toriques interrompus. Le fichier de 22 622 983 octets se réimporte avec un solide fermé de 13 802 faces et un volume de 54 334,693960 mm³ (source : 54 336,072562 mm³). Le contrôle du graphe retrouve les propriétaires des 540 170 triangles. OCCT produit 145 370 triangles à 0,01 mm et 215 486 à 0,005 mm. Le plafond applicatif vaut 100 000. Le candidat de laboratoire ne constitue donc pas encore un résultat FabSTEP exportable.
+
+Depuis l’entrée de V-1210, lancer `PYTHON=/Applications/FreeCAD.app/Contents/Resources/bin/python sh scripts/qualify-flange-residual.sh --checkpoint CHEMIN_V1210 SORTIE`. Sur un autre poste, le mode `--public SORTIE` génère indépendamment une rampe torique interrompue de 8 232 triangles, reconstruite en 4 363 faces. Lancer ensuite `python3 scripts/qualify-flange-residual-controls.py SORTIE`. Les quatre variantes doivent refuser un propriétaire dupliqué, un rayon déplacé, un enroulement inversé et une borne de déviation sous-estimée.

@@ -418,7 +418,7 @@ def circle_bound(edge, points):
     return bound
 
 
-def match_native(native, xyz, a, b, frontier):
+def match_native(native, xyz, a, b, frontier, matched=None):
     tree = cKDTree(xyz)
     lookup = {(int(v), int(u)): i for i, (u, v) in enumerate(zip(a, b, strict=True))}
     require(len(lookup) == len(a), "Duplicate directed source boundary edge")
@@ -505,6 +505,8 @@ def match_native(native, xyz, a, b, frontier):
                     )
                 )
             path = paths[i]
+            if matched is not None:
+                matched.append((edge, tuple(path)))
             points = xyz[np.r_[b[path[0]], a[path]]]
             if edge["kind"] == "circle":
                 max_circle = max(max_circle, circle_bound(edge, points))
