@@ -16,6 +16,7 @@ fn main() {
         "height_patch.hxx",
         "cut_octant_build.hxx",
         "cut_octant_check.hxx",
+        "cut_octant_frame.hxx",
         "torus_sector.hxx",
         "trim_native_step.hxx",
         "trim_edge_cache.hxx",

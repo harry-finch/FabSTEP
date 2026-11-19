@@ -2866,9 +2866,9 @@ L’ABI native sur les quatre coins possibles donne dix faces pour 5 733,46607
 
 | Témoin STL f32 | Triangles attribués | Faces STEP | Volume OCCT en mm³ | Distances échantillonnées aller / retour en mm |
 |---|---:|---:|---:|---|
-| Ø20, grossier | 428 / 428 | 4 | 4 686,771263 | 0,036058 / 0,036321 |
+| Ø20, grossier | 428 / 428 | 4 | 4 686,771264 | 0,036058 / 0,036321 |
 | Ø20, fin | 644 / 644 | 4 | 4 686,771178 | 0,009008 / 0,009010 |
-| Ø19,4, variante | 648 / 648 | 4 | 4 301,440859 | 0,008737 / 0,008740 |
+| Ø19,4, variante | 648 / 648 | 4 | 4 301,440853 | 0,008738 / 0,008740 |
 
 Les deux disques, le cylindre extérieur et la paroi du perçage reçoivent les propriétaires attendus. Le contrôle natif vérifie les deux branches, leurs traces sur chaque cylindre, le centre du perçage et les paramètres des supports avant et après transfert. Une source tournée et déplacée est acceptée. Un sommet de jonction déformé, une inversion de cycle, un rayon non fini et une position axiale falsifiée sont couverts par les tests de refus.
 
@@ -2879,3 +2879,5 @@ Le volume du puits enlève du cylindre le volume de l’intersection. Le dévelo
 - Demi-tronc de cône à quatre rangées. L’ancien parcours construisait 195 plans. Auto relit trois plans et un cône, avec une attribution exacte des 192 triangles de la paroi et un volume de 36,5210 mm³. Le maillage tourné conserve ses faces. Les variantes elliptique et bombée restent facettisées.
 - Octant découpé de rayon 5 mm. Les 378 triangles donnent trois plans et une face sphérique, contre 361 plans avant l’extension. Les 324 triangles sphériques et 54 triangles plans sont attribués. Le volume relu vaut 65,44984695 mm³ et les distances échantillonnées 0,013545 / 0,014828 mm. Les trois profils DXF comprennent chacun deux rayons et un quart de cercle. L’ellipsoïde, le coin déplacé et le bord falsifié font partie des refus.
 - Arbre de rayon 5 mm à bossage longitudinal sur toute sa hauteur. Les deux maillages (168 et 300 triangles) étaient déjà pris en charge par le domaine cylindrique existant. La qualification vérifie le grand arc de 286,26°, ses quatre voisins, six faces au total et un volume de 344,583010 mm³. Les mesures maximales aux deux densités sont de 0,009747 et 0,002927 mm. Une déformation elliptique conserve 45 puis 78 plans.
+
+La pose quantifiée de V-1264 fragmentait les bouchons et produisait 418 plans. Une recherche bornée sur le repli entièrement planaire retrouve les deux cercles, puis le domaine à quatre faces. Pour les octants, un test multi-corps compare les centres et les trois extrémités des arcs dans la scène après réimport. Le banc natif distingue aussi un octant réfléchi de même volume et même boîte.

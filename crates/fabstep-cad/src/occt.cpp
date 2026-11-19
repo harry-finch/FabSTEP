@@ -1768,6 +1768,7 @@ void check_rounded_box_geometry(const TopoDS_Shape& shape, const TopTools_Indexe
 }
 
 #include "cut_octant_check.hxx"
+#include "cut_octant_frame.hxx"
 
 // Re-establish the bounded ten-face contract after every STEP import, also
 // when assembling separate roots without the original model. The sphere's
@@ -2655,6 +2656,10 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
                                 before[i].report.unequal ? &*before[i].report.unequal : nullptr,
                                 before[i].report.shaft ? &*before[i].report.shaft : nullptr);
     if (before[i].report.height) height_patch::verify(shape, stage, &*before[i].report.height);
+    if (report.surfaces.spherical_octants == 1 && report.surfaces.planar == 3 &&
+        !cut_octant::same_placement(before[i].shape, shape)) {
+      throw CadFailure{mismatch, "Le centre ou les extrémités de l’octant ont changé dans le document STEP."};
+    }
     if (!same_measurement(before[i].report.metrics, report.metrics)) {
       throw CadFailure{mismatch, "Les dimensions, la position ou le volume d'un corps changent au réimport."};
     }
@@ -4085,6 +4090,9 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     const auto reopened = read_step(stream);
     if (expected_height) height_patch::verify(reopened,stage,expected_height);
     const CadMetrics after = measure(reopened, expected, stage, expected_box,expected_drill,expected_revolution,expected_sector,expected_pocket,expected_unequal,expected_shaft);
+    if (expected.spherical_octants == 1 && expected.planar == 3 && !cut_octant::same_placement(solid, reopened)) {
+      throw CadFailure{mismatch, "Le centre ou les extrémités de l’octant ont changé après réimport STEP."};
+    }
     if (!same_measurement(before, after)) {
       throw CadFailure{mismatch, "Les dimensions ou le volume changent après réimport du STEP."};
     }

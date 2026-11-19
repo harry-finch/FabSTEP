@@ -111,3 +111,39 @@ fn tighter_deviation_keeps_the_curved_patch_faceted_in_auto() {
     assert_eq!(result.report.cad.spherical_faces, 0);
     assert_eq!(result.report.cad.faces, result.report.cad.planar_faces);
 }
+
+#[test]
+fn separated_octants_keep_each_center_and_its_corners_in_the_combined_step() {
+    let mut data = OCTANT.to_vec();
+    let mut second = data[84..].to_vec();
+    for triangle in second.chunks_exact_mut(50) {
+        for p in triangle[12..48].chunks_exact_mut(12) {
+            // Rotate the second copy exactly in binary32. This isolates
+            // STEP placement from a second quantization of the source mesh.
+            for coordinate in p[..8].chunks_exact_mut(4) {
+                let x = f32::from_le_bytes(coordinate.try_into().unwrap());
+                coordinate.copy_from_slice(&(-x).to_le_bytes());
+            }
+        }
+    }
+    data[80..84].copy_from_slice(&(2 * 378_u32).to_le_bytes());
+    data.extend(second);
+    let options = Options {
+        reconstruction: ReconstructionMode::Auto,
+        ..Options::default()
+    };
+    let result = convert_document_with_provenance(&data, InputFormat::Stl, &options).unwrap();
+    assert_eq!(result.report.cad.solids, 2);
+    assert_eq!(result.report.cad.spherical_faces, 2);
+    let bounds: Vec<_> = result
+        .report
+        .bodies
+        .iter()
+        .map(|b| b.conversion.cad.bounds_mm)
+        .collect();
+    assert_eq!(bounds.len(), 2);
+    for k in 0..2 {
+        assert!((bounds[0][0][k] + bounds[1][1][k]).abs() < 1e-6);
+        assert!((bounds[0][1][k] + bounds[1][0][k]).abs() < 1e-6);
+    }
+}
