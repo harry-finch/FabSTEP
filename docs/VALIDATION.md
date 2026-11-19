@@ -2583,3 +2583,11 @@ Dans le témoin minimal, la ligne signalée par OCCT a une corde nulle et onze p
 Le nouveau constructeur intervient lorsqu’un raccord à base circulaire a une projection injective et que le seul défaut individuel signalé se concentre au sommet. Il remplace son support par une surface rationnelle quadratique de même contour. Les arêtes et sommets restent partagés. La face candidate passe les contrôles géométriques et d’interférence, puis la coque complète suit la validation habituelle.
 
 Sur Flansch, le constructeur change exactement six des 46 671 supports. Toutes les identités de faces sont conservées. Le groupe 740 et les 14 882 tests individuels passent après couture. Le volume calculé de la coque varie de moins de 0,000000002 mm³. Le témoin public à arc de 10 mm reproduit le défaut initial et vérifie le partage du bord et la fidélité du remplacement. La rampe indépendante à 8 232 triangles est convertie, relue et tessellée à 0,005 mm en 15 442 triangles avec une borne de 0,013721 mm.
+
+## V-1258 — Verdict du paquet corrigé sur le STL original
+
+Le même banc supervise le helper optimisé du paquet de développement (SHA-256 `82fa61333f5addd3b4ac978419e635b45b52b85dd82f8ecb91ccdff1e2305793`). En mode Auto, avec les paramètres de V-1256 et les 540 170 triangles de Flansch, le superviseur atteint son échéance à **1 800,039 s** et retourne **`worker.timeout`**. Le calcul se trouve en phase de construction. Aucune publication de résultat et aucun processus fils subsistant. Le contrôle complet de la pièce demeure ouvert.
+
+Sur le même paquet, le test indépendant de la rampe de 194 694 triangles réussit avec 659 faces, un volume de 93,536793 mm³ et des distances de 0,004717 et 0,004703 mm. La suite Rust du workspace passe **707 tests**, aucun échec, 18 ignorés. Le bureau avec le vrai helper passe 51 tests, l’interface 238. Le formatage, Clippy, le build macOS, la compilation UI et le lint FabBoard passent. Les actions FabBoard conservent les vérifications manuelles dans FabSTEP et Fusion.
+
+Pour reprendre, commencer par mesurer la répartition du coût entre interférences arête/face et face/face sur le banc natif. Comparer toute optimisation sur le contrôle complet de la rampe et sur les témoins négatifs de V-1251 avant le rejeu du helper sur Flansch. Les gains mesurés sur un sous-ensemble de groupes figurent après V-1255.
