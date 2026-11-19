@@ -12,6 +12,15 @@
   "app": {
     "windows": [],
     "security": {
+      "capabilities": [
+        {
+          "identifier": "main-local",
+          "description": "Commandes de l’atelier FabSTEP dans la fenêtre principale.",
+          "windows": ["main"],
+          "local": true,
+          "permissions": ["atelier"]
+        }
+      ],
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src ipc: http://ipc.localhost; worker-src 'self' blob:"
     }
   },
