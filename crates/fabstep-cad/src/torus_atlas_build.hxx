@@ -206,6 +206,27 @@ TopoDS_Solid sew(const std::vector<TopoDS_Face> &originals, const size_t *tokens
     used.Add(f);
     labels.emplace_back(f, tokens[i]);
   }
+  BRepTools_ReShape replacements;
+  bool changed = false;
+  for (auto &label : labels) {
+    const auto original = TopoDS::Face(label.first);
+    if (auto candidate = atlas_fan::repair(original)) {
+      replacements.Replace(original, *candidate);
+      label.first = *candidate;
+      changed = true;
+    }
+  }
+  if (changed) {
+    solid = TopoDS::Solid(replacements.Apply(solid));
+    TopTools_IndexedMapOfShape new_faces, identified;
+    TopExp::MapShapes(solid, TopAbs_FACE, new_faces);
+    for (const auto &label : labels) {
+      verify(new_faces.Contains(label.first) && !identified.Contains(label.first), "Face de raccord perdue.");
+      identified.Add(label.first);
+    }
+    verify(new_faces.Extent() == identified.Extent() && BRepLib::OrientClosedSolid(solid),
+           "Les raccords toriques ne forment plus un solide orienté.");
+  }
   return solid;
 }
 } // namespace atlas_native

@@ -2577,3 +2577,9 @@ Rejeu manuel : ouvrir le STL, choisir le millimètre et le mode Automatique, acc
 Sur la coque avant transfert, les 739 premiers groupes spatiaux passent. Le groupe 740 signale deux faces. La face native 39 332 reproduit le défaut à elle seule. Les six triangles d’analyse concernés parmi 14 882 raccords réglés sont 397 534, 397 648, 397 670, 397 673, 397 901 et 397 904 (indices à partir de zéro).
 
 Dans le témoin minimal, la ligne signalée par OCCT a une corde nulle et onze points confondus au sommet à environ 7 × 10⁻¹⁵ mm. Les six arcs balayent environ 1° et leurs sommets sont à environ 1,17 × 10⁻⁸ mm du plan de l’arc. La projection de chaque éventail conserve le signe de son déterminant jusqu’au sommet. En laboratoire, une surface rationnelle de degrés (2,1) réutilisant les arêtes d’origine passe le contrôle local et celui de la paire avec sa voisine torique sur les six faces et sur la rampe publique. Cette expérience locale porte sur les faces avant transfert.
+
+## V-1257 — Raccord circulaire exact au sommet singulier
+
+Le nouveau constructeur intervient lorsqu’un raccord à base circulaire a une projection injective et que le seul défaut individuel signalé se concentre au sommet. Il remplace son support par une surface rationnelle quadratique de même contour. Les arêtes et sommets restent partagés. La face candidate passe les contrôles géométriques et d’interférence, puis la coque complète suit la validation habituelle.
+
+Sur Flansch, le constructeur change exactement six des 46 671 supports. Toutes les identités de faces sont conservées. Le groupe 740 et les 14 882 tests individuels passent après couture. Le volume calculé de la coque varie de moins de 0,000000002 mm³. Le témoin public à arc de 10 mm reproduit le défaut initial et vérifie le partage du bord et la fidélité du remplacement. La rampe indépendante à 8 232 triangles est convertie, relue et tessellée à 0,005 mm en 15 442 triangles avec une borne de 0,013721 mm.

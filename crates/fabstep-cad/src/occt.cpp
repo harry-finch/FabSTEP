@@ -3,6 +3,7 @@
 #include "trim_native_fan_mesh.hxx"
 #include "torus_atlas_abi.hxx"
 #include "torus_atlas_interference.hxx"
+#include "torus_atlas_fan.hxx"
 #include "torus_atlas_pcurve.hxx"
 #include <GeomConvert.hxx>
 #include <BRepOffsetAPI_ThruSections.hxx>
