@@ -6,6 +6,6 @@ out=${1:-artifacts/atlas-interference}
 if [ "$#" -gt 0 ]; then shift; fi
 mkdir -p "$out"
 "${CXX:-c++}" -std=c++17 -O2 -isystem "$sdk/include/opencascade" "$src/qualify-atlas-interference.cpp" \
-  -L "$sdk/lib" -Wl,-rpath,"$sdk/lib" -lTKDESTEP -lTKXSBase -lTKBO -lTKGeomAlgo -lTKPrim -lTKTopAlgo -lTKBRep -lTKG3d -lTKG2d -lTKMath \
+  -L "$sdk/lib" -Wl,-rpath,"$sdk/lib" -lTKDESTEP -lTKXSBase -lTKOffset -lTKGeomBase -lTKBO -lTKGeomAlgo -lTKPrim -lTKTopAlgo -lTKBRep -lTKG3d -lTKG2d -lTKMath \
   -lTKernel -o "$out/qualify-atlas-interference"
 "$out/qualify-atlas-interference" "$@"
