@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 108** (21 %)
+**Avancement : 23 livrés sur 109** (21 %)
 
 ## Restant à faire
 
@@ -182,6 +182,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Reconstruire trois congés cylindriques reliés par deux ellipses au fond de la même poche.
 85. **[R-108 Perçages obliques décalés suivant la normale commune](roadmap/items/R-108-percages-obliques-decales-suivant-la-normale.md)** · À tester · jalon post-v1
    Reconstruire deux perçages dont les axes sont inclinés et décalés latéralement, à quatre bouches circulaires.
+86. **[R-109 Deux congés variables sur des arêtes gauches](roadmap/items/R-109-deux-conges-variables-sur-des-aretes-gauches.md)** · À tester · jalon post-v1
+   Reconstruire deux congés à rayon affine portés par deux arêtes disjointes non parallèles du même bloc.
 
 ## Actions à faire
 
@@ -287,6 +289,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-113](roadmap/actions/A-113-verifier-la-revolution-sur-les-stl-two-span-et.md) Vérifier la révolution sur les STL two_span et two_span_turned (tester, R-106)
 - [ ] [A-114](roadmap/actions/A-114-controler-les-trois-conges-du-fond-de-poche-dans.md) Contrôler les trois congés du fond de poche dans Fusion (tester, R-107)
 - [ ] [A-115](roadmap/actions/A-115-verifier-les-trous-obliques-decales-dans-fusion.md) Vérifier les trous obliques décalés dans Fusion (tester, R-108)
+- [ ] [A-116](roadmap/actions/A-116-essayer-les-deux-orientations-des-conges.md) Essayer les deux orientations des congés variables sur arêtes gauches (tester, R-109)
 
 ## Livré
 

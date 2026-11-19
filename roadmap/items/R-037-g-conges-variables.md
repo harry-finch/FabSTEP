@@ -56,3 +56,5 @@ Première tranche intégrée : [R-082](R-082-g1-reconstruire-un-raccord-a-rayon-
 R-094 étend le raccord linéaire à des bandes reliant directement les deux coupes elliptiques. Le témoin de R-093 passait ici à 176 faces planes. Voir V-1222.
 
 R-102 — Reconstruire deux congés de lois linéaires distinctes sur des arêtes parallèles opposées. Voir V-1232.
+
+R-109 — Reconstruire deux congés à rayon affine portés par deux arêtes disjointes non parallèles du même bloc. Voir V-1241.
