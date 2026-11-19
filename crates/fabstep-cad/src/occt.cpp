@@ -1840,7 +1840,7 @@ void check_trihedral_geometry(const TopoDS_Shape& solid, const TopTools_IndexedM
 // a multi-root STEP read where no scalar construction model is available.
 struct BlendMeasurement {
   std::array<TopoDS_Face, 2> caps, sides;
-  double box_volume, removed, setback, width;
+  double box_volume, removed, setback;
 };
 
 BlendMeasurement measure_linear_corner(const TopoDS_Face& wall, const TopTools_IndexedMapOfShape& faces,
@@ -1971,7 +1971,6 @@ BlendMeasurement measure_linear_corner(const TopoDS_Face& wall, const TopTools_I
   out.box_volume = height * lengths[0] * lengths[1];
   out.removed = height * cut * (radius[0] * radius[0] + radius[0] * radius[1] + radius[1] * radius[1]) / 3.;
   out.setback = std::max(radius[0], radius[1]);
-  out.width = std::min(lengths[0], lengths[1]);
   return out;
 }
 
@@ -2009,13 +2008,26 @@ void check_linear_blend_geometry(const TopoDS_Shape& shape, const TopTools_Index
   if (corners.size() == 2) {
     const auto& other = corners[1];
     const double tol = 4. * Precision::Confusion();
-    for (const auto& cap : other.caps)
-      if (!cap.IsSame(first.caps[0]) && !cap.IsSame(first.caps[1]))
-        throw invalid;
-    for (const auto& side : other.sides)
-      if (side.IsSame(first.sides[0]) || side.IsSame(first.sides[1]))
-        throw invalid;
-    if (first.setback + other.setback + tol >= std::min(first.width, other.width) ||
+    // The tangent supports are disjoint. Opposite pairs on the box give
+    // separating slabs for the two trimmed conical strips. Parallel edges
+    // have two such slabs; skew orthogonal edges have exactly one.
+    const bool parallel = first.caps[0].IsSame(other.caps[0]) || first.caps[0].IsSame(other.caps[1]);
+    const auto z1 = BRepAdaptor_Surface(first.caps[0]).Plane().Axis().Direction();
+    const auto z2 = BRepAdaptor_Surface(other.caps[0]).Plane().Axis().Direction();
+    if (parallel) {
+      if (!first.caps[1].IsSame(other.caps[0]) && !first.caps[1].IsSame(other.caps[1])) throw invalid;
+    } else if (!z1.IsNormal(z2, box_angle_tolerance)) throw invalid;
+    size_t opposing = 0;
+    double clearance = std::numeric_limits<double>::infinity();
+    for (const auto& a : first.sides) for (const auto& b : other.sides) {
+      if (a.IsSame(b)) throw invalid;
+      const auto pa = BRepAdaptor_Surface(a).Plane(), pb = BRepAdaptor_Surface(b).Plane();
+      if (pa.Axis().Direction().IsParallel(pb.Axis().Direction(), box_angle_tolerance)) {
+        ++opposing;
+        clearance = std::min(clearance, pa.Distance(pb.Location()));
+      }
+    }
+    if (opposing != (parallel ? 2u : 1u) || first.setback + other.setback + tol >= clearance ||
         std::abs(first.box_volume - other.box_volume) > first.box_volume * 1.e-8)
       throw invalid;
     ideal -= other.removed;

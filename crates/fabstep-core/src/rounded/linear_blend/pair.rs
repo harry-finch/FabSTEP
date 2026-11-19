@@ -1,10 +1,9 @@
-//! Two disjoint exterior rolling cones on opposite, parallel box corners.
+//! Two disjoint exterior rolling cones on parallel or skew edges of a box.
 use super::*;
 
-// A four-sided cap has lost both opposite corners. Each of the four side
-// planes is adjacent to both caps and one other side. Restore only the
-// second missing adjacency to identify the first corner with the single
-// blend frame routine. The actual mesh incidence is verified below.
+// Two missing adjacencies between perpendicular supports identify the removed
+// corners. Restoring either one isolates the six-plane frame of the other.
+// Full incidence is checked afterwards on the original source triangles.
 fn frames(
     top: &[(f64, usize)],
     neighbors: [u8; 6],
@@ -29,28 +28,38 @@ fn frames(
             }
         }
     }
-    let [_, (i, j)] = missing.as_slice() else {
+    let [first, second] = missing.as_slice() else {
         return Ok(None);
     };
-    let mut single = neighbors;
-    single[*i] |= 1 << j;
-    single[*j] |= 1 << i;
-    let Some(f) = frame(top, single, a, s, work)? else {
+    let restore = |&(i, j): &(usize, usize)| {
+        let mut single = neighbors;
+        single[i] |= 1 << j;
+        single[j] |= 1 << i;
+        single
+    };
+    let Some(f) = frame(top, restore(second), a, s, work)? else {
         return Ok(None);
     };
-    let opposite = Block {
-        origin: f.world([f.lengths[0], f.lengths[1], 0.]),
-        axes: [scale(f.axes[0], -1.), scale(f.axes[1], -1.), f.axes[2]],
-        regions: [3, 4, 2, 0, 1, 5].map(|i| f.regions[i]),
-        lengths: f.lengths,
+    let Some(mut other) = frame(top, restore(first), a, s, work)? else {
+        return Ok(None);
     };
-    Ok(Some([f, opposite]))
+    if f.regions[2] == other.regions[2] || f.regions[2] == other.regions[5] {
+        // Preserve the established orientation of opposite, parallel corners.
+        other = Block {
+            origin: f.world([f.lengths[0], f.lengths[1], 0.]),
+            axes: [scale(f.axes[0], -1.), scale(f.axes[1], -1.), f.axes[2]],
+            regions: [3, 4, 2, 0, 1, 5].map(|i| f.regions[i]),
+            lengths: f.lengths,
+        };
+    }
+    Ok(Some([f, other]))
 }
 
 fn partition(
     a: &Analysis,
     s: &crate::planar::Segmentation,
     f: &Block,
+    faces: [[usize; 4]; 2],
     adj: &[Vec<usize>],
     work: &mut Work,
 ) -> Result<Vec<usize>, FabError> {
@@ -88,11 +97,13 @@ fn partition(
                 }
             }
         }
-        let owner = match mask {
-            0b100111 => CONE,
-            0b111100 => CONE + 1,
-            _ => return Err(unproven("supports du deuxième cône indéterminés")),
+        let Some(i) = faces
+            .iter()
+            .position(|ids| ids.iter().fold(0u8, |bits, &j| bits | (1 << j)) == mask)
+        else {
+            return Err(unproven("supports du deuxième cône indéterminés"));
         };
+        let owner = CONE + i;
         for t in region {
             owners[t] = owner;
         }
@@ -105,6 +116,7 @@ fn partition(
 
 fn all_chains(
     a: &Analysis,
+    faces: [[usize; 4]; 2],
     owners: &[usize],
     adj: &[Vec<usize>],
     edges: &BTreeMap<Edge, Vec<usize>>,
@@ -123,13 +135,14 @@ fn all_chains(
     let mut wanted = BTreeSet::new();
     for i in 0..6 {
         for j in i + 1..6 {
-            if i % 3 != j % 3 && (i, j) != (0, 1) && (i, j) != (3, 4) {
+            if i % 3 != j % 3 && !faces.iter().any(|r| edge(r[0], r[1]) == (i, j)) {
                 wanted.insert((i, j));
             }
         }
     }
-    wanted.extend([0, 1, 2, 5].map(|i| (i, CONE)));
-    wanted.extend([3, 4, 2, 5].map(|i| (i, CONE + 1)));
+    for (k, ids) in faces.into_iter().enumerate() {
+        wanted.extend(ids.map(|j| (j, CONE + k)));
+    }
     if wanted != cuts.keys().copied().collect() {
         return Err(unproven("limites des congés non indépendantes"));
     }
@@ -212,8 +225,18 @@ pub(in super::super) fn candidate(
     if !f.has_taper(a, s, o, work)? || !other.has_taper(a, s, o, work)? {
         return Ok(None);
     }
-    let owners = partition(a, s, &f, adj, work)?;
-    let cs = all_chains(a, &owners, adj, edges, work)?;
+    let local_faces = [0, 1, 2, 5];
+    let mut second_faces = [0usize; 4];
+    for (id, local) in second_faces.iter_mut().zip(local_faces) {
+        *id = f
+            .regions
+            .iter()
+            .position(|&r| r == other.regions[local])
+            .ok_or_else(|| unproven("repères de bloc incompatibles"))?;
+    }
+    let faces = [local_faces, second_faces];
+    let owners = partition(a, s, &f, faces, adj, work)?;
+    let cs = all_chains(a, faces, &owners, adj, edges, work)?;
     let mut proof = ErrorBound::default();
     let fit = o.cylinder_fit_tolerance_mm;
     let mut vertices = a.mesh.vertices.clone();
@@ -243,10 +266,17 @@ pub(in super::super) fn candidate(
             append_domain(frame, &g, &mut vertices, &mut arcs, &mut proof, fit)?;
         Ok((local, chart, domain, setback, changes))
     };
-    let (local, mut chart, first, r1, n1) = prove_corner(0, &f, [0, 1, 2, 5])?;
-    let (_, c2, second, r2, n2) = prove_corner(1, &other, [3, 4, 2, 5])?;
+    let (local, mut chart, first, r1, n1) = prove_corner(0, &f, faces[0])?;
+    let (_, c2, second, r2, n2) = prove_corner(1, &other, faces[1])?;
     let moved = n1 + n2;
-    if r1 + r2 + 8. * fit >= f.lengths[0].min(f.lengths[1]) {
+    // At least one pair of opposing tangent planes separates the two corner
+    // strips. Their greatest measured setbacks must leave a material gap.
+    let separation = (0..2)
+        .filter(|&axis| second_faces[..2].contains(&(axis + 3)))
+        .map(|axis| f.lengths[axis])
+        .reduce(f64::min)
+        .ok_or_else(|| unproven("arêtes non séparées par deux supports opposés"))?;
+    if r1 + r2 + 8. * fit >= separation {
         return Err(unproven("les domaines des deux congés ne sont pas séparés"));
     }
     for (vertex, p) in c2.boundary.iter().enumerate() {
@@ -275,11 +305,14 @@ pub(in super::super) fn candidate(
     }
     let mut planes = Vec::new();
     for (i, r) in f.regions.into_iter().enumerate() {
-        let cap = i % 3 == 2;
+        let cap_count = faces
+            .iter()
+            .filter(|indices| indices[2..].contains(&i))
+            .count();
         let segments = super::super::block::plane_segments(
             &s.model.faces[r].loops[0],
             i,
-            if cap { 6 } else { 4 },
+            4 + cap_count,
             edges,
             &owners,
             work,
@@ -289,12 +322,13 @@ pub(in super::super) fn candidate(
                 if !reversed && ids != ends {
                     return Err(unproven("extrémité commune non prouvée"));
                 }
-                Ok(if cap && j >= CONE {
-                    if reversed != (i == 2) {
+                Ok(if j >= CONE && faces[j - CONE][2..].contains(&i) {
+                    let high = i == faces[j - CONE][3];
+                    if reversed == high {
                         return Err(unproven("sens de l’ellipse incohérent"));
                     }
                     MixedSegment::EllipticArc {
-                        arc: 2 * (j - CONE) + usize::from(i == 5),
+                        arc: 2 * (j - CONE) + usize::from(high),
                         reversed,
                     }
                 } else {

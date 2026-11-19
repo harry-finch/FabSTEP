@@ -2473,3 +2473,7 @@ Sur le STEP de V-1237 relu, les 34 tores passent de 134 157 à 50 237 triang
 ## V-1240 — Perçages à axes gauches
 
 Quatre STL indépendants de 1 102, 1 554, 1 112 et 1 588 triangles produisent six plans et trois faces cylindriques. Les volumes de référence à 60° et 75° sont 23 854,860545 et 21 087,665160 mm³. Le STEP relu se trouve à moins de 0,00012 mm³ de ces volumes. Le test attribue chaque triangle à sa paroi physique et vérifie les deux sens de fidélité. Sur le quatrième STL, le regroupement à la tolérance de cylindre pinçait un contour. La segmentation reprend à la tolérance de plan plus stricte pour ensuite refaire toutes les preuves. Le dessin à trois bouches conserve sa matière. Rejeu dans [le corpus](../fixtures/oblique_cross_drill/README.md).
+
+## V-1241 — Congés variables portés par deux arêtes gauches
+
+Les quatre maillages des deux blocs produisent six plans, deux cônes et quatre ellipses. Les volumes concordent à 0,001 mm³ avec les dessins de 3 151,607063 et 3 152,958225 mm³. FreeCAD contrôle les normales des appuis, les rayons aux extrémités, les p-courbes et 24 sondes matière/vide. Une encoche ou une déformation de la seconde bande empêche la reconnaissance de la paire. Les maillages et commandes figurent dans [le corpus des arêtes gauches](../fixtures/skew_linear_blends/README.md).

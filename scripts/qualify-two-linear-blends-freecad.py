@@ -12,8 +12,7 @@ import MeshPart
 V = App.Vector
 
 
-def corner(radius, slope):
-    h = 10.0
+def corner(radius, slope, h=10.0):
     rings = []
     for z in [0, h]:
         r = radius + slope * z
