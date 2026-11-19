@@ -14,7 +14,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 
 1. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon post-v1
    Le secteur public à deux tores passe en Auto. Sur Flansch, les 26 refus du raccord sont corrigés. Le contrôle entier atteint encore trente minutes, avec un pic de 3,03 Gio.
-2. **[R-115 Récupérer les plans fragmentés par la quantification du STL](roadmap/items/R-115-recuperer-les-plans-fragmentes-par-la.md)** · Idée
+2. **[R-115 Récupérer les plans fragmentés par la quantification du STL](roadmap/items/R-115-recuperer-les-plans-fragmentes-par-la.md)** · En cours
    Essayer une graine de grande aire sur les régions planes fragmentées en f32. Vérifier le contour, la provenance et les plis sur des solides avant de retenir une seconde segmentation.
 3. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · Idée
    Comparer une découpe plane de tore et une paroi cylindrique ou conique interrompue sur des solides indépendants. Prouver la courbe commune, la provenance et la fidélité avant toute extension du modèle.
@@ -38,10 +38,6 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    AUD-006 — Démontrer un gain sur plusieurs instances ; établir un contrat tenant compte des transformations, de l’arrondi, du soudage et de la provenance avant tout cache
 13. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
-
-## Actions à faire
-
-- [ ] [A-123](roadmap/actions/A-123-valider-la-recuperation-des-plans-sur-deux-stl.md) Valider la récupération des plans sur deux STL tournés (valider, R-115)
 
 ## Livré
 
