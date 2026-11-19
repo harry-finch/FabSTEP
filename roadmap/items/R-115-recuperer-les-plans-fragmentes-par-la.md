@@ -1,8 +1,8 @@
 ---
 id: R-115
 titre: "Récupérer les plans fragmentés par la quantification du STL"
-resume: "Essayer une graine de grande aire sur les régions planes fragmentées en f32. Vérifier le contour, la provenance et les plis sur des solides avant de retenir une seconde segmentation."
-statut: en-cours
+resume: "Le bloc tourné et la pièce pliée donnent respectivement six et sept faces planes en Auto. Les 96 triangles de chaque STL conservent leur attribution après relecture du STEP."
+statut: a-tester
 jalon: v1.0
 cree: 2026-11-19
 maj: 2026-11-19
