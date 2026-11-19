@@ -51,7 +51,7 @@ L’essai ne garantit pas la conversion : la validité géométrique, les budget
 
 En mode **Automatique**, le helper peut reconstruire des surfaces toriques à contour découpé sur un STL dense à un seul corps. La rampe de référence de 194 694 triangles donne un solide de 659 faces. Le helper contrôle les dimensions, le volume et l’écart au maillage après relecture du STEP. La correspondance nécessaire à la correction guidée dans le bureau reste limitée aux fichiers du mode ordinaire.
 
-Le script `scripts/build-macos-dev.sh` construit le bureau et son helper séparément et copie les deux dans `artifacts/FabSTEP.app`. Ne pas activer `large-stl` sur le bureau ordinaire ni réunir leurs builds Cargo. Le paquet autonome v1 n’est pas modifié.
+Le script `scripts/build-macos-dev.sh` construit séparément le bureau de développement et son helper optimisé (profil release), puis copie les deux dans `artifacts/FabSTEP.app`. Ne pas activer `large-stl` sur le bureau ordinaire ni réunir leurs builds Cargo. Le paquet autonome v1 n’est pas modifié.
 
 ### Exporter une face en DXF — build de développement
 
