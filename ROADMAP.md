@@ -48,7 +48,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    AUD-006 — Démontrer un gain sur plusieurs instances ; établir un contrat tenant compte des transformations, de l’arrondi, du soudage et de la provenance avant tout cache
 18. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
-19. **[R-118 Exporter un rapport Markdown en CLI et exposer une passerelle MCP locale](roadmap/items/R-118-exporter-un-rapport-markdown-en-cli-et-exposer.md)** · Idée · jalon atelier
+19. **[R-118 Exporter un rapport Markdown en CLI et exposer une passerelle MCP locale](roadmap/items/R-118-exporter-un-rapport-markdown-en-cli-et-exposer.md)** · Idée · jalon post-v1
    Ajouter une sortie Markdown lisible à fabstep-cli (--report) et un wrapper MCP optionnel appelant la CLI locale, sans modifier le moteur ni l'atelier bureau.
 
 ## Livré
