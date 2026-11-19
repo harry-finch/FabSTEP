@@ -2563,3 +2563,11 @@ Le découpage spatial de Flansch donne 6 949 groupes à contrôler. Les bancs 
 La priorité pour Flansch est de réduire le coût du contrôle exact des intersections arête/face et face/face sur les raccords. La reconnaissance des supports, l’écriture, la relecture géométrique, le maillage et la distance ont chacun un témoin reproductible.
 
 **Contre-épreuve en mode ordinaire.** Le fichier privé `body 26mm.stl`, converti en mode Auto avec le CLI optimisé et l’unité millimètre, donne un solide relu de 10 869 faces, dont 14 cylindres et 7 cônes. Son volume vaut 17 053,652459 mm³. Les écarts échantillonnés source vers résultat et retour sont de 0,002619 et 0,003052 mm. Le fichier source et son STEP restent locaux.
+
+## V-1256 — Rejeu de Flansch avec le superviseur du bureau et le helper du paquet
+
+Le helper release livré dans `artifacts/FabSTEP.app/Contents/MacOS/fabstep-worker` (SHA-256 `8df654952277c02e2b5d16a2eb5b5d4b3b4cff7b4be27bdcfa9dd45e0be99447`) a traité le STL binaire original de 540 170 triangles, en Auto, millimètres et déviation maximale de 0,05 mm. Le banc appelle la fonction réelle de supervision du bureau avec les octets du STL. La surveillance mémoire, l’échéance de trente minutes et la récupération du processus sont actives.
+
+Le calcul a atteint la construction. Après **1 380,137 s**, le parent a reçu **`cad.invalid_solid`** sur `stl/component/0` au contrôle d’auto-intersection du solide. Le test vérifie que le parent ne possède aucun résultat et que le processus fils est récupéré. Le contrôle exact des courbes, les écarts du témoin de laboratoire et le nombre de triangles admissible ne suffisent donc pas à autoriser cet export. Les essais graphiques et dans Fusion des nouveaux domaines restent proposés dans FabBoard.
+
+Rejeu manuel : ouvrir le STL, choisir le millimètre et le mode Automatique, accepter l’essai de gros STL puis lancer la reconstruction. La rampe publique indépendante et son contrôle complet sont reproductibles avec le script de V-1250. Les limites appliquées sont celles de l’ADR-0034.

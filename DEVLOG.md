@@ -1,5 +1,8 @@
 # Journal d'ingénierie
 
+**19 novembre 2026 — Verdict du helper sur Flansch.** La rampe dense publique et la pièce body 26 mm sont converties. Sur les 540 170 triangles du STL privé, le helper du paquet refuse le contrôle d’interférences OCCT après 23 minutes. Aucun résultat n’est publié. Le suivi des pièces et des contrôles pour reprendre figure dans R-085 et V-1256.
+
+
 ## 2026-11-18 et 19 — Domaines géométriques et bride à grand maillage
 
 Les lots R-094 à R-110 étendent Auto aux profils de révolution cubiques avec pointe ou raccord mesuré entre deux hauteurs, aux perçages à axes inclinés et décalés, aux cavités à plusieurs perçages, au rebord torique et aux circuits de congés à une, deux ou quatre jonctions. Deux lois de rayon affines peuvent appartenir à des arêtes gauches d’un même bloc. Les témoins indépendants, mesures, rejets et commandes figurent dans V-1222 à V-1246. R-038 ajoute le relief bicubique sur demande explicite, R-050 les indications sphériques. Le paquet local inclut R-110.
