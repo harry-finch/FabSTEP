@@ -2755,3 +2755,33 @@ Le deuxième essai visite les graines par aire décroissante à indices source c
 Le test `cargo test --offline -p fabstep-app --test quantized_planes` vérifie le solide STEP relu, les contours, le plan des trois sommets de chaque triangle et l’appartenance exacte aux six ou sept groupes attendus. Les écarts échantillonnés sont inférieurs à 10⁻⁷ mm dans les deux directions. FreeCAD relit les deux exports Auto comme solides fermés valides de six et sept plans, avec des volumes de 0,068359373 et 0,075836181 mm³. Agrandir la pièce pliée d’un facteur 16 conserve le refus natif en mode Planar. Sur le secteur torique dense tourné en STL f32, le premier contour reste ramifié et le refus initial est conservé.
 
 **Coût de la seconde segmentation.** Trois STL fermés de 97 340 triangles ont été comparés en release avec la version antérieure à R-115. Le pavé, sa variante à un pli et la pièce comportant 83 plans conservent leurs groupes de triangles. Sur les deux premiers, la garde sur les normales des plans source écarte l’essai avant de reconstruire l’adjacence Auto. Les médianes des neuf passages d’Auto sont de 735 → 714 ms et 720 → 654 ms, avec dispersion et charge concurrente. Sur la pièce à 83 plans, la seconde partition est essayée puis écartée. Les cinq passages donnent 949 → 993 ms (+4,6 %) en Auto. Le gain recherché est la récupération des faces sur les deux petits témoins. Les temps du corpus dense ne démontrent pas une accélération générale. Les entrées générées, mesures alternées et contrôles des appartenances sont dans `artifacts/r115-perf/`.
+
+
+## V-1264 — Contours obliques et arbre cylindrique percé (R-113)
+
+Le banc reconstruit les deux références de V-1260 dans FreeCAD 1.1.1 et maille leurs STEP relus. Chaque enregistrement STL est comparé dans son ordre réel à la facette du mailleur CAO et à la face dont elle provient. Le lecteur de laboratoire exige un maillage binaire fermé et connexe de 10 000 triangles au plus. La qualification de la lèvre utilise les dimensions du dessin. La proposition d’arbre percé utilise uniquement les coordonnées et l’incidence des triangles. Le STEP de référence fournit un contrôle indépendant.
+
+| Pièce et entrée | Attribution vérifiée | Borne continue dans les deux sens | STEP réimporté |
+|---|---:|---|---|
+| Lèvre coupée à 15°, 708 puis 2 496 triangles | 708/708 et 2 496/2 496, cinq faces | Carreau torique nominal ≤ 0,049915 / 0,045125 mm. Chacun des deux bords plan–tore ≤ 0,008793 / 0,003614 mm. | Référence à cinq faces. Auto donne 631 / 2 274 plans. |
+| Arbre Ø20 et perçage Ø4,8 mm, 428 puis 644 triangles | 428/428 et 644/644, quatre faces | Sur les quatre surfaces mesurées depuis chaque STL, ≤ 0,045666 / 0,012051 mm. | Prototype à deux cylindres et deux plans aux deux densités. Auto donne 253 / 370 plans. |
+| Second arbre Ø19,4 et perçage Ø4,4 mm, 648 triangles | 648/648, quatre faces | Quatre surfaces mesurées ≤ 0,011378 mm. | Prototype à deux cylindres et deux plans. |
+
+**Lèvre.** Les dimensions du dessin définissent le tore et son plan de coupe. La carte suit leurs deux vraies branches communes. Ses triangles ont une orientation constante et son périmètre parcourt une fois chaque côté. Une borne de dérivée seconde contrôle la distance aux triangles STL sur tout le carreau et sur chaque corde de bord. Une droite tracée en UV entre deux sommets corrects quitte le plan de 0,000871 / 0,000401 mm au milieu d’une corde. Un sommet déplacé de 0,04 mm est refusé. L’attribution couvre les cinq faces. La borne de surface annoncée concerne le carreau torique.
+
+**Arbre percé.** Une proposition indépendante mesure le cylindre extérieur à partir des deux contours circulaires des bouchons, repère la paroi concave et ajuste l’axe et le rayon du perçage. Le certificat recontrôle les surfaces dans le repère obtenu. L’orientation des triangles dans les deux cartes cylindriques distingue leurs propriétaires, y compris lorsque leurs sommets appartiennent aux deux cylindres. Les deux bouches couvrent chacune un tour, avec des usages opposés sur les faces voisines. Les contrôles de fidélité portent sur l’intérieur des triangles et l’écart entre chaque contour polygonal et la branche analytique. Après rotation, translation et nouvelle quantification f32, les attributions restent identiques. Déplacer un sommet du perçage de 0,03 mm fait échouer le contrôle.
+
+Le constructeur de laboratoire utilise les mesures du STL. Le STEP relu repasse la validité BRep, le contrôle d’interférences, les axes, rayons, bouchons, sondes de matière et dimensions. Les écarts des traces paramétriques sur chaque arête partagée sont mesurés à 129 positions et confrontés à la tolérance de cette arête. Le volume adaptatif de la première référence est de 4 686,771216 mm³. Les deux reconstructions donnent 4 686,771283 et 4 686,771192 mm³. La seconde référence et son résultat donnent 4 301,440831 et 4 301,440862 mm³. L’intégration de sections du dessin vérifie le volume des références. Le chiffre de 4 686,722892 mm³ en V-1260 provenait de la quadrature par défaut de FreeCAD.
+
+Sur la seconde référence, la position initiale de la couture périodique du cylindre de coupe produisait une trace hors tolérance après transfert. Une rotation de 180° de ce cylindre autour de son propre axe fournit une référence valide pour les mêmes dimensions. Ce cas motive le contrôle des deux traces après réimport pour une future intégration native.
+
+Depuis la racine du dépôt sur macOS, avec le SDK OCCT (dont `DRAWEXE` dans le PATH) et FreeCAD installé :
+
+```sh
+cargo build --release --offline --locked -j 2 -p fabstep-cli
+PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
+  /Applications/FreeCAD.app/Contents/Resources/bin/python \
+  scripts/qualify-interrupted-surfaces-freecad.py artifacts/r113-qualification/results target/release/fabstep
+```
+
+Les répertoires de cas contiennent les rapports JSON, les STL, les références et les sorties. Les STEP dont le nom se termine par `-measured-lab.step` proviennent du prototype. Les fichiers `-auto.step` proviennent du CLI de production. Les contrôles de cette tranche utilisent exclusivement ces petits modèles synthétiques.
