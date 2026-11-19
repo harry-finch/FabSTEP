@@ -4,10 +4,35 @@ FabBoard met un projet d'équerre en deux temps. Le premier est automatique : il
 
 À la fin, le projet a une feuille de route au format, une documentation conforme, des skills à jour, une figure pour sa carte, et FabBoard n'a plus rien à signaler que l'utilisateur ne sache.
 
+## Selon le type et sans agent
+
+La mise d'équerre ne réclame pas la même chose à tous les projets. Lire `type` et `agent` dans `roadmap/projet.toml` (`fabboard show . --json`) avant de dérouler les étapes.
+
+- **Attendus pour tous les types** : `README.md`, `STATUS.md` et `roadmap/`. `STATUS.md` d'un projet électronique, de fabrication, d'un document ou d'une formation suit le contrat court de `project-documentation` (« STATUS.md selon le type »), pas celui d'un logiciel.
+- **`AGENTS.md`, `CLAUDE.md` et les skills** ne sont attendus que si l'agent n'est pas `aucun`. Avec `agent = "aucun"`, sauter l'étape 2 (Skills) et ne créer ni `AGENTS.md` ni `CLAUDE.md` à l'étape 3 : cette session n'a lieu que si l'utilisateur a ouvert un agent « quand même », et elle ne change pas la clé `agent`.
+- **Git** : hors `logiciel`, l'absence de dépôt n'est plus un écart, seulement une remarque (`git.absent` en `info`). Sans dépôt, ne pas en créer un, ne pas commiter : il n'y a ni branche de session ni commit par étape, mais les mêmes étapes sur les fichiers, et l'utilisateur garde ses sauvegardes habituelles. Dire à l'utilisateur que rien n'est commité.
+- **Type** : si `type` est absent et que le projet n'est visiblement pas du logiciel (un `*.kicad_pro`, des fichiers STEP ou 3MF sans code, un dossier de documents), le **proposer** à l'utilisateur ; ne jamais écrire `type` sans son accord (`fabboard project set-type`).
+
+### Livrables et échéances à proposer
+
+Selon le type, **proposer** à l'utilisateur les livrables à déclarer dans `projet.toml` (`fabboard project livrables` donne la liste ; rien n'est écrit sans son accord, puis `fabboard project add-livrable …`) :
+
+- **électronique** : « Documentation » (`README.md`, sinon le plus gros `*.md` de la racine ; `role = "document"`, `sources = []`), « Projet KiCad » (`*.kicad_pro`, `role = "source"`, `sources = []` : il s'ouvre avec KiCad), « Gerber » (le dossier de sortie s'il existe, `gerber*`, `fabrication*`, `production*` ou `*/gerber*` ; `role = "fabrication"`, `sources = ["*.kicad_pcb"]` : périmé dès que le routage change) ;
+- **fabrication** : les STEP, 3MF, DXF et SVG les plus récents (`fichier`) ;
+- **document** : le PDF le plus récent ;
+- **formation** : le dossier du projet lui-même (`dossier`, motif `.`, `role = "support"`, `sources = []`) ;
+- **logiciel** : rien de plus que les versions à tester.
+
+**Demander les échéances connues** : un rendu, une livraison, un atelier à préparer. Poser celles que l'utilisateur donne (`fabboard project set-echeance`, `fabboard roadmap set R-… --echeance`, `fabboard action add … --echeance`), n'en inventer aucune.
+
+### Quand l'utilisateur fait la mise d'équerre lui-même (projet sans agent)
+
+FabBoard liste alors les écarts d'agent sous « À faire toi-même » et renvoie ici. Le même travail se fait à la main : `fabboard doctor .` donne la liste ; l'étape 1 (feuille de route) et l'étape 3 (documentation, limitée à `README.md` et `STATUS.md`) s'appliquent ; les étapes 2 (skills) et 4 (figure maison) sont facultatives et sans objet par défaut : la carte prend la figure du catalogue propre à son type.
+
 ## Avant de commencer
 
 1. `fabboard doctor .` : la liste des écarts est le programme de la session. S'il n'y a pas de dossier `roadmap/`, s'arrêter : c'est le bouton « Mettre d'équerre » de FabBoard qui le crée.
-2. `git status` : si l'arbre de travail a des modifications en cours, le dire et demander s'il faut continuer ; ne jamais les embarquer dans un commit.
+2. `git status` : si l'arbre de travail a des modifications en cours, le dire et demander s'il faut continuer ; ne jamais les embarquer dans un commit. (Sans dépôt Git : passer cette étape et la suivante.)
 3. Travailler sur une branche dédiée (`fabboard/mise-d-equerre`) sauf demande contraire. Ne pas pousser.
 4. Annoncer à l'utilisateur les étapes qui le concernent, pour qu'il sache quand on aura besoin de lui : les skills à remplacer, la documentation à valider, le concept de la figure à choisir.
 
@@ -28,7 +53,7 @@ Si `fabboard doctor` signale `roadmap.legacy` : suivre [migration.md](migration.
 
 Si `fabboard doctor` signale `roadmap.empty` (le dossier existe, sans aucun élément) et que le projet a déjà une histoire : la **reconstituer**, voir « Projet sans feuille de route » plus bas. Un projet tout neuf n'a rien à reconstituer : demander à l'utilisateur ses premières idées et les ajouter (`fabboard roadmap add`).
 
-Dans tous les cas, vérifier que `projet.toml` dit vrai : sous-titre, couleur, logo, jalons, et surtout les **versions à tester** (`[[test]]`) : l'adresse locale et la commande qui la sert, le motif des builds, la release. Demander à l'utilisateur comment il essaie le projet si rien ne se déduit des consignes d'agent. Renseigner `agent` (`claude` ou `codex`) s'il le dit.
+Dans tous les cas, vérifier que `projet.toml` dit vrai : sous-titre, couleur, logo, jalons, et surtout les **versions à tester** (`[[test]]`) : l'adresse locale et la commande qui la sert, le motif des builds, la release. Demander à l'utilisateur comment il essaie le projet si rien ne se déduit des consignes d'agent. Renseigner `agent` (`claude`, `codex` ou `agy`) s'il le dit ; ne jamais le passer à `aucun` de ta propre initiative : c'est son choix.
 
 ### Projet sans feuille de route
 

@@ -1,6 +1,6 @@
 # État — 19 novembre 2026
 
-**V1 mécanique 1.0.0 acceptée ; extensions post-v1 dans le build de développement.** Rust/OCCT, Svelte 5/Tauri, GPL-3.0-or-later. La base géométrique est sur `fabboard/geometrie`. L’intégration NEON (R-112) est disponible sur `audit/neon`. Les décisions et résultats par lot figurent dans le [registre R-112](docs/INT_AUDIT_01.md#neon--audit-du-19-novembre-2026-r-112). Historique et mesures détaillés dans [DEVLOG](DEVLOG.md) et [VALIDATION](docs/VALIDATION.md), suivi utilisateur dans [ROADMAP](ROADMAP.md).
+**V1 mécanique 1.0.0 acceptée ; extensions post-v1 dans le build de développement.** Rust/OCCT, Svelte 5/Tauri, GPL-3.0-or-later. `main` est la branche de référence pour le développement et les fusions. Elle contient les jalons géométriques et l’intégration NEON (R-112). Les décisions et résultats par lot figurent dans le [registre R-112](docs/INT_AUDIT_01.md#neon--audit-du-19-novembre-2026-r-112). Historique et mesures détaillés dans [DEVLOG](DEVLOG.md) et [VALIDATION](docs/VALIDATION.md), suivi utilisateur dans [ROADMAP](ROADMAP.md).
 
 ## Version et validation courantes
 

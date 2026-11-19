@@ -122,6 +122,49 @@ Garder les lignes « Tests », « Vérifié » et « Non vérifié » : 
 
 **Mise à jour.** Par l'agent, à chaque arrêt et à chaque jalon, **en place** : on remplace une ligne devenue fausse, on ne l'empile pas. Une ligne « Non vérifié » passe à « Vérifié » quand l'utilisateur ou un essai l'a établi, avec la date.
 
+#### STATUS.md selon le type du projet
+
+La structure ci-dessus est celle d'un **logiciel** (clé `type` absente ou `logiciel` dans `roadmap/projet.toml`). Les autres types gardent le même rôle (l'état vérifié d'aujourd'hui, en une page, sans « prochaine action » pour l'utilisateur) et la même séparation **Vérifié / Non vérifié**, mais leur tableau parle de ce qui compte pour eux. Court : une page, pas de ligne « Tests » de code.
+
+**Électronique** (`electronique`) : le jalon ; l'état de la carte ; ce qui est vérifié (revue de schéma, DRC et ERC passés, essai sur banc, mesures) et ce qui ne l'est pas.
+
+| Élément | État |
+| --- | --- |
+| Schéma | Version, ce qui est figé, ce qui reste ouvert |
+| Circuit imprimé | Couches, dimensions, DRC (passé le <date>) |
+| Fichiers de fabrication | Gerber et perçage à jour (oui/non, date), fabricant visé |
+| Nomenclature | Composants verrouillés ou à choisir ; ruptures connues |
+| Vérifié / Non vérifié | Essai sur banc, mesures, revue ; ce qui n'a pas été essayé |
+
+**Fabrication** (`fabrication`) : les pièces et leur état de fabrication.
+
+| Élément | État |
+| --- | --- |
+| Pièces | Chaque pièce : modèle (fichier), matière, procédé (impression, découpe, fraisage) |
+| Tolérances et essais | Ce qui a été fabriqué, mesuré, ajusté ; les jeux retenus |
+| Fichiers de fabrication | STEP, 3MF, DXF à jour, version, machine visée |
+| Vérifié / Non vérifié | Pièces essayées en montage ; pièces jamais fabriquées |
+
+**Document** (`document`) : l'avancement du texte à livrer.
+
+| Élément | État |
+| --- | --- |
+| Plan | Chapitres ou parties, état de chacun (à écrire, en relecture, validé) |
+| Version courante | Fichier de référence, version, destinataire, date de livraison attendue |
+| Sources à fournir | Ce qui manque et à qui il faut le demander (renvoie aux actions `A-…`) |
+| Vérifié / Non vérifié | Relectures faites, chiffres recoupés ; ce qui reste à recouper |
+
+**Formation** (`formation`) : une formation ou un atelier.
+
+| Élément | État |
+| --- | --- |
+| Déroulé | Séances, durée, ordre ; ce qui est prêt et ce qui reste à construire |
+| Supports | Diapositives, fiches, exercices : où ils sont, état de chacun |
+| Matériel et lieu | Ce qu'il faut réunir, la salle, les effectifs |
+| Vérifié / Non vérifié | Passage à blanc, retours de participants ; ce qui n'a pas été essayé |
+
+Pour ces quatre types : même règles de mise à jour (**en place**, à chaque arrêt et à chaque jalon), mêmes renvois aux éléments `R-…` et aux actions `A-…`, et même interdiction d'inventer : une cellule qu'on ne peut pas remplir de façon vérifiable se marque « non vérifié » ou « à confirmer ». Pas de `DEVLOG.md`, d'`ARCHITECTURE.md` ni d'ADR à créer d'office pour ces types.
+
 ### roadmap/ et ROADMAP.md
 
 **Rôle.** La feuille de route et les actions de l'utilisateur. Tout est décrit par la skill [`fab-roadmap`](../../fab-roadmap/SKILL.md) et son [format](../../fab-roadmap/references/format.md) : ne rien en répéter ici.

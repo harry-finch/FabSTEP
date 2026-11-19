@@ -13,6 +13,8 @@ Principe : **changements minimaux**. Le projet a déjà une documentation et u
 
 ## 1. Contrôler
 
+Lire d'abord `type` et `agent` dans `roadmap/projet.toml`. Pour un type autre que `logiciel`, `STATUS.md` se contrôle contre « STATUS.md selon le type du projet » (`document-contract.md`), et il n'y a pas de `DEVLOG.md` ni d'`ARCHITECTURE.md` à créer. Avec `agent = "aucun"`, les lignes « `AGENTS.md` », « `CLAUDE.md` » et « skills citées » ci-dessous ne s'appliquent pas : ne pas les créer.
+
 Remplir cette liste avant de modifier quoi que ce soit.
 
 **Obligatoires**

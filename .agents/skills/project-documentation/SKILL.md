@@ -12,14 +12,16 @@ La documentation fait partie du livrable. Chaque document a **un rôle** et un s
 | Document | Rôle | Statut |
 | --- | --- | --- |
 | `README.md` | Ce qu'est le projet, comment l'installer, le lancer et le développer | obligatoire |
-| `AGENTS.md` | Consignes d'agent. `CLAUDE.md` ne contient que `@AGENTS.md` | obligatoire |
-| `STATUS.md` | État vérifié, aujourd'hui, en une page | obligatoire |
+| `AGENTS.md` | Consignes d'agent. `CLAUDE.md` ne contient que `@AGENTS.md` | obligatoire, sauf projet sans agent (`agent = "aucun"`) |
+| `STATUS.md` | État vérifié, aujourd'hui, en une page (contrat court par type pour l'électronique, la fabrication, le document et la formation) | obligatoire |
 | `roadmap/` | La feuille de route et les actions de l'utilisateur, lues par FabBoard. `ROADMAP.md` en est la vue générée | obligatoire, relève de `fab-roadmap` |
 | `DEVLOG.md` | Journal chronologique : ce qui a été fait, choisi, vérifié | facultatif |
 | `docs/ARCHITECTURE.md` | Les frontières stables et le flux de données | facultatif |
 | `docs/adr/` | Une décision d'architecture par fichier, avec le gabarit [ADR-TEMPLATE.md](assets/ADR-TEMPLATE.md) | facultatif |
 | `docs/FEATURES.md` | L'inventaire des fonctions, à identifiants stables. La feuille de route fait foi pour l'avancement. | facultatif |
 | `docs/VALIDATION.md` | Les cas de validation et leur état | facultatif |
+
+**Selon le type du projet** (clé `type` de `roadmap/projet.toml`) : un projet `electronique`, `fabrication`, `document` ou `formation` n'a pas la structure d'un logiciel ; son `STATUS.md` suit le contrat court de [document-contract.md](references/document-contract.md) (« STATUS.md selon le type du projet »). `README.md`, `STATUS.md` et `roadmap/` restent attendus pour tous les types ; `AGENTS.md` et `CLAUDE.md` ne le sont que si l'agent n'est pas `aucun`.
 
 Un document facultatif se tient s'il existe déjà ou si l'utilisateur le demande. Ne pas en créer de nouveau de ta propre initiative.
 
