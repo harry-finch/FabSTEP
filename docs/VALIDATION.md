@@ -2535,3 +2535,5 @@ Une arête sur tore était refusée par le contrôle exact d’OCCT après trans
 ## V-1253 — Audit complet du maillage réimporté de 98 576 triangles
 
 L’audit de distance spatialement ordonné conserve les positions de tous les sommets, milieux et barycentres. Il réordonne des blocs de 16 384 points, avec une mémoire temporaire d’environ 512 Kio. Le plafond demeure de 50 millions d’opérations. Sur le maillage de laboratoire à bords toriques reparamétrés, le parcours initial épuisait ce plafond en 2,44 s ; un comptage de référence complet demandait 64 691 835 opérations. Le parcours par blocs aboutit en 2,62 s avec les mêmes maxima que la référence, 0,0115522233945 mm et 0,0100176527580 mm. Les comptes sont de 2 430 757 et 569 719 échantillons. Un test contrôle l’identité bit à bit des échantillons entre les deux ordres, y compris aux frontières de blocs.
+
+V-1252, complément des unités. Onze cas indépendants couvrent notamment un modèle en pouces, des angles en degrés, un plan et une direction oblique en UV. Seuls les arcs du modèle métrique en radians dont la représentation est reconnue sont éligibles.

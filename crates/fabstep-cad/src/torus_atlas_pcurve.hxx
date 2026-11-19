@@ -95,6 +95,9 @@ inline bool parameters(const Handle(Quadratic) & arc, const Handle(StepGeom_Toro
 }
 
 inline size_t align(const Handle(StepData_StepModel) & model) {
+  // The spatial certificate is in millimetres, just like the producer.
+  if (model->WriteLengthUnit() != 1. || model->LocalLengthUnit() != 1.)
+    return 0;
   const int initial = model->NbEntities();
   size_t count = 0;
   for (int i = 1; i <= initial; ++i) {
