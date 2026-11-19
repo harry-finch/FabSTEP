@@ -298,8 +298,6 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-116](roadmap/actions/A-116-essayer-les-deux-orientations-des-conges.md) Essayer les deux orientations des congés variables sur arêtes gauches (tester, R-109)
 - [ ] [A-117](roadmap/actions/A-117-inspecter-le-circuit-ferme-de-quatre-conges-dans.md) Inspecter le circuit fermé de quatre congés dans Fusion (tester, R-110)
 - [ ] [A-118](roadmap/actions/A-118-verifier-un-retour-axial-dans-fusion.md) Vérifier un retour axial dans Fusion (tester, R-111)
-- [ ] [A-119](roadmap/actions/A-119-choisir-le-format-du-rapport-gros-stl.md) Choisir le format du rapport gros STL (decider, R-112)
-- [ ] [A-120](roadmap/actions/A-120-inclure-le-helper-dans-le-prochain-paquet.md) Inclure le helper dans le prochain paquet (decider, R-112)
 
 ## Livré
 
