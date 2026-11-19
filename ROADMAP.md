@@ -51,6 +51,10 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 19. **[R-118 Exporter un rapport Markdown en CLI et exposer une passerelle MCP locale](roadmap/items/R-118-exporter-un-rapport-markdown-en-cli-et-exposer.md)** · Idée · jalon post-v1
    Ajouter une sortie Markdown lisible à fabstep-cli (--report) et un wrapper MCP optionnel appelant la CLI locale, sans modifier le moteur ni l'atelier bureau.
 
+## Actions à faire
+
+- [ ] [A-123](roadmap/actions/A-123-valider-la-recuperation-des-plans-sur-deux-stl.md) Valider la récupération des plans sur deux STL tournés (valider, R-115)
+
 ## Livré
 
 ### v1.0 : V1 mécanique et paquet macOS local
