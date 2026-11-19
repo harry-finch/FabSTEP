@@ -17,8 +17,12 @@ impl Work {
         self.0
     }
 
+    pub(crate) fn can_afford(&self, count: usize) -> bool {
+        count <= MAX_WORK.saturating_sub(self.0)
+    }
+
     pub(crate) fn reserve_optional(&mut self, count: usize) -> bool {
-        if count > MAX_WORK.saturating_sub(self.0) {
+        if !self.can_afford(count) {
             return false;
         }
         self.0 += count;

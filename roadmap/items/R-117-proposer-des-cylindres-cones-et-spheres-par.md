@@ -55,3 +55,7 @@ Aujourd’hui, la reconnaissance de cylindres, cônes et sphères repose princip
 Auto reconstruit les bandes cylindriques étroites à deux bords parallèles dans le domaine décrit en V-1269. Les deux petits fichiers de recette sont `fixtures/r117-narrow-cylinder.stl` et `fixtures/r117-narrow-fillet.stl`. Le premier passe de 16 à 5 faces, le second de 19 à 8. Le jalon reste en cours pour les bords interrompus et les domaines coniques et sphériques.
 
 Pour les cônes et les sphères, la découverte par les normales est qualifiée sur des bandes synthétiques et des fenêtres extraites de deux STL fermés (`m4_frustum.stl` et `m5b_small_cap.stl`). La prochaine tranche consiste à vérifier leurs courbes communes, les colliers source et la couverture du domaine avant de publier une face BRep. Aucun nouveau domaine conique ou sphérique découpé n’est exporté sur la seule base de ces mesures.
+
+## Secteur conique à deux arcs parallèles
+
+Auto regroupe les rangées du demi-tronc de cône public `fixtures/r117-half-frustum.stl`. Les deux arcs et les deux génératrices délimitent une seule paroi. Sur cette pièce de quatre rangées, le STEP passe de 195 plans à trois plans et un cône. Les 192 triangles de la paroi ont une attribution exacte. Les témoins elliptique, bombé et hors budget conservent leurs facettes. L’extension sphérique est suivie dans ce même jalon.

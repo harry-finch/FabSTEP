@@ -662,7 +662,6 @@ pub use profile::{
     ProfileFrame, ProfileSegment, SectionBodyProfile, SectionLoop, SectionProfile, SectionRequest,
 };
 mod recognition;
-#[cfg(test)]
 mod residual_supports;
 mod revolved;
 mod rounded;

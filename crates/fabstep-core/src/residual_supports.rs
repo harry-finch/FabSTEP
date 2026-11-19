@@ -255,6 +255,51 @@ fn check_patch(
     Some((residual, bound))
 }
 
+/// An isolated sector is promotable only if the normal field of the whole
+/// proposed wall nominates a single cone. The independent topology/trim
+/// proof then checks the actual arcs and rails used by the native builder.
+pub(crate) fn nominates_conical_wall(
+    mesh: &Mesh,
+    wall: &BTreeSet<usize>,
+    o: &Options,
+    work: &mut Work,
+) -> bool {
+    matches!(nominate_wall(mesh, wall, o, work), Some(Support::Cone { .. }))
+}
+
+pub(crate) fn spherical_wall(mesh: &Mesh, wall: &BTreeSet<usize>, o: &Options, work: &mut Work) -> Option<(V, f64)> {
+    match nominate_wall(mesh, wall, o, work)? {
+        Support::Sphere { center, radius } => Some((center, radius)),
+        _ => None,
+    }
+}
+
+fn nominate_wall(mesh: &Mesh, wall: &BTreeSet<usize>, o: &Options, work: &mut Work) -> Option<Support> {
+    let n = mesh.triangles.len();
+    if n > 4096 || wall.len() < 16 || mesh.vertices.len() > 3 * 4096 {
+        return None;
+    }
+    // An optional nomination must not make a historical recognition fail.
+    // Preflight the worst case, then charge only work actually performed.
+    // Budget at most three distinct vertices per triangle and one solve per
+    // component of at least sixteen triangles, including disconnected masks.
+    let cost = n * 65 + wall.len() * (120 + 3 * 480) + (wall.len() / 16) * 6000;
+    if !work.can_afford(cost) || !work.reserve_optional(n) {
+        return None;
+    }
+    let mut residual = vec![false; n];
+    for &t in wall {
+        residual[t] = true;
+    }
+    let Ok(found) = discover(mesh, &residual, o, work) else {
+        return None;
+    };
+    let [candidate] = found.as_slice() else { return None };
+    (candidate.triangles.iter().eq(wall)
+        && candidate.vertex_residual_mm <= o.cylinder_fit_tolerance_mm
+        && candidate.triangle_bound_mm <= o.max_deviation_mm).then_some(candidate.support)
+}
+
 fn discover(
     mesh: &Mesh,
     residual: &[bool],
@@ -576,6 +621,36 @@ mod tests {
             .unwrap();
             assert!(result.is_empty(), "{result:?}");
         }
+    }
+
+    #[test]
+    fn optional_sector_declines_before_allocating_on_large_or_budget_limited_inputs() {
+        let mut mesh = band(conic, false);
+        let mut wall: BTreeSet<_> = (0..mesh.triangles.len()).collect();
+        let mut work = Work::default();
+        work.spend(9_990_000).unwrap();
+        assert!(!nominates_conical_wall(&mesh, &wall, &options(), &mut work));
+        assert_eq!(work.used_for_test(), 9_990_000);
+
+        let mut available = Work::default();
+        // The same support split into two components cannot own one face.
+        wall.retain(|&i| (i / 2) % 20 != 10);
+        assert!(!nominates_conical_wall(
+            &mesh,
+            &wall,
+            &options(),
+            &mut available
+        ));
+        assert!(available.used_for_test() > 0);
+        mesh.triangles.resize(4097, [0, 1, 2]);
+        let mut oversized = Work::default();
+        assert!(!nominates_conical_wall(
+            &mesh,
+            &wall,
+            &options(),
+            &mut oversized
+        ));
+        assert_eq!(oversized.used_for_test(), 0);
     }
 
     #[test]

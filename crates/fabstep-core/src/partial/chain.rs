@@ -70,6 +70,7 @@ pub(crate) fn augment(
                 model,
                 &owners,
                 [&candidates[i], &candidates[j]],
+                candidates.len() == 2 && a.mesh.triangles.len() <= 4096,
                 &adjacency,
                 &edges,
                 &vertex_triangles,
@@ -137,12 +138,17 @@ pub(crate) fn augment(
     let mut radial = 0_f64;
     let mut chord = 0_f64;
     let mut count = 0;
+    let mut sectors = 0;
     let model = &mut result.model.revolved.mixed;
     for (i, c) in chains.into_iter().enumerate() {
         if ambiguous.contains(&i) {
             continue;
         }
-        count += 1;
+        if c.bands.len() == 1 {
+            sectors += 1;
+        } else {
+            count += 1;
+        }
         let first = model.arcs.len();
         for end in 0..2 {
             let index = if end == 0 {
@@ -202,7 +208,7 @@ pub(crate) fn augment(
         radial = radial.max(c.radial);
         chord = chord.max(c.chord);
     }
-    if count == 0 {
+    if count + sectors == 0 {
         return Ok(());
     }
     for (plane, replacements) in replacements {
@@ -236,7 +242,19 @@ pub(crate) fn augment(
     result.report.max_radial_residual_mm = result.report.max_radial_residual_mm.max(radial);
     result.report.max_chord_error_mm = result.report.max_chord_error_mm.max(chord);
     result.report.max_wall_residual_mm = result.report.max_wall_residual_mm.max(NATIVE_TOL * 2.);
-    result.report.diagnostics.push(crate::Diagnostic{code:"recognition.partial_conical_chain".into(),severity:crate::Severity::Warning,count,message:"Des chaînes semi-circulaires cylindre/cône sont reconstruites conjointement ; l’intention analytique est déduite du maillage.".into()});
+    if count > 0 {
+        result.report.diagnostics.push(crate::Diagnostic{code:"recognition.partial_conical_chain".into(),severity:crate::Severity::Warning,count,message:"Des chaînes semi-circulaires cylindre/cône sont reconstruites conjointement ; l’intention analytique est déduite du maillage.".into()});
+    }
+    if sectors > 0 {
+        result.report.diagnostics.push(crate::Diagnostic {
+            code: "recognition.conic_intent_assumed".into(),
+            severity: crate::Severity::Warning,
+            count: sectors,
+            message:
+                "Les bandes coniques partielles sont reconstruites à partir des facettes source."
+                    .into(),
+        });
+    }
     Ok(())
 }
 
@@ -246,6 +264,7 @@ fn prove(
     model: &MixedModel,
     owners: &[Option<MixedFaceRef>],
     caps: [&Candidate; 2],
+    isolated_pair: bool,
     adjacency: &[Vec<usize>],
     edges: &BTreeMap<Edge, Vec<usize>>,
     vertex_triangles: &[Vec<usize>],
@@ -410,7 +429,25 @@ fn prove(
     let mut levels: Vec<f64> = vertices.iter().map(|&v| projected[v].1).collect();
     levels.sort_by(f64::total_cmp);
     levels.dedup_by(|a, b| (*a - *b).abs() <= NATIVE_TOL);
-    if !(4..=9).contains(&levels.len()) {
+    // A single affine wall may span any number of interior mesh rows.
+    // Nominate its support independently before merging these rows; the
+    // same parameter coverage, complete source boundary, adjacent planes
+    // and continuous deviation checks below remain mandatory.
+    let single_cone = isolated_pair
+        && (2..=9).contains(&levels.len())
+        && work.reserve_optional(vertices.len())
+        && vertices.iter().all(|&v| {
+            let (p, z) = projected[v];
+            (p[0].hypot(p[1]) - (r0 + (r1 - r0) * z / height)).abs() <= tol
+        })
+        && crate::residual_supports::nominates_conical_wall(&a.mesh, &selected, o, work);
+    if single_cone {
+        levels = vec![0., height];
+        vertices.retain(|&v| {
+            let z = projected[v].1;
+            z.abs() <= NATIVE_TOL || (z - height).abs() <= NATIVE_TOL
+        });
+    } else if !(4..=9).contains(&levels.len()) {
         return Ok(None);
     }
     let mut layers = vec![Vec::new(); levels.len()];
@@ -608,7 +645,7 @@ fn prove(
             cylindrical,
         });
     }
-    if cylinder_count == 0
+    if (!single_cone && cylinder_count == 0)
         || cone_count == 0
         || radial + chord + o.weld_tolerance_mm + 2. * NATIVE_TOL > o.max_deviation_mm
     {
