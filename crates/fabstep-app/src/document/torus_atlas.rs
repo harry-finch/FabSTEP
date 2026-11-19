@@ -57,7 +57,8 @@ fn source_faces(
     atlas: &TorusAtlas,
     triangles: usize,
     remaining: usize,
-) -> Result<Vec<ResultFaceSource>, FabError> {
+    mut destination: Option<&mut Vec<ResultFaceSource>>,
+) -> Result<usize, FabError> {
     let invalid = || {
         FabError::new(
             "step.invalid_source_provenance",
@@ -71,7 +72,6 @@ fn source_faces(
         return Err(invalid());
     }
     let mut used = vec![false; triangles];
-    let mut faces = Vec::new();
     let face = |source_triangle_ids| ResultFaceSource {
         face_id: 0,
         preview_body_id: source.preview_body_id.clone(),
@@ -82,25 +82,33 @@ fn source_faces(
         if chart.triangles.is_empty() {
             return Err(invalid());
         }
-        let mut ids = Vec::with_capacity(chart.triangles.len().min(triangles));
         for &i in &chart.triangles {
             if std::mem::replace(used.get_mut(i).ok_or_else(invalid)?, true) {
                 return Err(invalid());
             }
-            ids.push(source.analysis_to_source_triangles[i]);
         }
-        ids.sort_unstable();
-        faces.push(face(ids));
+        if let Some(out) = &mut destination {
+            let mut ids: Vec<_> = chart
+                .triangles
+                .iter()
+                .map(|&i| source.analysis_to_source_triangles[i])
+                .collect();
+            ids.sort_unstable();
+            out.push(face(ids));
+        }
     }
-    if used.iter().filter(|&&claimed| !claimed).count() > remaining - faces.len() {
+    let count = atlas.charts.len() + used.iter().filter(|&&claimed| !claimed).count();
+    if count > remaining {
         return Err(invalid());
     }
-    for (i, claimed) in used.into_iter().enumerate() {
-        if !claimed {
-            faces.push(face(vec![source.analysis_to_source_triangles[i]]));
+    if let Some(out) = destination {
+        for (i, claimed) in used.into_iter().enumerate() {
+            if !claimed {
+                out.push(face(vec![source.analysis_to_source_triangles[i]]));
+            }
         }
     }
-    Ok(faces)
+    Ok(count)
 }
 
 pub(super) fn convert(
@@ -108,19 +116,21 @@ pub(super) fn convert(
     source: (&str, &BodySourceTriangles),
     options: &Options,
     atlas: &TorusAtlas,
-    document_faces: &mut Vec<ResultFaceSource>,
+    document_faces: Option<&mut Vec<ResultFaceSource>>,
     control: &mut ConversionControl<'_>,
     body_index: usize,
 ) -> Result<Conversion, FabError> {
-    let first = document_faces.len() + 1;
-    let faces = source_faces(
+    let previous = document_faces.as_ref().map_or(0, |faces| faces.len());
+    let first = previous + 1;
+    let count = source_faces(
         source.0,
         source.1,
         atlas,
         analysis.mesh.triangles.len(),
-        100_000usize.saturating_sub(document_faces.len()),
+        100_000usize.saturating_sub(previous),
+        document_faces,
     )?;
-    let tokens = (first..first + faces.len()).collect::<Vec<_>>();
+    let tokens = (first..first + count).collect::<Vec<_>>();
     control.run(ConversionPhase::SourceValidation, Some(body_index), || {
         fabstep_verify::certify_source_embedding(&analysis.mesh)
     })?;
@@ -134,7 +144,7 @@ pub(super) fn convert(
         )
     })?;
     let bound = source_deviation(options, native_bound)?;
-    if step.report.toroidal_faces != atlas.charts.len() || step.report.faces != faces.len() {
+    if step.report.toroidal_faces != atlas.charts.len() || step.report.faces != count {
         return Err(FabError::new(
             "validation.analytic_mismatch",
             "Le résultat réimporté ne correspond pas aux domaines toriques certifiés.",
@@ -157,7 +167,6 @@ pub(super) fn convert(
         ),
         count: atlas.charts.len(),
     });
-    document_faces.extend(faces);
     Ok(Conversion {
         step_bytes: step.bytes,
         report: ConversionReport {
@@ -239,11 +248,24 @@ mod tests {
                 bound_mm: 0.01,
             }],
         };
-        let faces = source_faces("body", &source, &atlas, 4, 3).unwrap();
+        let mut faces = Vec::new();
+        assert_eq!(
+            source_faces("body", &source, &atlas, 4, 3, Some(&mut faces)).unwrap(),
+            3
+        );
+        assert_eq!(
+            source_faces("body", &source, &atlas, 4, 3, None).unwrap(),
+            3
+        );
         let owners: Vec<_> = faces.into_iter().map(|f| f.source_triangle_ids).collect();
         assert_eq!(owners, [vec![11, 31], vec![27], vec![33]]);
-        assert!(source_faces("body", &source, &atlas, 4, 2).is_err());
-        atlas.charts[0].triangles.push(2);
-        assert!(source_faces("body", &source, &atlas, 4, 3).is_err());
+        assert!(source_faces("body", &source, &atlas, 4, 2, None).is_err());
+        for owners in [vec![2, 0, 2], vec![4], vec![]] {
+            atlas.charts[0].triangles = owners;
+            for destination in [None, Some(&mut Vec::new())] {
+                let error = source_faces("body", &source, &atlas, 4, 3, destination).unwrap_err();
+                assert_eq!(error.code, "step.invalid_source_provenance");
+            }
+        }
     }
 }

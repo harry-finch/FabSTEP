@@ -4,15 +4,13 @@ use fabstep_app::isolated_report::{
     CompactWorkerReport, COMPACT_REPORT_LIMIT, COMPACT_REPORT_VERSION,
 };
 use fabstep_app::{
-    convert_shared_document_with_provenance_controlled, ConversionCheckpoint, ConversionPhase,
-    InputFormat,
+    convert_document_controlled, ConversionCheckpoint, ConversionPhase, InputFormat,
 };
 use fabstep_core::{FabError, Options};
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 const MIB: usize = 1024 * 1024;
 const SOURCE_LIMIT: usize = 64 * MIB;
@@ -401,13 +399,13 @@ fn execute_job(directory: &Path) -> Result<bool, FabError> {
     let mut identity = Identity::default();
     let result = (|| {
         let request = read_request(directory, &mut identity)?;
-        let source = Arc::new(read_limited(
+        let source = read_limited(
             &directory.join("source.stl"),
             SOURCE_LIMIT,
             "worker.source_too_large",
-        )?);
-        let converted = convert_shared_document_with_provenance_controlled(
-            source,
+        )?;
+        let converted = convert_document_controlled(
+            &source,
             InputFormat::Stl,
             &request.options,
             &mut |checkpoint: ConversionCheckpoint| {
@@ -422,7 +420,8 @@ fn execute_job(directory: &Path) -> Result<bool, FabError> {
                 )
             },
         )?;
-        let step = converted.step.bytes();
+        drop(source);
+        let step = &converted.step_bytes;
         match identity.protocol {
             ProtocolVersion::Legacy => {
                 publish_success(directory, identity, &converted.report, step)

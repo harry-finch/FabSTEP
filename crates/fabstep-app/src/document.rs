@@ -451,7 +451,7 @@ impl DocumentStep {
             &source.options,
             source.hints.clone(),
             control,
-            None,
+            DocumentOutput::WithProvenance,
         )?;
         source.hints = result.report.guidance_hints.clone();
         result.step.guidance_source = Some(source);
@@ -854,7 +854,7 @@ pub(crate) fn convert_document_with_source_proofs(
             options,
             Vec::new(),
             control,
-            source_proofs,
+            DocumentOutput::ExportOnly(source_proofs),
         )?;
         Ok(DocumentConversion {
             report: conversion.report,
@@ -880,7 +880,7 @@ pub fn convert_document_with_provenance(
             options,
             Vec::new(),
             control,
-            None,
+            DocumentOutput::WithProvenance,
         )?;
         if matches!(
             options.reconstruction,
@@ -924,7 +924,7 @@ pub fn convert_shared_document_with_provenance_controlled(
             options,
             Vec::new(),
             control,
-            None,
+            DocumentOutput::WithProvenance,
         )?;
         if matches!(
             options.reconstruction,
@@ -942,6 +942,11 @@ pub fn convert_shared_document_with_provenance_controlled(
     })
 }
 
+enum DocumentOutput<'a> {
+    WithProvenance,
+    ExportOnly(Option<&'a mut SourceProofCache>),
+}
+
 fn convert_analyzed_document(
     document: DocumentAnalysis,
     body_sources: Vec<BodySourceTriangles>,
@@ -949,8 +954,17 @@ fn convert_analyzed_document(
     options: &Options,
     mut guidance_hints: Vec<GuidanceReport>,
     control: &mut ConversionControl<'_>,
-    mut source_proofs: Option<&mut SourceProofCache>,
+    output: DocumentOutput<'_>,
 ) -> Result<ProvenancedDocumentConversion, FabError> {
+    // A single STL can discard the face lookup after proving its partition.
+    // Combined documents still need consecutive tokens across body boundaries.
+    let keep_auto_faces = format != InputFormat::Stl
+        || document.bodies.len() != 1
+        || matches!(output, DocumentOutput::WithProvenance);
+    let mut source_proofs = match output {
+        DocumentOutput::WithProvenance => None,
+        DocumentOutput::ExportOnly(cache) => cache,
+    };
     // A previous report is not evidence for this reconstruction. Every hint
     // must receive a newly proved wall, including when rebuilding a session.
     for hint in &mut guidance_hints {
@@ -1048,7 +1062,7 @@ fn convert_analyzed_document(
                     if let Some(atlas) = atlas {
                         drop(candidate);
                         return torus_atlas::convert(body.analysis, (&body.id, &source), options,
-                            &atlas, &mut source_faces, control, body_index);
+                            &atlas, keep_auto_faces.then_some(&mut source_faces), control, body_index);
                     }
                 }
                 let recognized = candidate?;
@@ -1057,10 +1071,9 @@ fn convert_analyzed_document(
                         fabstep_core::guided_rounded_region(&recognized, *family, selection)?
                             .into_iter().map(|t| source.analysis_to_source_triangles[t]).collect();
                 }
-                let faces = rounded_source_faces(&body.id, &source, &recognized)?;
                 let first = source_faces.len() + 1;
-                let tokens = (first..first + faces.len()).collect::<Vec<_>>();
-                source_faces.extend(faces);
+                let count = rounded_source_faces(&body.id, &source, &recognized, keep_auto_faces.then_some(&mut source_faces))?;
+                let tokens = (first..first + count).collect::<Vec<_>>();
                 convert_analysis_with_recognized(body.analysis, options, Some(&tokens),
                     Some(Recognized::Rounded(recognized)), control, body_index, source_proofs.as_deref_mut())
             })()
@@ -1288,7 +1301,8 @@ fn rounded_source_faces(
     body_id: &str,
     source: &BodySourceTriangles,
     recognized: &fabstep_core::RoundedRecognition,
-) -> Result<Vec<ResultFaceSource>, FabError> {
+    destination: Option<&mut Vec<ResultFaceSource>>,
+) -> Result<usize, FabError> {
     let counts = crate::rounded_face_counts(&recognized.model);
     let count = counts.iter().sum::<usize>();
     let invalid = || {
@@ -1306,14 +1320,17 @@ fn rounded_source_faces(
     if count == 0 || recognized.triangle_faces.len() != source.analysis_to_source_triangles.len() {
         return Err(invalid());
     }
-    let mut faces = (0..count)
-        .map(|_| ResultFaceSource {
+    let mut faces = destination.map(|out| {
+        let first = out.len();
+        out.extend((0..count).map(|_| ResultFaceSource {
             face_id: 0,
             preview_body_id: source.preview_body_id.clone(),
             analysis_body_id: body_id.into(),
             source_triangle_ids: Vec::new(),
-        })
-        .collect::<Vec<_>>();
+        }));
+        &mut out[first..]
+    });
+    let mut seen = vec![false; count];
     for (owner, &triangle) in recognized
         .triangle_faces
         .iter()
@@ -1337,14 +1354,16 @@ fn rounded_source_faces(
         if index >= counts[kind] {
             return Err(invalid());
         }
-        faces[counts[..kind].iter().sum::<usize>() + index]
-            .source_triangle_ids
-            .push(triangle);
+        let face = counts[..kind].iter().sum::<usize>() + index;
+        seen[face] = true;
+        if let Some(faces) = faces.as_deref_mut() {
+            faces[face].source_triangle_ids.push(triangle);
+        }
     }
-    if faces.iter().any(|face| face.source_triangle_ids.is_empty()) {
+    if seen.contains(&false) {
         return Err(invalid());
     }
-    Ok(faces)
+    Ok(count)
 }
 
 fn revolved_source_faces(
@@ -1490,18 +1509,40 @@ mod tests {
             analysis_to_source_triangles: (0..analysis.mesh.triangles.len()).collect(),
             planar_triangle_faces: Vec::new(),
         };
-        let count = rounded_source_faces("body", &source, &recognized)
-            .unwrap()
-            .len();
+        let mut faces = Vec::new();
+        let count = rounded_source_faces("body", &source, &recognized, Some(&mut faces)).unwrap();
+        assert_eq!(faces.len(), count);
+        assert_eq!(
+            rounded_source_faces("body", &source, &recognized, None).unwrap(),
+            count
+        );
         let mut invalid_source = source.clone();
         invalid_source.analysis_to_source_triangles.pop();
-        let invalid = rounded_source_faces("body", &invalid_source, &recognized).unwrap_err();
+        let invalid = rounded_source_faces("body", &invalid_source, &recognized, None).unwrap_err();
         assert_eq!(invalid.code, "step.invalid_source_provenance");
         assert!(invalid.message.contains("incohérente"));
+        // Dropping the lookup must still reject a native face without any owner.
+        let owner = recognized.triangle_faces[0];
+        let replacement = *recognized
+            .triangle_faces
+            .iter()
+            .find(|&&other| other != owner)
+            .unwrap();
+        let mut incomplete = recognized.clone();
+        for slot in &mut incomplete.triangle_faces {
+            if *slot == owner {
+                *slot = replacement;
+            }
+        }
+        for destination in [None, Some(&mut Vec::new())] {
+            let error =
+                rounded_source_faces("body", &source, &incomplete, destination).unwrap_err();
+            assert_eq!(error.code, "step.invalid_source_provenance");
+        }
         let planes = &mut recognized.model.revolved.mixed.planes;
         let other_faces = count - planes.len();
         planes.resize(100_001 - other_faces, planes[0].clone());
-        let limit = rounded_source_faces("body", &source, &recognized).unwrap_err();
+        let limit = rounded_source_faces("body", &source, &recognized, None).unwrap_err();
         assert_eq!(limit.code, "step.invalid_source_provenance");
         assert!(limit.message.contains("100001 faces"));
         assert!(limit.message.contains("limité à 100000"));
@@ -1606,7 +1647,7 @@ mod tests {
             &options,
             vec![previous],
             &mut ConversionControl::new(&mut |_| Ok(())),
-            None,
+            DocumentOutput::WithProvenance,
         )
         .err()
         .expect("A historical summary must not count as a current proof");
