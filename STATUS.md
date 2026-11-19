@@ -10,7 +10,7 @@
 - Qualification R-112 : 710 tests workspace réussis et 18 optionnels ignorés, 55 tests bureau, 11 worker, 241 UI et 31 Python réussis. Le paquet autonome convertit la rampe publique de 194 694 triangles en 659 faces. L’utilisateur a accepté les tests en attente, dont le geste de peinture et les essais Fusion, lors de la recette groupée du 19 novembre.
 - Second nettoyage A+B approuvé en [A-122](roadmap/actions/A-122-choisir-le-second-nettoyage-de-fabstep.md) : 16,9 Gio de caches et résidus déplacés à la Corbeille sur `fabboard/nettoyage-2026-11-19`, projet ramené de 22,3 à 5,4 Gio. Les deux applications et la candidate NEON sont identiques avant/après (empreintes de contenu SHA-256). Aucun fichier suivi retiré ; formatage Rust et contrôle des espaces Git réussis. Les tests et le build de développement ont repris au lot R-085 (V-1261). Le premier nettoyage est conservé dans A-097 et DEVLOG.
 
-Le suivi Argon décrit les accélérations de la segmentation, de l’atlas et du contrôle de fidélité, ainsi que les limites du contrôle natif sur Flansch. Les prochaines qualifications géométriques figurent dans R-113 à R-115. [Résultats des essais](docs/VALIDATION.md#v-1259--contre-expertise-du-contrôle-dinterférence-docct-793)
+Le suivi Argon décrit les accélérations de la segmentation, de l’atlas et du contrôle de fidélité, ainsi que les limites du contrôle natif sur Flansch. R-115 est en recette. R-113 et R-114 suivent les parois interrompues et la composition locale. [Résultats des essais](docs/VALIDATION.md#v-1259--contre-expertise-du-contrôle-dinterférence-docct-793)
 
 ## Extensions géométriques de développement
 
@@ -51,7 +51,7 @@ Ces lots ont été acceptés lors de la recette groupée dans FabBoard. Les dét
 
 Import ordinaire : 32 corps, 64 Mio et 100 000 triangles après placement. Le mode gros STL accepté utilise un helper séparé `large-stl`, source jusqu’à 600 000 triangles et 1 800 000 sommets, annulation, surveillance RSS/empreinte physique à 4 Gio et délai de 30 minutes. Les plafonds résultat/tessellation et 3MF restent inchangés ; le bureau n’active jamais cette feature (ADR-0034).
 
-Le helper Auto convertit la rampe publique de 194 694 triangles en 659 faces et le secteur à deux bords décalés de 166 848 triangles en 962 faces. FreeCAD confirme les deux tores et le volume de 304,172709 mm³ de ce second témoin. Sur Flansch, la reconnaissance attribue 493 542 des 540 170 triangles à 43 tores. La correction de R-085 conserve les 46 671 faces du corps et ses 1 907 nouveaux raccords passent le contrôle ciblé avec les arêtes des tores. La garde de trente minutes arrête le helper pendant la construction. Le pic mesuré est de 3,03 Gio et le job ne produit aucun STEP. Voir V-1261.
+Le helper Auto convertit la rampe publique de 194 694 triangles en 659 faces et le secteur à deux bords décalés de 166 848 triangles en 962 faces. FreeCAD confirme les deux tores et le volume de 304,172709 mm³ de ce second témoin. Sur Flansch, la reconnaissance attribue 493 542 des 540 170 triangles à 43 tores. Le banc du helper retrouve les 46 671 faces et leurs identités après transfert. Le solide relu passe le contrôle géométrique. Les écarts échantillonnés sont de 0,011552 mm du STL au STEP et de 0,010018 mm en retour. Le contrôle complet des interférences détermine encore le coût de la conversion dans le bureau. Voir V-1262.
 
 ## Reprise après cette session
 
@@ -68,6 +68,6 @@ Lire les consignes du projet, le tableau ci-dessous et les actions FabBoard pour
 
 Les domaines spécifiés de C2/D/E/F/G sont **acceptés** dans les limites de chaque sous-jalon. Les limites dans la dernière colonne décrivent la portée géométrique démontrée.
 
-**Reprise Flansch — R-085.** V-1261 contient les commandes publiques, le rejeu du helper entier et les résultats du filtre torique expérimental. La prochaine mesure porte sur les contrôles complets avant et après transfert, avec les mêmes plafonds de temps et de mémoire. Les 26 refus locaux du raccord sont couverts par la nouvelle qualification.
+**Reprise Flansch — R-085.** Commencer par les groupes de 84 à 91 faces dont 70 à 80 raccords B-splines. Trois de ces groupes sans tore prennent chacun plus d’une minute de CPU pendant le contrôle OCCT. Le banc différentiel et les témoins de pénétration de V-1262 permettent de comparer un découpage plus fin. Mesurer aussi le helper complet sur la rampe et le secteur à deux tores publics.
 
 Les commandes de validation/build sont dans README/AGENTS et `scripts/check.sh` / `scripts/build-macos-dev.sh`. Les preuves F1/C2b/R-085 sont consignées dans V-1205/V-1206/V-1208/V-1209/V-1210 et ADR-0038/0039/0040. Les journaux locaux sous `artifacts/f-next/`, `artifacts/c2-next/` et `artifacts/r085-*/` sont ignorés par Git ; les tests, générateurs et corpus nécessaires à leur reproduction sont versionnés. Ne pas considérer ces journaux locaux comme une dépendance de reprise sur un autre poste.
