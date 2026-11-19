@@ -2791,3 +2791,7 @@ Les répertoires de cas contiennent les rapports JSON, les STL, les références
 Le témoin public `fixtures/r116-quantized-roof.stl` contient 320 triangles. Avant ce changement, Auto réimportait 133 plans. Le recours qui classe les graines selon la stabilité de leur normale après une paire de passes Taubin ramène ce résultat à six plans, un solide et 0,006143998039 mm³. Les maxima de fidélité échantillonnés sont de 0,000000177 et 0,000000170 mm. Les coordonnées utilisées pour construire et contrôler le STEP proviennent du maillage soudé.
 
 Les tests `cargo test -p fabstep-core --lib planar --offline` et `cargo test -p fabstep-app --test taubin_planes --offline` couvrent le classement déterministe, le bruit inférieur au seuil, le relief à conserver, les modes Plans et Auto et l’attribution des triangles.
+
+## V-1266 — R-114, composition et conflits de propriété
+
+Avec le Python de FreeCAD, exécuter `scripts/qualify-r114-composition-freecad.py artifacts/r114-qualification`. Le banc redessine deux références, les réimporte, puis vérifie leur validité, leurs interférences et leurs frontières sur deux densités de STL. Le témoin disjoint donne 286 puis 570 arêtes de frontière appariées. Sur le témoin à perçage longitudinal commun, 524 des 1 568 triangles, puis 978 des 2 980 triangles, sont revendiqués par les deux candidats. Les conclusions sont identiques dans les deux ordres d’insertion. Le test utilise les surfaces de référence pour établir la propriété attendue.
