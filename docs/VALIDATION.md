@@ -2519,3 +2519,7 @@ Quatre STL de FreeCAD couvrent deux orientations et deux résolutions. Chaque ST
 ## V-1249 — Tessellation bornée des secteurs intérieurs de tore
 
 La borne de courbure dépend de l’intervalle angulaire réellement couvert par chaque triangle. Douze secteurs analytiques, dont une couture et la paroi intérieure d’un tore à petit rayon intérieur, passent le contrôle indépendant. Sur le même ensemble de secteurs à 0,005 mm, la tessellation passe de 134 157 à 42 339 triangles. La plus grande borne obtenue est de 0,004987 mm. Le décompte expérimental de 99 494 triangles pour le modèle privé entier précède sa certification finale.
+
+## V-1250 — Conversion Auto d’une rampe torique dense dans le helper
+
+Le témoin public contient 194 694 triangles. Avec les options ordinaires du helper, le STEP relu contient 659 faces, un solide de 93,536793 mm³ et une face torique. Le fichier pèse 1 784 117 octets. Les écarts source vers résultat et retour valent 0,004717 et 0,004703 mm, avec une tessellation à 0,005 mm. Le rejeu optimisé a duré 28,46 s et atteint une empreinte physique de 1 038 960 248 octets. Le contrôle du résultat, du volume et des deux distances est reproductible avec `python scripts/qualify-large-torus-worker.py chemin/vers/fabstep-worker` (NumPy pour générer le témoin).

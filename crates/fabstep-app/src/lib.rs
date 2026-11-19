@@ -263,6 +263,107 @@ fn rounded_face_counts(model: &fabstep_core::RoundedModel) -> [usize; 12] {
     ]
 }
 
+fn audit_reimport(
+    analysis: &mut Analysis,
+    options: &Options,
+    result: &fabstep_cad::ValidatedStep,
+    bound: Option<f64>,
+    control: &mut ConversionControl<'_>,
+    body_index: usize,
+) -> Result<Option<FidelityReport>, FabError> {
+    let bounds = analysis.report.bounds_mm;
+    let extent: [f64; 3] = std::array::from_fn(|i| bounds[1][i] - bounds[0][i]);
+    let tolerance = options.weld_tolerance_mm.max(options.plane_tolerance_mm);
+    let geometric_budget = bound.unwrap_or(tolerance * 8.0);
+    let rounding_budget = extent.into_iter().fold(0.0_f64, f64::max) * 1e-9 + 1e-7;
+    let length_budget = geometric_budget + rounding_budget;
+    if !geometric_budget.is_finite() || geometric_budget < 0.0 || !length_budget.is_finite() {
+        return Err(FabError::new(
+            "validation.numeric_range",
+            "Le budget d'écart géométrique est invalide.",
+        ));
+    }
+    for (actual, expected) in result
+        .report
+        .bounds_mm
+        .iter()
+        .flatten()
+        .zip(bounds.iter().flatten())
+    {
+        if !actual.is_finite() || (actual - expected).abs() > length_budget {
+            return Err(FabError::new(
+                "validation.bounds_mismatch",
+                "Les dimensions du solide diffèrent du maillage au-delà de la tolérance.",
+            ));
+        }
+    }
+    let area: f64 = analysis
+        .mesh
+        .triangles
+        .iter()
+        .map(|t| {
+            let p = t.map(|i| analysis.mesh.vertices[i]);
+            let a: [f64; 3] = std::array::from_fn(|i| p[1][i] - p[0][i]);
+            let b: [f64; 3] = std::array::from_fn(|i| p[2][i] - p[0][i]);
+            let c = [
+                a[1] * b[2] - a[2] * b[1],
+                a[2] * b[0] - a[0] * b[2],
+                a[0] * b[1] - a[1] * b[0],
+            ];
+            c[0].hypot(c[1]).hypot(c[2]) * 0.5
+        })
+        .sum();
+    // Garde de cohérence de volume, distincte de la borne géométrique reconnue.
+    let volume_tolerance = if bound.is_some() {
+        geometric_budget
+    } else {
+        tolerance
+    };
+    let volume_budget = (area * volume_tolerance * 8.0).max(analysis.report.volume_mm3 * 1e-8);
+    if !length_budget.is_finite() || !volume_budget.is_finite() {
+        return Err(FabError::new(
+            "validation.numeric_range",
+            "Les dimensions dépassent la précision numérique prise en charge.",
+        ));
+    }
+    if result.report.solids != 1
+        || !result.report.volume_mm3.is_finite()
+        || result.report.volume_mm3 <= 0.0
+        || (result.report.volume_mm3 - analysis.report.volume_mm3).abs() > volume_budget
+    {
+        return Err(FabError::new(
+            "validation.volume_mismatch",
+            "Le volume du solide diffère du maillage au-delà de la tolérance.",
+        ));
+    }
+    analysis
+        .report
+        .diagnostics
+        .retain(|d| d.code != "validation.native_required");
+    Ok(if bound.is_some() {
+        let deflection = (options.max_deviation_mm * 0.1).min(0.01);
+        if deflection < 1e-6 {
+            return Err(FabError::new("validation.distance_resolution", "Le budget demandé nécessite une tessellation plus fine que la résolution prise en charge."));
+        }
+        let target = control.run(ConversionPhase::AuditTessellation, Some(body_index), || {
+            tessellate_step(&result.bytes, deflection)
+        })?;
+        let report = control.run(ConversionPhase::AuditComparison, Some(body_index), || {
+            compare_meshes(&analysis.mesh, &target, deflection)
+        })?;
+        // Audit échantillonné de deux maillages : le paramètre de tessellation
+        // est explicite. Aucun maximum mesuré n’est présenté comme une preuve
+        // de distance globale entre les surfaces continues.
+        let limit = options.max_deviation_mm + deflection + rounding_budget;
+        if report.source_to_result_mm.max(report.result_to_source_mm) > limit {
+            return Err(FabError::new("validation.distance_exceeded", format!("L’écart échantillonné source/résultat dépasse le budget de {limit:.6} mm (tessellation incluse).")));
+        }
+        Some(report)
+    } else {
+        None
+    })
+}
+
 fn convert_analysis_with_recognized(
     mut analysis: Analysis,
     options: &Options,
@@ -380,22 +481,10 @@ fn convert_analysis_with_recognized(
             build_step(&analysis.model)
         }
     })?;
-    let bounds = analysis.report.bounds_mm;
-    let extent: [f64; 3] = std::array::from_fn(|i| bounds[1][i] - bounds[0][i]);
-    let tolerance = options.weld_tolerance_mm.max(options.plane_tolerance_mm);
     let recognition_report = recognized.as_ref().map(Recognized::report);
-    let geometric_budget = recognition_report.map_or(tolerance * 8.0, |r| r.max_deviation_bound_mm);
-    let rounding_budget = extent.into_iter().fold(0.0_f64, f64::max) * 1e-9 + 1e-7;
-    let length_budget = geometric_budget + rounding_budget;
-    if !geometric_budget.is_finite() || geometric_budget < 0.0 || !length_budget.is_finite() {
-        return Err(FabError::new(
-            "validation.numeric_range",
-            "Le budget d'écart géométrique est invalide.",
-        ));
-    }
     if let Some(report) = recognition_report {
         let expected = report.expected_volume_mm3;
-        if geometric_budget > options.max_deviation_mm
+        if report.max_deviation_bound_mm > options.max_deviation_mm
             || !expected.is_finite()
             || expected <= 0.0
             || (result.report.volume_mm3 - expected).abs() > (expected * 1e-8).max(1e-8)
@@ -408,91 +497,20 @@ fn convert_analysis_with_recognized(
             return Err(FabError::new("validation.analytic_mismatch", "Le solide réimporté ne correspond pas aux primitives reconnues ou dépasse l'écart demandé."));
         }
     }
-    for (actual, expected) in result
-        .report
-        .bounds_mm
-        .iter()
-        .flatten()
-        .zip(bounds.iter().flatten())
-    {
-        if !actual.is_finite() || (actual - expected).abs() > length_budget {
-            return Err(FabError::new(
-                "validation.bounds_mismatch",
-                "Les dimensions du solide diffèrent du maillage au-delà de la tolérance.",
-            ));
-        }
-    }
-    let area: f64 = analysis
-        .mesh
-        .triangles
-        .iter()
-        .map(|t| {
-            let p = t.map(|i| analysis.mesh.vertices[i]);
-            let a: [f64; 3] = std::array::from_fn(|i| p[1][i] - p[0][i]);
-            let b: [f64; 3] = std::array::from_fn(|i| p[2][i] - p[0][i]);
-            let c = [
-                a[1] * b[2] - a[2] * b[1],
-                a[2] * b[0] - a[0] * b[2],
-                a[0] * b[1] - a[1] * b[0],
-            ];
-            c[0].hypot(c[1]).hypot(c[2]) * 0.5
-        })
-        .sum();
-    // Garde de cohérence de volume, distincte de la borne géométrique reconnue.
-    let volume_tolerance = if recognized.is_some() {
-        geometric_budget
-    } else {
-        tolerance
-    };
-    let volume_budget = (area * volume_tolerance * 8.0).max(analysis.report.volume_mm3 * 1e-8);
-    if !length_budget.is_finite() || !volume_budget.is_finite() {
-        return Err(FabError::new(
-            "validation.numeric_range",
-            "Les dimensions dépassent la précision numérique prise en charge.",
-        ));
-    }
-    if result.report.solids != 1
-        || !result.report.volume_mm3.is_finite()
-        || result.report.volume_mm3 <= 0.0
-        || (result.report.volume_mm3 - analysis.report.volume_mm3).abs() > volume_budget
-    {
-        return Err(FabError::new(
-            "validation.volume_mismatch",
-            "Le volume du solide diffère du maillage au-delà de la tolérance.",
-        ));
-    }
-    analysis
-        .report
-        .diagnostics
-        .retain(|d| d.code != "validation.native_required");
+    let fidelity = audit_reimport(
+        &mut analysis,
+        options,
+        &result,
+        recognition_report.map(|r| r.max_deviation_bound_mm),
+        control,
+        body_index,
+    )?;
     if let Some(report) = recognition_report {
         analysis
             .report
             .diagnostics
             .extend(report.diagnostics.iter().cloned());
     }
-    let fidelity = if recognized.is_some() {
-        let deflection = (options.max_deviation_mm * 0.1).min(0.01);
-        if deflection < 1e-6 {
-            return Err(FabError::new("validation.distance_resolution", "Le budget demandé nécessite une tessellation plus fine que la résolution prise en charge."));
-        }
-        let target = control.run(ConversionPhase::AuditTessellation, Some(body_index), || {
-            tessellate_step(&result.bytes, deflection)
-        })?;
-        let report = control.run(ConversionPhase::AuditComparison, Some(body_index), || {
-            compare_meshes(&analysis.mesh, &target, deflection)
-        })?;
-        // Audit échantillonné de deux maillages : le paramètre de tessellation
-        // est explicite. Aucun maximum mesuré n’est présenté comme une preuve
-        // de distance globale entre les surfaces continues.
-        let limit = options.max_deviation_mm + deflection + rounding_budget;
-        if report.source_to_result_mm.max(report.result_to_source_mm) > limit {
-            return Err(FabError::new("validation.distance_exceeded", format!("L’écart échantillonné source/résultat dépasse le budget de {limit:.6} mm (tessellation incluse).")));
-        }
-        Some(report)
-    } else {
-        None
-    };
     let (
         recognition,
         mixed_recognition,

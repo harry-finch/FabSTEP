@@ -24,6 +24,7 @@ const fr = {
   engine: { toric_sector_endpoints_projected: "Les extrémités du secteur torique ont été ajustées. La borne d’écart inclut leur déplacement.",
     unequal_pocket_fitted: "Les deux congés de rayons différents partagent une arête courbe.",
     closed_pocket_fitted: "Les quatre congés du fond se rejoignent sur quatre arcs d’ellipse.",
+    trimmed_tori_fitted: "Les surfaces toriques ont été reconstruites avec leurs contours.",
     u_pocket_fitted: "Les trois congés du fond se rejoignent sur deux arcs d’ellipse.",
     adjacent_pocket_fitted: "Les deux congés se rejoignent le long d’un arc d’ellipse.",
     double_oblique_pocket_fitted: "Le congé de la poche rejoint les deux butées inclinées le long de deux arcs elliptiques.",
