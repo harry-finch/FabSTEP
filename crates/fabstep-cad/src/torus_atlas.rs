@@ -178,3 +178,48 @@ pub fn build_torus_atlas_step_with_provenance(
     }
     Ok((step, bound))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ptr;
+
+    #[test]
+    fn rejected_atlas_clears_native_outputs_without_an_error_buffer() {
+        let mut sentinel = 0_u8;
+        let mut step = NativeStep {
+            data: &mut sentinel,
+            size: 1,
+            metrics: Metrics {
+                faces: 1,
+                ..Metrics::default()
+            },
+        };
+        let mut bound = 1.;
+        // Empty tokens reject the request before any geometry input is read.
+        let status = unsafe {
+            fabstep_build_torus_atlas(
+                ptr::null(),
+                0,
+                ptr::null(),
+                0,
+                ptr::null(),
+                ptr::null(),
+                ptr::null(),
+                0,
+                ptr::null(),
+                0,
+                0.05,
+                &mut bound,
+                &mut step,
+                ptr::null_mut(),
+                256,
+            )
+        };
+        assert_eq!(status, 1); // cad.invalid_model
+        assert!(step.data.is_null());
+        assert_eq!(step.size, 0);
+        assert_eq!(step.metrics.faces, 0);
+        assert_eq!(bound, 0.);
+    }
+}

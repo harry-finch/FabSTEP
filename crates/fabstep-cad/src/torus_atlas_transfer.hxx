@@ -55,7 +55,7 @@ inline bool spline(GeomAbs_SurfaceType type) {
   return type == GeomAbs_BezierSurface || type == GeomAbs_BSplineSurface;
 }
 inline bool same_support(const TopoDS_Face &a, const TopoDS_Face &b) {
-  const BRepAdaptor_Surface x(a), y(b);
+  const BRepAdaptor_Surface x(a, false), y(b, false);
   if (spline(x.GetType()) && spline(y.GetType()))
     return same_net(net(x), net(y));
   if (x.GetType() != y.GetType())

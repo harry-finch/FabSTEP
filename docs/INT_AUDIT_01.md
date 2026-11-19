@@ -144,7 +144,7 @@ Rapport local `docs/audit-neon.md`, SHA-256 `3b6819c6683f2d29b9d8c902f50988fbcf1
 | 005 | ADAPTED | P2 | .9 | IN_PROGRESS | Préparation de coupe mono-corps et ressoudage mesurables. La topologie partagée, le remplacement des tables ordonnées, les grilles et le retrait du clone de rollback demandent une preuve distincte de parité et de gain. |
 | 006 | NEEDS_DECISION | P1 | .12 | BLOCKED | Le build de développement embarque le helper, le script de release v1 inventorie uniquement le bureau. A-120 porte sur la prochaine archive et la vérification rétrospective. |
 | 007 | ADAPTED | P2 | .10 | IN_PROGRESS | Tableaux immuables, conversion directe des positions et rectangle de peinture partagé. Un nouveau BVH demande une mesure de latence WebKit, de mémoire et de fidélité du picking. |
-| 008 | ADAPTED | P1 | .8 | IN_PROGRESS | Mesurer le flux STEP emprunté et limiter les adaptateurs non restreints aux usages compatibles. La détection des coutures toriques exige encore les bornes UV de la face. |
+| 008 | ADAPTED | P1 | .8 | DONE | Mesurer le flux STEP emprunté et limiter les adaptateurs non restreints aux usages compatibles. La détection des coutures toriques exige encore les bornes UV de la face. |
 | 009 | ADAPTED | P2 | .9 | IN_PROGRESS | Mesurer l’index et les distances avec maxima, échantillons et budgets identiques. Tri, SAH, pile, normales et hachage s’évaluent indépendamment, aucune accélération présumée. |
 | 010 | ACCEPTED | P1 | .7 | DONE | Écriture et sync sous mutex. Deux contrôles de fraîcheur encadrent la préparation et le renommage reste sérialisé avec l’invalidation. |
 | 011 | ADAPTED | P2 | .7 | DONE | Snapshots de progression transitoires. Les octets STEP, rapports et fins de job nécessitent encore leur sync. Recherche multi-réglages et provenance à mesurer séparément, les réglages peuvent modifier soudage et composants. |
@@ -175,3 +175,15 @@ AUD-015 et partie d’AUD-016. Le CLI refuse la taille excessive et la destinati
 ### .7 — Publication STEP/DXF et progression · DONE / PASS
 
 Le bureau écrit et synchronise le temporaire hors mutex. Le contrôle final porte sur l’identité du résultat, la révision et, pour les DXF, le contexte de face ou de coupe. Le renommage s’effectue encore sous verrou. La lecture du helper revérifie le type du descripteur ouvert. Les snapshots de progression sont remplacés atomiquement, sans synchronisation persistante de chaque mise à jour. Les sorties finales restent synchronisées. Les 52 tests bureau et les 8 tests worker passent. Revue indépendante acceptée, trois invalidations concurrentes sur 64 Mio ont conservé la destination et éliminé le temporaire. La factorisation des sept essais de paramètres reste différée jusqu’à une mesure isolant le coût et démontrant la parité des réglages.
+
+### .8 — Mémoire et accès aux surfaces OCCT · DONE / PASS
+
+La tessellation lit les octets STEP empruntés. Les chemins qui inspectent le support d’une face évitent les bornes UV inutiles ; la couture d’un tore complet vérifie les bornes de la face découpée. Deux sorties ABI sont initialisées dès l’entrée du constructeur et le message d’erreur accepte un tampon absent. 116 tests CAO réussis, un optionnel ignoré, Clippy strict réussi. Quatre verdicts concordants au banc d’interférence. Empreinte des coordonnées et indices identique dans chaque paire.
+
+| STEP, déflexion 0,005 mm | Tessellation avant → après | Pic RSS avant → après |
+|---|---:|---:|
+| Public, 1 784 117 octets, médiane de cinq processus par version | 0,232 → 0,222 s | 89 686 016 → 87 818 240 octets |
+| Même géométrie avec remplissage à 64 Mio, même protocole | 0,421 → 0,403 s | 289 341 440 → 154 796 032 octets |
+| Flansch expérimental déjà construit, 130 701 976 octets, un passage par version | 18,86 → 17,99 s | 3 162 832 896 → 2 899 460 096 octets |
+
+Pour Flansch, échantillonnage 100 ms, 175 415 sommets, 98 576 triangles. Le délai total de reconstruction depuis le STL reste ouvert dans R-085. Preuves locales dans `artifacts/neon-cad/`.

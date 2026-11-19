@@ -9,7 +9,7 @@ inline std::optional<gp_Pnt> pole(const TopoDS_Face &face, const TopoDS_Edge &ed
   if (a.IsNull() || b.IsNull() || !a.IsSame(b))
     return {};
   const auto apex = BRep_Tool::Pnt(a);
-  BRepAdaptor_Surface surface(face);
+  BRepAdaptor_Surface surface(face, false);
   if (surface.GetType() != GeomAbs_BSplineSurface && surface.GetType() != GeomAbs_BezierSurface)
     return {};
   auto s = surface.GetType() == GeomAbs_BSplineSurface
@@ -110,7 +110,7 @@ bool matches(const TopTools_IndexedMapOfShape &faces) {
     return false;
   bool torus = false, neighbor = false;
   for (int i = 1; i <= faces.Extent(); ++i) {
-    auto type = BRepAdaptor_Surface(TopoDS::Face(faces(i))).GetType();
+    auto type = BRepAdaptor_Surface(TopoDS::Face(faces(i)), false).GetType();
     if (type == GeomAbs_Torus)
       torus = true;
     else if (type == GeomAbs_BSplineSurface || type == GeomAbs_BezierSurface || type == GeomAbs_Plane)
@@ -129,7 +129,7 @@ bool matches(const TopTools_IndexedMapOfShape &faces) {
     wires.Next();
     if (wires.More())
       return false;
-    const auto s = BRepAdaptor_Surface(face);
+    const auto s = BRepAdaptor_Surface(face, false);
     if (s.GetType() == GeomAbs_Torus) {
       auto direction = s.Torus().Axis().Direction();
       if (axis && gp_Vec(*axis).Crossed(gp_Vec(direction)).Magnitude() > 1e-8)
@@ -158,7 +158,7 @@ struct Policy {
   }
   template <class Samples>
   Handle(Poly_Triangulation) mesh(const TopoDS_Face &f, size_t remaining, const Samples &samples) const {
-    if (BRepAdaptor_Surface(f).GetType() == GeomAbs_Torus)
+    if (BRepAdaptor_Surface(f, false).GetType() == GeomAbs_Torus)
       return trimmed_torus_mesh::mesh(f, deflection, mesh_angle, remaining, samples);
     return trimfan::mesh(f, deflection, mesh_angle, samples);
   }

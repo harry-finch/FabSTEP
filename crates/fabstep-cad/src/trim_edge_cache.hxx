@@ -325,7 +325,7 @@ public:
         require(!pc.IsNull() && std::abs(path.front().parameter - lo) <= Precision::PConfusion() &&
                     std::abs(path.back().parameter - hi) <= Precision::PConfusion(),
                 "Paramètres de p-courbe incompatibles.");
-        const BRepAdaptor_Surface surface(use.face);
+        const BRepAdaptor_Surface surface(use.face, false);
         for (const auto &sample : path) {
           const auto uv = pc->Value(sample.parameter);
           require(near(sample.point, surface.Value(uv.X(), uv.Y())),

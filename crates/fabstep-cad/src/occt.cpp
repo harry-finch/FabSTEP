@@ -97,14 +97,16 @@
 #include <cstdio>
 #include <cstring>
 #include <exception>
+#include <istream>
 #include <limits>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <numeric>
 #include <optional>
+#include <ostream>
 #include <set>
-#include <sstream>
+#include <streambuf>
 #include <string>
 #include <utility>
 #include <vector>
@@ -2305,6 +2307,7 @@ bool same_measurement(const CadMetrics& before, const CadMetrics& after) {
 }
 
 void set_error(char* error, size_t capacity, const char* text) noexcept {
+  if (!error || capacity == 0) return;
   std::snprintf(error, capacity, "%s", text != nullptr && *text != '\0' ? text : "Erreur interne Open CASCADE.");
 }
 
@@ -2863,13 +2866,14 @@ std::vector<RevolutionGrid> check_meshing_resolution(const TopoDS_Shape& shape, 
 
 std::vector<int> complete_torus_seam_nodes(const TopoDS_Face& face,
     const Handle(Poly_Triangulation)& triangulation, const TopLoc_Location& location) {
-  const BRepAdaptor_Surface surface(face);
+  if (BRepAdaptor_Surface(face, false).GetType() != GeomAbs_Torus)
+    return {};
+  double umin, umax, vmin, vmax;
+  BRepTools::UVBounds(face, umin, umax, vmin, vmax);
   const auto full_period = [](double first, double last) {
     return std::abs(last - first - 2.0 * std::acos(-1.0)) <= Precision::PConfusion();
   };
-  if (surface.GetType() != GeomAbs_Torus ||
-      !full_period(surface.FirstUParameter(), surface.LastUParameter()) ||
-      !full_period(surface.FirstVParameter(), surface.LastVParameter())) {
+  if (!full_period(umin, umax) || !full_period(vmin, vmax)) {
     return {};
   }
   const CadFailure bad_seam{mesh_failed, "Les deux coutures de la tessellation torique sont incohérentes."};
@@ -4063,6 +4067,8 @@ extern "C" int fabstep_build_torus_atlas(const double *points, size_t nv, const 
                                          size_t nc, const size_t *tokens, size_t token_count, double limit,
                                          double *deviation, StepOutput *output, char *error,
                                          size_t capacity) noexcept {
+  if (output) *output = {};
+  if (deviation) *deviation = 0.;
   return with_occt(invalid_model, error, capacity, [&](Status &stage) {
     constexpr double native_reserve = 8e-6;
     atlas_native::verify(output && deviation && tokens && token_count && token_count <= face_token_limit &&
@@ -4612,7 +4618,8 @@ extern "C" int fabstep_tessellate_step(const unsigned char* bytes, size_t size, 
                                       MeshOutput* output, char* error, size_t error_capacity) noexcept {
   *output = {};
   return with_occt(read_failed, error, error_capacity, [&](Status& stage) {
-    std::istringstream stream(std::string(reinterpret_cast<const char*>(bytes), size));
+    StepInputBuffer buffer(bytes, size);
+    std::istream stream(&buffer);
     const auto shape = read_step(stream);
     stage = mesh_failed;
     tessellate(shape, deflection, output);
