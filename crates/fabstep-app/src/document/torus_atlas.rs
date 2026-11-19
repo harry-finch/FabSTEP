@@ -22,6 +22,35 @@ pub(super) fn should_retry(candidate: &Result<fabstep_core::RoundedRecognition, 
     }
 }
 
+// Geometry operates on the welded mesh. A barycentric point of a raw
+// triangle can move by up to the weld tolerance before this proof starts.
+pub(super) fn available_deviation(options: &Options) -> Result<f64, FabError> {
+    let remaining = options.max_deviation_mm - options.weld_tolerance_mm;
+    if remaining.is_finite() && remaining > 0. {
+        Ok(remaining)
+    } else {
+        Err(FabError::new(
+            "recognition.deviation_exceeded",
+            "Le soudage consomme le budget d’écart disponible pour les zones toriques.",
+        ))
+    }
+}
+
+fn source_deviation(options: &Options, native: f64) -> Result<f64, FabError> {
+    let total = options.weld_tolerance_mm + native;
+    if native.is_finite()
+        && (0.0..=available_deviation(options)?).contains(&native)
+        && total <= options.max_deviation_mm
+    {
+        Ok(total)
+    } else {
+        Err(FabError::new(
+            "validation.analytic_mismatch",
+            "La borne composée de l’atlas torique dépasse la tolérance demandée.",
+        ))
+    }
+}
+
 fn source_faces(
     body_id: &str,
     source: &BodySourceTriangles,
@@ -95,20 +124,17 @@ pub(super) fn convert(
     control.run(ConversionPhase::SourceValidation, Some(body_index), || {
         fabstep_verify::certify_source_embedding(&analysis.mesh)
     })?;
-    let (step, bound) = control.run(ConversionPhase::Build, Some(body_index), || {
+    let remaining = available_deviation(options)?;
+    let (step, native_bound) = control.run(ConversionPhase::Build, Some(body_index), || {
         fabstep_cad::build_torus_atlas_step_with_provenance(
             &analysis.mesh,
             atlas,
             &tokens,
-            options.max_deviation_mm,
+            remaining,
         )
     })?;
-    if step.report.toroidal_faces != atlas.charts.len()
-        || step.report.faces != faces.len()
-        || !bound.is_finite()
-        || bound < 0.
-        || bound > options.max_deviation_mm
-    {
+    let bound = source_deviation(options, native_bound)?;
+    if step.report.toroidal_faces != atlas.charts.len() || step.report.faces != faces.len() {
         return Err(FabError::new(
             "validation.analytic_mismatch",
             "Le résultat réimporté ne correspond pas aux domaines toriques certifiés.",
@@ -125,8 +151,10 @@ pub(super) fn convert(
     analysis.report.diagnostics.push(Diagnostic {
         code: "recognition.trimmed_tori_fitted".into(),
         severity: Severity::Info,
-        message: "Les zones toriques découpées ont été reconstruites avec leurs bords partagés."
-            .into(),
+        message: format!(
+            "Les zones toriques et leurs bords partagés sont reconstruits avec une borne de {bound:.9} mm, dont {:.9} mm pour le soudage.",
+            options.weld_tolerance_mm
+        ),
         count: atlas.charts.len(),
     });
     document_faces.extend(faces);
@@ -151,6 +179,45 @@ pub(super) fn convert(
 mod tests {
     use super::*;
     use fabstep_core::torus_atlas::TorusChart;
+
+    #[test]
+    fn the_weld_and_native_errors_share_one_source_budget() {
+        let options = Options {
+            max_deviation_mm: 0.05,
+            weld_tolerance_mm: 0.0125,
+            ..Options::default()
+        };
+        let cube = include_str!("../../../../fixtures/cube.stl");
+        // Only one corner occurrence moves. The others weld onto its
+        // representative, so the core supplies its continuous bound.
+        let raw = cube.replacen("vertex 1 1 0", "vertex 1.01 1 0", 1);
+        let source = fabstep_core::analyze_stl(raw.as_bytes(), &options).unwrap();
+        assert!(source
+            .report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "mesh.vertices_moved"));
+        let remaining = available_deviation(&options).unwrap();
+        assert_eq!(
+            source_deviation(&options, remaining).unwrap(),
+            options.max_deviation_mm
+        );
+        let larger = f64::from_bits(remaining.to_bits() + 1);
+        assert!(larger < options.max_deviation_mm);
+        assert_eq!(
+            source_deviation(&options, larger).unwrap_err().code,
+            "validation.analytic_mismatch"
+        );
+        assert_eq!(
+            available_deviation(&Options {
+                weld_tolerance_mm: 0.05,
+                ..options
+            })
+            .unwrap_err()
+            .code,
+            "recognition.deviation_exceeded"
+        );
+    }
 
     #[test]
     fn partition_preserves_source_ids_and_refuses_overlap_or_excess_faces() {
