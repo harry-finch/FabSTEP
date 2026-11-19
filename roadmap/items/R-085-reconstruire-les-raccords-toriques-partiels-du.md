@@ -1,7 +1,7 @@
 ---
 id: R-085
 titre: "Reconstruire les raccords toriques partiels du pourtour de Flansch"
-resume: "Le secteur public à deux bords toriques décalés passe en Auto. Sur Flansch, 26 refus locaux sont corrigés. Le contrôle du solide entier reste à qualifier."
+resume: "Le secteur public à deux tores passe en Auto. Sur Flansch, les 26 refus du raccord sont corrigés. Le contrôle entier atteint encore trente minutes, avec un pic de 3,03 Gio."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-18
@@ -43,3 +43,5 @@ Sur le STL Flansch original, 43 surfaces toriques couvrent 493 542 des 540 1
 Dans la contre-expertise Argon, le contrôle parallèle a isolé sur le STEP de laboratoire six paires arête/face invalides à la diagonale 3 094. Le helper expérimental sur le STL original obtient `cad.invalid_solid` en 17 min 36 s et 3,12 Gio, avant l’échéance. Six interférences arête/face sont désormais isolées sur la coque construite depuis le STL, avant transfert. La feuille native 3 088 et les six petits témoins échouent en séquentiel. Reprendre sur leurs courbes de bord et les raccords voisins, puis rejouer le contrôle entier et les deux directions de fidélité. Mesures, témoins et versions figurent en V-1259. Le contrôle de production reste séquentiel.
 
 Le secteur public à deux bords décalés reproduisait le refus du noyau. Il passe maintenant depuis le STL dense de 166 848 triangles jusqu’au STEP réimporté dans FreeCAD. Sur Flansch, les 26 refus ciblés du raccord ont disparu. Les 1 907 nouveaux raccords conservent leurs supports et leurs bords après transfert par lots. Les qualifications publiques et privées sont détaillées en V-1261.
+
+Le rejeu complet en Auto du 19 novembre atteint trente minutes pendant la construction, avec un pic de 3,03 Gio et aucun STEP publié. R-085 reste en cours. Le filtre expérimental de distance au tore diminue le nombre de groupes coûteux sur le banc. Sa qualification sur le solide entier avant et après transfert reste à faire (V-1261).
