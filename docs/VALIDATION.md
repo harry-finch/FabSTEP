@@ -2477,3 +2477,9 @@ Quatre STL indépendants de 1 102, 1 554, 1 112 et 1 588 triangles produ
 ## V-1241 — Congés variables portés par deux arêtes gauches
 
 Les quatre maillages des deux blocs produisent six plans, deux cônes et quatre ellipses. Les volumes concordent à 0,001 mm³ avec les dessins de 3 151,607063 et 3 152,958225 mm³. FreeCAD contrôle les normales des appuis, les rayons aux extrémités, les p-courbes et 24 sondes matière/vide. Une encoche ou une déformation de la seconde bande empêche la reconnaissance de la paire. Les maillages et commandes figurent dans [le corpus des arêtes gauches](../fixtures/skew_linear_blends/README.md).
+
+## V-1242 — Maillage fermé du STEP de laboratoire de la bride
+
+Le routage réserve un seul jeu de points à chaque arête. Les voisins ordinaires passent par OCCT après contrôle de leur complexité, tandis que les tores découpés et les éventails admissibles reprennent les points des mêmes bords. L’essai `sh scripts/qualify-trim-edge-cache.sh` couvre deux placements, un arc rationnel et les deux représentations UV d’une couture. Une paroi retournée, une extrémité manquante et un budget insuffisant sont refusés. `sh scripts/qualify-trim-face-mesh.sh --witness` reconstruit et réimporte un solide public à sept faces.
+
+Sur le STEP privé de V-1237, `sh scripts/qualify-trim-face-mesh.sh CHEMIN/candidate.step` couvre les 13 802 faces en 82 602 triangles à 0,005 mm. Après soudure de contrôle, 41 293 sommets et 123 903 arêtes sont présents. Chaque arête a deux utilisations opposées. Le volume signé du maillage vaut 54 342,466472 mm³ et celui du solide STEP relu vaut 54 334,693960 mm³. Le parcours depuis le STL doit encore établir la fidélité et la provenance de son propre résultat.

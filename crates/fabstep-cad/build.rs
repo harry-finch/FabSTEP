@@ -12,6 +12,8 @@ fn main() {
         "height_patch.hxx",
         "torus_sector.hxx",
         "trim_native_step.hxx",
+        "trim_edge_cache.hxx",
+        "trim_edge_samples.hxx",
         "oblique_pocket.hxx",
         "unequal_pocket.hxx",
         "cross_drill_build.hxx",

@@ -1,3 +1,4 @@
+#include "trim_edge_cache.hxx"
 #include <BRepAdaptor_Curve.hxx>
 #include <BRepAdaptor_Curve2d.hxx>
 #include <BRepAdaptor_Surface.hxx>
@@ -2872,42 +2873,9 @@ std::vector<int> complete_torus_seam_nodes(const TopoDS_Face& face,
   return parents;
 }
 
-void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output,
-                std::vector<ResultFaceData>* faces = nullptr) {
-  const auto grids = check_meshing_resolution(shape, deflection);
-  TopTools_IndexedMapOfShape grid_faces;
-  std::vector<size_t> grid_owners;
-  for (size_t i=0; i<grids.size(); ++i) {
-    const auto& p = grids[i].proof;
-    for (const auto& face : {p.wall,p.caps[0],p.caps[1]}) {
-      if (face.IsNull()) continue;
-      if (grid_faces.Add(face) != static_cast<int>(grid_owners.size()+1))
-        throw CadFailure{mesh_failed,"Face de révolution attribuée à plusieurs solides."};
-      grid_owners.push_back(i);
-    }
-  }
-  TopoDS_Shape ordinary_shape = shape;
-  if (!grids.empty()) {
-    TopoDS_Compound compound;
-    BRep_Builder builder;
-    builder.MakeCompound(compound);
-    ordinary_shape.Nullify();
-    for (TopExp_Explorer body(shape,TopAbs_SOLID); body.More(); body.Next()) {
-      if (std::none_of(grids.begin(),grids.end(),[&](const auto& grid){ return body.Current().IsSame(grid.body); })) {
-        builder.Add(compound,body.Current());
-        ordinary_shape = compound;
-      }
-    }
-  }
-  constexpr int failure_flags = IMeshData_OpenWire | IMeshData_SelfIntersectingWire |
-                                IMeshData_Failure | IMeshData_UnorientedWire |
-                                IMeshData_TooFewPoints | IMeshData_UserBreak;
-  if (!ordinary_shape.IsNull()) {
-    const BRepMesh_IncrementalMesh mesh(ordinary_shape,deflection,false,mesh_angle,false);
-    if (!mesh.IsDone() || (mesh.GetStatusFlags() & failure_flags) != 0)
-      throw CadFailure{mesh_failed, "La tessellation du solide STEP a échoué."};
-  }
-
+template<class Lookup, class PoleLookup>
+void extract_face_meshes(const TopoDS_Shape& shape, MeshOutput* output,
+                         std::vector<ResultFaceData>* faces, Lookup lookup, PoleLookup find_pole) {
   std::vector<double> points;
   std::vector<size_t> triangles;
   const auto unused = std::numeric_limits<size_t>::max();
@@ -2927,7 +2895,7 @@ void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output
       if (!BRep_Tool::Degenerated(edge)) {
         continue;
       }
-      const auto pole = surface_pole(face, edge);
+      const auto pole = find_pole(face, edge);
       if (!pole || pole_count == poles.size() ||
           (pole_count > 0 && poles[0].point.Distance(*pole) <= Precision::Confusion())) {
         throw CadFailure{mesh_failed, "La tessellation comporte une singularité de surface non admise."};
@@ -2935,10 +2903,7 @@ void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output
       poles[pole_count++].point = *pole;
     }
     TopLoc_Location location;
-    const int grid_face = grid_faces.FindIndex(face);
-    const Handle(Poly_Triangulation) triangulation = grid_face > 0
-        ? revolution_face_mesh(grids[grid_owners[grid_face-1]],face)
-        : BRep_Tool::Triangulation(face, location);
+    const Handle(Poly_Triangulation) triangulation = lookup(face, location);
     if (triangulation.IsNull() || triangulation->NbTriangles() <= 0 ||
         triangulation->NbNodes() <= 0) {
       throw CadFailure{mesh_failed, "Une face du STEP n'a pas de triangulation."};
@@ -3051,6 +3016,111 @@ void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output
   std::copy(triangles.begin(), triangles.end(), triangle_data.get());
   *output = {point_data.release(), points.size() / 3,
              triangle_data.release(), triangles.size() / 3};
+}
+
+void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output,
+                std::vector<ResultFaceData>* faces = nullptr) {
+  const auto grids = check_meshing_resolution(shape, deflection);
+  TopTools_IndexedMapOfShape grid_faces;
+  std::vector<size_t> grid_owners;
+  for (size_t i=0; i<grids.size(); ++i) {
+    const auto& p = grids[i].proof;
+    for (const auto& face : {p.wall,p.caps[0],p.caps[1]}) {
+      if (face.IsNull()) continue;
+      if (grid_faces.Add(face) != static_cast<int>(grid_owners.size()+1))
+        throw CadFailure{mesh_failed,"Face de révolution attribuée à plusieurs solides."};
+      grid_owners.push_back(i);
+    }
+  }
+  TopoDS_Shape ordinary_shape = shape;
+  if (!grids.empty()) {
+    TopoDS_Compound compound;
+    BRep_Builder builder;
+    builder.MakeCompound(compound);
+    ordinary_shape.Nullify();
+    for (TopExp_Explorer body(shape,TopAbs_SOLID); body.More(); body.Next()) {
+      if (std::none_of(grids.begin(),grids.end(),[&](const auto& grid){ return body.Current().IsSame(grid.body); })) {
+        builder.Add(compound,body.Current());
+        ordinary_shape = compound;
+      }
+    }
+  }
+  constexpr int failure_flags = IMeshData_OpenWire | IMeshData_SelfIntersectingWire |
+                                IMeshData_Failure | IMeshData_UnorientedWire |
+                                IMeshData_TooFewPoints | IMeshData_UserBreak;
+  if (!ordinary_shape.IsNull()) {
+    const BRepMesh_IncrementalMesh mesh(ordinary_shape,deflection,false,mesh_angle,false);
+    if (!mesh.IsDone() || (mesh.GetStatusFlags() & failure_flags) != 0)
+      throw CadFailure{mesh_failed, "La tessellation du solide STEP a échoué."};
+  }
+
+  extract_face_meshes(shape, output, faces, [&](const TopoDS_Face& face, TopLoc_Location& location) {
+    const int id = grid_faces.FindIndex(face);
+    return id ? revolution_face_mesh(grids[grid_owners[id-1]],face)
+              : BRep_Tool::Triangulation(face, location);
+  }, surface_pole);
+}
+
+// A producer that has certified the source geometry may use this route on
+// the complete reimported solid. The ordinary public STEP API continues to
+// enforce its existing body certificates in check_meshing_resolution().
+template <class Policy>
+void tessellate_certified_trim_faces(const TopoDS_Shape &shape, double deflection, MeshOutput *output,
+                                     std::vector<ResultFaceData> *faces, const Policy &policy) {
+  try {
+    TopTools_IndexedMapOfShape candidates;
+    size_t face_count = 0;
+    for (TopExp_Explorer it(shape, TopAbs_FACE); it.More(); it.Next()) {
+      trimcache::budget(++face_count <= mesh_triangle_limit);
+      const auto face = TopoDS::Face(it.Current().Oriented(TopAbs_FORWARD));
+      if (policy.candidate(face))
+        candidates.Add(face);
+    }
+    // A ruled fan can be geometrically admissible but decline the particular
+    // edge samples imposed by a neighbor. In that case explicitly demote it,
+    // remesh the ordinary subset and recompute every affected shared chain.
+    // Bound retries regardless of the size or ordering of the document.
+    for (int attempt = 0; attempt < 3 && candidates.Extent() > 0; ++attempt) {
+      const trimcache::Cache cache(shape, candidates, deflection, mesh_angle, mesh_triangle_limit);
+      TopTools_IndexedMapOfShape accepted;
+      std::vector<Handle(Poly_Triangulation)> meshes;
+      size_t remaining = mesh_triangle_limit - cache.counts().ordinary_triangles;
+      for (int i = 1; i <= candidates.Extent(); ++i) {
+        const auto face = TopoDS::Face(candidates(i));
+        auto tri = policy.mesh(face, remaining, [&](const TopoDS_Edge &edge) -> const TrimEdgeSamples & {
+          return cache.samples(edge);
+        });
+        if (tri.IsNull())
+          continue;
+        trimcache::require(tri->NbTriangles() > 0 && tri->NbNodes() > 0, "Maillage de face spéciale vide.");
+        trimcache::budget(static_cast<size_t>(tri->NbTriangles()) <= remaining &&
+                          static_cast<size_t>(tri->NbNodes()) <= 3 * static_cast<size_t>(tri->NbTriangles()));
+        remaining -= tri->NbTriangles();
+        accepted.Add(face);
+        meshes.push_back(tri);
+      }
+      if (accepted.Extent() != candidates.Extent()) {
+        candidates = std::move(accepted);
+        continue;
+      }
+      extract_face_meshes(
+          shape, output, faces,
+          [&](const TopoDS_Face &face, TopLoc_Location &location) {
+            const int id = accepted.FindIndex(face);
+            return id ? meshes[id - 1] : BRep_Tool::Triangulation(face, location);
+          },
+          [&](const TopoDS_Face &face, const TopoDS_Edge &edge) {
+            const auto known = surface_pole(face, edge);
+            return known ? known : policy.pole(face, edge);
+          });
+      return;
+    }
+    throw CadFailure{mesh_failed, "Le routage des contours partagés ne converge pas."};
+  } catch (const std::length_error &ex) {
+    throw CadFailure{mesh_too_complex, ex.what()};
+  } catch (const std::runtime_error &ex) {
+    throw CadFailure{mesh_failed, ex.what()};
+  }
 }
 
 // Shared traversal is the identity contract for display and exact profiles.
