@@ -135,7 +135,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 61. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
 62. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon post-v1
-   Flansch compte 43 zones toriques et un BRep de laboratoire de 46 671 faces. Qualifier le contrôle complet des interférences dans les limites du helper avant d’autoriser son export.
+   Flansch compte 43 zones toriques. Six interférences arête/face sont reproduites sur la coque actuelle avant transfert. Corriger les raccords et requalifier le solide complet.
 63. **[R-086 D/E — poche borgne à congé de fond arrêté](roadmap/items/R-086-d-e-poche-borgne-a-conge-de-fond-arrete.md)** · À tester · jalon post-v1
    Auto reconstruit un congé intérieur à deux butées, même quand ses extrémités comportent des nombres de facettes différents.
 64. **[R-087 D/E — congé de poche arrêté par une paroi oblique](roadmap/items/R-087-d-e-conge-de-poche-arrete-par-une-paroi-oblique.md)** · À tester · jalon post-v1
