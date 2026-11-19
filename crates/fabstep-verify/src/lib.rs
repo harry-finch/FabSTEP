@@ -117,7 +117,6 @@ impl Bounds {
 struct Triangle {
     points: [Point; 3],
     bounds: Bounds,
-    center: Point,
 }
 impl Triangle {
     fn distance_squared(&self, point: Point) -> Result<f64, FabError> {
@@ -129,6 +128,12 @@ impl Triangle {
         }
         Ok(distance)
     }
+}
+// Stable partitioning needs centers and bounds, but never triangle coordinates.
+struct BuildTriangle {
+    source: usize,
+    bounds: Bounds,
+    center: Point,
 }
 struct Node {
     bounds: Bounds,
@@ -162,9 +167,9 @@ impl Tree {
                 "Le maillage de comparaison contient une coordonnée non finie.",
             ));
         }
-        let mut triangles = Vec::with_capacity(mesh.triangles.len());
+        let mut entries = Vec::with_capacity(mesh.triangles.len());
         let mut used = vec![false; mesh.vertices.len()];
-        for indices in &mesh.triangles {
+        for (source, indices) in mesh.triangles.iter().enumerate() {
             if indices.iter().any(|&i| i >= mesh.vertices.len()) {
                 return Err(invalid(
                     "Un triangle de comparaison référence un sommet absent.",
@@ -185,10 +190,10 @@ impl Tree {
             if !area.is_finite() || area <= f64::MIN_POSITIVE {
                 return Err(invalid("Le maillage de comparaison contient un triangle dégénéré ou hors plage numérique."));
             }
-            triangles.push(Triangle {
+            entries.push(BuildTriangle {
                 bounds: Bounds::of(points),
                 center: std::array::from_fn(|i| points[0][i] + ab[i] / 3.0 + ac[i] / 3.0),
-                points,
+                source,
             });
         }
         if used.contains(&false) {
@@ -196,11 +201,18 @@ impl Tree {
                 "Le maillage de comparaison contient des sommets non référencés.",
             ));
         }
-        let mut nodes = Vec::with_capacity(triangles.len() * 2);
-        Self::build(&mut triangles, 0, &mut nodes);
+        let mut nodes = Vec::with_capacity(entries.len() * 2);
+        Self::build(&mut entries, 0, &mut nodes);
+        let triangles = entries
+            .into_iter()
+            .map(|entry| Triangle {
+                points: mesh.triangles[entry.source].map(|i| mesh.vertices[i]),
+                bounds: entry.bounds,
+            })
+            .collect();
         Ok(Self { triangles, nodes })
     }
-    fn build(triangles: &mut [Triangle], start: usize, nodes: &mut Vec<Node>) -> usize {
+    fn build(triangles: &mut [BuildTriangle], start: usize, nodes: &mut Vec<Node>) -> usize {
         let bounds = triangles
             .iter()
             .skip(1)
