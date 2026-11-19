@@ -128,3 +128,42 @@ Le rapport source est inchangé, les modifications préexistantes sont préserv�
 Limites : pas de nouvel essai graphique Tauri, Fusion ou réimport FreeCAD indépendant ; pas d’interruption au milieu d’un appel OCCT ; pas de mesure générale de performance, de version binaire OCCT certifiée par le seul en-tête, ni de tests de composants Svelte montés. Aucun problème d’export périmé n’a été découvert par cette qualification.
 
 Prochaines actions utiles après UX4/PERF1 : achever la qualification graphique avec modèle (accueil EN clair observé en V-1166). PERF1 est validé en V-1168/V-1169 ; segmentation partagée et fusion FFI restent différées. Les conditions de preuve et de compatibilité sont dans la roadmap. AUD-017 a ensuite été repris par R-070 et qualifié dans V-1194.
+
+## NEON — audit du 19 novembre 2026 (R-112)
+
+Rapport local `docs/audit-neon.md`, SHA-256 `3b6819c6683f2d29b9d8c902f50988fbcf19a508fc8f7095b25ffa4d5fc2cc23`. Les identifiants ci-dessous désignent ce rapport. Les lots 1 à 5 ci-dessus concernent le rapport antérieur. Base Git `2e51866`, branche d’intégration `audit/neon`. Le rapport fourni, la skill locale fab-cleanup et son inventaire préexistaient. Référence V-1258 et STATUS avant travaux : 707 tests workspace, 51 bureau, 238 UI. Au démarrage, CLI verte et 12 tests Python réussis, 11 conditionnels ignorés.
+
+### Qualification et registre
+
+| NEON/AUD | Décision | Priorité | Lot | État | Preuve, limite ou condition de reprise |
+|---|---|---|---|---|---|
+| 001 | DEFERRED | P1 | R-085 | DEFERRED | Travail répété et délai réel sur Flansch. Deux triangles qui se croisent sont acceptés avec le contrôle OCCT bi-forme proposé. Le banc de quatre verdicts et les cas V-1251 à V-1258 restent les témoins. Reprendre sur une accélération équivalente pour les interférences internes **et** croisées, sous les plafonds actuels. |
+| 002 | REJECTED | P1 | — | CLOSED | Le solide construit et le solide relu sont distincts. V-1256 montre un défaut avant transfert et V-1252 une perte de découpe après transfert. Supprimer un des deux contrôles enlèverait une preuve indépendante. |
+| 003 | ALREADY_FIXED | P2 | — | CLOSED | Le constructeur filtre déjà topologie, coplanarité et injectivité avant FaceFace. Les 174 s proviennent d’une sonde exhaustive. Six éventails sont réparés sur la pièce. |
+| 004 | NEEDS_DECISION | P1 | .11 | BLOCKED | Le rapport dense contient mesh/model, et le superviseur charge sa représentation JSON. Le supprimer touche les consommateurs et le protocole. Arbitrage A-119 avant sérialisation compacte. |
+| 005 | ADAPTED | P2 | .9 | IN_PROGRESS | Préparation de coupe mono-corps et ressoudage mesurables. La topologie partagée, le remplacement des tables ordonnées, les grilles et le retrait du clone de rollback demandent une preuve distincte de parité et de gain. |
+| 006 | NEEDS_DECISION | P1 | .12 | BLOCKED | Le build de développement embarque le helper, le script de release v1 inventorie uniquement le bureau. A-120 porte sur la prochaine archive et la vérification rétrospective. |
+| 007 | ADAPTED | P2 | .10 | IN_PROGRESS | Tableaux immuables, conversion directe des positions et rectangle de peinture partagé. Un nouveau BVH demande une mesure de latence WebKit, de mémoire et de fidélité du picking. |
+| 008 | ADAPTED | P1 | .8 | IN_PROGRESS | Mesurer le flux STEP emprunté et limiter les adaptateurs non restreints aux usages compatibles. La détection des coutures toriques exige encore les bornes UV de la face. |
+| 009 | ADAPTED | P2 | .9 | IN_PROGRESS | Mesurer l’index et les distances avec maxima, échantillons et budgets identiques. Tri, SAH, pile, normales et hachage s’évaluent indépendamment, aucune accélération présumée. |
+| 010 | ACCEPTED | P1 | .7 | IN_PROGRESS | Écriture et sync sous mutex. Deux contrôles de fraîcheur encadrent la préparation et le renommage reste sérialisé avec l’invalidation. |
+| 011 | ADAPTED | P2 | .7 | IN_PROGRESS | Snapshots de progression transitoires. Les octets STEP, rapports et fins de job nécessitent encore leur sync. Recherche multi-réglages et provenance à mesurer séparément, les réglages peuvent modifier soudage et composants. |
+| 012 | DEFERRED | P2 | .9 | DEFERRED | Mesurer les intersections de sections indépendamment de la projection des paires candidates. Une réécriture des preuves partielles exige un gain sur un modèle concerné et la parité des refus. |
+| 013 | ADAPTED | P2 | .10 | IN_PROGRESS | Peinture et Échap, décimales pendant l’édition et export frais, focus et identité du nouvel aperçu. Préserver précision et annuler/rétablir. |
+| 014 | ADAPTED | P3 | .10 | IN_PROGRESS | Mesurer les imports ciblés d’icônes. Garder la couverture Unicode des noms de fichiers. Chunks séparés à considérer après mesure du démarrage. |
+| 015 | ADAPTED | P2 | .6 | IN_PROGRESS | La limite existante n’acceptait pas un STL tronqué comme succès. Diagnostiquer la taille avant parse pour les deux formats et refuser tôt une sortie occupée tout en conservant la publication atomique. |
+| 016 | ADAPTED | P2/P3 | .6–.8, .10 | IN_PROGRESS | Fetch du verrou worker, publication de l’archive source, gardes ABI et relecture du type de fichier ouvert. Un lien de helper local n’authentifie pas son éditeur ; conserver le contrat développeur. Découpage C++/App, MSVC, NDEBUG et retrait de composants à reprendre selon un coût mesuré ou une cible Windows active. Corriger les repères documentaires vérifiés. |
+
+### Plan, acceptation et réversibilité
+
+Les lots .6 à .10 sont indépendants. Risques principaux : export d’une ancienne révision, perte d’une couture ou d’un contrôle de solide, changement des distances de fidélité, perte de sélection ou de précision pendant la saisie. Chaque commit de lot peut être annulé isolément. Les fichiers d’entrée, paquets déjà livrés et formats utilisateurs restent utilisables. Aucun P0 établi.
+
+| INT-AUDIT-01 | Objectif et composants | Complexité et risque | Critère d’acceptation et test |
+|---|---|---|---|
+| .6 | CLI, workflow CI et scripts d’archive source | Faible. Destination préexistante et archive interrompue | Tests CLI des refus précoces, ancien fichier intact, suite Python, création depuis un checkout propre incluant les sources natives. |
+| .7 | Publication STEP/DXF dans desktop/{main,section}, lectures supervisor et progressions worker | Moyenne. Course entre écriture et invalidation | Export périmé refusé jusque dans l’intervalle de sync, remplacement courant réussi, nettoyage temporaire. Tests bureau, helper et revue indépendante. |
+| .8 | Tessellation et gardes C++ dans fabstep-cad | Moyenne. Limites paramétriques et mémoire empruntée | Mêmes verdicts natifs, même empreinte des coordonnées et indices, suite CAO, pic RSS et durée sur fichiers identiques. |
+| .9 | Préparation des sections dans core ; expérimentation distincte dans verify | Moyenne. Indices après soudage, budgets et déterminisme | Cas mono et multi, limites/cancellation, parité du profil et des audits ; ne retenir une optimisation que si le banc l’étaye. |
+| .10 | App, Viewport, Dialog, NumField, CSS, imports Svelte | Moyenne. Fraîcheur, précision, focus et picking | Tests UI, check, build, mesures avant/après ; essais clavier, export et rafraîchissement sur une vue montée. |
+| .11 | Rapport allégé versionné dans worker, superviseur, consommateurs UI | Élevée. Dépend de A-119. Versions et informations d’inspection | Cube et rampe dense, état exportable strict, refus d’un résultat incomplet, taille/RSS et compatibilité prouvées. Retour à la lecture et à l’écriture historiques. |
+| .12 | Helper dans le prochain paquet, scripts macOS, manifeste et notices | Élevée. Dépend de A-120. Fermeture des bibliothèques et anciennes archives | Vérifier les deux exécutables sans Homebrew, leurs signatures et inventaires, conversion par le helper, contrôle d’une ancienne archive. Conserver la release 1.0.0. |
