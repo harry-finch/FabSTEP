@@ -1,11 +1,11 @@
 ---
 id: R-034
 titre: "D — congés partiels constants"
-resume: "Congés de poche isolés, opposés ou adjacents à 90°, de rayons égaux ou distincts. Les réseaux à plusieurs jonctions et les autres angles restent ouverts."
+resume: "Congés de poche à un ou deux arrêts obliques. Deux congés adjacents à rayons égaux se rejoignent également dans des coins aigus ou obtus."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13
-maj: 2026-11-18
+maj: 2026-11-19
 livree:
 ---
 
@@ -33,11 +33,11 @@ Couverture source exhaustive, borne continue, limites partagées, volume et soli
 
 Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions FabBoard ; ne pas les dupliquer au niveau de ce chantier global.
 
-## État consolidé — 18 novembre 2026
+## État consolidé
 
-R-081 intègre le coin orthogonal à trois arrondis ; R-062 qualifie des coins verticaux de bac. R-086 qualifie un congé intérieur à deux butées droites et des extrémités de subdivisions différentes, y compris sur un congé extérieur. Reste : généralisation des configurations de congés partiels et de leurs combinaisons. Le domaine global D n’est pas terminé.
+Les essais de doubles arrêts obliques sont dans R-097. La jonction elliptique à 65° et 115° est contrôlée dans R-101. Les réseaux comportant plusieurs jonctions partagées restent à qualifier.
 
-L’utilisateur a autorisé la réalisation de l’ensemble. Le statut « en cours » représente ce chantier global partiellement intégré ; il ne signifie pas que tous ses domaines sont déjà disponibles. Les essais manuels ouverts ne bloquent pas les travaux indépendants restants.
+Les essais dans Fusion sont suivis dans les actions des sous-jalons.
 
 ## Historique et décisions
 

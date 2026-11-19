@@ -1,7 +1,7 @@
 ---
 id: R-033
 titre: "C2 — profils de révolution courbes"
-resume: "Révolutions toriques composées et première méridienne cubique bornée ; la généralisation reste ouverte."
+resume: "Profils toriques, méridiennes cubiques mono- ou bi-travée, pointe axiale et premier domaine sur tessellation irrégulière."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13
@@ -33,11 +33,11 @@ Profils reconstruits avec bornes continues, volume et réimport contrôlés ; le
 
 Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions FabBoard ; ne pas les dupliquer au niveau de ce chantier global.
 
-## État consolidé — 18 novembre 2026
+## État consolidé
 
-R-061/R-075/R-076 intégrés et à tester. R-084 ajoute une première méridienne cubique positive, mono-travée, sur un tour complet avec deux disques source (ADR-0039 approuvé). Sa qualification et ses essais sont suivis dans ce sous-jalon. Restent : profils multisegments, pôles et retours axiaux, autres limites et raccords à des familles voisines ; ces domaines exigent encore des contrats et preuves propres. Aucune surface libre générique n’est revendiquée.
+R-095 couvre deux travées à tangente continue et nœud observé. R-099 couvre la pointe axiale. R-104 prend en charge une mono-travée sur trois maillages FreeCAD sans anneaux réguliers. Les retours axiaux, les raccords vers une famille voisine et les combinaisons supplémentaires restent ouverts.
 
-L’utilisateur a autorisé la réalisation de l’ensemble. Le statut « en cours » représente ce chantier global partiellement intégré ; il ne signifie pas que tous ses domaines sont déjà disponibles. Les essais manuels ouverts ne bloquent pas les travaux indépendants restants.
+Les essais dans Fusion sont suivis dans les actions des sous-jalons.
 
 ## Historique et décisions
 

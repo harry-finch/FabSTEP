@@ -1,7 +1,7 @@
 ---
 id: R-035
 titre: "E — boîtiers creux ouverts et percés"
-resume: "Bac ouvert, fond percé et poches à un ou deux congés contrôlés, y compris deux congés adjacents de rayons différents. Restent les rebords et les combinaisons de cavités."
+resume: "Bacs ouverts à perçages multiples, à rebord en saillie et cloison. Rebord circulaire arrondi sur ses deux côtés."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-13
@@ -33,11 +33,11 @@ Un solide fermé avec vide conservé, parois et épaisseurs source contrôlées 
 
 Les essais de chaque tranche sont portés par ses sous-jalons et leurs actions FabBoard ; ne pas les dupliquer au niveau de ce chantier global.
 
-## État consolidé — 18 novembre 2026
+## État consolidé
 
-R-062 et R-077 intégrés : bac ouvert à coins verticaux arrondis, puis fond percé. R-086 qualifie un congé isolé dans le fond d’une poche borgne. R-087 intègre une butée oblique et une butée perpendiculaire sur le même congé. Les doubles arrêts obliques, les congés multiples, le rebord et les combinaisons de cavités restent à développer.
+R-097 couvre deux arrêts obliques. R-098 qualifie des trous du fond et de la paroi. R-100 qualifie deux cavités à fond de profondeur différente, séparées par une cloison sous un rebord. R-103 reconstruit les deux congés du rebord circulaire. Les lèvres sans plat mesuré, les cavités totalement enfermées et les assemblages libres ne font pas partie de ces domaines.
 
-L’utilisateur a autorisé la réalisation de l’ensemble. Le statut « en cours » représente ce chantier global partiellement intégré ; il ne signifie pas que tous ses domaines sont déjà disponibles. Les essais manuels ouverts ne bloquent pas les travaux indépendants restants.
+Les essais dans Fusion sont suivis dans les actions des sous-jalons.
 
 ## Historique et décisions
 
