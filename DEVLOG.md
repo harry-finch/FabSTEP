@@ -1,5 +1,12 @@
 # Journal d'ingénierie
 
+## 2026-11-18 et 19 — Domaines géométriques et bride à grand maillage
+
+Les lots R-094 à R-110 étendent Auto aux profils de révolution cubiques avec pointe ou raccord mesuré entre deux hauteurs, aux perçages à axes inclinés et décalés, aux cavités à plusieurs perçages, au rebord torique et aux circuits de congés à une, deux ou quatre jonctions. Deux lois de rayon affines peuvent appartenir à des arêtes gauches d’un même bloc. Les témoins indépendants, mesures, rejets et commandes figurent dans V-1222 à V-1246. R-038 ajoute le relief bicubique sur demande explicite, R-050 les indications sphériques. Le paquet local inclut R-110.
+
+Sur Flansch, la fermeture, le maillage à bord commun et la comparaison au maillage source ont passé leurs contrôles sur le témoin assemblé par étapes. La voie directe depuis le STL a son propre détecteur et un contrôle spatial de la source adapté aux 4 Gio du helper. Le résultat de cette voie doit encore être qualifié après écriture STEP. Les paramètres utilisateur et les limites du document final sont conservés.
+
+
 ## 2026-11-06 — Cadrage et première verticale STL → STEP
 
 Décisions utilisateur : moteur C++ OCCT accepté derrière Rust, priorité bureau macOS puis Windows/Linux, solide BRep sans historique d'esquisses au premier jalon. Licence et conventions FabWeave reprises. L'audit du brainstorming a révélé notamment un faux succès d'export de coque ouverte et des appairages de trous insuffisamment prouvés.
