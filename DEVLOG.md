@@ -554,3 +554,5 @@ Les 36 chemins approuvés sont absents et aucun fichier suivi n’est supprimé.
 ## 2026-11-19 — R-085, raccords entre bords toriques décalés
 
 Le constructeur natif peut remplacer le sommet pincé d’un raccord peu profond par un domaine triangulaire régulier. Le petit secteur public reproduit le refus d’origine. Sa variante dense passe dans le helper de FabSTEP, avec deux tores et 962 identités de faces dans la qualification native. Le générateur et les deux commandes de qualification sont consignés en V-1261. Le périmètre privé porte sur les 43 tores de Flansch et les faces voisines. La vérification des 7 385 couples autour des nouveaux raccords est réussie.
+
+Le helper complet atteint l’échéance de trente minutes sur le STL Flansch corrigé, avec un pic de 3,03 Gio. La géométrie publique est disponible dans le paquet de développement. Le filtre de distance au tore a été mesuré séparément en laboratoire. Les mesures, leurs limites et les commandes figurent dans V-1261.

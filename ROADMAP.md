@@ -13,7 +13,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 ## Restant à faire
 
 1. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon post-v1
-   Le secteur public à deux bords toriques décalés passe en Auto. Sur Flansch, 26 refus locaux sont corrigés. Le contrôle du solide entier reste à qualifier.
+   Le secteur public à deux tores passe en Auto. Sur Flansch, les 26 refus du raccord sont corrigés. Le contrôle entier atteint encore trente minutes, avec un pic de 3,03 Gio.
 2. **[R-115 Récupérer les plans fragmentés par la quantification du STL](roadmap/items/R-115-recuperer-les-plans-fragmentes-par-la.md)** · Idée
    Essayer une graine de grande aire sur les régions planes fragmentées en f32. Vérifier le contour, la provenance et les plis sur des solides avant de retenir une seconde segmentation.
 3. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · Idée
