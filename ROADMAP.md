@@ -22,7 +22,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto.
 5. **[R-116 Estimer les normales sur copie Taubin en lecture seule](roadmap/items/R-116-estimer-les-normales-sur-copie-taubin-en-lecture.md)** · Spécifiée · jalon post-v1
    Calculer des normales lissées sur une copie temporaire sans déplacer les sommets source, uniquement pour stabiliser la segmentation et la découverte de candidats sur les STL quantifiés ou bruités.
-6. **[R-117 Proposer des cylindres, cônes et sphères par normales sur bandes résiduelles](roadmap/items/R-117-proposer-des-cylindres-cones-et-spheres-par.md)** · Idée · jalon post-v1
+6. **[R-117 Proposer des cylindres, cônes et sphères par normales sur bandes résiduelles](roadmap/items/R-117-proposer-des-cylindres-cones-et-spheres-par.md)** · Spécifiée · jalon post-v1
    Utiliser les rayons de normales et l'angle de normale constant sur les chaînes de bandes non planes pour découvrir des parois interrompues, en conservant toutes les preuves géométriques existantes.
 7. **[R-025 Découper les gros modules et mutualiser les helpers au besoin](roadmap/items/R-025-decouper-les-gros-modules-et-mutualiser-les-helpers-au-besoin.md)** · Idée · jalon audit
    AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes
