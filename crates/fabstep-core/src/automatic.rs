@@ -199,11 +199,12 @@ fn recover_planar_output(
             .iter()
             .any(|d| d.code == "planar.approximate")
         || (!crate::planar::possible_seed_split(&a.model.faces)
-            && !a
-                .report
-                .diagnostics
-                .iter()
-                .any(|d| d.code == "planar.quantized_regions_recovered"))
+            && !a.report.diagnostics.iter().any(|d| {
+                matches!(
+                    d.code.as_str(),
+                    "planar.quantized_regions_recovered" | "planar.taubin_seeds_recovered"
+                )
+            }))
         || !r
             .triangle_faces
             .iter()
@@ -223,7 +224,7 @@ fn recover_planar_output(
     let planes = &mut r.model.revolved.mixed.planes;
     let plane_normals: Vec<_> = planes.iter().map(|p| p.normal).collect();
     let mut checks = 0;
-    let Some(partition) = crate::planar::area_candidate(
+    let Some((partition, diagnostic)) = crate::planar::recover_quantized(
         &a.mesh,
         &adj,
         &crate::planar::triangle_normals(&a.mesh),
@@ -234,7 +235,6 @@ fn recover_planar_output(
     ) else {
         return Ok(());
     };
-    let merged = planes.len() - partition.model.faces.len();
     *planes = mixed_planes(partition.model.faces);
     r.triangle_faces = partition
         .triangle_regions
@@ -244,9 +244,7 @@ fn recover_planar_output(
     r.report
         .diagnostics
         .retain(|d| d.code != "auto.planar_regions_split");
-    r.report
-        .diagnostics
-        .push(crate::planar::recovered_diagnostic(merged));
+    r.report.diagnostics.push(diagnostic);
     Ok(())
 }
 fn safe_planes(a: &Analysis, r: &mut RoundedRecognition) -> Result<(), FabError> {

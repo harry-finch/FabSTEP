@@ -3,6 +3,15 @@ use super::*;
 
 pub(crate) const LIMIT: usize = 100_000;
 
+struct Recovery<'a> {
+    mesh: &'a Mesh,
+    adjacency: &'a [Vec<usize>],
+    normals: &'a [V],
+    tolerance: f64,
+    owners: &'a [usize],
+    planes: &'a [V],
+}
+
 pub(crate) fn candidate(
     mesh: &Mesh,
     adjacency: &[Vec<usize>],
@@ -11,7 +20,7 @@ pub(crate) fn candidate(
     checks: &mut usize,
     owners: &[usize],
     planes: &[V],
-) -> Option<Segmentation> {
+) -> Option<(Segmentation, crate::Diagnostic)> {
     let count = mesh.triangles.len();
     if count > LIMIT || planes.len() <= 1 {
         return None;
@@ -31,65 +40,102 @@ pub(crate) fn candidate(
     // Reserve sorting, a second traversal and its linear verification before
     // allocating the candidate. Contours still charge the remaining budget.
     budget_units(checks, count * (count.ilog2() as usize + 16)).ok()?;
-    let mut seeds: Vec<_> = mesh
+    let areas: Vec<_> = mesh
         .triangles
         .iter()
-        .enumerate()
-        .map(|(i, t)| {
+        .map(|t| {
             let [a, b, c] = t.map(|v| mesh.vertices[v]);
-            let n = cross(sub(b, a), sub(c, a));
-            (i, norm(n))
+            norm(cross(sub(b, a), sub(c, a)))
         })
         .collect();
-    seeds.sort_unstable_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
-    let alternate = segment(
+    let recovery = Recovery {
         mesh,
         adjacency,
         normals,
         tolerance,
-        checks,
-        false,
-        seeds.into_iter().map(|(id, _)| id),
-    )
-    .ok()?;
-    if alternate.model.faces.len() >= planes.len()
-        || !coarsens(planes.len(), owners, &alternate.triangle_regions)
-    {
-        return None;
+        owners,
+        planes,
+    };
+    let mut order: Vec<_> = (0..count).collect();
+    order.sort_unstable_by(|&a, &b| areas[b].total_cmp(&areas[a]).then(a.cmp(&b)));
+    if let Some(alternate) = recovery.prove_order(checks, &order) {
+        let diagnostic = recovered_diagnostic(planes.len() - alternate.model.faces.len());
+        return Some((alternate, diagnostic));
     }
-    // Preserve an existing crease even when the two neighboring normals
-    // separately fit the angular cone around the new seed.
-    if adjacency.iter().enumerate().any(|(t, neighbors)| {
-        neighbors.iter().any(|&n| {
-            n > t
-                && owners[t] != owners[n]
-                && alternate.triangle_regions[t] == alternate.triangle_regions[n]
-                && !aligned(normals[t], normals[n])
-        })
-    }) {
-        return None;
-    }
-    // The native plane is anchored at the first vertex of the outer wire.
-    // Auto additionally reserves half the kernel tolerance for shared edges.
-    for f in &alternate.model.faces {
-        let origin = mesh.vertices[f.loops[0][0]];
-        if f.loops.iter().flatten().any(|&v| {
-            dot(sub(mesh.vertices[v], origin), f.normal).abs()
-                > tolerance.min(SHARED_CONTOUR_TOLERANCE_MM)
-        }) {
-            return None;
-        }
-    }
-    for (t, &region) in mesh.triangles.iter().zip(&alternate.triangle_regions) {
-        let f = &alternate.model.faces[region];
-        let origin = mesh.vertices[f.loops[0][0]];
-        if t.iter()
-            .any(|&v| dot(sub(mesh.vertices[v], origin), f.normal).abs() > tolerance)
+
+    // The auxiliary copy only changes the seed order of the same proof.
+    // Sorting and two more linear passes must fit in the remaining budget.
+    budget_units(checks, count * (count.ilog2() as usize + 32)).ok()?;
+    taubin::order_by_stability(mesh, normals, &areas, &mut order);
+    let alternate = recovery.prove_order(checks, &order)?;
+    let diagnostic = crate::Diagnostic {
+        code: "planar.taubin_seeds_recovered".into(),
+        severity: crate::Severity::Info,
+        count: planes.len() - alternate.model.faces.len(),
+        message: "Des plans fragmentés ont été réunis à partir de normales source stables.".into(),
+    };
+    Some((alternate, diagnostic))
+}
+
+impl Recovery<'_> {
+    fn prove_order(&self, checks: &mut usize, order: &[usize]) -> Option<Segmentation> {
+        let Self {
+            mesh,
+            adjacency,
+            normals,
+            tolerance,
+            owners,
+            planes,
+        } = *self;
+        let alternate = segment(
+            mesh,
+            adjacency,
+            normals,
+            tolerance,
+            checks,
+            false,
+            order.iter().copied(),
+        )
+        .ok()?;
+        if alternate.model.faces.len() >= planes.len()
+            || !coarsens(planes.len(), owners, &alternate.triangle_regions)
         {
             return None;
         }
+        // Preserve an existing crease even when the two neighboring normals
+        // separately fit the angular cone around the new seed.
+        if adjacency.iter().enumerate().any(|(t, neighbors)| {
+            neighbors.iter().any(|&n| {
+                n > t
+                    && owners[t] != owners[n]
+                    && alternate.triangle_regions[t] == alternate.triangle_regions[n]
+                    && !aligned(normals[t], normals[n])
+            })
+        }) {
+            return None;
+        }
+        // The native plane is anchored at the first vertex of the outer wire.
+        // Auto additionally reserves half the kernel tolerance for shared edges.
+        for f in &alternate.model.faces {
+            let origin = mesh.vertices[f.loops[0][0]];
+            if f.loops.iter().flatten().any(|&v| {
+                dot(sub(mesh.vertices[v], origin), f.normal).abs()
+                    > tolerance.min(SHARED_CONTOUR_TOLERANCE_MM)
+            }) {
+                return None;
+            }
+        }
+        for (t, &region) in mesh.triangles.iter().zip(&alternate.triangle_regions) {
+            let f = &alternate.model.faces[region];
+            let origin = mesh.vertices[f.loops[0][0]];
+            if t.iter()
+                .any(|&v| dot(sub(mesh.vertices[v], origin), f.normal).abs() > tolerance)
+            {
+                return None;
+            }
+        }
+        Some(alternate)
     }
-    Some(alternate)
 }
 
 /// Every previous region must survive whole within exactly one new plane.
@@ -141,7 +187,7 @@ mod tests {
         };
         let mut exhausted = MAX_SEGMENT_CHECKS;
         assert!(retry(&mut exhausted).is_none());
-        assert_eq!(retry(&mut checks).unwrap().model.faces.len(), 7);
+        assert_eq!(retry(&mut checks).unwrap().0.model.faces.len(), 7);
         assert_eq!(first.model.faces.len(), 9);
     }
 }

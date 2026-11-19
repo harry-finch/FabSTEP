@@ -24,7 +24,8 @@ pub(crate) fn possible_seed_split(faces: &[PlanarFace]) -> bool {
 }
 
 mod area_seeds;
-pub(crate) use area_seeds::{candidate as area_candidate, LIMIT as OUTPUT_TRIANGLE_LIMIT};
+mod taubin;
+pub(crate) use area_seeds::{candidate as recover_quantized, LIMIT as OUTPUT_TRIANGLE_LIMIT};
 mod broad_phase;
 mod perforated;
 pub(crate) use perforated::cross_drill_supports;
@@ -67,7 +68,7 @@ pub(crate) fn build_for_output(
     mesh: &Mesh,
     adjacency: &[Vec<usize>],
     tolerance: f64,
-) -> Result<(Segmentation, usize), FabError> {
+) -> Result<(Segmentation, Option<crate::Diagnostic>), FabError> {
     let normals = triangle_normals(mesh);
     let mut checks = 0;
     let original = initial_partition(mesh, adjacency, &normals, tolerance, &mut checks)?;
@@ -76,7 +77,7 @@ pub(crate) fn build_for_output(
         && possible_seed_split(&original.model.faces)
     {
         let planes: Vec<_> = original.model.faces.iter().map(|f| f.normal).collect();
-        if let Some(alternate) = area_candidate(
+        if let Some((alternate, diagnostic)) = recover_quantized(
             mesh,
             adjacency,
             &normals,
@@ -85,11 +86,10 @@ pub(crate) fn build_for_output(
             &original.triangle_regions,
             &planes,
         ) {
-            let merged = planes.len() - alternate.model.faces.len();
-            return Ok((alternate, merged));
+            return Ok((alternate, Some(diagnostic)));
         }
     }
-    Ok((original, 0))
+    Ok((original, None))
 }
 
 pub(crate) fn recovered_diagnostic(merged: usize) -> crate::Diagnostic {

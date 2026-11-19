@@ -2785,3 +2785,9 @@ PYTHONPATH=/Applications/FreeCAD.app/Contents/Resources/lib \
 ```
 
 Les répertoires de cas contiennent les rapports JSON, les STL, les références et les sorties. Les STEP dont le nom se termine par `-measured-lab.step` proviennent du prototype. Les fichiers `-auto.step` proviennent du CLI de production. Les contrôles de cette tranche utilisent exclusivement ces petits modèles synthétiques.
+
+## V-1265 — R-116, plans fragmentés sur un STL quantifié
+
+Le témoin public `fixtures/r116-quantized-roof.stl` contient 320 triangles. Avant ce changement, Auto réimportait 133 plans. Le recours qui classe les graines selon la stabilité de leur normale après une paire de passes Taubin ramène ce résultat à six plans, un solide et 0,006143998039 mm³. Les maxima de fidélité échantillonnés sont de 0,000000177 et 0,000000170 mm. Les coordonnées utilisées pour construire et contrôler le STEP proviennent du maillage soudé.
+
+Les tests `cargo test -p fabstep-core --lib planar --offline` et `cargo test -p fabstep-app --test taubin_planes --offline` couvrent le classement déterministe, le bruit inférieur au seuil, le relief à conserver, les modes Plans et Auto et l’attribution des triangles.

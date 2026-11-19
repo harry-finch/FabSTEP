@@ -400,10 +400,10 @@ fn analyze_prepared_with_provenance(
     // Preserve the historical analysis report wording after its contour proof.
     diagnostics[0].message = "Topologie et contours contrôlés ; la validité géométrique 3D doit être confirmée par le noyau CAO.".into();
     let segmentation = if options.reconstruction == crate::ReconstructionMode::Planar {
-        let (partition, merged) =
+        let (partition, recovery) =
             crate::planar::build_for_output(&mesh, &adjacency, options.plane_tolerance_mm)?;
-        if merged > 0 {
-            diagnostics.push(crate::planar::recovered_diagnostic(merged));
+        if let Some(diagnostic) = recovery {
+            diagnostics.push(diagnostic);
         }
         partition
     } else {
