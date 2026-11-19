@@ -586,3 +586,8 @@ mod tests {
         assert!(compare_meshes(&valid, &invalid_mesh, 0.001).is_err());
     }
 }
+
+#[cfg(feature = "large-stl")]
+mod source_embedding;
+#[cfg(feature = "large-stl")]
+pub use source_embedding::certify_source_embedding;
