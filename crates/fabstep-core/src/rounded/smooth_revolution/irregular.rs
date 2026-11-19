@@ -3,7 +3,7 @@
 //! actual disk boundaries are the only cycles used as trim constraints.
 use super::*;
 
-pub(super) fn samples(
+pub(super) fn samples<const N: usize>(
     a: &Analysis,
     s: &Segmentation,
     nodes: &[Node],
@@ -21,7 +21,8 @@ pub(super) fn samples(
     let mut seen = vec![false; on_ring.len()];
     let mut bins = 0u16;
     let mut off_range = [1_f64, 0_f64];
-    let mut stations = [None; 17];
+    let mut stations = [None; N];
+    let divisions = (N - 1) as f64;
     work.spend(6 * a.mesh.triangles.len() + 5 * a.mesh.vertices.len())?;
     for (ids, region) in a.mesh.triangles.iter().zip(&s.triangle_regions) {
         if caps.contains(region) {
@@ -45,9 +46,9 @@ pub(super) fn samples(
                     off_range[1] = off_range[1].max(t);
                 }
             }
-            let k = (t * 16.).round() as usize;
-            if k > 0 && k < 16 {
-                let error = (t - k as f64 / 16.).abs();
+            let k = (t * divisions).round() as usize;
+            if k > 0 && k < N - 1 {
+                let error = (t - k as f64 / divisions).abs();
                 if stations[k].is_none_or(|(old, _, _, _)| error < old) {
                     stations[k] = Some((error, v, z, x.hypot(y)));
                 }
@@ -184,7 +185,8 @@ fn certificate(
     for cell in [[a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]] {
         worst = worst.max(certificate(cell, f, available, depth - 1, work)?);
         if worst > available {
-            break;
+            // Retain an upper bound for the entire parent on early rejection.
+            return Ok(bound);
         }
     }
     Ok(worst)

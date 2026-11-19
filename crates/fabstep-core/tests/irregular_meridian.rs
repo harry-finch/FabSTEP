@@ -73,3 +73,28 @@ fn crossed_facets_on_the_exact_meridian_fail_radial_coverage() {
     let damaged = analyze_mesh(&mesh, &o).unwrap();
     assert!(recognize_rounded(&damaged, &o).map_or(true, |r| r.model.smooth_revolution.is_none()));
 }
+
+#[test]
+fn an_irregular_remeshed_cusp_cannot_acquire_a_tangent_joint() {
+    let o = Options {
+        reconstruction: ReconstructionMode::Surfaces,
+        ..Options::default()
+    };
+    let a = analyze_stl(
+        include_bytes!("../../../fixtures/irregular_revolution/kinked-coarse.stl"),
+        &o,
+    )
+    .unwrap();
+    assert!(recognize_rounded(&a, &o).map_or(true, |r| r.model.smooth_revolution.is_none()));
+    assert!(recognize_automatic(
+        &a,
+        &Options {
+            reconstruction: ReconstructionMode::Auto,
+            ..o
+        }
+    )
+    .unwrap()
+    .model
+    .smooth_revolution
+    .is_none());
+}

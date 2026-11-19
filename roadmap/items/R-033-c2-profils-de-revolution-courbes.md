@@ -71,3 +71,5 @@ R-095 — Reconstruire une paroi de révolution dont la méridienne comporte deu
 R-099 — Reconstruire une méridienne cubique entre un disque et une pointe présente dans le maillage. Voir V-1227.
 
 R-104 — Reconstruire une méridienne cubique lorsque le maillage FreeCAD ne présente pas d’anneaux intérieurs complets. Voir V-1234.
+
+R-106 — Reconstruire une méridienne à deux segments tangents dont le raccord se trouve entre deux hauteurs du STL. Voir V-1236.
