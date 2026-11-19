@@ -5,12 +5,12 @@
 ## Version et validation courantes
 
 - `artifacts/release/1.0.0/FabSTEP.app` reste le paquet autonome signé ad hoc, accepté sur un autre Mac et dans Fusion le 9 novembre (V-1115). Pas de signature Developer ID ni notarisation revendiquée.
-- `artifacts/FabSTEP.app` est le build macOS de développement du 19 novembre. Il inclut les lots géométriques jusqu’à R-110, le relief bicubique et la correction sphérique. Les 51 tests du bureau avec le helper de ce paquet passent. Les essais manuels des nouvelles familles figurent dans FabBoard.
+- `artifacts/FabSTEP.app` est le build macOS de développement du 19 novembre. Il inclut les lots géométriques jusqu’à R-111, le relief bicubique, la correction sphérique et le constructeur de zones toriques du helper. Les 51 tests du bureau avec le helper de ce paquet passent. Les essais manuels des nouvelles familles figurent dans FabBoard.
 - Seize tests opt-in workspace restent ignorés par la suite ordinaire. Les essais graphiques/Fusion des extensions restent ouverts dans FabBoard ; aucun succès automatique ne vaut acceptation utilisateur. Le pilotage du dialogue d’ouverture avait été bloqué, mais l’utilisateur a confirmé l’ouverture manuelle.
 
 ## Extensions géométriques de développement
 
-R-094 à R-110 couvrent les révolutions cubiques régulières et irrégulières, les perçages obliques et décalés, les poches à congés connectés et les congés variables sur arêtes parallèles ou gauches. R-038 ajoute un relief bicubique explicite. R-050 étend la correction guidée à la sphère. Les résultats reproductibles figurent dans V-1222 à V-1246 et les essais Fusion dans les actions des sous-jalons.
+R-094 à R-111 couvrent les révolutions cubiques régulières et irrégulières, les perçages obliques et décalés, les poches à congés connectés et les congés variables sur arêtes parallèles ou gauches. R-038 ajoute un relief bicubique explicite. R-050 étend la correction guidée à la sphère. Les résultats reproductibles figurent dans V-1222 à V-1251 et les essais Fusion dans les actions des sous-jalons.
 
 ## Capacités développées
 
@@ -56,13 +56,13 @@ Lire les consignes du projet, le tableau ci-dessous et les actions FabBoard pour
 | Chantier | Déjà développé | Travail restant avant généralisation |
 | --- | --- | --- |
 | C1b2 | R-078 : chaînes adjacentes et mixtes de deux à huit cônes | Extensions hors des témoins et limites actuellement prouvés ; essais A-073/A-074 |
-| C2 / R-033 | R-095, R-099, R-104 et R-106. Une ou deux cubiques sur un maillage irrégulier, pointe axiale | Retours axiaux, familles voisines et autres conditions de raccord |
+| C2 / R-033 | R-095, R-099, R-104, R-106 et R-111. Une ou deux cubiques, pointe axiale et méridienne à retour axial mesuré | Retours multibranches et autres conditions de raccord |
 | D / R-034 | R-097, R-101, R-107 et R-110. Doubles butées, coins, U et circuit fermé | Autres angles, rayons et topologies |
 | E / R-035 | R-098, R-100, R-103 et R-110. Trous du fond et de paroi, deux cavités avec cloison et rebord, lèvre circulaire à deux congés | Réseaux de congés et lèvres hors des domaines publiés |
 | F / R-036 | R-096, R-105 et R-108. Axes obliques et décentrage suivant la normale commune | Intersections multiples et bouches elliptiques |
 | G / R-037 | R-094, R-102 et R-109. Deux lois affines sur des arêtes parallèles ou gauches | Raccords qui se rejoignent et lois non linéaires |
 
-Les domaines spécifiés de D/E/F/G sont **à tester**. La validation manuelle reste portée par chaque sous-jalon. C2 est en cours pour le retour axial de la méridienne. Les limites dans la dernière colonne décrivent la portée géométrique démontrée.
+Les domaines spécifiés de C2/D/E/F/G sont **à tester**. La validation manuelle reste portée par chaque sous-jalon. Les limites dans la dernière colonne décrivent la portée géométrique démontrée.
 
 **Reprise Flansch — R-085.** V-1237 à V-1246 donnent les commandes de qualification du STEP fermé, du maillage partagé, de la reconnaissance directe et du certificat de source. Le prochain verdict attendu est celui du helper sur le fichier original, avec les plafonds ADR-0034.
 

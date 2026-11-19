@@ -517,3 +517,5 @@ La normale d’un triangle mince pouvait diviser la face plane autour d’un tro
 ## 2026-11-18 — R-093, cylindre d’une plaque inclinée en Auto
 
 Sur le témoin de V-1220, les deux ouvertures du trou étaient présentes. L’erreur d’arrondi du STL binaire suffisait à rendre les coins des faces voisines non coplanaires aux exigences du noyau. Auto gardait alors 252 plans. La nouvelle preuve utilise conjointement les deux ouvertures et les quatre arêtes latérales de la plaque, puis vérifie et comptabilise les déplacements par rapport aux triangles. Deux poses et deux densités donnent chacune sept faces en réimport. Le maillage aux génératrices vrillées conserve ses facettes. Le protocole de reproduction et les limites figurent dans V-1221.
+
+**19 novembre 2026 — R-111 et helper pour les surfaces toriques.** Quatre solides à retour axial sont qualifiés dans V-1248. L’extension au mode Auto pour gros STL, les essais indépendants et les mesures de coût figurent dans V-1249 à V-1251. La rampe publique dense passe la conversion complète. L’essai du fichier Flansch suit dans R-085.
