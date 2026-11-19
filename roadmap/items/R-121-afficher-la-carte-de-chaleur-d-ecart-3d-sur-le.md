@@ -2,7 +2,7 @@
 id: R-121
 titre: "Afficher la carte de chaleur d'écart 3D sur le résultat STEP"
 resume: "Superposer dans la vue Résultat STEP une coloration par écart échantillonné au maillage source avec légende en millimètres, calculée à la demande en lecture seule sans affecter l'export."
-statut: specifiee
+statut: a-tester
 jalon: atelier
 cree: 2026-11-19
 maj: 2026-11-19

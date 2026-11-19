@@ -8,11 +8,14 @@
   import Disclosure from './Disclosure.svelte';
   import FaceProfile from './FaceProfile.svelte';
   import type { FaceProfileState } from '../lib/face-profile';
-  import { t, type Key } from '../lib/i18n.svelte';
+  import type { DeviationReport } from '../lib/deviation-map';
+  import { i18n, t, type Key } from '../lib/i18n.svelte';
   import type { StepSelection } from '../lib/step-selection';
   import type { ContextReveal } from '../lib/context-reveal';
   import type { ResultFaces, StepFamily } from '../lib/types';
-  let { selection, document, revealContext, ongrow, onshrink, onclear, onshowsource, profile, profileEligible, canexportprofile, onexportprofile, errorText }: { selection:StepSelection|null; document:ResultFaces; revealContext:ContextReveal; ongrow:()=>void; onshrink:()=>void; onclear:()=>void; onshowsource:()=>void; profile:FaceProfileState; profileEligible:boolean; canexportprofile:boolean; onexportprofile:()=>void; errorText:(error:unknown)=>string } = $props();
+  let { selection, document, deviation, revealContext, ongrow, onshrink, onclear, onshowsource, profile, profileEligible, canexportprofile, onexportprofile, errorText }: { selection:StepSelection|null; document:ResultFaces; deviation:DeviationReport|null; revealContext:ContextReveal; ongrow:()=>void; onshrink:()=>void; onclear:()=>void; onshowsource:()=>void; profile:FaceProfileState; profileEligible:boolean; canexportprofile:boolean; onexportprofile:()=>void; errorText:(error:unknown)=>string } = $props();
+  const localMaximum = $derived(deviation && selection?.faces.length
+    ? selection.faces.reduce((maximum, id) => Math.max(maximum, deviation!.face_maxima_mm[id]), 0) : null);
   const labels:Record<StepFamily,Key> = { plane:'inspection.plane', cylinder:'inspection.cylinder', cone:'inspection.cone', sphere:'inspection.sphere', torus:'inspection.torus', revolution:'inspection.revolution', height_patch:'inspection.heightPatch', other:'stepInspection.other' };
 </script>
 <Section id="step-inspection" title={t('stepInspection.title')} {revealContext} revealKey={selection?.faces.length ? `${document.request_id}:${document.source_id}:${[...selection.faces].sort((a,b)=>a-b).join(',')}` : null}>
@@ -21,6 +24,9 @@
       <button class="btn source-action" title={t('stepInspection.sourceHint')} onclick={onshowsource}><ArrowRight size={14}/>{t('stepInspection.showSource')}</button>
     {:else if selection.source.status === 'unavailable' && selection.source.reason === 'step.provenance_invalid'}
       <p class="muted">{t('stepInspection.invalidCorrespondence')}</p>
+    {/if}
+    {#if localMaximum !== null}
+      <div class="metric"><span>{t('deviation.local')}</span><strong>{new Intl.NumberFormat(i18n.locale,{maximumSignificantDigits:3}).format(localMaximum)} mm</strong></div>
     {/if}
     {#if profileEligible}
       <FaceProfile state={profile} canexport={canexportprofile} onexport={onexportprofile} {errorText}/>

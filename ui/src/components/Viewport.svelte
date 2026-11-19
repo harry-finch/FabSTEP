@@ -1,6 +1,10 @@
 <script lang="ts">
   // Vue 3D à la demande : orbite, zoom, cadrage et contours des faces reconnues.
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
+  import ClipBoxTool from './ClipBoxTool.svelte';
+  import { clipExtent, clipPlanes, moveClipLimit, type Axis, type Limit } from '../lib/clip-box';
+  import { ClipBoxControls } from '../lib/clip-box-controls';
+  import { writeDeviationColors } from '../lib/deviation-colors';
   import * as THREE from 'three';
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
@@ -19,19 +23,33 @@
   import { appendPatchBoundaries, trianglePositions } from '../lib/mesh-display';
   let { label,sectionPlane,sectionBounds,sectionMode,onsectiontransform,onsectiondrag,stepDisplay, bytes, results, preview, format, fitSignal, showEdges, unit, sourceRevision, selectionMode, zone, onpick, onmiss, stepPreview, stepTriangles, onfacepick, onfaceregion, onfacepaint, sourceHighlights }: {label:string|null;sectionPlane:ProfileFrame|null;sectionBounds:number[][]|null;sectionMode:SectionManipulationMode|null;onsectiontransform:(frame:ProfileFrame)=>void;onsectiondrag:(active:boolean,cancelled?:boolean)=>void; stepDisplay:StepDisplay|null; sourceHighlights:{ previewBodyId:string; triangles:number[] }[]|null; stepPreview:ResultFaces|null; stepTriangles:number[]; onfacepick:(face:number, additive:boolean)=>void; onfaceregion:(face:number)=>void; onfacepaint:(faces:number[])=>void; sourceRevision:number; selectionMode:boolean; zone:SourceZone | null; onpick:(bodyId:string, triangle:number) => void; onmiss:()=>void; unit: 'mm' | 'inch'; bytes: Uint8Array | null; results: BodyResult[]; preview: DocumentPreview | null; format: 'stl'|'3mf'; fitSignal: number; showEdges: boolean } = $props();
   let host: HTMLDivElement;
+  let extent = $state.raw<THREE.Box3|null>(null);
+  let box = $state.raw<THREE.Box3|null>(null);
+  function changeLimit(axis: Axis, side: Limit, value: number) {
+    if (box && extent) box = moveClipLimit(box, extent, axis, side, value);
+  }
+  let applyClip = () => {};
   let rebuild = () => {}; let rebuildEdges = () => {}; let rebuildSection = () => {};let updateSectionControls=()=>{};let updatePicking=()=>{};let highlight = () => {}; let recolor = () => {}; let fit = () => {};
   onMount(() => {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(38, 1, 0.001, 1e9);
     camera.up.set(0, 0, 1);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.localClippingEnabled = true;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); host.appendChild(renderer.domElement);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = false;
     const transform=new TransformControls(camera,renderer.domElement),planeAnchor=new THREE.Object3D();scene.add(planeAnchor);scene.add(transform.getHelper());transform.enabled=false;transform.setSpace('local');transform.setSize(0.85);
     const manipulation=new SectionManipulationGesture();let endingManipulation=false,cancellingManipulation=false,disposing=false,primaryPointer:number|null=null;
     let frame = 0;
-    const draw = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; renderer.render(scene, camera); }); };
+    const draw = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; clipControl.resize(); renderer.render(scene, camera); }); };
+    const clipControl = new ClipBoxControls(camera, renderer.domElement, {
+      change: changeLimit,
+      restore: initial => { box = initial; },
+      orbit: enabled => { controls.enabled = enabled; },
+      available: () => controls.enabled && !sectionMode,
+    });
+    scene.add(clipControl.group);
     controls.addEventListener('change', draw);
     const ambient = new THREE.HemisphereLight(); scene.add(ambient);
     const directional = new THREE.DirectionalLight(); directional.position.set(2, -3, 5); scene.add(directional);
@@ -86,7 +104,7 @@
       const faces = paint.sample((x, y) => {
         if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return null;
         paintPointer.set((x - rect.left) / rect.width * 2 - 1, -(y - rect.top) / rect.height * 2 + 1);
-        return pickVisibleStepFace(raycaster, targets, paintPointer, camera);
+        return pickVisibleStepFace(raycaster, targets, paintPointer, camera, box);
       });
       if (faces.length) onfacepaint(faces);
     }
@@ -133,8 +151,8 @@
       const rect = renderer.domElement.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
       const pointer = new THREE.Vector2((e.clientX-rect.left)/rect.width*2-1, -(e.clientY-rect.top)/rect.height*2+1);
-      if (stepPreview) { const face = pickVisibleStepFace(raycaster,[...meshes.values()],pointer,camera); if (face !== null) { if(clicks.click(face,stepPreview,e.timeStamp)==='region')onfaceregion(face);else onfacepick(face,e.shiftKey || e.metaKey || e.ctrlKey); } else {clicks.clear();onmiss();} return; }
-      const hit = pickVisibleSourceTriangle(raycaster,[...meshes.values()],pointer,camera);
+      if (stepPreview) { const face = pickVisibleStepFace(raycaster,[...meshes.values()],pointer,camera,box); if (face !== null) { if(clicks.click(face,stepPreview,e.timeStamp)==='region')onfaceregion(face);else onfacepick(face,e.shiftKey || e.metaKey || e.ctrlKey); } else {clicks.clear();onmiss();} return; }
+      const hit = pickVisibleSourceTriangle(raycaster,[...meshes.values()],pointer,camera,box);
       if (hit) onpick(hit.bodyId,hit.triangle); else onmiss();
     };
     renderer.domElement.addEventListener('pointerdown',pointerDown);
@@ -146,6 +164,15 @@
     const stepMaterial = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.9, metalness:0, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1 });
     const lineMaterial = new THREE.LineBasicMaterial();
     const stepLineMaterial = new THREE.LineBasicMaterial({depthTest:true,depthWrite:false});
+    applyClip = () => {
+      const planes = box ? clipPlanes(box) : null;
+      for (const target of [material, stepMaterial, lineMaterial, stepLineMaterial, overlay.material]) {
+        if ((target.clippingPlanes?.length ?? 0) !== (planes?.length ?? 0)) target.needsUpdate = true;
+        target.clippingPlanes = planes;
+      }
+      clipControl.show(box, !sectionMode);
+      draw();
+    };
     const colorStep = (css:CSSStyleDeclaration) => {
       const geometry = meshes.get('step')?.geometry;
       if (!geometry || !stepPreview || !stepDisplay) return;
@@ -153,15 +180,16 @@
       const size = geometry.getAttribute('position').count * 3;
       const previous = geometry.getAttribute('color');
       const attribute = previous instanceof THREE.BufferAttribute && previous.array instanceof Float32Array && previous.array.length === size ? previous : new THREE.BufferAttribute(new Float32Array(size),3);
-      const colors = attribute.array;
-      for (const face of stepPreview.faces) {
+      const colors = attribute.array as Float32Array;
+      if (stepDisplay.deviation) writeDeviationColors(colors, stepPreview.mesh.triangles, stepDisplay.deviation, css);
+      else for (const face of stepPreview.faces) {
         const color = palette[stepDisplay.faceSlots[face.id]];
         for (let i = face.triangle_start * 9; i < (face.triangle_start + face.triangle_count) * 9; i += 3) { colors[i] = color.r; colors[i+1] = color.g; colors[i+2] = color.b; }
       }
       if (attribute !== previous) geometry.setAttribute('color',attribute);
       attribute.needsUpdate = true;
     };
-    recolor = () => { const css = getComputedStyle(document.documentElement); const color = (key: string) => css.getPropertyValue(key).trim(); scene.background = new THREE.Color(color('--view-bg')); material.color.set(color('--view-mesh')); lineMaterial.color.set(color('--view-edge')); stepLineMaterial.color.set(color('--view-face-edge')); colorStep(css); overlay.material.color.set(color('--accent')); overlay.material.opacity = stepPreview ? 0.9 : 0.65;  ambient.color.set(color('--view-light')); ambient.groundColor.set(color('--view-ground')); directional.color.set(color('--view-light')); draw(); };
+    recolor = () => { const css = getComputedStyle(document.documentElement); const color = (key: string) => css.getPropertyValue(key).trim(); scene.background = new THREE.Color(color('--view-bg')); material.color.set(color('--view-mesh')); lineMaterial.color.set(color('--view-edge')); stepLineMaterial.color.set(color('--view-face-edge')); clipControl.recolor(color('--text-secondary'), color('--accent')); colorStep(css); overlay.material.color.set(color('--accent')); overlay.material.opacity = stepPreview ? 0.9 : 0.65;  ambient.color.set(color('--view-light')); ambient.groundColor.set(color('--view-ground')); directional.color.set(color('--view-light')); draw(); };
     fit = () => { const box = new THREE.Box3().setFromObject(group); if (box.isEmpty()) return; const center = box.getCenter(new THREE.Vector3()); const size = box.getSize(new THREE.Vector3()); const radius = Math.max(size.length() / 2, 0.01); controls.target.copy(center); camera.position.copy(center).add(new THREE.Vector3(1.5, -2, 1.4).normalize().multiplyScalar(radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 1.15)); camera.near = radius / 1000; camera.far = radius * 1000; camera.updateProjectionMatrix(); controls.update(); draw(); };
     const disposeGroup = (target:THREE.Group) => target.traverse(o => { if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) o.geometry.dispose(); });
     const disposeSection=()=>sectionGroup.traverse(object=>{if(object instanceof THREE.Mesh||object instanceof THREE.Line){object.geometry.dispose();for(const material of Array.isArray(object.material)?object.material:[object.material])material.dispose();}});
@@ -210,6 +238,17 @@
       const bodies = preview?.bodies ?? null;
       if (renderedRevision === sourceRevision && renderedBodies === bodies && renderedStep === stepPreview && renderedBytes === bytes && renderedUnit === unit && renderedFormat === format) return;
       const shouldFit = renderedRevision !== sourceRevision || !meshes.size;
+      clipControl.cancel();
+      const resetBox = renderedBytes !== bytes || renderedRevision !== sourceRevision || renderedUnit !== unit;
+      if (resetBox) box = null;
+      extent = null;
+      const refreshBounds = () => {
+        const bounds = clipExtent(new THREE.Box3().setFromObject(group));
+        // Keep a chosen volume when switching between Source and STEP.
+        if (!bounds) return;
+        if (box) bounds.union(box);
+        extent = bounds;
+      };
       const generation=++rawGeneration;rawPreview?.clear();
       renderedBytes=bytes;renderedUnit=unit;renderedFormat=format;
       denseRaw=!stepPreview&&!preview&&!!bytes&&largeStlTriangles(bytes,format)!==null;
@@ -252,13 +291,14 @@
             geometry.boundingBox=new THREE.Box3(new THREE.Vector3(...prepared.bounds[0] as [number,number,number]),new THREE.Vector3(...prepared.bounds[1] as [number,number,number]));
             geometry.boundingSphere=new THREE.Sphere(new THREE.Vector3(...prepared.sphere.center as [number,number,number]),prepared.sphere.radius);
             addMesh('stl',geometry,prepared.sourceTriangles);
+            refreshBounds();
             recolor();highlight();rebuildEdges();if(shouldFit)fit();draw();
           }).catch(()=>{/* Display refusal leaves the conversion and source intact. */});
         } else {
           try { const data = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer; const geometry = new STLLoader().parse(data); if (unit === 'inch') geometry.scale(25.4, 25.4, 25.4); addMesh('stl',geometry); } catch { /* Le moteur explique les fichiers invalides. */ }
         }
       }
-      recolor(); highlight(); if (shouldFit) fit(); draw();
+      refreshBounds(); recolor(); highlight(); if (shouldFit) fit(); draw();
     };
     rebuildEdges = () => {
       scene.remove(edges); disposeGroup(edges); edges = new THREE.Group(); scene.add(edges);
@@ -333,15 +373,20 @@
     };
     const resize = new ResizeObserver(() => { const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); draw(); }); resize.observe(host);
     recolor(); rebuild(); rebuildEdges();
-    return () => { disposing=true;rawGeneration++;rawPreview?.dispose();window.removeEventListener('keydown',cancelPaintKey,true);finishPaint(false);updatePicking=()=>{};renderer.domElement.removeEventListener('pointerdown',paintDown,true);renderer.domElement.removeEventListener('lostpointercapture',paintLost);if(manipulation.blocksPicking())finishManipulation(true,false);updateSectionControls=()=>{};transform.removeEventListener('mouseDown',transformDown);transform.removeEventListener('mouseUp',transformUp);transform.removeEventListener('objectChange',transformChanged);transform.removeEventListener('change',draw);transform.dispose();resize.disconnect(); controls.dispose();renderer.domElement.removeEventListener('pointerdown',claimManipulation,true);for(const type of ['pointermove','pointerup','pointercancel'])renderer.domElement.removeEventListener(type,guardOtherPointer as EventListener,true);renderer.domElement.removeEventListener('lostpointercapture',lostCapture);window.removeEventListener('keydown',cancelTransformKey,true); renderer.domElement.removeEventListener('pointerdown',pointerDown); renderer.domElement.removeEventListener('pointermove',pointerMove); renderer.domElement.removeEventListener('pointerup',pointerUp); renderer.domElement.removeEventListener('pointercancel',pointerCancel); window.removeEventListener('blur',pointerCancel); disposeGroup(edges);disposeSection();overlay.geometry.dispose(); overlay.material.dispose(); cancelAnimationFrame(frame); group.traverse(o => { if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) o.geometry.dispose(); }); material.dispose(); stepMaterial.dispose(); lineMaterial.dispose(); stepLineMaterial.dispose(); renderer.dispose(); renderer.domElement.remove(); };
+    return () => { disposing=true;clipControl.dispose();applyClip=()=>{};rawGeneration++;rawPreview?.dispose();window.removeEventListener('keydown',cancelPaintKey,true);finishPaint(false);updatePicking=()=>{};renderer.domElement.removeEventListener('pointerdown',paintDown,true);renderer.domElement.removeEventListener('lostpointercapture',paintLost);if(manipulation.blocksPicking())finishManipulation(true,false);updateSectionControls=()=>{};transform.removeEventListener('mouseDown',transformDown);transform.removeEventListener('mouseUp',transformUp);transform.removeEventListener('objectChange',transformChanged);transform.removeEventListener('change',draw);transform.dispose();resize.disconnect(); controls.dispose();renderer.domElement.removeEventListener('pointerdown',claimManipulation,true);for(const type of ['pointermove','pointerup','pointercancel'])renderer.domElement.removeEventListener(type,guardOtherPointer as EventListener,true);renderer.domElement.removeEventListener('lostpointercapture',lostCapture);window.removeEventListener('keydown',cancelTransformKey,true); renderer.domElement.removeEventListener('pointerdown',pointerDown); renderer.domElement.removeEventListener('pointermove',pointerMove); renderer.domElement.removeEventListener('pointerup',pointerUp); renderer.domElement.removeEventListener('pointercancel',pointerCancel); window.removeEventListener('blur',pointerCancel); disposeGroup(edges);disposeSection();overlay.geometry.dispose(); overlay.material.dispose(); cancelAnimationFrame(frame); group.traverse(o => { if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) o.geometry.dispose(); }); material.dispose(); stepMaterial.dispose(); lineMaterial.dispose(); stepLineMaterial.dispose(); renderer.dispose(); renderer.domElement.remove(); };
   });
-  $effect(() => { void bytes; void preview; void format; void unit; void sourceRevision; void stepPreview; rebuild(); });
+  $effect(() => { void bytes; void preview; void format; void unit; void sourceRevision; void stepPreview; untrack(rebuild); });
   $effect(() => { void results; void showEdges; void stepPreview; void stepDisplay; rebuildEdges(); });
   $effect(() => { void zone; void sourceHighlights; void stepTriangles; void stepPreview; highlight(); });
   $effect(() => { void theme.applied; void stepDisplay; recolor(); });
   $effect(()=>{void sectionPlane;void sectionBounds;void sectionMode;void theme.applied;rebuildSection();updateSectionControls();});
   $effect(() => { void fitSignal; fit(); });
+  $effect(() => { void box; void sectionMode; untrack(applyClip); });
   $effect(()=>{void selectionMode;void stepPreview;void sourceRevision;void sectionMode;updatePicking();});
 </script>
 <div role="img" aria-label={label ?? undefined} aria-hidden={!label} class="viewport" class:selecting={selectionMode&&!sectionMode} bind:this={host}></div>
+{#if extent && label}
+  <ClipBoxTool {box} ontoggle={() => { box = box ? null : extent!.clone(); }}
+    onreset={() => { box = extent!.clone(); }} onlimit={changeLimit}/>
+{/if}
 <style>.viewport { position:absolute; inset:0; overflow:hidden; } .viewport.selecting :global(canvas) { cursor:crosshair; } .viewport :global(canvas) { display:block; width:100%; height:100%; }</style>

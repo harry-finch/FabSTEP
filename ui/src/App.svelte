@@ -20,6 +20,8 @@
   import Dialog from './components/Dialog.svelte';
   import NumField from './components/NumField.svelte';
   import SourceInspection from './components/SourceInspection.svelte';
+  import DeviationLegend from './components/DeviationLegend.svelte';
+  import { createDeviationMap, type DeviationState } from './lib/deviation-map';
   import StepInspection from './components/StepInspection.svelte';
   import GuidedCorrectionBar from './components/GuidedCorrectionBar.svelte';
   import StepSourceInspection from './components/StepSourceInspection.svelte';
@@ -113,6 +115,19 @@
   let stepDisplay = $state.raw<StepDisplay|null>(null);
   let stepView = $state(false), stepDocument = $state.raw<ResultFaces|null>(null), stepSelection = $state.raw<StepSelection|null>(null);
   let stepPending = $state(false), stepUnavailable = $state(false), mappedSource = $state(false);
+  let deviationState = $state.raw<DeviationState>({kind:'off'});
+  const deviations = createDeviationMap(state => { deviationState = state; });
+  const canMeasureDeviation = $derived(stepView && !!stepDocument && stepDocument.request_id === current
+    && stepDocument.source_id === sourceId && result?.request_id === current && result?.report_version !== 2
+    && !largeTriangles && !busy && !processing);
+  const deviation = $derived(canMeasureDeviation && deviationState.kind === 'ready' ? deviationState.report : null);
+  const coloredStep = $derived(deviation && stepDisplay ? {...stepDisplay, deviation} : stepDisplay);
+  function chooseStepColor(useDistances:boolean) {
+    if (!useDistances) { deviations.clear(); return; }
+    const doc = stepDocument, bridge = native();
+    if (!canMeasureDeviation || !doc || !bridge) return;
+    void deviations.load(bridge, doc, () => canMeasureDeviation && stepDocument === doc);
+  }
   let stepSelectionPending = $state(false);
   let regionError = $state<string|null>(null);
   let sectionActive = $state(false);
@@ -143,6 +158,7 @@
     });
   }
   function resetStepInspection() {
+    deviations.clear();
     cancelPaintQueue();
     regionError = null; stepContextReveal.next(null);
     stepReplies.newSource(); stepView = false; stepDocument = null; stepDisplay = null; stepSelection = null;
@@ -174,6 +190,7 @@
   function clearStepSelection() { mappedSource = false; stepReplies.clear(); stepSelection = null; stepContextReveal.next(null); stepCommand('clear'); }
   function clearVisibleSelection() { if (stepView || mappedSource) clearStepSelection(); else clearSourceZone(); }
   function showSource() {
+    deviations.clear();
     cancelPaintQueue();
     stepReplies.clear();stepSelectionPending=false;regionError=null;
     if (stepPending) { stepReplies.clear(); pendingStepDocument = null; stepPending = false; }
@@ -185,6 +202,7 @@
     cancelPaintQueue();
     if (!stepSelection?.faces.length || stepSelection.source.status !== 'exact' || !stepDocument || stepDocument.request_id !== current || stepDocument.source_id !== sourceId || !preview || preview.request_id !== current) return;
     stepReplies.clear();stepSelectionPending=false;regionError=null;
+    deviations.clear();
     mappedSource = true; stepView = false; stepUnavailable = false;
     faceProfiles.clear();
     closeSection();
@@ -542,7 +560,7 @@
       stepWorker.onerror = () => { cancelPaintQueue();paintAck?.resolve();paintAck=null;stepWorker?.terminate(); stepWorker = null; resetStepInspection(); stepUnavailable = !!result; };
     } catch { /* L'aperçu source et l'export restent disponibles. */ }
     window.addEventListener('keydown', key);
-    return () => { cancelPaintQueue();paintAck?.resolve();paintAck=null;window.removeEventListener('keydown', key); selectionWorker?.terminate(); stepWorker?.terminate(); faceProfiles.dispose(); profileGeometryWorker?.dispose(); sections.dispose();sourcePreparation.dispose();sectionGeometryWorker?.dispose();workflow.dispose(); };
+    return () => { deviations.clear();cancelPaintQueue();paintAck?.resolve();paintAck=null;window.removeEventListener('keydown', key); selectionWorker?.terminate(); stepWorker?.terminate(); faceProfiles.dispose(); profileGeometryWorker?.dispose(); sections.dispose();sourcePreparation.dispose();sectionGeometryWorker?.dispose();workflow.dispose(); };
   });
 </script>
 <svelte:window
@@ -640,6 +658,14 @@
           </button>
         </div>
         <div class="spacer"></div>
+        {#if canMeasureDeviation}
+          <select class="color-mode" aria-label={t('deviation.mode')}
+            value={deviationState.kind === 'pending' || deviation ? 'deviation' : 'faces'}
+            onchange={(event) => chooseStepColor(event.currentTarget.value === 'deviation')}>
+            <option value="faces">{t('deviation.faces')}</option>
+            <option value="deviation">{t('deviation.map')}</option>
+          </select>
+        {/if}
         <button class="btn quiet section-toggle" class:active={sectionActive} aria-pressed={sectionActive} title={t(stepView?'section.toggleHint':'sourceSection.toggleHint')} disabled={!canOpenSection()&&!sectionActive} onclick={toggleSection}><Scissors size={14}/>{t(stepView?'section.toggle':'sourceSection.toggle')}</button>
         <button
           class="btn quiet selection-toggle"
@@ -675,7 +701,7 @@
       <div class="canvas">
         <Viewport
           label={bytes && (format === 'stl' || preview) ? (stepView ? t('stepInspection.preview') : t('workspace.preview')) : null}
-          stepDisplay={stepView ? stepDisplay : null}
+          stepDisplay={stepView ? coloredStep : null}
           sectionPlane={sectionActive?sectionDisplayFrame:null}
           {sectionBounds}
           sectionMode={sectionActive?sectionMode:null}
@@ -721,6 +747,11 @@
           <div class="canvas-help">
             {selectionMode && (!largeTriangles || stepView) ? (stepView ? t('stepInspection.gestureHint') : t('inspection.gestureHint')) : t('workspace.orbit')}
           </div>
+        {/if}
+        {#if deviation}
+          <DeviationLegend report={deviation}/>
+        {:else if canMeasureDeviation && deviationState.kind !== 'off' && deviationState.kind !== 'ready'}
+          <div class="deviation-note" role="status">{t(`deviation.${deviationState.kind}`)}</div>
         {/if}
         {#if stepPending || stepUnavailable}
           <div class="step-preview-status" role="status">
@@ -801,6 +832,7 @@
         <StepInspection
           selection={stepSelection}
           document={stepDocument}
+          {deviation}
           revealContext={stepContextReveal}
           ongrow={() => stepCommand('grow')}
           onshrink={() => stepCommand('shrink')}
@@ -1323,6 +1355,8 @@
     opacity: .5;
     cursor: default;
   }
+  .color-mode{width:auto;height:var(--control-h);font-size:var(--fs-xs)}
+  .deviation-note{position:absolute;left:var(--s3);bottom:calc(var(--s5) + var(--s3));max-width:80%;background:var(--bg-panel);border:1px solid var(--divider);border-radius:var(--radius);padding:var(--s2);color:var(--text-secondary);font-size:var(--fs-xs);pointer-events:none}
   .selection-toggle,.section-toggle {
     font-size: var(--fs-xs);
   }

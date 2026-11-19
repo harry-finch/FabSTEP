@@ -56,6 +56,7 @@
   --view-bg: #1c1c1c; --view-mesh: #9b9da3; --view-edge: #404348; --view-light: #ffffff; --view-ground: #707070;
   /* Face identities only; selection remains the saturated accent. */
   --view-face-edge: #293039;
+  --view-deviation-low: #476da4; --view-deviation-mid: #58cbbb; --view-deviation-high: #ffc24b;
   --view-face-1: #94c9ab; --view-face-2: #d1a3c2; --view-face-3: #dfba82; --view-face-4: #9ec2c5; --view-face-5: #c4bd8d; --view-face-6: #bdafe0; --view-face-7: #dfaaa0; --view-face-8: #b0c9dc;
 
   /* Rails : sélecteurs segmentés (bouton actif en relief) et jauges. */
@@ -153,6 +154,7 @@
   --view-bg: #f0f0f0; --view-mesh: #a6aab0; --view-edge: #52565b; --view-light: #ffffff; --view-ground: #9a9a9a;
   /* Face identities only; selection remains the saturated accent. */
   --view-face-edge: #293039;
+  --view-deviation-low: #405f9f; --view-deviation-mid: #44a99e; --view-deviation-high: #e59b25;
   --view-face-1: #76ab8f; --view-face-2: #ba86ad; --view-face-3: #c9a365; --view-face-4: #7ea9af; --view-face-5: #a9a36e; --view-face-6: #a08bc2; --view-face-7: #c88d82; --view-face-8: #8faebf;
 
   --segment-track: #e3e3e3;

@@ -2795,3 +2795,11 @@ Les tests `cargo test -p fabstep-core --lib planar --offline` et `cargo test -p 
 ## V-1266 — R-114, composition et conflits de propriété
 
 Avec le Python de FreeCAD, exécuter `scripts/qualify-r114-composition-freecad.py artifacts/r114-qualification`. Le banc redessine deux références, les réimporte, puis vérifie leur validité, leurs interférences et leurs frontières sur deux densités de STL. Le témoin disjoint donne 286 puis 570 arêtes de frontière appariées. Sur le témoin à perçage longitudinal commun, 524 des 1 568 triangles, puis 978 des 2 980 triangles, sont revendiqués par les deux candidats. Les conclusions sont identiques dans les deux ordres d’insertion. Le test utilise les surfaces de référence pour établir la propriété attendue.
+
+## V-1267 — R-119 et R-121, inspection visuelle du STEP
+
+La boîte applique six plans aux triangles, contours et surlignages. Le picking et la peinture interrogent le premier impact dans leur intersection. Les tests Three.js exercent une paroi masquée devant une face visible et le maintien des bornes. Un essai WebGL sur le cube public a vérifié la saisie décimale française, le déplacement d’une poignée, l’annulation par Échap, la réinitialisation et le changement de source.
+
+Le test du bureau utilise la vue Svelte/WKWebView, les commandes Tauri et le moteur Rust/OCCT sur `fixtures/m2b_boss_blind.stl`. Une copie temporaire du lanceur pilote les gestes de recette. À partir des couleurs par face, le mode Écart au maillage affiche un minimum de 0 mm, un maximum de 0,00925 mm et un seuil de 0,05 mm. Le test sélectionne une face, observe sa mesure locale, change de thème et de langue, revient aux couleurs par face puis vérifie que la commande Exporter STEP est disponible.
+
+Les tests natifs vérifient les distances bit à bit face à une recherche exhaustive, les maxima des faces, une source 3MF avec placements, les limites et l’annulation. Le bureau attache le calcul à la révision, à la source et au STEP immuable. La mesure échantillonne les sommets de la tessellation d’affichage dans la direction résultat vers source. Les tests `ui/tests/deviation-map.test.ts` vérifient le retour aux couleurs par face, la péremption des mesures et l’ordre des sommets lors de la coloration.

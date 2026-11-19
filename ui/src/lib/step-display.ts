@@ -1,7 +1,8 @@
+import type { DeviationReport } from './deviation-map.ts';
 import type { ResultFaces } from './types.ts';
 
 export const STEP_PALETTE_SIZE = 8;
-export type StepDisplay = { faceSlots:Uint8Array; boundaries:Float32Array };
+export type StepDisplay = { faceSlots:Uint8Array; boundaries:Float32Array; deviation?:DeviationReport };
 /** Called only after StepSelectionGraph validation, in the STEP worker. */
 export function prepareStepDisplay(document:ResultFaces):StepDisplay {
   const { mesh, faces } = document;
