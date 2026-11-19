@@ -9,6 +9,22 @@ fn aligned(a: V, b: V) -> bool {
     dot(a, b) >= NORMAL_DOT_MIN
 }
 type P2 = [f64; 2];
+pub(crate) const SHARED_CONTOUR_TOLERANCE_MM: f64 = 5e-8;
+const SHARED_SEED_DOT_MIN: f64 = 2. * NORMAL_DOT_MIN * NORMAL_DOT_MIN - 1.;
+
+// On a body with few source planes, rule out a fragmented plane before
+// rebuilding the source adjacency for Auto. Larger partitions use adjacency.
+pub(crate) fn possible_seed_split(faces: &[PlanarFace]) -> bool {
+    faces.len() > 64
+        || faces.iter().enumerate().any(|(i, a)| {
+            faces[..i]
+                .iter()
+                .any(|b| dot(a.normal, b.normal) >= SHARED_SEED_DOT_MIN)
+        })
+}
+
+mod area_seeds;
+pub(crate) use area_seeds::{candidate as area_candidate, LIMIT as OUTPUT_TRIANGLE_LIMIT};
 mod broad_phase;
 mod perforated;
 pub(crate) use perforated::cross_drill_supports;
@@ -42,18 +58,79 @@ pub(crate) fn build_with_provenance(
 ) -> Result<Segmentation, FabError> {
     let normals = triangle_normals(mesh);
     let mut checks = 0;
-    match segment(mesh, adjacency, &normals, tolerance, &mut checks, false) {
+    initial_partition(mesh, adjacency, &normals, tolerance, &mut checks)
+}
+
+// Only final planar outputs opt into the alternative. Analytic recognizers
+// and guided operations retain their own partitions and annular-fit budgets.
+pub(crate) fn build_for_output(
+    mesh: &Mesh,
+    adjacency: &[Vec<usize>],
+    tolerance: f64,
+) -> Result<(Segmentation, usize), FabError> {
+    let normals = triangle_normals(mesh);
+    let mut checks = 0;
+    let original = initial_partition(mesh, adjacency, &normals, tolerance, &mut checks)?;
+    if original.approximate_faces > 0
+        && mesh.triangles.len() <= area_seeds::LIMIT
+        && possible_seed_split(&original.model.faces)
+    {
+        let planes: Vec<_> = original.model.faces.iter().map(|f| f.normal).collect();
+        if let Some(alternate) = area_candidate(
+            mesh,
+            adjacency,
+            &normals,
+            tolerance,
+            &mut checks,
+            &original.triangle_regions,
+            &planes,
+        ) {
+            let merged = planes.len() - alternate.model.faces.len();
+            return Ok((alternate, merged));
+        }
+    }
+    Ok((original, 0))
+}
+
+pub(crate) fn recovered_diagnostic(merged: usize) -> crate::Diagnostic {
+    crate::Diagnostic {
+        code: "planar.quantized_regions_recovered".into(),
+        severity: crate::Severity::Info,
+        count: merged,
+        message:
+            "Des régions fragmentées ont été réunies sur leurs plans, aux tolérances du document."
+                .into(),
+    }
+}
+
+fn initial_partition(
+    mesh: &Mesh,
+    adjacency: &[Vec<usize>],
+    normals: &[V],
+    tolerance: f64,
+    checks: &mut usize,
+) -> Result<Segmentation, FabError> {
+    let order = 0..mesh.triangles.len();
+    match segment(
+        mesh,
+        adjacency,
+        normals,
+        tolerance,
+        checks,
+        false,
+        order.clone(),
+    ) {
         Err(e)
             if e.code == "planar.invalid_contour"
                 && mesh.triangles.len() <= perforated::MAX_TRIANGLES =>
         {
-            segment(mesh, adjacency, &normals, tolerance, &mut checks, true)
+            segment(mesh, adjacency, normals, tolerance, checks, true, order)
         }
         other => other,
     }
 }
 
-fn triangle_normals(mesh: &Mesh) -> Vec<V> {
+pub(crate) fn triangle_normals(mesh: &Mesh) -> Vec<V> {
     mesh.triangles
         .iter()
         .map(|t| {
@@ -85,6 +162,7 @@ pub(crate) fn retry_perforations(
         tolerance,
         &mut checks,
         true,
+        0..mesh.triangles.len(),
     ) {
         Ok(result) => Ok(Some(result)),
         // A validated partition remains available when this optional proof
@@ -108,6 +186,7 @@ fn segment(
     tolerance: f64,
     checks: &mut usize,
     recover_perforations: bool,
+    seeds: impl Iterator<Item = usize>,
 ) -> Result<Segmentation, FabError> {
     // Speculative annular fits are bounded to small/medium documents. The
     // first rejected seed distance allocates this per-triangle visit marker.
@@ -118,7 +197,7 @@ fn segment(
     let mut approximate_faces = 0;
     let mut split_observed = false;
     let mut pending = VecDeque::new();
-    for seed in 0..mesh.triangles.len() {
+    for seed in seeds {
         if assigned[seed] {
             continue;
         }
@@ -553,6 +632,7 @@ mod tests {
                 0.,
                 &mut checks,
                 false,
+                0..1,
             )
             .unwrap();
             assert_eq!(segmentation.model.faces[0].loops, [expected]);
@@ -571,6 +651,7 @@ mod tests {
             0.,
             &mut checks,
             false,
+            0..1,
         )
         .err()
         .unwrap();

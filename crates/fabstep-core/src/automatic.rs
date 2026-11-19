@@ -113,6 +113,9 @@ fn recognize(
     }
     crate::partial::chain::augment(a, &mut result, o, scope)?;
     safe_planes(a, &mut result)?;
+    if scope.is_none() {
+        recover_planar_output(a, o, &mut result)?;
+    }
     refresh(a, o, &mut result)?;
     Ok(result)
 }
@@ -132,19 +135,7 @@ fn planar(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
                 mixed: MixedModel {
                     vertices: a.mesh.vertices.clone(),
                     rings: vec![],
-                    planes: s
-                        .model
-                        .faces
-                        .into_iter()
-                        .map(|f| MixedPlane {
-                            normal: f.normal,
-                            loops: f
-                                .loops
-                                .into_iter()
-                                .map(|vertices| MixedLoop::Polygon { vertices })
-                                .collect(),
-                        })
-                        .collect(),
+                    planes: mixed_planes(s.model.faces),
                     cylinders: vec![],
                     arcs: vec![],
                     elliptic_arcs: vec![],
@@ -182,6 +173,82 @@ fn planar(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
         },
     })
 }
+fn mixed_planes(faces: Vec<PlanarFace>) -> Vec<MixedPlane> {
+    faces
+        .into_iter()
+        .map(|face| MixedPlane {
+            normal: face.normal,
+            loops: face
+                .loops
+                .into_iter()
+                .map(|vertices| MixedLoop::Polygon { vertices })
+                .collect(),
+        })
+        .collect()
+}
+
+fn recover_planar_output(
+    a: &Analysis,
+    o: &Options,
+    r: &mut RoundedRecognition,
+) -> Result<(), FabError> {
+    if a.mesh.triangles.len() > crate::planar::OUTPUT_TRIANGLE_LIMIT
+        || !a
+            .report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "planar.approximate")
+        || (!crate::planar::possible_seed_split(&a.model.faces)
+            && !a
+                .report
+                .diagnostics
+                .iter()
+                .any(|d| d.code == "planar.quantized_regions_recovered"))
+        || !r
+            .triangle_faces
+            .iter()
+            .all(|f| matches!(f, RoundedFaceRef::Plane { .. }))
+    {
+        return Ok(());
+    }
+    let adj = crate::pipeline::validate_topology(&a.mesh)?;
+    let owners: Vec<_> = r
+        .triangle_faces
+        .iter()
+        .map(|f| match f {
+            RoundedFaceRef::Plane { index } => *index,
+            _ => unreachable!(),
+        })
+        .collect();
+    let planes = &mut r.model.revolved.mixed.planes;
+    let plane_normals: Vec<_> = planes.iter().map(|p| p.normal).collect();
+    let mut checks = 0;
+    let Some(partition) = crate::planar::area_candidate(
+        &a.mesh,
+        &adj,
+        &crate::planar::triangle_normals(&a.mesh),
+        o.plane_tolerance_mm,
+        &mut checks,
+        &owners,
+        &plane_normals,
+    ) else {
+        return Ok(());
+    };
+    let merged = planes.len() - partition.model.faces.len();
+    *planes = mixed_planes(partition.model.faces);
+    r.triangle_faces = partition
+        .triangle_regions
+        .into_iter()
+        .map(|index| RoundedFaceRef::Plane { index })
+        .collect();
+    r.report
+        .diagnostics
+        .retain(|d| d.code != "auto.planar_regions_split");
+    r.report
+        .diagnostics
+        .push(crate::planar::recovered_diagnostic(merged));
+    Ok(())
+}
 fn safe_planes(a: &Analysis, r: &mut RoundedRecognition) -> Result<(), FabError> {
     let mixed = &r.model.revolved.mixed;
     let old = &mixed.planes;
@@ -193,9 +260,10 @@ fn safe_planes(a: &Analysis, r: &mut RoundedRecognition) -> Result<(), FabError>
         {
             let origin = crate::partial::loop_origin(&r.model.revolved.mixed, &p.loops[0]);
             if p.loops.iter().any(|lp| match lp {
-                MixedLoop::Polygon { vertices } => vertices
-                    .iter()
-                    .any(|&v| dot(sub(mixed.vertices[v], origin), p.normal).abs() > 5e-8),
+                MixedLoop::Polygon { vertices } => vertices.iter().any(|&v| {
+                    dot(sub(mixed.vertices[v], origin), p.normal).abs()
+                        > crate::planar::SHARED_CONTOUR_TOLERANCE_MM
+                }),
                 _ => false,
             }) {
                 split.insert(i);
