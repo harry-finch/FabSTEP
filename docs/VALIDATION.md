@@ -2836,3 +2836,16 @@ Sur les bandes coniques et sphériques découpées, la qualification Rust `cargo
 | Relais bureau → helper réel sur macOS | 1 réussi |
 
 Le build de développement est `artifacts/FabSTEP.app`. Les deux exécutables du paquet ont été comparés aux sorties du build local. Les essais Flansch et ses captures volumineuses restent différés. Les actions FabBoard A-126 à A-129 portent sur la recette utilisateur des plans quantifiés, de la boîte de découpe, de la carte d’écart et des parois similaires.
+
+## V-1270 — Démarrage de l’atelier et premier dessin (R-022)
+
+Builds Vite de production comparés à 047c11e, préparés depuis les mêmes sources avec la seule variation du chargement de Viewport. Sur macOS, deux serveurs loopback ont servi les builds. Chaque mesure démarre un processus WKWebView avec un stockage éphémère. Sept passages par variante, en alternant l’ordre. Un observateur injecté avant le document date la présence du bouton d’ouverture et du champ fichier. Un STL cube identique est ensuite chargé par ce champ et le premier dessin WebGL de ses triangles est horodaté.
+
+| Médiane | Avant | Vue chargée au premier fichier |
+|---|---:|---:|
+| Montage des commandes depuis la navigation | 71 ms | 34 ms |
+| Ouverture du cube jusqu’au premier dessin | 30 ms | 63 ms |
+| JS d’entrée brut, Vite | 895,17 ko | 475,86 ko |
+| Canvas alloués à vide | 1 | 0 |
+
+Les sept montages ont été mesurés dans les deux variantes. Une WebView de référence, passée en arrière-plan, a suspendu le rafraîchissement avant l’ouverture du cube. La deuxième ligne porte sur six dessins de référence et sept dessins avec chargement différé. Ces temps concernent la WebView et incluent le coût reporté à la première ouverture. Ils ne mesurent pas le lancement global du processus Tauri.

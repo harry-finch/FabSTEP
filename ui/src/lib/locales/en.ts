@@ -5,6 +5,7 @@ import type fr from './fr';
 type Shape<T> = { [K in keyof T]: T[K] extends string ? string : Shape<T[K]> };
 
 const en: Shape<typeof fr> = {
+  viewport: { loadFailed: 'The 3D view could not be loaded.', retry: 'Retry' },
   similar: {
     search:'Find similar walls', pending:'Searching for walls…', count:'Suggested walls · {n}',
     failed:'Search unavailable for this result.', limit:'The list is limited to the remaining guidance slots.',

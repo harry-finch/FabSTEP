@@ -14,7 +14,7 @@
   import { ParameterSearchReplies, proposedTolerance, type SearchToken, type ParameterSearchResponse } from './lib/parameter-search';
   import Section from './components/Section.svelte';
   import Disclosure from './components/Disclosure.svelte';
-  import Viewport from './components/Viewport.svelte';
+  import Viewport from './components/DeferredViewport.svelte';
   import ProcessingIndicator from './components/ProcessingIndicator.svelte';
   import { watchConversionProgress, type ConversionProgress } from './lib/conversion-progress';
   import Dialog from './components/Dialog.svelte';

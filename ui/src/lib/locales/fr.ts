@@ -3,6 +3,7 @@
 // Typographie : espace insécable avant « : ; ! ? % », guillemets « », apostrophe ’.
 
 const fr = {
+  viewport: { loadFailed: 'Impossible de charger la vue 3D.', retry: 'Réessayer' },
   similar: {
     search:'Chercher des parois similaires', pending:'Recherche des parois…', count:'Parois proposées · {n}',
     failed:'Recherche indisponible sur ce résultat.', limit:'La liste est limitée au nombre d’indications restant.',
