@@ -1,6 +1,5 @@
-// A shallow circular collar can be nearly tangent to the next trim at its
-// pinched loft apex. Use a regular triangular parameter domain when the
-// base sagitta exceeds the collar's height above the circle plane.
+// A regular triangular domain avoids the singular apex of a shallow collar
+// and of a polynomial quadratic loft over a sufficiently short circular arc.
 #pragma once
 #include <BRepAdaptor_Curve.hxx>
 #include <BRepAdaptor_Curve2d.hxx>
@@ -24,7 +23,22 @@ namespace atlas_triangle {
 struct Patch {
   gp_Pnt apex, first, last, opposite;
   double weight, deviation, slope;
+  bool shallow;
 };
+inline bool quadratic_pole(const TopoDS_Face &face) {
+  const BRepAdaptor_Surface surface(face, false);
+  if (surface.GetType() != GeomAbs_BSplineSurface)
+    return false;
+  const auto net = surface.BSpline();
+  if (net->UDegree() != 2 || net->VDegree() != 1 || net->NbUPoles() != 3 || net->NbVPoles() != 2 ||
+      net->IsURational() || net->IsVRational() || net->IsUPeriodic() || net->IsVPeriodic() ||
+      net->NbUKnots() != 2 || net->NbVKnots() != 2)
+    return false;
+  auto collapsed = [&](int v) {
+    return net->Pole(1, v).IsEqual(net->Pole(2, v), 0.) && net->Pole(1, v).IsEqual(net->Pole(3, v), 0.);
+  };
+  return collapsed(1) != collapsed(2);
+}
 inline bool positive(const std::array<gp_Pnt, 4> &corners, const gp_Vec &normal) {
   // In homogeneous projected coordinates H, det(H,H_u,H_v) is bilinear.
   // Its four corner signs are those of the projected corner turns because
@@ -47,7 +61,13 @@ inline std::optional<Patch> geometry(const TopoDS_Edge &edge, const gp_Pnt &apex
   const auto circle = curve.Circle();
   const double w = std::cos(h),
                height = std::abs(gp_Vec(circle.Location(), apex).Dot(circle.Axis().Direction()));
-  if (!(height > Precision::Confusion() && height <= circle.Radius() * (1 - w)))
+  const bool shallow = height <= circle.Radius() * (1 - w);
+  // For quadratic interpolation at 0, 1/2 and 1, the circle's normalized
+  // third derivative has norm R*(2h)^3 and max|t(t-1/2)(t-1)| < 1/8.
+  // A non-shallow face enters this domain only for such a small arc, and
+  // the producer additionally checks the actual loft's collapsed control net.
+  const double quadratic_error = circle.Radius() * std::pow(2 * h, 3) / 48.;
+  if (!(height > Precision::Confusion() && (shallow || quadratic_error < .25 * Precision::Confusion())))
     return {};
   // Bound the cubic Hermite inverse-circle pcurve (angle -> rational span).
   const double t = std::tan(h / 2);
@@ -64,7 +84,7 @@ inline std::optional<Patch> geometry(const TopoDS_Edge &edge, const gp_Pnt &apex
       (w * control.Distance(chord) + (1 - w) * std::max(apex.Distance(chord), first.Distance(chord))) /
       (1 + w);
   return Patch{apex,      first, last,           gp_Pnt((control.XYZ() * (2 * w) - apex.XYZ()) / (2 * w - 1)),
-               2 * w - 1, bound, h / std::sin(h)};
+               2 * w - 1, bound, h / std::sin(h), shallow};
 }
 inline std::optional<TopoDS_Face> make(const std::array<TopoDS_Edge, 3> &edges, int arc, const Patch &p,
                                        const gp_Vec &source_normal) {
