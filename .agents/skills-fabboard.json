@@ -1,6 +1,9 @@
 {
   "version": 1,
   "skills": {
+    "fab-cleanup": {
+      "fingerprint": "sha256:52e44aecc37d0184dc584054f77e63e5107c5028c8de363283d880b5a34b887e"
+    },
     "fab-design-system": {
       "fingerprint": "sha256:0a10155ebd24e93f112296153cf54d7b372003f3e3fd9eeb03fcc6501af3b94d"
     },
