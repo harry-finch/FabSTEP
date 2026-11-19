@@ -13,6 +13,37 @@
 #include <string>
 
 namespace {
+void check_step_corner() {
+  using trimmed_torus_mesh::UV;
+  using trimmed_torus_mesh::corner_uv;
+  const gp_Torus surface(gp_Ax3(gp_Pnt(12, -9, 3), gp_Dir(2, 4, 1)), 8.5, .5);
+  const UV previous{.73, .3}, end{.75, .3}, start{.75, .3 + 1.36e-7}, next{.75, .5};
+  const auto vertex = ElSLib::Value(end[0], end[1], surface);
+  auto check = [&](UV actual, UV expected) {
+    if (!std::isfinite(actual[0]) || !std::isfinite(actual[1]) ||
+        std::max(std::abs(actual[0] - expected[0]), std::abs(actual[1] - expected[1])) > 1e-14)
+      throw std::runtime_error("unexpected corner UV");
+  };
+  check(corner_uv(previous, end, start, next, surface, vertex), end);
+  const UV distant{.75, .3 + 4e-7};
+  check(corner_uv(previous, end, distant, next, surface, vertex), distant);
+  check(corner_uv({.71, .29}, end, start, next, surface, vertex), start);
+  check(corner_uv(previous, end, start, {.77, start[1]}, surface, vertex), start);
+  check(corner_uv(previous, end, start, next, surface, vertex.Translated(gp_Vec(0, 0, .001))), start);
+  constexpr double period = 6.2831853071795864769;
+  const gp_Torus small(gp_Ax3(), .4, .1);
+  const double d = 1.3e-7;
+  const UV from{.75, .3}, to{.75 + d, .3 + d}, following{to[0], .5};
+  const UV crossing{to[0], from[1]};
+  const auto shared = ElSLib::Value(from[0], from[1], small);
+  check(corner_uv(previous, from, to, following, small, shared), crossing);
+  check(corner_uv(following, to, from, previous, small, shared), crossing);
+  check(corner_uv(previous, from, {to[0], to[1] - period}, {following[0], following[1] - period},
+                  small, shared), {crossing[0], crossing[1] - period});
+  check(corner_uv(previous, end, {start[0] + period, start[1]}, {next[0] + period, next[1]},
+                  surface, vertex), {end[0] + period, end[1]});
+}
+
 void check_metric(double deflection) {
   using UV = trimmed_torus_mesh::UV;
   for (double major : {2.01, 3.9, 15.}) {
@@ -52,6 +83,7 @@ int main(int argc, char **argv) {
     TopoDS_Shape shape;
     const bool self = std::string(argv[1]) == "--self-test";
     if (self) {
+      check_step_corner();
       check_metric(std::stod(argv[2]));
       gp_Ax2 axis(gp_Pnt(11, 2, -6), gp_Dir(.2, .5, 1));
       shape = BRepPrimAPI_MakeTorus(axis, 10, 2, -.8, .6, 3.7).Shape();
