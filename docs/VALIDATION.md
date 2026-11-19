@@ -2487,3 +2487,9 @@ Sur le STEP privé de V-1237, `sh scripts/qualify-trim-face-mesh.sh CHEMIN/candi
 ## V-1243 — Quatre congés en circuit autour d’un fond réel
 
 Trois poches à deux densités et une septième triangulation construite par sections alternées donnent onze plans, quatre cylindres, quatre ellipses et huit p-courbes. FreeCAD contrôle les volumes à 0,001 mm³ et les aires des trois fonds (221, 293,25 et 26 mm²). Une ouverture à la place du fond conserve les quatre jonctions mais reste traversante après les deux exports. Une encoche, un nœud déplacé et trois descriptions CAO falsifiées empêchent l’acceptation du circuit. Commandes et sources dans [le corpus des circuits fermés](../fixtures/closed_pocket/README.md).
+
+## V-1244 — Domaines toriques découverts directement dans le STL
+
+Le moteur pur retrouve une même rampe torique interrompue à deux densités, y compris après changement de repère. Les cas à facette absente ou dupliquée ne fournissent aucun domaine. Sur le STL privé passé par l’importeur ordinaire du helper, 43 domaines couvrent 493 542 des 540 170 triangles. Avec une face par triangle résiduel, la construction prévue compte 46 671 faces. Ce décompte concerne la reconnaissance.
+
+Rejeu public par `cargo test --offline -p fabstep-core --test torus_atlas`. Pour le STL privé, définir `FABSTEP_LARGE_STL` au chemin du fichier puis lancer `cargo test --offline -p fabstep-core --features large-stl --test torus_atlas -- --include-ignored --nocapture`. Les trois tests passent sur le Mac de développement.
