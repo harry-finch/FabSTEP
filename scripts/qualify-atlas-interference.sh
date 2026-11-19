@@ -5,7 +5,15 @@ sdk=${OCCT_ROOT:-"${HOMEBREW_PREFIX:-/opt/homebrew}/opt/opencascade"}
 out=${1:-artifacts/atlas-interference}
 if [ "$#" -gt 0 ]; then shift; fi
 mkdir -p "$out"
-"${CXX:-c++}" -std=c++17 -O2 -isystem "$sdk/include/opencascade" "$src/qualify-atlas-interference.cpp" \
-  -L "$sdk/lib" -Wl,-rpath,"$sdk/lib" -lTKDESTEP -lTKXSBase -lTKOffset -lTKGeomBase -lTKBO -lTKGeomAlgo -lTKPrim -lTKTopAlgo -lTKBRep -lTKG3d -lTKG2d -lTKMath \
-  -lTKernel -o "$out/qualify-atlas-interference"
-"$out/qualify-atlas-interference" "$@"
+build_and_run() {
+  program=$1
+  shift
+  "${CXX:-c++}" -std=c++17 -O2 -isystem "$sdk/include/opencascade" "$src/$program.cpp" \
+    -L "$sdk/lib" -Wl,-rpath,"$sdk/lib" -lTKDESTEP -lTKXSBase -lTKOffset -lTKGeomBase -lTKBO -lTKGeomAlgo -lTKPrim -lTKTopAlgo -lTKBRep -lTKG3d -lTKG2d -lTKMath \
+    -lTKernel -o "$out/$program"
+  "$out/$program" "$@"
+}
+build_and_run qualify-atlas-interference "$@"
+if [ "$#" -eq 0 ]; then
+  build_and_run qualify-atlas-triangle
+fi

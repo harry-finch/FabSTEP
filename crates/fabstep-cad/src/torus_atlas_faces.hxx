@@ -364,10 +364,24 @@ std::vector<TopoDS_Face> patch_faces(Model &m) {
           }
         }
       } else {
-        // Preserve the actual measured edge and its parameterization. A new
-        // rational quadratic could trace the same circle with a different
-        // parameter, invalidating the declared edge/p-curve tolerance.
-        face = anchoredFan(rim[j], vertices[z]);
+        // A shallow collar can use a regular triangular patch with the actual
+        // material edges. Keep the loft when the source bound or orientation
+        // cannot be certified for that alternative.
+        if (const auto triangle = atlas_triangle::geometry(rim[j], m.adjusted[z])) {
+          const auto &first = rim[j].Orientation() == TopAbs_FORWARD ? m.source[a] : m.source[b];
+          const auto &last = rim[j].Orientation() == TopAbs_FORWARD ? m.source[b] : m.source[a];
+          const double drift = std::max({triangle->apex.Distance(m.source[z]), triangle->first.Distance(first),
+                                         triangle->last.Distance(last)});
+          const double bound = drift + triangle->deviation;
+          if (bound < m.tolerance) {
+            if (auto regular = atlas_triangle::make(rim, j, *triangle, d.Crossed(side).Normalized())) {
+              face = *regular;
+              m.patchBound = std::max(m.patchBound, bound);
+            }
+          }
+        }
+        if (face.IsNull())
+          face = anchoredFan(rim[j], vertices[z]);
       }
     }
     faces.push_back(face);

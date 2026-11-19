@@ -4,6 +4,7 @@
 #include "torus_atlas_abi.hxx"
 #include "torus_atlas_interference.hxx"
 #include "torus_atlas_fan.hxx"
+#include "torus_atlas_triangle.hxx"
 #include "torus_atlas_pcurve.hxx"
 #include <GeomConvert.hxx>
 #include <BRepOffsetAPI_ThruSections.hxx>

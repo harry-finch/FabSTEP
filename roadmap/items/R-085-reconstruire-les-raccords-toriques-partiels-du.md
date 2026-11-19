@@ -1,7 +1,7 @@
 ---
 id: R-085
 titre: "Reconstruire les raccords toriques partiels du pourtour de Flansch"
-resume: "Flansch compte 43 zones toriques. Six interférences arête/face sont reproduites sur la coque actuelle avant transfert. Corriger les raccords et requalifier le solide complet."
+resume: "Le secteur public à deux bords toriques décalés passe en Auto. Sur Flansch, 26 refus locaux sont corrigés. Le contrôle du solide entier reste à qualifier."
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-18
@@ -35,9 +35,11 @@ Essayer le secteur public dans FabSTEP et vérifier le solide exporté dans Fusi
 
 ## État vérifié
 
-Le secteur public à plans radiaux est intégré dans Auto et Surfaces. Les essais FabSTEP et Fusion A-084 et A-085 restent ouverts. Le helper Auto convertit aussi la rampe dense indépendante de 194 694 triangles en un solide de 659 faces (V-1250).
+Le secteur public à plans radiaux est intégré dans Auto et Surfaces. Les essais FabSTEP et Fusion A-084 et A-085 ont été acceptés le 19 novembre. Le helper Auto convertit aussi la rampe dense indépendante de 194 694 triangles en un solide de 659 faces (V-1250).
 
-Sur le STL Flansch original, 43 surfaces toriques couvrent 493 542 des 540 170 triangles. Le solide construit directement en laboratoire présente 46 671 faces. Ses arêtes passent le contrôle géométrique exact après transfert. Le témoin fermé est tessellé à 0,005 mm en 98 576 triangles ; les écarts maximaux échantillonnés sont de 0,011553 et 0,010018 mm (V-1252/V-1253). Le premier refus d’auto-intersection a été reproduit puis corrigé sur les six raccords concernés. Les 14 882 raccords passent le contrôle individuel. Le rejeu du paquet corrigé atteint la limite de trente minutes pendant le contrôle complet (`worker.timeout`, V-1258). Aucun STEP de Flansch n’est exportable. Le lot public est à tester. Le volet Flansch reste ouvert sur le coût du contrôle entre faces, avec les plafonds actuels.
+Sur le STL Flansch original, 43 surfaces toriques couvrent 493 542 des 540 170 triangles. Le solide construit directement en laboratoire présente 46 671 faces. Ses arêtes passent le contrôle géométrique exact après transfert. Le témoin fermé est tessellé à 0,005 mm en 98 576 triangles ; les écarts maximaux échantillonnés sont de 0,011553 et 0,010018 mm (V-1252/V-1253). Le premier refus d’auto-intersection a été reproduit puis corrigé sur les six raccords concernés. Les 14 882 raccords passent le contrôle individuel. Le rejeu du paquet corrigé atteint la limite de trente minutes pendant le contrôle complet (`worker.timeout`, V-1258). Aucun STEP de Flansch n’est exportable. Le volet Flansch reste ouvert sur le coût du contrôle entre faces, avec les plafonds actuels.
 
 
 Dans la contre-expertise Argon, le contrôle parallèle a isolé sur le STEP de laboratoire six paires arête/face invalides à la diagonale 3 094. Le helper expérimental sur le STL original obtient `cad.invalid_solid` en 17 min 36 s et 3,12 Gio, avant l’échéance. Six interférences arête/face sont désormais isolées sur la coque construite depuis le STL, avant transfert. La feuille native 3 088 et les six petits témoins échouent en séquentiel. Reprendre sur leurs courbes de bord et les raccords voisins, puis rejouer le contrôle entier et les deux directions de fidélité. Mesures, témoins et versions figurent en V-1259. Le contrôle de production reste séquentiel.
+
+Le secteur public à deux bords décalés reproduisait le refus du noyau. Il passe maintenant depuis le STL dense de 166 848 triangles jusqu’au STEP réimporté dans FreeCAD. Sur Flansch, les 26 refus ciblés du raccord ont disparu. Les 1 907 nouveaux raccords conservent leurs supports et leurs bords après transfert par lots. Les qualifications publiques et privées sont détaillées en V-1261.

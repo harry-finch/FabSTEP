@@ -50,7 +50,7 @@ Ces lots ont été acceptés lors de la recette groupée dans FabBoard. Les dét
 
 Import ordinaire : 32 corps, 64 Mio et 100 000 triangles après placement. Le mode gros STL accepté utilise un helper séparé `large-stl`, source jusqu’à 600 000 triangles et 1 800 000 sommets, annulation, surveillance RSS/empreinte physique à 4 Gio et délai de 30 minutes. Les plafonds résultat/tessellation et 3MF restent inchangés ; le bureau n’active jamais cette feature (ADR-0034).
 
-Le helper Auto reconstruit la rampe publique de 194 694 triangles en 659 faces. Sur Flansch, la reconnaissance directe attribue 493 542 triangles à 43 surfaces toriques et conserve les autres facettes. Le solide de laboratoire est relu avec 46 671 faces et remesuré avec 98 576 triangles. Écarts bidirectionnels de 0,011553 mm et 0,010018 mm (V-1252/V-1253). Six raccords ont été corrigés depuis le premier refus du noyau. Les 14 882 raccords passent le contrôle individuel et la coque garde ses 46 671 identités de faces. Le helper du paquet final atteint trente minutes pendant le contrôle complet (`worker.timeout`). Le processus est récupéré et aucun STEP de Flansch ne devient exportable (V-1256 à V-1258).
+Le helper Auto convertit la rampe publique de 194 694 triangles en 659 faces et le secteur à deux bords décalés de 166 848 triangles en 962 faces. FreeCAD confirme les deux tores et le volume de 304,172709 mm³ de ce second témoin. Sur Flansch, la reconnaissance attribue 493 542 des 540 170 triangles à 43 tores. La correction de R-085 conserve les 46 671 faces du corps et ses 1 907 nouveaux raccords passent le contrôle ciblé avec les arêtes des tores. Le STEP complet de Flansch reste à qualifier sous les plafonds du helper. Voir V-1261.
 
 ## Reprise après cette session
 

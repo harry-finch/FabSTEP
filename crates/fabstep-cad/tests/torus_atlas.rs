@@ -219,6 +219,11 @@ fn convert_independent_stl_with_native_atlas() {
     );
     let (step, bound) =
         fabstep_cad::build_torus_atlas_step_with_provenance(mesh, &atlas, &tokens, 0.05).unwrap();
+    assert_eq!(step.report.solids, 1);
+    assert_eq!(step.report.faces, tokens.len());
+    assert_eq!(step.report.toroidal_faces, atlas.charts.len());
+    assert!(step.report.volume_mm3.is_finite() && step.report.volume_mm3 > 0.);
+    assert!((0.0..=0.05).contains(&bound));
     eprintln!(
         "Reimported {} faces, volume {}, {} STEP bytes, continuous source bound {}",
         step.report.faces,
@@ -226,23 +231,36 @@ fn convert_independent_stl_with_native_atlas() {
         step.bytes.len(),
         bound
     );
-    if let Ok(output) = std::env::var("FABSTEP_ATLAS_OUT") {
-        std::fs::write(output, &step.bytes).unwrap();
-    }
     let result = fabstep_cad::result_faces(&step.bytes).unwrap();
     assert_eq!(result.faces.len(), tokens.len());
-    assert!(result
-        .faces
-        .iter()
-        .all(|f| f.source_face_token.is_some() && f.triangle_count > 0));
+    let mut seen = Vec::with_capacity(tokens.len());
+    let mut triangles = 0;
+    for face in &result.faces {
+        let token = face.source_face_token.unwrap();
+        seen.push(token);
+        assert_eq!(
+            face.family == fabstep_cad::ResultFaceFamily::Torus,
+            token <= atlas.charts.len()
+        );
+        assert!(face.triangle_count > 0);
+        assert_eq!(face.triangle_start, triangles);
+        triangles += face.triangle_count;
+    }
+    seen.sort_unstable();
+    assert_eq!(seen, tokens);
+    assert_eq!(triangles, result.mesh.triangles.len());
     eprintln!(
         "Inspected {} faces, {} view triangles",
         result.faces.len(),
         result.mesh.triangles.len()
     );
     let exact = fabstep_cad::tessellate_step(&step.bytes, 0.005).unwrap();
+    assert!(!exact.triangles.is_empty());
     eprintln!(
         "Tessellated {} triangles at 0.005 mm",
         exact.triangles.len()
     );
+    if let Ok(output) = std::env::var("FABSTEP_ATLAS_OUT") {
+        std::fs::write(output, &step.bytes).unwrap();
+    }
 }

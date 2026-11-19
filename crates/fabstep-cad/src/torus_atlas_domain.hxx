@@ -55,9 +55,9 @@ inline std::optional<gp_Pnt> pole(const TopoDS_Face &face, const TopoDS_Edge &ed
 }
 
 // Reconstruct the native domain signature after every STEP read. A label or
-// product name never grants spline support. Every ruled neighbor must be one
-// three-sided fan with its actual collapsed coedge, on the four complete
-// isoparametric chart sides. Planar neighbors must retain three material edges.
+// product name never grants spline support. A pinched fan must have its
+// four complete isoparametric sides, including the collapsed coedge. A
+// regular collar instead has three material sides in its triangular trim.
 inline bool fan_trim(const TopoDS_Face &face) {
   const BRepAdaptor_Surface s(face, false);
   double lo[2]{s.FirstUParameter(), s.FirstVParameter()}, hi[2]{s.LastUParameter(), s.LastVParameter()};
@@ -146,7 +146,7 @@ bool matches(const TopTools_IndexedMapOfShape &faces) {
       }
       if (count != 3)
         return false;
-    } else if (!fan_trim(face))
+    } else if (!atlas_triangle::matches(face) && !fan_trim(face))
       return false;
   }
   return true;
