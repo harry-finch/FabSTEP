@@ -3,7 +3,7 @@ id: R-116
 titre: "Estimer les normales sur copie Taubin en lecture seule"
 resume: "Calculer des normales lissées sur une copie temporaire sans déplacer les sommets source, uniquement pour stabiliser la segmentation et la découverte de candidats sur les STL quantifiés ou bruités."
 statut: specifiee
-jalon: post-v1
+jalon: v1.0
 cree: 2026-11-19
 maj: 2026-11-19
 livree:
