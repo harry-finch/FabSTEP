@@ -7,6 +7,7 @@
 #include <BRepBuilderAPI_MakeWire.hxx>
 #include <BRepOffsetAPI_ThruSections.hxx>
 #include <ElCLib.hxx>
+#include <ElSLib.hxx>
 #include <gp_Torus.hxx>
 #include <BRepBuilderAPI_MakePolygon.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
@@ -86,6 +87,86 @@ void check_case(bool split, bool intersect) {
     throw std::runtime_error("Unexpected whole/bounded interference result or leaf assignment.");
   std::cout << "whole=" << whole.IsValid() << " bounded=" << valid << " leaf-a=" << owner_a
             << " leaf-b=" << owner_b << " faces=" << faces.Extent() << "\n";
+}
+void check_torus_filter() {
+  using atlas_interference::TorusFilter;
+  const auto require = [](bool ok, const char *reason) {
+    if (!ok)
+      throw std::runtime_error(reason);
+  };
+  for (const auto &axis : {gp_Dir(0, 0, 1), gp_Dir(2, -1, 4)}) {
+    const gp_Pnt center(3104., -1093., 209.);
+    const gp_Torus support(gp_Ax3(center, axis), 30., 3.);
+    const auto torus = BRepBuilderAPI_MakeFace(support, 0., 2 * M_PI, -.9, .9).Face();
+    gp_Pnt point;
+    gp_Vec du, dv;
+    ElSLib::D1(.83, .32, support, point, du, dv);
+    const gp_Vec n = du.Crossed(dv).Normalized();
+    du.Normalize();
+    for (bool piercing : {false, true}) {
+      const auto anchor = piercing ? point : center;
+      const auto tri = triangle(anchor.Translated(-n), anchor.Translated(n + du), anchor.Translated(n - du));
+      TopoDS_Compound compound;
+      BRep_Builder builder;
+      builder.MakeCompound(compound);
+      builder.Add(compound, torus);
+      builder.Add(compound, tri);
+      BRepAlgoAPI_Check reference(compound, false, true);
+      require(!reference.HasErrors() && reference.IsValid() != piercing, "Unexpected torus oracle");
+
+      TopTools_IndexedMapOfShape faces;
+      faces.Add(torus);
+      faces.Add(tri);
+      atlas_interference::Checker checker;
+      require(bounded_valid(checker, faces) != piercing, "Invalid diagonal torus verdict");
+      if (axis.Z() == 1.)
+        require(checker.torus_disjoint(checker.faces[0], checker.faces[1]) != piercing, "Invalid exclusion");
+      const int left = checker.build(0, 1), right = checker.build(1, 2);
+      bool accepted = true;
+      try {
+        checker.inspect(left, right);
+      } catch (const atlas_interference::Failure &) {
+        accepted = false;
+      }
+      require(accepted != piercing, "Invalid cross-leaf torus verdict");
+      require(checker.pairs == 1 && checker.groups == 2, "Filtered pair was not charged");
+
+      if (axis.Z() != 1. || piercing)
+        continue;
+      const auto &near = checker.faces[1];
+      const auto certified = [&](TorusFilter::Budget budget, const TopoDS_Face &owner, const TopoDS_Face &other) {
+        TorusFilter filter;
+        filter.remaining = budget;
+        filter.neighbors.resize(1);
+        size_t id = filter.record(owner, 1.e-5);
+        return filter.excludes(id, 0, other, 1.e-5, near.bounds);
+      };
+      require(certified({}, torus, tri), "Expected exclusion in the torus hole");
+      // Partial collection or comparison cannot prove the whole pair disjoint.
+      for (auto member : {&TorusFilter::Budget::visits, &TorusFilter::Budget::torus_boxes,
+                          &TorusFilter::Budget::neighbor_boxes, &TorusFilter::Budget::comparisons}) {
+        TorusFilter::Budget budget;
+        budget.*member = 1;
+        require(!certified(budget, torus, tri), "Budget exhaustion skipped a pair");
+      }
+
+      // Keep the physical boundary even if an imported trim does not follow
+      // its support. Exercise both operand orders with an undersized face box.
+      const auto detached = [&](const TopoDS_Face &owner, const TopoDS_Face &extra) {
+        auto result = TopoDS::Face(owner.EmptyCopied());
+        for (const auto &f : {owner, extra})
+          for (TopExp_Explorer it(f, TopAbs_WIRE); it.More(); it.Next())
+            builder.Add(result, it.Current());
+        return result;
+      };
+      require(!certified({}, detached(torus, tri), tri), "Detached torus boundary skipped");
+      require(!certified({}, torus, detached(tri, torus)), "Detached neighbor boundary skipped");
+      const auto spindle = BRepBuilderAPI_MakeFace(gp_Torus(gp_Ax3(center, axis), 1., 4.), 0., .5, 2.9, 3.2).Face();
+      TorusFilter filter;
+      require(filter.record(spindle, 1.e-5) == 0, "Spindle torus accepted by ring-distance test");
+    }
+  }
+  std::cout << "Torus exclusions, native penetrations, detached trims and budget fallbacks passed.\n";
 }
 // Independent near-planar seam in a torus of outer radius 10 mm. Its
 // singular loft used to fail the OCCT self-face check at the collapsed pole.
@@ -230,6 +311,7 @@ int main(int argc, char **argv) try {
   }
   if (argc != 1)
     throw std::runtime_error("Expected --ruled-faces path.step or no arguments.");
+  check_torus_filter();
   open_face_wire();
   near_planar_fan();
   for (bool split : {false, true})
