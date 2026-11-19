@@ -340,12 +340,60 @@ fn sample(mesh: &Mesh, target: &Tree, work: &mut Work) -> Result<(f64, usize), F
         maximum = target.maximum_squared(p, maximum, &mut last, work, &mut stack)?;
         Ok(())
     };
-    visit_samples(mesh, &mut visit)?;
+    if mesh.triangles.len() > 50_000 {
+        visit_spatial_samples(mesh, target.nodes[0].bounds, &mut visit)?;
+    } else {
+        visit_samples(mesh, &mut visit)?;
+    }
     // Le rapport compte toujours les mêmes échantillons, doublons compris.
     Ok((
         maximum.sqrt(),
         mesh.vertices.len() + 4 * mesh.triangles.len(),
     ))
+}
+
+fn visit_spatial_samples(
+    mesh: &Mesh,
+    bounds: Bounds,
+    mut visit: impl FnMut(Point) -> Result<(), FabError>,
+) -> Result<(), FabError> {
+    // Nearby samples can reuse a witness triangle. Spatial ordering changes
+    // only the visitation order; every bit-distinct sample is still tested.
+    let mut samples = Vec::with_capacity(16_384);
+    let mut flush = |samples: &mut Vec<(u32, Point)>| -> Result<(), FabError> {
+        samples.sort_unstable_by_key(|&(key, _)| key);
+        for (_, point) in samples.drain(..) {
+            visit(point)?;
+        }
+        Ok(())
+    };
+    visit_samples(mesh, |point| {
+        samples.push((spatial_key(point, bounds), point));
+        if samples.len() == 16_384 {
+            flush(&mut samples)?;
+        }
+        Ok(())
+    })?;
+    flush(&mut samples)
+}
+
+// Interleave ten bits per axis (Morton order). Collisions affect locality only.
+fn spatial_key(point: Point, bounds: Bounds) -> u32 {
+    fn spread(mut v: u32) -> u32 {
+        v = (v | v << 16) & 0x030000ff;
+        v = (v | v << 8) & 0x0300f00f;
+        v = (v | v << 4) & 0x030c30c3;
+        (v | v << 2) & 0x09249249
+    }
+    let mut key = 0;
+    for (i, value) in point.into_iter().enumerate() {
+        let size = bounds.max[i] - bounds.min[i];
+        if size > 0. {
+            let cell = ((value - bounds.min[i]) / size * 1023.).clamp(0., 1023.) as u32;
+            key |= spread(cell) << i;
+        }
+    }
+    key
 }
 
 fn visit_samples(
@@ -554,6 +602,29 @@ mod tests {
             sample(&source, &target, &mut Work(0)).unwrap().0.to_bits(),
             exhaustive.to_bits()
         );
+    }
+
+    #[test]
+    fn spatial_batches_visit_the_identical_samples_on_flat_bounds() {
+        let mut mesh = square(0.);
+        // Force a partial and a complete batch, including Morton-key collisions.
+        mesh.triangles = mesh.triangles.repeat(9_000);
+        let mut ordered = Vec::new();
+        let mut spatial = Vec::new();
+        let bounds = Bounds::of(mesh.vertices.iter().copied());
+        visit_samples(&mesh, |point| {
+            ordered.push(point.map(f64::to_bits));
+            Ok(())
+        })
+        .unwrap();
+        visit_spatial_samples(&mesh, bounds, |point| {
+            spatial.push(point.map(f64::to_bits));
+            Ok(())
+        })
+        .unwrap();
+        ordered.sort_unstable();
+        spatial.sort_unstable();
+        assert_eq!(ordered, spatial);
     }
 
     #[test]
