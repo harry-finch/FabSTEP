@@ -1942,7 +1942,7 @@ fn build_cross_drill(
     if !cosine.is_finite()
         || cosine.abs() > 0.51
         || sine < 0.85
-        || (cosine != 0. && (dx != 0. || dy != 0.))
+        || (cosine != 0. && dx != 0.)
         || m.planes.len() != 6
         || m.rings.len() != 4
         || m.vertices.len() > MAX_SOURCE_VERTICES

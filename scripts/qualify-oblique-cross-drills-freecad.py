@@ -16,7 +16,7 @@ HX, HY, HZ = 16.0, 12.0, 15.0
 R, BIG = 2.0, 5.0
 
 
-def drawing(angle, with_through_bore=True):
+def drawing(angle, with_through_bore=True, offset=0.):
     c, s = math.cos(angle), math.sin(angle)
     x, z = V(1, 0, 0), V(c, 0, s)
     # Planes x=±HX, y=±HY and c*x+s*z=±HZ. They meet the bores normally.
@@ -27,18 +27,19 @@ def drawing(angle, with_through_bore=True):
     block = Part.Face(Part.makePolygon(base + base[:1])).extrude(V(0, 2 * HY, 0))
     big = Part.makeCylinder(BIG, 2 * HX + 2, x * (-HX - 1), x)
     depth = 2 * HZ + 2 if with_through_bore else HZ + 1
-    small = Part.makeCylinder(R, depth, z * (-HZ - 1), z)
+    small = Part.makeCylinder(R, depth, z * (-HZ - 1) + V(0, offset, 0), z)
     return block.cut(big).cut(small).removeSplitter()
 
 
-def nominal_volume(angle):
+def nominal_volume(angle, offset=0.):
     # Integrate the intersection along common-normal chords, y=r*sin(t).
     # The two independent transverse distances have Jacobian sin(angle).
     def intersection(n):
         def integrand(i):
             t = math.pi * i / (2 * n)
             return (
-                8 * R**2 * math.cos(t) ** 2 * math.sqrt(BIG**2 - (R * math.sin(t)) ** 2)
+                4 * R**2 * math.cos(t) ** 2
+                * sum(math.sqrt(BIG**2 - (offset + side * R * math.sin(t)) ** 2) for side in (-1, 1))
             )
 
         return (
@@ -58,7 +59,7 @@ def nominal_volume(angle):
     )
 
 
-def inspect(shape, angle):
+def inspect(shape, angle, offset=0.):
     assert len(shape.Solids) == 1 and shape.isClosed() and shape.isValid()
     faces = shape.Faces
     walls = [f for f in faces if isinstance(f.Surface, Part.Cylinder)]
@@ -73,7 +74,7 @@ def inspect(shape, angle):
     for axis, r, span in [(x, BIG, HX), (small, R, HZ)]:
         for sign in [-1, 1]:
             (mouth,) = [
-                e for e in mouths if (e.Curve.Center - sign * span * axis).Length < 2e-5
+                e for e in mouths if (e.Curve.Center - sign * span * axis - y * (offset if r == R else 0.)).Length < 2e-5
             ]
             assert (
                 mouth.isClosed()
@@ -106,6 +107,7 @@ def inspect(shape, angle):
         for i in range(96):
             t = 2 * math.pi * i / 96
             a, b = R * math.cos(t), R * math.sin(t)
+            b += offset
             k = sign * math.sqrt(BIG**2 - b * b)
             p = u * a + y * b + small * ((k + c * a) / s)
             dist = max(dist, wire.distToShape(Part.Vertex(p))[0])
@@ -113,20 +115,23 @@ def inspect(shape, angle):
         gaps[sign] = dist
     for axis, rad, length in [(x, BIG, HX), (small, R, HZ)]:
         for sign in [-1, 1]:
-            center = axis * sign * (length - 0.5)
+            center = axis * sign * (length - 0.5) + y * (offset if rad == R else 0.)
             assert not shape.isInside(center, 1e-7, False)
             assert not shape.isInside(center + y * (rad - 0.05), 1e-7, False)
             assert shape.isInside(center + y * (rad + 0.05), 1e-7, False)
     assert not shape.isInside(V(0, 0, 0), 1e-7, False)
     assert shape.isInside(V(0, BIG + 0.05, 0), 1e-7, False)
-    assert abs(shape.Volume - nominal_volume(angle)) < 0.005, (
+    # FreeCAD uses default integration precision for Shape.Volume. The native
+    # reimport separately checks the outward-rounded analytic volume interval.
+    volume_tolerance = nominal_volume(angle, offset) * 1e-6 if offset else 0.005
+    assert abs(shape.Volume - nominal_volume(angle, offset)) < volume_tolerance, (
         shape.Volume,
-        nominal_volume(angle),
+        nominal_volume(angle, offset),
     )
     return dict(
         faces=len(faces),
         volume_mm3=shape.Volume,
-        ideal_mm3=nominal_volume(angle),
+        ideal_mm3=nominal_volume(angle, offset),
         junction_edges=len(shared),
         sampled_gap_mm=gaps,
     )
@@ -183,16 +188,19 @@ def main():
     parser.add_argument("output", type=Path)
     parser.add_argument("--cli", type=Path)
     parser.add_argument("--require-analytic", action="store_true")
+    parser.add_argument("--displaced", action="store_true", help="offset the small axis along the common normal")
     args = parser.parse_args()
     root = args.output
     root.mkdir(parents=True, exist_ok=True)
     missing_mouth(root, args.cli)
     for degrees in [60, 75]:
         angle = math.radians(degrees)
-        step = root / f"angle-{degrees}-design.step"
-        drawing(angle).exportStep(str(step))
+        offset = (.65 if degrees == 60 else -.90) if args.displaced else 0.
+        name = ("displaced-" if args.displaced else "") + f"angle-{degrees}"
+        step = root / f"{name}-design.step"
+        drawing(angle, offset=offset).exportStep(str(step))
         ref = Part.read(str(step))
-        print(json.dumps(dict(degrees=degrees, design=inspect(ref, angle))), flush=True)
+        print(json.dumps(dict(degrees=degrees, design=inspect(ref, angle, offset))), flush=True)
         for label, deflection in [("coarse", 0.16), ("fine", 0.11)]:
             mesh = MeshPart.meshFromShape(
                 Shape=ref,
@@ -200,7 +208,7 @@ def main():
                 AngularDeflection=deflection,
                 Relative=False,
             )
-            stl = root / f"angle-{degrees}-{label}.stl"
+            stl = root / f"{name}-{label}.stl"
             mesh.write(str(stl))
             if args.cli:
                 dest = stl.with_suffix(".step")
@@ -238,7 +246,7 @@ def main():
                     degrees=degrees, mesh=label, triangles=mesh.CountFacets, types=types
                 )
                 if args.require_analytic or "Part::GeomCylinder" in types:
-                    data["analytic"] = inspect(result, angle)
+                    data["analytic"] = inspect(result, angle, offset)
                 print(json.dumps(data), flush=True)
 
 

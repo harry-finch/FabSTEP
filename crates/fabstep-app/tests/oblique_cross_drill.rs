@@ -13,9 +13,37 @@ fn inclined_bores_have_exact_mouths_bidirectional_fidelity_and_source_ownership(
         reconstruction: ReconstructionMode::Auto,
         ..Options::default()
     };
-    for (bytes, angle, volume) in [
-        (ACUTE, 60_f64, 23856.175867449572),
-        (STEEP, 75., 21089.937824591914),
+    for (bytes, angle, offset, volume) in [
+        (ACUTE, 60_f64, 0_f64, 23856.175867449572),
+        (STEEP, 75., 0., 21089.937824591914),
+        (
+            include_bytes!("../../../fixtures/oblique_cross_drill/displaced-angle-60-coarse.stl")
+                .as_slice(),
+            60.,
+            0.65,
+            23854.860544821342,
+        ),
+        (
+            include_bytes!("../../../fixtures/oblique_cross_drill/displaced-angle-60-fine.stl")
+                .as_slice(),
+            60.,
+            0.65,
+            23854.860544821342,
+        ),
+        (
+            include_bytes!("../../../fixtures/oblique_cross_drill/displaced-angle-75-coarse.stl")
+                .as_slice(),
+            75.,
+            -0.90,
+            21087.66515979494,
+        ),
+        (
+            include_bytes!("../../../fixtures/oblique_cross_drill/displaced-angle-75-fine.stl")
+                .as_slice(),
+            75.,
+            -0.90,
+            21087.66515979494,
+        ),
     ] {
         let doc = convert_document_with_provenance(bytes, InputFormat::Stl, &options).unwrap();
         let cad = &doc.report.cad;
@@ -33,7 +61,16 @@ fn inclined_bores_have_exact_mouths_bidirectional_fidelity_and_source_ownership(
         let recognized = body.rounded_recognition.as_ref().unwrap();
         let (s, c) = angle.to_radians().sin_cos();
         let model = recognized.model.cross_drill.as_ref().unwrap();
+        assert!((model.small_offset[1].abs() - offset.abs()).abs() < 2e-5);
         assert!((model.large_axis_cosine.abs() - c).abs() < 2e-6);
+        if offset != 0. {
+            let mut forged = recognized.model.clone();
+            forged.cross_drill.as_mut().unwrap().small_offset[0] = 0.25;
+            assert_eq!(
+                fabstep_cad::build_rounded_step(&forged).unwrap_err().code,
+                "cad.invalid_model"
+            );
+        }
         assert!(recognized.report.max_deviation_bound_mm <= options.max_deviation_mm);
         let fidelity = body.fidelity.as_ref().unwrap();
         assert!(
@@ -60,7 +97,7 @@ fn inclined_bores_have_exact_mouths_bidirectional_fidelity_and_source_ownership(
                         f32::from_le_bytes(p[4 * i..4 * i + 4].try_into().unwrap()) as f64
                     });
                     let transverse = s * x - c * z;
-                    let on_small = (transverse.hypot(y) - 2.).abs() < 2e-5;
+                    let on_small = (transverse.hypot(y - offset) - 2.).abs() < 2e-5;
                     candidates[0] &= on_small && z < 0.;
                     candidates[1] &= on_small && z > 0.;
                     candidates[2] &= (y.hypot(z) - 5.).abs() < 2e-5;

@@ -193,9 +193,11 @@ CrossDrillData infer(const TopTools_IndexedMapOfShape& faces) {
   const auto delta = (rings[0].Location().XYZ() + rings[1].Location().XYZ())*.5 - center;
   const double axis_cosine=x.Dot(z);
   if (std::abs(axis_cosine)>1.e-9) {
-    require(std::abs(axis_cosine)<=.51 && delta.Modulus()<Precision::Confusion(),
-            "Axes inclinés hors des limites ou décentrés.");
+    const auto lateral = delta.Dot(y.XYZ());
+    require(std::abs(axis_cosine)<=.51 && (delta-y.XYZ()*lateral).Modulus()<Precision::Confusion(),
+            "Décalage oblique hors du domaine de la normale commune.");
     d.large_axis_cosine=axis_cosine;
+    d.small_offset[1]=std::abs(lateral)>Precision::Confusion() ? lateral : 0.;
     store(d.axes[0],y.Crossed(z).XYZ());
     store(d.axes[2],z.XYZ());
   } else {
@@ -236,10 +238,10 @@ CrossDrillResult verify_cross_drill(const TopoDS_Shape& solid, const CrossDrillD
           "Repère des perçages invalide.");
   const gp_Dir big_axis(gp_Vec(u)*tilt_sine+gp_Vec(z_axis)*cosine);
   const std::array<gp_Dir, 3> axes{big_axis,y_axis,z_axis};
-  require(cosine==0. || (dx==0. && dy==0. &&
+  require(cosine==0. || (dx==0. &&
       d.half[0]>std::abs(cosine)*d.half[2]+tilt_sine*r+tol &&
       d.half[2]>std::abs(cosine)*d.half[0]+tilt_sine*R+tol),
-      "Les bouches doivent rester distinctes, au centre de leur support.");
+      "Les bouches doivent rester distinctes à l’intérieur de leur support.");
   auto at = [&](size_t axis, double v) { return center.Translated(gp_Vec(axes[axis]) * v); };
   const gp_Pnt small_center=center.Translated(gp_Vec(axes[0])*dx+gp_Vec(axes[1])*dy);
   auto mouth=[&](size_t axis, double value) {

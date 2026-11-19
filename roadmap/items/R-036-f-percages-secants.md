@@ -86,3 +86,5 @@ R-092 traite le contour fragmenté du bloc incliné décrit dans V-1219. Les deu
 R-096 — Reconstruire les deux intersections partagées lorsque le petit perçage est décentré par rapport au grand. Voir V-1224.
 
 R-105 — Reconstruire les deux intersections transverses de perçages dont les axes se croisent dans un prisme à quatre bouches circulaires. Voir V-1235.
+
+R-108 — Reconstruire deux perçages dont les axes sont inclinés et décalés latéralement, à quatre bouches circulaires. Voir V-1240.
