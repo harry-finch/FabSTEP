@@ -9,7 +9,7 @@ struct Geometry {
 };
 
 struct Domain {
-  std::array<Geometry, 2> walls;
+  std::array<Geometry, 3> walls;
   size_t count;
 };
 
@@ -49,7 +49,7 @@ double minimum_offset(double a, double b, double start, double sweep) {
 
 TopoDS_Face wall(const MixedArcData& near, const EllipticArcData& far, const double* points,
                  IndexedWires& wires, TopoDS_Edge& circle_edge, TopoDS_Edge& ellipse_edge, bool adjacent,
-                 const EllipticArcData* low = nullptr) {
+                 const EllipticArcData* low = nullptr, bool network_center = false) {
   const double tol = Precision::Confusion();
   const auto g = geometry(near, far, points, low);
   const auto axis = direction(near.axis);
@@ -81,11 +81,12 @@ TopoDS_Face wall(const MixedArcData& near, const EllipticArcData& far, const dou
     const auto n1 = direction(far.axis);
     require(c0 > 0.1 && c0 < 0.99999, invalid_model);
     const auto grad = (gp_Vec(n0) / c0 - gp_Vec(n1) / cosine) * near.radius;
+    const double gx = grad.Dot(gp_Vec(frame.XDirection())), gy = grad.Dot(gp_Vec(frame.YDirection()));
+    const double minimum = network_center ? minimum_offset(gx, gy, 0., near.sweep) : -std::hypot(gx, gy);
     require(low->minor > tol &&
         std::abs(low->minor - near.radius) < tol && std::abs(low->major * c0 - near.radius) < tol &&
         std::abs(low->sweep - near.sweep) * low->major < tol &&
-        separation.Dot(z) > std::hypot(grad.Dot(gp_Vec(frame.XDirection())),
-                                       grad.Dot(gp_Vec(frame.YDirection()))) + tol, invalid_model);
+        separation.Dot(z) + minimum > tol, invalid_model);
   }
   for (size_t i = 0; i < 3; ++i) {
     require(gp_Vec(g.near_arc[i], g.far_arc[reversed ? 2 - i : i]).Crossed(z).Magnitude() < tol, invalid_model);
@@ -162,9 +163,9 @@ bool matches(const ArcPoints& a, const ArcPoints& b, double tolerance) {
        (a[0].Distance(b[2]) < tolerance && a[2].Distance(b[0]) < tolerance));
 }
 
-Geometry verify_wall(const TopoDS_Face& wall, const TopoDS_Face& paired,
+Geometry verify_wall(const TopoDS_Face& wall, size_t count,
                      const TopTools_IndexedDataMapOfShapeListOfShape& incidence,
-                     TopoDS_Edge& seam, TopTools_IndexedMapOfShape& tangents, Status status) {
+                     TopTools_IndexedMapOfShape& seams, TopTools_IndexedMapOfShape& tangents, Status status) {
   const double tol = 4. * Precision::Confusion();
   require(wall.Orientation() == TopAbs_REVERSED, status);
   const auto cyl = BRepAdaptor_Surface(wall).Cylinder();
@@ -179,7 +180,8 @@ Geometry verify_wall(const TopoDS_Face& wall, const TopoDS_Face& paired,
     require(!BRep_Tool::Degenerated(edge) && owners.Extent() == 2, status);
     const BRepAdaptor_Curve curve(edge);
     if (!owners.First().IsSame(wall) && !owners.Last().IsSame(wall)) {
-      if (paired.IsNull() || (!owners.First().IsSame(paired) && !owners.Last().IsSame(paired)))
+      if (BRepAdaptor_Surface(TopoDS::Face(owners.First())).GetType() == GeomAbs_Plane &&
+          BRepAdaptor_Surface(TopoDS::Face(owners.Last())).GetType() == GeomAbs_Plane)
         require(curve.GetType() == GeomAbs_Line, status);
       continue;
     }
@@ -187,7 +189,7 @@ Geometry verify_wall(const TopoDS_Face& wall, const TopoDS_Face& paired,
     require(!neighbors.Contains(other), status);
     neighbors.Add(other);
     const BRepAdaptor_Surface support(other);
-    const bool join = !paired.IsNull() && other.IsSame(paired);
+    const bool join = support.GetType() == GeomAbs_Cylinder;
     require(join ? curve.GetType() == GeomAbs_Ellipse : support.GetType() == GeomAbs_Plane, status);
     const double first = curve.FirstParameter(), last = curve.LastParameter();
     ArcPoints points{curve.Value(first), curve.Value((first + last) / 2.), curve.Value(last)};
@@ -209,7 +211,7 @@ Geometry verify_wall(const TopoDS_Face& wall, const TopoDS_Face& paired,
       require(cyl.Axis().Direction().IsParallel(support.Plane().Axis().Direction(), 1.e-8) &&
               gp_Lin(cyl.Axis()).Distance(result.near_center) < tol &&
               std::abs(curve.Circle().Radius() - cyl.Radius()) < tol, status);
-    } else if (curve.GetType() == GeomAbs_Ellipse && (!have_far || (!have_near && paired.IsNull()))) {
+    } else if (curve.GetType() == GeomAbs_Ellipse && (!have_far || (!have_near && count != 2))) {
       const auto e = curve.Ellipse();
       if (have_far) {
         have_near = true; // First stop is elliptic as well.
@@ -222,8 +224,8 @@ Geometry verify_wall(const TopoDS_Face& wall, const TopoDS_Face& paired,
         result.far_center = e.Location();
         result.major = e.MajorRadius();
       }
-      require(join == !paired.IsNull(), status);
-      seam = edge;
+      require(join == (count > 1), status);
+      if (join) seams.Add(edge);
       const auto alignment = std::abs(cyl.Axis().Direction().Dot(e.Axis().Direction()));
       require(alignment > 0.1 && alignment < 0.99999 &&
               (join || e.Axis().Direction().IsParallel(support.Plane().Axis().Direction(), 1.e-8)) &&
@@ -266,8 +268,8 @@ bool matches(const Geometry& a, const Geometry& b, double tolerance) {
 Domain verify(const TopoDS_Shape& solid, const TopTools_IndexedMapOfShape& faces,
               size_t count, const Domain* expected, Status status) {
   const double tol = 4. * Precision::Confusion();
-  require((count == 1 || count == 2) && faces.Extent() == static_cast<int>(11 + count), status);
-  std::array<TopoDS_Face, 2> walls;
+  require((count >= 1 && count <= 3) && faces.Extent() == static_cast<int>(11 + count), status);
+  std::array<TopoDS_Face, 3> walls;
   size_t n = 0;
   for (int i = 1; i <= faces.Extent(); ++i) {
     const auto face = TopoDS::Face(faces(i));
@@ -278,33 +280,53 @@ Domain verify(const TopoDS_Shape& solid, const TopTools_IndexedMapOfShape& faces
   require(n == count && (!expected || expected->count == count), status);
   TopTools_IndexedDataMapOfShapeListOfShape incidence;
   TopExp::MapShapesAndUniqueAncestors(solid, TopAbs_EDGE, TopAbs_FACE, incidence);
-  std::array<TopoDS_Edge, 2> seams;
-  std::array<TopTools_IndexedMapOfShape, 2> tangents;
+  std::array<TopTools_IndexedMapOfShape, 3> seams, tangents;
   Domain result{{}, count};
   for (size_t i = 0; i < count; ++i)
-    result.walls[i] = verify_wall(walls[i], walls[1-i], incidence, seams[i], tangents[i], status);
-  if (count == 2) {
-    const auto a = BRepAdaptor_Surface(walls[0]).Cylinder();
-    const auto b = BRepAdaptor_Surface(walls[1]).Cylinder();
-    const auto ellipse = BRepAdaptor_Curve(seams[0]).Ellipse();
-    const auto axis_a = a.Axis().Direction(), axis_b = b.Axis().Direction();
-    const auto normal = ellipse.Axis().Direction();
-    // Orthogonal projection of the same ellipse onto either cylinder's
-    // normal plane must yield its circle, including after STEP transfer.
-    require(seams[0].IsSame(seams[1]) && std::abs(axis_a.Dot(axis_b)) < std::sqrt(0.5) &&
-        std::abs(a.Radius() - b.Radius()) < tol && std::abs(ellipse.MinorRadius() - a.Radius()) < tol &&
-        std::abs(ellipse.MajorRadius() * std::abs(axis_a.Dot(normal)) - a.Radius()) < tol &&
-        std::abs(ellipse.MajorRadius() * std::abs(axis_b.Dot(normal)) - b.Radius()) < tol, status);
-    size_t common_planes = 0;
-    for (int i = 1; i <= tangents[0].Extent(); ++i) common_planes += tangents[1].Contains(tangents[0](i));
-    require(common_planes == 1, status);
+    result.walls[i] = verify_wall(walls[i], count, incidence, seams[i], tangents[i], status);
+  size_t links = 0;
+  for (size_t i = 0; i < count; ++i) {
+    for (size_t j = i + 1; j < count; ++j) {
+      const auto a = BRepAdaptor_Surface(walls[i]).Cylinder();
+      const auto b = BRepAdaptor_Surface(walls[j]).Cylinder();
+      const auto axis_a = a.Axis().Direction(), axis_b = b.Axis().Direction();
+      int common_seams = 0;
+      for (int k = 1; k <= seams[i].Extent(); ++k) {
+        if (!seams[j].Contains(seams[i](k))) continue;
+        ++common_seams;
+        const auto ellipse = BRepAdaptor_Curve(TopoDS::Edge(seams[i](k))).Ellipse();
+        const auto normal = ellipse.Axis().Direction();
+        require(std::abs(axis_a.Dot(axis_b)) < (count == 3 ? 1.e-7 : std::sqrt(0.5)) &&
+                std::abs(a.Radius() - b.Radius()) < tol &&
+                std::abs(ellipse.MinorRadius() - a.Radius()) < tol &&
+                std::abs(ellipse.MajorRadius() * std::abs(axis_a.Dot(normal)) - a.Radius()) < tol &&
+                std::abs(ellipse.MajorRadius() * std::abs(axis_b.Dot(normal)) - b.Radius()) < tol, status);
+      }
+      require(common_seams <= 1, status);
+      links += common_seams;
+      if (!common_seams)
+        require(count == 3 && axis_a.IsParallel(axis_b, 1.e-7), status);
+      size_t common_planes = 0;
+      for (int k = 1; k <= tangents[i].Extent(); ++k) common_planes += tangents[j].Contains(tangents[i](k));
+      require(common_planes == 1, status);
+    }
+  }
+  require(links == count - 1, status);
+  if (count == 3) {
+    int common_floor = 0;
+    for (int k = 1; k <= tangents[0].Extent(); ++k)
+      common_floor += tangents[1].Contains(tangents[0](k)) && tangents[2].Contains(tangents[0](k));
+    require(common_floor == 1, status);
   }
   if (expected) {
-    // STEP may reorder the two equal-radius walls. Match the actual arc
-    // positions and require a bijection, including the shared midpoint.
-    const bool swap = count == 2 && !matches(result.walls[0], expected->walls[0], tol);
-    for (size_t i = 0; i < count; ++i)
-      require(matches(result.walls[i], expected->walls[swap ? 1-i : i], tol), status);
+    // STEP may reorder the faces. Every wall must retain both trimmed ends.
+    std::array<bool, 3> used{};
+    for (size_t i = 0; i < count; ++i) {
+      size_t j = 0;
+      while (j < count && (used[j] || !matches(result.walls[i], expected->walls[j], tol))) ++j;
+      require(j < count, status);
+      used[j] = true;
+    }
   }
   return result;
 }

@@ -10,6 +10,7 @@ const technicalRemarks = new Set([
   'recognition.double_oblique_pocket_fitted',
   'recognition.oblique_pocket_fitted',
   'recognition.adjacent_pocket_fitted',
+  'recognition.u_pocket_fitted',
   'recognition.unequal_pocket_fitted',
   'recognition.rounded_box_intent_assumed',
   'recognition.height_patch_fitted',

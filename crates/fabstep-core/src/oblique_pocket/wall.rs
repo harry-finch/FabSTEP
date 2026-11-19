@@ -76,6 +76,7 @@ pub(super) fn fit(mesh: &Mesh, p: &mut Partition, o: &Options) -> Result<Geometr
             rails: [rails[0], rails[1]],
             circle_plane,
             ellipse_plane,
+            near: p.planes[circle_plane].support,
             far: p.planes[ellipse_plane].support,
             shared_radius: None,
         },
@@ -87,6 +88,7 @@ pub(super) struct Stops {
     pub rails: [usize; 2],
     pub circle_plane: usize,
     pub ellipse_plane: usize,
+    pub near: Plane,
     pub far: Plane,
     pub shared_radius: Option<f64>,
 }
@@ -111,6 +113,7 @@ pub(super) fn fit_between(
         mut rails,
         circle_plane,
         ellipse_plane,
+        near,
         far,
         shared_radius,
     } = stops;
@@ -129,11 +132,11 @@ pub(super) fn fit_between(
         p.planes[rails[1]].support.normal,
     ))
     .ok_or_else(unsupported)?;
-    let near = p.planes[circle_plane].support;
     let square_stop = dot(axis, near.normal).abs() > 1. - 1e-10;
     checked(
         square_stop
-            || (shared_radius.is_none() && (0.1..0.99999).contains(&dot(axis, near.normal).abs())),
+            || ((circle_plane >= WALL || shared_radius.is_none())
+                && (0.1..0.99999).contains(&dot(axis, near.normal).abs())),
     )?;
     let near_chain = &p.cuts[&pair(circle_plane, wall)];
     let far_chain = &p.cuts[&pair(ellipse_plane, wall)];
@@ -170,11 +173,7 @@ pub(super) fn fit_between(
     let low = cap_ends(near_chain)?;
     let high = cap_ends(far_chain)?;
     let supports = rails.map(|i| p.planes[i].support);
-    let base = intersection(
-        [supports[0], supports[1], p.planes[circle_plane].support],
-        near_mid,
-    )
-    .ok_or_else(unsupported)?;
+    let base = intersection([supports[0], supports[1], near], near_mid).ok_or_else(unsupported)?;
     let radius = (supports[1].distance(raw[low[0]])
         + supports[0].distance(raw[low[1]])
         + supports[1].distance(raw[high[0]])
@@ -205,7 +204,9 @@ pub(super) fn fit_between(
         // The seam terminates this wall on its proven quarter turn. Narrow
         // pockets can have positive height here even if the bisector would
         // cross the opposite side of a hypothetical complete cylinder.
-        checked(h + minimum_quarter_offset(slope) > tol)?;
+        checked(
+            h + minimum_quarter_offset([slope[0] - near_slope[0], slope[1] - near_slope[1]]) > tol,
+        )?;
     } else {
         // Keep the historical clearance of an isolated oblique stop.
         checked(h > (slope[0] - near_slope[0]).hypot(slope[1] - near_slope[1]) + tol)?;

@@ -1,5 +1,6 @@
 //! Concave pocket fillets bounded by a right stop and an elliptic arc.
-//! The ellipse can belong to an oblique plane or a second perpendicular fillet.
+//! Each ellipse can belong to an oblique plane or another fillet. A U has two
+//! distinct elliptic edges incident on its central wall.
 //! The eleven planar neighbors are seeded from the largest source triangles. Only
 //! the fully certified partition (including the pocket opening) is returned.
 use crate::math::{cross, dot, norm, scale, sub, Sum, V};
@@ -14,6 +15,7 @@ use std::f64::consts::FRAC_PI_2;
 
 #[path = "adjacent_pocket.rs"]
 mod adjacent;
+mod network;
 #[path = "unequal_pocket.rs"]
 mod unequal;
 mod wall;
@@ -165,7 +167,10 @@ fn partition(
         }
     }
     prove_disk(mesh, adjacency, &owners, WALL)?;
-    let (cuts, neighbor) = interfaces(mesh, &owners)?;
+    // Before splitting a U, its common planar stop has two disconnected
+    // interfaces with the unlabelled curved strip. Only the dedicated
+    // recognizer can certify those cuts after assigning all three walls.
+    let (cuts, neighbor) = collect_interfaces(mesh, &owners, true)?;
     Ok(Partition {
         planes: patches,
         owners,
@@ -203,6 +208,13 @@ fn prove_disk(
 
 type Neighbors = BTreeMap<(usize, usize), usize>;
 fn interfaces(mesh: &Mesh, owners: &[usize]) -> Result<(Cuts, Neighbors), FabError> {
+    collect_interfaces(mesh, owners, false)
+}
+fn collect_interfaces(
+    mesh: &Mesh,
+    owners: &[usize],
+    discover_network: bool,
+) -> Result<(Cuts, Neighbors), FabError> {
     let triangles = &mesh.triangles;
     let mut directed = BTreeMap::new();
     for (t, &owner) in owners.iter().enumerate() {
@@ -223,11 +235,35 @@ fn interfaces(mesh: &Mesh, owners: &[usize]) -> Result<(Cuts, Neighbors), FabErr
         }
     }
     let mut cuts = Cuts::new();
+    let mut split_stop = false;
     for (key, edges) in by_pair {
-        let chain = crate::rounded::block::ordered_chain(&edges).map_err(|_| unsupported())?;
-        cuts.insert(key, chain);
+        match crate::rounded::block::ordered_chain(&edges) {
+            Ok(chain) => {
+                cuts.insert(key, chain);
+            }
+            Err(_) if discover_network && key.1 == WALL && !split_stop => {
+                // Exactly four endpoints on this one support are necessary
+                // for two independent quarter-circle stops. After splitting
+                // the strip, all interfaces must again be single chains.
+                let mut degree = BTreeMap::<usize, usize>::new();
+                for (a, b) in edges {
+                    *degree.entry(a).or_default() += 1;
+                    *degree.entry(b).or_default() += 1;
+                }
+                checked(
+                    degree.values().all(|&d| d <= 2)
+                        && degree.values().filter(|&&d| d == 1).count() == 4,
+                )?;
+                split_stop = true;
+            }
+            Err(_) => return Err(unsupported()),
+        }
     }
-    Ok((cuts, neighbor))
+    if split_stop {
+        Ok((Cuts::new(), Neighbors::new()))
+    } else {
+        Ok((cuts, neighbor))
+    }
 }
 
 fn intersection(planes: [Plane; 3], near: V) -> Option<V> {
@@ -458,7 +494,9 @@ fn candidate(
 ) -> Result<RoundedRecognition, FabError> {
     let mesh = &a.mesh;
     let neighbor_count = part.cuts.keys().filter(|(_, j)| *j == WALL).count();
-    let geoms = if neighbor_count == 5 {
+    let geoms = if part.cuts.is_empty() {
+        network::fit(mesh, adjacency, &mut part, o, work)?
+    } else if neighbor_count == 5 {
         // The small fillet's side shares both a straight rail and the
         // continuation of the large cylinder. Only one entire side interface
         // stays straight. Equal-radius corners have two straight interfaces.
@@ -512,7 +550,13 @@ fn candidate(
     let cylinders = geoms.len();
     let adjacent = cylinders == 2;
     let double_stop = geoms[0].near_ellipse.is_some();
-    let (fitted, adjusted, description) = if double_stop {
+    let (fitted, adjusted, description) = if cylinders == 3 {
+        (
+            "recognition.u_pocket_fitted",
+            "recognition.adjacent_pocket_adjusted",
+            "Les trois congés de la poche en U partagent deux arêtes elliptiques mesurées.",
+        )
+    } else if double_stop {
         (
             "recognition.double_oblique_pocket_fitted",
             "recognition.oblique_pocket_adjusted",
@@ -535,8 +579,15 @@ fn candidate(
             message:"Les sommets de jonction ont été ajustés aux supports mesurés dans la borne d’écart.".into(),
         });
     }
-    let mut ellipses: Vec<_> = geoms[0].near_ellipse.clone().into_iter().collect();
-    ellipses.push(geoms[0].ellipse.clone());
+    // For a U, store both seams in the central chart's orientation. Each
+    // flank recovers its own orientation from its cylinder axis.
+    let chart = if cylinders == 3 { &geoms[2] } else { &geoms[0] };
+    let ellipses = chart
+        .near_ellipse
+        .iter()
+        .chain([&chart.ellipse])
+        .cloned()
+        .collect();
     let mixed = MixedModel {
         vertices: points.vertices,
         planes,
@@ -550,8 +601,16 @@ fn candidate(
             .collect(),
         partial_cylinders: (0..cylinders)
             .map(|index| MixedPartialCylinder {
-                arcs: [index, usize::from(double_stop)],
-                elliptic_start: double_stop,
+                arcs: if cylinders == 3 {
+                    if index == 2 {
+                        [0, 1]
+                    } else {
+                        [index, index]
+                    }
+                } else {
+                    [index, usize::from(double_stop)]
+                },
+                elliptic_start: double_stop || index == 2,
                 inner: true,
                 elliptic_end: true,
             })
@@ -660,7 +719,9 @@ pub(crate) fn recognize(
         // Only the discovery radius changes. The final plane distances,
         // incidence, cylindrical fits and deviation use the requested limits.
         result = partition(&a.mesh, adjacency, discovery_tol, work).and_then(|part| {
-            checked(part.cuts.keys().filter(|(_, j)| *j == WALL).count() == 5)?;
+            checked(
+                part.cuts.is_empty() || part.cuts.keys().filter(|(_, j)| *j == WALL).count() == 5,
+            )?;
             candidate(a, o, adjacency, work, automatic, part)
         });
     }

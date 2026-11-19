@@ -1,6 +1,7 @@
 //! One concave quarter cylinder with a circular and an elliptic planar stop.
 use super::*;
 use fabstep_core::{CircularArc, EllipticArc};
+use std::collections::BTreeSet;
 use std::f64::consts::FRAC_PI_2;
 
 pub(super) type Point = [f64; 3];
@@ -357,7 +358,7 @@ impl Planes {
         out.offsets.push(out.loops.len());
         if out.loops.len() != 12
             || stops.contains(&None)
-            || stops[0] == stops[1]
+            || (stops[0] == stops[1]) != (rails.len() == 6)
             || edges.values().any(|pair| pair.contains(&None))
         {
             return Err(invalid());
@@ -388,6 +389,20 @@ impl Planes {
                 .next()
                 .is_none_or(|(first, second)| first.1 != second.1)
                 || shared.next().is_some()
+            {
+                return Err(invalid());
+            }
+        }
+        if rails.len() == 6 {
+            // The three pairs must have a single common floor and three
+            // distinct side planes. Both external stops lie on the fourth side.
+            let groups: Vec<_> = supports.chunks_exact(2).map(|s| [s[0].0, s[1].0]).collect();
+            let floors: Vec<_> = groups[0]
+                .iter()
+                .copied()
+                .filter(|i| groups.iter().all(|s| s.contains(i)))
+                .collect();
+            if floors.len() != 1 || supports.iter().map(|p| p.0).collect::<BTreeSet<_>>().len() != 4
             {
                 return Err(invalid());
             }
@@ -428,7 +443,7 @@ pub(super) fn build(
             )
         }
         ([], [low, high], true) => {
-            let frame = double_frame(&model.vertices, low, high)?;
+            let frame = double_frame(&model.vertices, low, high, false)?;
             let mut near = Stop::ellipse(low);
             near.vertices = low.vertices;
             near.normal = low.axis;
@@ -476,10 +491,11 @@ pub(super) fn build(
 /// Validate the two independent sections on a common transverse frame.
 /// For each section use a reference circle just below its complete ellipse
 /// and reuse the existing endpoint, incidence, basis and angular checks.
-fn double_frame(
+pub(super) fn double_frame(
     points: &[Point],
     low: &EllipticArc,
     high: &EllipticArc,
+    network: bool,
 ) -> Result<CircularArc, FabError> {
     let ids = [low.vertices, high.vertices].concat();
     if ids
@@ -529,10 +545,28 @@ fn double_frame(
         low.axis.map(|v| v * r / dot(low.axis, axis)),
         high.axis.map(|v| v * r / dot(high.axis, axis)),
     );
-    if distance <= dot(grad, x).hypot(dot(grad, y)) + GUARD {
+    let (a, b) = (dot(grad, x), dot(grad, y));
+    let minimum = if network && (a >= 0. || b >= 0.) {
+        a.min(b)
+    } else {
+        -a.hypot(b)
+    };
+    if distance + minimum <= GUARD {
         return Err(invalid());
     }
     Ok(frame)
+}
+
+pub(super) fn transverse_rails(
+    points: &[Point],
+    circle: &CircularArc,
+    far: [usize; 2],
+) -> [Rail; 2] {
+    let mut rails = wall_rails(points, circle, far);
+    for rail in &mut rails {
+        rail.inward = offset(rail.inward, circle.axis, -dot(rail.inward, circle.axis));
+    }
+    rails
 }
 
 pub(super) fn native_circle(circle: &CircularArc) -> NativeMixedArc {
