@@ -6,7 +6,7 @@
 
 - `artifacts/release/1.0.0/FabSTEP.app` reste le paquet autonome signé ad hoc, accepté sur un autre Mac et dans Fusion le 9 novembre (V-1115). Pas de signature Developer ID ni notarisation revendiquée.
 - `artifacts/FabSTEP.app` est le build macOS de développement du 19 novembre. Il inclut les lots géométriques jusqu’à R-111, le relief bicubique, la correction sphérique et le constructeur de zones toriques du helper. Les 51 tests du bureau avec le helper de ce paquet passent. Les essais manuels des nouvelles familles figurent dans FabBoard.
-- La suite workspace a réussi 706 tests et ignoré 18 tests optionnels. Les 238 tests UI et les 51 tests du bureau avec le helper du paquet passent. Les essais graphiques/Fusion des extensions restent ouverts dans FabBoard ; aucun succès automatique ne vaut acceptation utilisateur. Le pilotage du dialogue d’ouverture avait été bloqué, mais l’utilisateur a confirmé l’ouverture manuelle.
+- La suite workspace a réussi 707 tests et ignoré 18 tests optionnels. Les 238 tests UI et les 51 tests du bureau avec le helper du paquet passent. Les essais graphiques/Fusion des extensions restent ouverts dans FabBoard ; aucun succès automatique ne vaut acceptation utilisateur. Le pilotage du dialogue d’ouverture avait été bloqué, mais l’utilisateur a confirmé l’ouverture manuelle.
 
 ## Extensions géométriques de développement
 
@@ -47,7 +47,7 @@ Ces lots sont à tester dans FabBoard. Les détails de portée et de preuve sont
 
 Import ordinaire : 32 corps, 64 Mio et 100 000 triangles après placement. Le mode gros STL accepté utilise un helper séparé `large-stl`, source jusqu’à 600 000 triangles et 1 800 000 sommets, annulation, surveillance RSS/empreinte physique à 4 Gio et délai de 30 minutes. Les plafonds résultat/tessellation et 3MF restent inchangés ; le bureau n’active jamais cette feature (ADR-0034).
 
-Le helper Auto reconstruit la rampe publique de 194 694 triangles en 659 faces. Sur Flansch, la reconnaissance directe attribue 493 542 triangles à 43 surfaces toriques et conserve les autres facettes. Le solide de laboratoire est relu avec 46 671 faces et remesuré avec 98 576 triangles. Écarts bidirectionnels de 0,011553 mm et 0,010018 mm (V-1252/V-1253). Le superviseur du bureau reçoit `cad.invalid_solid` après 23 min 0,14 s sur ce fichier. OCCT refuse le solide au contrôle des auto-intersections, le processus est récupéré et aucun résultat ne devient exportable (V-1256).
+Le helper Auto reconstruit la rampe publique de 194 694 triangles en 659 faces. Sur Flansch, la reconnaissance directe attribue 493 542 triangles à 43 surfaces toriques et conserve les autres facettes. Le solide de laboratoire est relu avec 46 671 faces et remesuré avec 98 576 triangles. Écarts bidirectionnels de 0,011553 mm et 0,010018 mm (V-1252/V-1253). Six raccords ont été corrigés depuis le premier refus du noyau. Les 14 882 raccords passent le contrôle individuel et la coque garde ses 46 671 identités de faces. Le helper du paquet final atteint trente minutes pendant le contrôle complet (`worker.timeout`). Le processus est récupéré et aucun STEP de Flansch ne devient exportable (V-1256 à V-1258).
 
 ## Reprise après cette session
 
@@ -64,6 +64,6 @@ Lire les consignes du projet, le tableau ci-dessous et les actions FabBoard pour
 
 Les domaines spécifiés de C2/D/E/F/G sont **à tester**. La validation manuelle reste portée par chaque sous-jalon. Les limites dans la dernière colonne décrivent la portée géométrique démontrée.
 
-**Reprise Flansch — R-085.** V-1237 à V-1253 donnent les commandes de qualification du STEP fermé, du maillage partagé, de la reconnaissance directe et du certificat de source. V-1256 donne le verdict du helper sur le fichier original. La prochaine intervention concerne les sous-formes impliquées dans le premier refus du contrôle d’interférences OCCT, sous les plafonds ADR-0034.
+**Reprise Flansch — R-085.** V-1237 à V-1253 donnent les commandes de qualification du STEP fermé, du maillage partagé, de la reconnaissance directe et du certificat de source. V-1256 à V-1258 documentent le témoin minimal, la correction des six faces et le verdict du paquet final. La suite consiste à réduire le travail répété dans les comparaisons arête/face et face/face. Mesurer le contrôle complet d’abord sur la rampe publique puis sur Flansch, sous les plafonds ADR-0034 et avec les témoins d’intersection obligatoires.
 
 Les commandes de validation/build sont dans README/AGENTS et `scripts/check.sh` / `scripts/build-macos-dev.sh`. Les preuves F1/C2b/R-085 sont consignées dans V-1205/V-1206/V-1208/V-1209/V-1210 et ADR-0038/0039/0040. Les journaux locaux sous `artifacts/f-next/`, `artifacts/c2-next/` et `artifacts/r085-*/` sont ignorés par Git ; les tests, générateurs et corpus nécessaires à leur reproduction sont versionnés. Ne pas considérer ces journaux locaux comme une dépendance de reprise sur un autre poste.

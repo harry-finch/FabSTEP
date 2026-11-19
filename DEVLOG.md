@@ -1,5 +1,8 @@
 # Journal d'ingénierie
 
+**19 novembre 2026 — Correction des six raccords et vérification du paquet final.** V-1257 et V-1258 qualifient la représentation rationnelle, le groupe d’interférences qui échouait et le rejeu du superviseur. FabSTEP convertit la rampe publique dense. Flansch atteint désormais la limite de trente minutes au contrôle complet. La suite workspace finale passe 707 tests.
+
+
 **19 novembre 2026 — Verdict du helper sur Flansch.** La rampe dense publique et la pièce body 26 mm sont converties. Sur les 540 170 triangles du STL privé, le helper du paquet refuse le contrôle d’interférences OCCT après 23 minutes. Aucun résultat n’est publié. Le suivi des pièces et des contrôles pour reprendre figure dans R-085 et V-1256.
 
 
