@@ -1,4 +1,6 @@
 //! Orchestration commune à la CLI et au bureau, sans accès aux fichiers utilisateur.
+#[cfg(feature = "large-stl")]
+pub use fabstep_cad::prepare_isolated_atlas_checks;
 use fabstep_cad::{
     build_extrusion_step, build_mixed_step, build_revolved_step, build_rounded_box_step,
     build_rounded_step, build_step, tessellate_step, validate_source, CadReport,

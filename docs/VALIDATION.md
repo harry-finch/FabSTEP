@@ -2881,3 +2881,14 @@ Le volume du puits enlève du cylindre le volume de l’intersection. Le dévelo
 - Arbre de rayon 5 mm à bossage longitudinal sur toute sa hauteur. Les deux maillages (168 et 300 triangles) étaient déjà pris en charge par le domaine cylindrique existant. La qualification vérifie le grand arc de 286,26°, ses quatre voisins, six faces au total et un volume de 344,583010 mm³. Les mesures maximales aux deux densités sont de 0,009747 et 0,002927 mm. Une déformation elliptique conserve 45 puis 78 plans.
 
 La pose quantifiée de V-1264 fragmentait les bouchons et produisait 418 plans. Une recherche bornée sur le repli entièrement planaire retrouve les deux cercles, puis le domaine à quatre faces. Pour les octants, un test multi-corps compare les centres et les trois extrémités des arcs dans la scène après réimport. Le banc natif distingue aussi un octant réfléchi de même volume et même boîte.
+
+## V-1275 — Contrôle d’interférence à deux threads dans le helper isolé (R-085)
+
+Le helper réserve au démarrage un pool OCCT à deux threads pour le contrôle mono-forme de l’atlas. Les mêmes groupes, paires et budgets sont vérifiés. Le bureau garde le parcours séquentiel. Le banc couvre la disponibilité du pool, la restauration du backend, les triangles sécants, le fil ouvert, le raccord légitime et les refus de budget.
+
+| Conversion complète, protocole v2 | Séquentiel | Deux threads | Pic RSS séquentiel → deux threads |
+|---|---:|---:|---:|
+| Rampe, 194 694 triangles, 659 faces STEP | 28,04 s | 20,35 s | 424 132 608 → 489 357 312 octets |
+| Secteur, 166 848 triangles, 962 faces STEP | 85,33 s | 59,18 s | 300 859 392 → 443 809 792 octets |
+
+Les durées sont monotones. Les deux chemins donnent les mêmes volumes, distances échantillonnées, nombres de faces, et tailles du STEP et du rapport. Sur le banc du secteur, quatre threads accélèrent la phase isolée mais élèvent le pic RSS à 485 Mo. La subdivision en groupes de douze porte le coût de 39,27 à 43,79 secondes CPU sur ce même banc ; la seconde boîte projetée n’apporte pas de gain stable sur les deux pièces. Le produit utilise deux threads et les boîtes existantes.

@@ -6,6 +6,10 @@
 #include <BRep_Tool.hxx>
 #include <Bnd_Box.hxx>
 #include <Precision.hxx>
+#ifdef FABSTEP_LARGE_STL_SOURCE
+#include <OSD_Parallel.hxx>
+#include <OSD_ThreadPool.hxx>
+#endif
 #include <TopExp_Explorer.hxx>
 #include <TopTools_IndexedMapOfShape.hxx>
 #include <TopoDS.hxx>
@@ -21,6 +25,33 @@
 // its stored tolerance. Diagonal groups are always checked. Cross groups
 // contain all pairs not proved disjoint by bounds or the torus filter.
 namespace atlas_interference {
+#ifdef FABSTEP_LARGE_STL_SOURCE
+// Set only by the standalone, single-job worker before any other OCCT call.
+// A previously allocated pool with another size keeps the serial checker.
+inline bool isolated_pool_ready = false;
+inline void prepare_isolated_pool() noexcept {
+  try {
+    isolated_pool_ready = OSD_Parallel::NbLogicalProcessors() >= 2 &&
+                          OSD_ThreadPool::DefaultPool(2)->NbThreads() == 2;
+  } catch (...) {
+    isolated_pool_ready = false;
+  }
+}
+class ScopedCheckPool {
+  bool restore_backend;
+public:
+  ScopedCheckPool() : restore_backend(isolated_pool_ready && !OSD_Parallel::ToUseOcctThreads()) {
+    if (restore_backend)
+      OSD_Parallel::SetUseOcctThreads(true);
+  }
+  ~ScopedCheckPool() {
+    if (restore_backend)
+      OSD_Parallel::SetUseOcctThreads(false);
+  }
+  bool parallel() const { return isolated_pool_ready && OSD_Parallel::ToUseOcctThreads(); }
+};
+#endif
+
 struct Failure : std::runtime_error {
   using std::runtime_error::runtime_error;
 };
@@ -72,25 +103,25 @@ struct Checker {
     return filter.excludes(a.torus, b.id, b.face, b.tolerance, b.bounds) ||
            filter.excludes(b.torus, a.id, a.face, a.tolerance, a.bounds);
   }
-  void inspect(int x, int y) {
+  void inspect(int x, int y, bool parallel = false) {
     const auto &a = tree[x];
     const auto &b = tree[y];
     if (x != y && a.box.IsOut(b.box))
       return;
     if (a.left >= 0 && x == y) {
-      inspect(a.left, a.left);
-      inspect(a.left, a.right);
-      inspect(a.right, a.right);
+      inspect(a.left, a.left, parallel);
+      inspect(a.left, a.right, parallel);
+      inspect(a.right, a.right, parallel);
       return;
     }
     if (a.left >= 0 && (b.left < 0 || a.last - a.first >= b.last - b.first)) {
-      inspect(a.left, y);
-      inspect(a.right, y);
+      inspect(a.left, y, parallel);
+      inspect(a.right, y, parallel);
       return;
     }
     if (b.left >= 0) {
-      inspect(x, b.left);
-      inspect(x, b.right);
+      inspect(x, b.left, parallel);
+      inspect(x, b.right, parallel);
       return;
     }
     TopoDS_Compound group;
@@ -132,7 +163,10 @@ struct Checker {
       throw Failure("Budget de contrôle des interférences dépassé.");
     if (!needs_check)
       return;
-    BRepAlgoAPI_Check check(group, false, true);
+    BRepAlgoAPI_Check check;
+    check.SetData(group, false, true);
+    check.SetRunParallel(parallel);
+    check.Perform();
     if (check.HasErrors() || !check.IsValid())
       throw Failure("Le contrôle des auto-intersections du solide a échoué.");
   }
@@ -167,7 +201,12 @@ struct Checker {
     }
     if (!faces.empty()) {
       build(0, faces.size());
+#ifdef FABSTEP_LARGE_STL_SOURCE
+      ScopedCheckPool pool;
+      inspect(0, 0, pool.parallel());
+#else
       inspect(0, 0);
+#endif
     }
   }
 };

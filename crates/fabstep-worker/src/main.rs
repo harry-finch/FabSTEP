@@ -456,6 +456,8 @@ fn main() {
             std::process::exit(2);
         }
     };
+    // SAFETY: this executable handles one job synchronously. No OCCT work has started.
+    unsafe { fabstep_app::prepare_isolated_atlas_checks() };
     match execute_job(&directory) {
         Ok(true) => {}
         Ok(false) => std::process::exit(1),

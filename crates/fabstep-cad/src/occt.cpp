@@ -4,6 +4,11 @@
 #include "torus_atlas_abi.hxx"
 #include "torus_atlas_arc_law.hxx"
 #include "torus_atlas_interference.hxx"
+#ifdef FABSTEP_LARGE_STL_SOURCE
+extern "C" void fabstep_prepare_isolated_atlas_checks() noexcept {
+  atlas_interference::prepare_isolated_pool();
+}
+#endif
 #include "torus_atlas_fan.hxx"
 #include "torus_atlas_triangle.hxx"
 #include "torus_atlas_pcurve.hxx"

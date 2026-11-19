@@ -1,5 +1,18 @@
 //! Adaptateur natif Open CASCADE. Le STEP est écrit puis relu en mémoire.
 
+/// Initialize the bounded OCCT pool for interference checks in the isolated worker.
+///
+/// # Safety
+/// Call only at startup in a standalone, single-job process that runs no
+/// concurrent OCCT operations. OCCT selects its thread backend process-wide.
+#[cfg(feature = "large-stl")]
+pub unsafe fn prepare_isolated_atlas_checks() {
+    unsafe extern "C" {
+        fn fabstep_prepare_isolated_atlas_checks();
+    }
+    unsafe { fabstep_prepare_isolated_atlas_checks() };
+}
+
 use fabstep_core::{
     AnalyticExtrusion, FabError, Mesh, MixedCone, MixedLoop, MixedModel, MixedPartialCone,
     MixedSegment, MixedSphere, MixedSphericalOctant, MixedTorus, PlanarFaceProfile, PlanarModel,

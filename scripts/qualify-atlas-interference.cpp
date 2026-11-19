@@ -16,6 +16,8 @@
 #include <IntTools_FaceFace.hxx>
 #include <STEPControl_Reader.hxx>
 #include <iostream>
+#include <chrono>
+#include <filesystem>
 
 namespace {
 TopoDS_Face triangle(gp_Pnt a, gp_Pnt b, gp_Pnt c) {
@@ -23,12 +25,16 @@ TopoDS_Face triangle(gp_Pnt a, gp_Pnt b, gp_Pnt c) {
 }
 
 bool bounded_valid(atlas_interference::Checker &checker, const TopTools_IndexedMapOfShape &faces) {
+  const bool previous = OSD_Parallel::ToUseOcctThreads();
+  bool valid = true;
   try {
     checker.run(faces);
-    return true;
   } catch (const atlas_interference::Failure &) {
-    return false;
+    valid = false;
   }
+  if (OSD_Parallel::ToUseOcctThreads() != previous)
+    throw std::runtime_error("The group checker did not restore OCCT's backend.");
+  return valid;
 }
 
 void open_face_wire() {
@@ -124,7 +130,8 @@ void check_torus_filter() {
       const int left = checker.build(0, 1), right = checker.build(1, 2);
       bool accepted = true;
       try {
-        checker.inspect(left, right);
+        atlas_interference::ScopedCheckPool pool;
+        checker.inspect(left, right, pool.parallel());
       } catch (const atlas_interference::Failure &) {
         accepted = false;
       }
@@ -258,7 +265,10 @@ void near_planar_fan() {
   const int left = checker.build(0, 1);
   const int right = checker.build(1, 2);
   const auto before = checker.groups;
-  checker.inspect(left, right);
+  {
+    atlas_interference::ScopedCheckPool pool;
+    checker.inspect(left, right, pool.parallel());
+  }
   if (checker.groups != before + 1)
     throw std::runtime_error("Shared torus seam missed the cross-leaf check.");
   const auto evaluated = BRepAdaptor_Surface(*candidate);
@@ -303,14 +313,115 @@ void check_ruled_faces(const char *path) {
   if (!checked || invalid || incomplete)
     throw std::runtime_error("A ruled face could not be verified.");
 }
+void time_dense_group(const TopTools_IndexedMapOfShape &faces) {
+  // Keep the actual shared OCCT topology. Pick a compact neighborhood of spline
+  // fans and planes from the public toroidal sector, independently of leaf order.
+  using Candidate = std::pair<double, int>;
+  std::vector<Candidate> splines, planes;
+  std::optional<gp_Pnt> anchor;
+  for (int i = 1; i <= faces.Extent(); ++i) {
+    const auto face = TopoDS::Face(faces(i));
+    if (BRepAdaptor_Surface(face, false).GetType() == GeomAbs_BSplineSurface) {
+      Bnd_Box box;
+      BRepBndLib::AddOptimal(face, box, false, true);
+      anchor = gp_Pnt((box.CornerMin().XYZ() + box.CornerMax().XYZ()) * .5);
+      break;
+    }
+  }
+  if (!anchor)
+    throw std::runtime_error("Expected a public toroidal sector with spline fans.");
+  for (int i = 1; i <= faces.Extent(); ++i) {
+    const auto face = TopoDS::Face(faces(i));
+    const auto type = BRepAdaptor_Surface(face, false).GetType();
+    if (type != GeomAbs_BSplineSurface && type != GeomAbs_Plane)
+      continue;
+    Bnd_Box box;
+    BRepBndLib::AddOptimal(face, box, false, true);
+    const gp_Pnt center((box.CornerMin().XYZ() + box.CornerMax().XYZ()) * .5);
+    (type == GeomAbs_Plane ? planes : splines).emplace_back(center.SquareDistance(*anchor), i);
+  }
+  if (splines.size() < 80 || planes.size() < 11)
+    throw std::runtime_error("Public fixture has too few spline fans or planes.");
+  std::sort(splines.begin(), splines.end());
+  std::sort(planes.begin(), planes.end());
+  TopoDS_Compound group;
+  BRep_Builder builder;
+  builder.MakeCompound(group);
+  for (int i = 0; i < 80; ++i)
+    builder.Add(group, faces(splines[i].second));
+  for (int i = 0; i < 11; ++i)
+    builder.Add(group, faces(planes[i].second));
+  atlas_interference::ScopedCheckPool pool;
+  auto run = [&] {
+    BRepAlgoAPI_Check check;
+    check.SetData(group, false, true);
+    check.SetRunParallel(pool.parallel());
+    check.Perform();
+    return !check.HasErrors() && check.IsValid();
+  };
+  const auto start = std::chrono::steady_clock::now();
+  if (!run())
+    throw std::runtime_error("Public neighborhood of 80 fans and 11 planes was rejected.");
+  const std::chrono::duration<double> seconds = std::chrono::steady_clock::now() - start;
+  builder.Add(group, triangle({1000,0,0},{1004,0,0},{1000,4,0}));
+  builder.Add(group, triangle({1001,1,-1},{1001,1,1},{1001,3,0}));
+  if (run())
+    throw std::runtime_error("Crossing in the dense group was accepted.");
+  std::cout << "splines=80 planes=11 seconds=" << seconds.count() << " crossing=rejected\n";
+}
+
+void time_public_groups(const char *path, bool dense_only) {
+  if (std::filesystem::file_size(path) > 8 * 1024 * 1024)
+    throw std::runtime_error("Expected a small public STEP fixture (8 MiB maximum).");
+  STEPControl_Reader reader;
+  if (reader.ReadFile(path) != IFSelect_RetDone || reader.TransferRoots() != 1)
+    throw std::runtime_error("Expected a public fixture with one root.");
+  TopTools_IndexedMapOfShape faces;
+  TopExp::MapShapes(reader.OneShape(), TopAbs_FACE, faces);
+  if (faces.Extent() < 1 || faces.Extent() > 1500)
+    throw std::runtime_error("Expected a public fixture with 1 to 1500 faces.");
+  if (dense_only) {
+    time_dense_group(faces);
+    return;
+  }
+  atlas_interference::Checker checker;
+  const auto start = std::chrono::steady_clock::now();
+  if (!bounded_valid(checker, faces))
+    throw std::runtime_error("Public fixture failed the interference check.");
+  const std::chrono::duration<double> duration = std::chrono::steady_clock::now() - start;
+  std::cout << "faces=" << faces.Extent() << " groups=" << checker.groups << " pairs=" << checker.pairs
+            << " seconds=" << duration.count() << "\n";
+}
 } // namespace
 int main(int argc, char **argv) try {
+  if (argc == 2 && std::string(argv[1]) == "--existing-pool") {
+    OSD_ThreadPool::DefaultPool(3);
+    const bool before = OSD_Parallel::ToUseOcctThreads();
+    atlas_interference::prepare_isolated_pool();
+    atlas_interference::ScopedCheckPool pool;
+    if (pool.parallel() || OSD_Parallel::ToUseOcctThreads() != before)
+      throw std::runtime_error("An existing larger pool must retain the serial check.");
+    std::cout << "existing pool retained; serial check selected\n";
+    return 0;
+  }
+  if (argc >= 2 && std::string(argv[1]) == "--isolated-worker") {
+    atlas_interference::prepare_isolated_pool();
+    atlas_interference::ScopedCheckPool pool;
+    if (!pool.parallel() || OSD_ThreadPool::DefaultPool()->NbThreads() != 2)
+      throw std::runtime_error("Expected the two-thread OCCT pool on this qualification host.");
+    ++argv;
+    --argc;
+  }
+  if (argc == 3 && (std::string(argv[1]) == "--time-public" || std::string(argv[1]) == "--dense-public")) {
+    time_public_groups(argv[2], std::string(argv[1]) == "--dense-public");
+    return 0;
+  }
   if (argc == 3 && std::string(argv[1]) == "--ruled-faces") {
     check_ruled_faces(argv[2]);
     return 0;
   }
   if (argc != 1)
-    throw std::runtime_error("Expected --ruled-faces path.step or no arguments.");
+    throw std::runtime_error("Expected [--isolated-worker] [--time-public|--dense-public|--ruled-faces path.step] or --existing-pool.");
   check_torus_filter();
   open_face_wire();
   near_planar_fan();
