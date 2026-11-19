@@ -28,14 +28,14 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Signer et notariser le paquet macOS ; ces étapes restent ouvertes.
 8. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
    Construire et qualifier la distribution sur Windows et Linux.
-9. **[R-021 Étudier la réutilisation entre instances 3MF](roadmap/items/R-021-etudier-la-reutilisation-entre-instances-3mf.md)** · Idée · jalon audit
-   AUD-006 — Démontrer un gain sur plusieurs instances ; établir un contrat tenant compte des transformations, de l’arrondi, du soudage et de la provenance avant tout cache
-10. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · Idée
+9. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · Idée
    Comparer une découpe plane de tore et une paroi cylindrique ou conique interrompue sur des solides indépendants. Prouver la courbe commune, la provenance et la fidélité avant toute extension du modèle.
-11. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · Idée
+10. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · Idée
    Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto.
-12. **[R-115 Récupérer les plans fragmentés par la quantification du STL](roadmap/items/R-115-recuperer-les-plans-fragmentes-par-la.md)** · Idée
+11. **[R-115 Récupérer les plans fragmentés par la quantification du STL](roadmap/items/R-115-recuperer-les-plans-fragmentes-par-la.md)** · Idée
    Essayer une graine de grande aire sur les régions planes fragmentées en f32. Vérifier le contour, la provenance et les plis sur des solides avant de retenir une seconde segmentation.
+12. **[R-021 Étudier la réutilisation entre instances 3MF](roadmap/items/R-021-etudier-la-reutilisation-entre-instances-3mf.md)** · Idée · jalon audit
+   AUD-006 — Démontrer un gain sur plusieurs instances ; établir un contrat tenant compte des transformations, de l’arrondi, du soudage et de la provenance avant tout cache
 13. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
 
