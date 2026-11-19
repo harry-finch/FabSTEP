@@ -5,6 +5,11 @@ import type fr from './fr';
 type Shape<T> = { [K in keyof T]: T[K] extends string ? string : Shape<T[K]> };
 
 const en: Shape<typeof fr> = {
+  similar: {
+    search:'Find similar walls', pending:'Searching for walls…', count:'Suggested walls · {n}',
+    failed:'Search unavailable for this result.', limit:'The list is limited to the remaining guidance slots.',
+    wall:'Face {n}', apply:'Apply', cancel:'Cancel',
+  },
   clipBox: {toggle:'Clipping box', min:'Min.', max:'Max.', reset:'Reset', bounds:'Clip limits (mm)', adjust:'Adjust limits'},
   deviation: {
     mode:'STEP colours', faces:'Face colours', map:'Distance to mesh',

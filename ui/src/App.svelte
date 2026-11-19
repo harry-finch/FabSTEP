@@ -20,6 +20,7 @@
   import Dialog from './components/Dialog.svelte';
   import NumField from './components/NumField.svelte';
   import SourceInspection from './components/SourceInspection.svelte';
+  import SimilarRegions from './components/SimilarRegions.svelte';
   import DeviationLegend from './components/DeviationLegend.svelte';
   import { createDeviationMap, type DeviationState } from './lib/deviation-map';
   import StepInspection from './components/StepInspection.svelte';
@@ -115,6 +116,7 @@
   let stepDisplay = $state.raw<StepDisplay|null>(null);
   let stepView = $state(false), stepDocument = $state.raw<ResultFaces|null>(null), stepSelection = $state.raw<StepSelection|null>(null);
   let stepPending = $state(false), stepUnavailable = $state(false), mappedSource = $state(false);
+  let similarTriangles = $state.raw<number[]|null>(null);
   let deviationState = $state.raw<DeviationState>({kind:'off'});
   const deviations = createDeviationMap(state => { deviationState = state; });
   const canMeasureDeviation = $derived(stepView && !!stepDocument && stepDocument.request_id === current
@@ -714,7 +716,7 @@
           onpick={pickSourceTriangle}
           onmiss={clearVisibleSelection}
           stepPreview={stepView ? stepDocument : null}
-          stepTriangles={stepSelection?.triangles ?? []}
+          stepTriangles={similarTriangles ?? stepSelection?.triangles ?? []}
           onfacepick={(id,additive) => stepCommand('pick',id,additive)}
           onfaceregion={selectStepRegion}
           onfacepaint={paintStepFaces}
@@ -899,6 +901,13 @@
               </button>
             </div>
           {/each}
+          {#if canMeasureDeviation && stepDocument && !sectionActive && guidanceHints.length < 16}
+            {#key stepDocument}
+              <SimilarRegions doc={stepDocument} bridge={native()!}
+                onpreview={triangles => { similarTriangles = triangles; }}
+                onapply={(candidateIds, searchId) => { void mutateGuidance('apply_similar_guided_regions', { candidateIds, searchId }); }}/>
+            {/key}
+          {/if}
           {#if guidanceHints.length === 16}
             <p class="muted">{t('guidance.limit')}</p>
           {/if}

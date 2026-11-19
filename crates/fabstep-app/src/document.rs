@@ -11,6 +11,8 @@ use fabstep_core::{
 };
 use serde::{Deserialize, Serialize};
 mod deviation;
+mod similar;
+pub use similar::{SimilarCandidate, SimilarRegions};
 #[cfg(feature = "large-stl")]
 mod torus_atlas;
 pub use deviation::DisplayDeviationMap;

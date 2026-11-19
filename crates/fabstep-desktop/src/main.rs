@@ -22,6 +22,7 @@ use tauri_plugin_dialog::DialogExt;
 mod deviation;
 mod progress;
 mod section;
+mod similar;
 mod source_section;
 mod supervisor;
 
@@ -69,6 +70,9 @@ struct CachedSource {
 }
 struct CachedStep {
     display: Option<Arc<DocumentResultFaces>>,
+    similar_generation: u64,
+    similar_count: Option<usize>,
+    similar_cancelled: bool,
     deviation_generation: u64,
     deviation_cancelled: bool,
     request_id: u64,
@@ -349,6 +353,9 @@ impl CacheState {
         self.guidance_session = Some(Arc::clone(&step));
         self.result = Some(CachedStep {
             display: None,
+            similar_generation: 0,
+            similar_count: None,
+            similar_cancelled: false,
             deviation_generation: 0,
             deviation_cancelled: false,
             request_id,
@@ -1114,6 +1121,9 @@ fn main() {
         .manage(Arc::new(EngineState::default()))
         .invoke_handler(tauri::generate_handler![
             suggest_region,
+            similar::find_similar_guided_regions,
+            similar::cancel_similar_search,
+            similar::apply_similar_guided_regions,
             upload_source,
             preview_document,
             selection_topology,
@@ -1224,6 +1234,35 @@ mod tests {
             format: InputFormat::Stl,
             bytes: Arc::new(data.to_vec()),
         });
+    }
+
+    #[test]
+    fn similar_catalogue_belongs_to_the_exact_published_step() {
+        let mut cache = CacheState::default();
+        install_guidance_base(&mut cache, 30);
+        let (document, epoch) = cache.result_snapshot(30, 30).unwrap();
+        let result = cache.result.as_mut().unwrap();
+        result.similar_generation = 7;
+        result.similar_count = Some(3);
+        assert!(cache.check_similar_selection(7, &[2, 0]).is_ok());
+        for ids in [vec![], vec![0, 0], vec![3]] {
+            assert_eq!(
+                cache.check_similar_selection(7, &ids).unwrap_err().code,
+                "guidance.invalid_selection"
+            );
+        }
+        assert!(cache.check_similar_selection(6, &[0]).is_err());
+        assert!(cache.current_result(30, 30, epoch, &document));
+        cache
+            .finish(
+                30,
+                30,
+                epoch,
+                DocumentStep::untracked(document.bytes().to_vec()),
+            )
+            .unwrap();
+        assert!(cache.check_similar_selection(7, &[0]).is_err());
+        assert!(cache.result_snapshot(30, 30).is_ok());
     }
 
     #[test]

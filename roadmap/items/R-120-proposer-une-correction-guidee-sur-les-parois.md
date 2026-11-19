@@ -2,7 +2,7 @@
 id: R-120
 titre: "Proposer une correction guidée sur les parois similaires"
 resume: "Après une correction guidée acceptée, rechercher en lecture seule les parois géométriquement analogues du document, les prévisualiser puis appliquer celles qui passent les preuves strictes après accord explicite."
-statut: specifiee
+statut: a-tester
 jalon: atelier
 cree: 2026-11-19
 maj: 2026-11-19

@@ -297,7 +297,9 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     }
   }
 
-  async function mutateGuidance(command: 'guided_convert' | 'remove_guidance' | 'recompute_guidance', payload: {
+  async function mutateGuidance(command: 'guided_convert' | 'remove_guidance' | 'recompute_guidance' | 'apply_similar_guided_regions', payload: {
+    searchId?: number;
+    candidateIds?: number[];
     faceIds?: number[];
     family?: GuidedFamily;
     hintId?: number;
