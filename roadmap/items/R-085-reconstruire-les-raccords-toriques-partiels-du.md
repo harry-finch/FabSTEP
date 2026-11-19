@@ -35,4 +35,6 @@ Essayer le secteur public dans FabSTEP et vérifier le solide exporté dans Fusi
 
 ## État vérifié
 
-Le domaine à plans radiaux est intégré dans Auto et Surfaces. Les essais A-084 et A-085 restent ouverts. Sur Flansch, le laboratoire réimporte maintenant un solide fermé de 13 802 faces. Les 540 170 triangles source ont un propriétaire. La tessellation OCCT à 0,005 mm atteint 215 486 triangles. Le helper de production conserve son refus. V-1237 décrit le rejeu du solide, le témoin indépendant et les quatre contrôles de refus. La suite porte sur le maillage à bords communs et la construction directe du candidat dans le helper.
+Le secteur public à plans radiaux est intégré dans Auto et Surfaces. Les essais FabSTEP et Fusion A-084 et A-085 restent ouverts. Le helper Auto convertit aussi la rampe dense indépendante de 194 694 triangles en un solide de 659 faces (V-1250).
+
+Sur le STL Flansch original, 43 surfaces toriques couvrent 493 542 des 540 170 triangles. Le solide construit directement en laboratoire présente 46 671 faces. Ses arêtes passent le contrôle géométrique exact après transfert. Le témoin fermé est tessellé à 0,005 mm en 98 576 triangles ; les écarts maximaux échantillonnés sont de 0,011553 et 0,010018 mm (V-1252/V-1253). Le verdict du helper sur le fichier complet reste à vérifier sous ses plafonds de 4 Gio et 30 minutes, avec contrôle des interférences avant et après transfert.
