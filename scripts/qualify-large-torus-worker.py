@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 
 
 def qualify(worker):
@@ -44,7 +45,9 @@ def qualify(worker):
             },
         }
         (job / "request.json").write_text(json.dumps(request))
+        start = time.monotonic()
         subprocess.run([worker.resolve(), "--job-dir", job], timeout=1800, check=True)
+        elapsed = time.monotonic() - start
         completion = json.loads((job / "completion.json").read_bytes())
         assert completion["status"] == "success", completion
         report = json.loads((job / "report.json").read_bytes())
@@ -58,6 +61,9 @@ def qualify(worker):
         )
         assert 0 < (job / "result.step").stat().st_size < 128 * 1024**2
         print(f"{cad['faces']} faces, {cad['volume_mm3']:.6f} mm³", fidelity)
+        print(json.dumps({"helper_seconds": round(elapsed, 3),
+                          "report_bytes": (job / "report.json").stat().st_size,
+                          "step_bytes": (job / "result.step").stat().st_size}))
 
 
 if __name__ == "__main__":

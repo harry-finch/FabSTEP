@@ -194,6 +194,58 @@ fn interleaved_components_retain_historical_local_preparation() {
 }
 
 #[test]
+fn section_preparation_matches_local_welding_and_volume_for_every_body() {
+    let options = Options::default();
+    let mut cube = read_stl_mm(CUBE, &options).unwrap();
+    cube.last_mut().unwrap()[0][0] += 0.5e-6;
+    for triangle in &mut cube {
+        triangle.swap(1, 2);
+    }
+    let interleaved = cube
+        .iter()
+        .flat_map(|&triangle| [triangle, triangle.map(|[x, y, z]| [x + 3., y, z])])
+        .collect();
+    for raw in [cube, interleaved] {
+        let expected = source_components(&raw, &options).unwrap();
+        let mesh = Mesh {
+            triangles: (0..raw.len())
+                .map(|i| [3 * i, 3 * i + 1, 3 * i + 2])
+                .collect(),
+            vertices: raw.iter().flatten().copied().collect(),
+        };
+        let actual = prepare_mesh_bodies_for_sections(&mesh, &options).unwrap();
+        assert_eq!(actual.len(), expected.len());
+        for (body, component) in actual.iter().zip(expected) {
+            for code in ["mesh.vertices_moved", "mesh.orientation_reversed"] {
+                assert!(body.diagnostics.iter().any(|d| d.code == code));
+            }
+            let local_raw = component
+                .analysis_to_source_triangles
+                .into_iter()
+                .map(|i| raw[i])
+                .collect();
+            let (local, _) = prepare_raw(local_raw, &options, &mut || Ok(())).unwrap();
+            assert_eq!(
+                point_bits(&body.mesh.vertices),
+                point_bits(&local.mesh.vertices)
+            );
+            assert_eq!(body.mesh.triangles, local.mesh.triangles);
+            assert_eq!(body.volume_mm3.to_bits(), local.volume_mm3.to_bits());
+            assert_eq!(
+                body.bounds_mm.map(|p| p.map(f64::to_bits)),
+                local.bounds_mm.map(|p| p.map(f64::to_bits))
+            );
+            assert_eq!(body.input_triangles, local.input_triangles);
+            assert_eq!(body.welded_vertices, local.welded_vertices);
+            assert_eq!(
+                format!("{:?}", body.diagnostics),
+                format!("{:?}", local.diagnostics)
+            );
+        }
+    }
+}
+
+#[test]
 fn invalid_topology_and_volume_keep_the_same_first_refusal() {
     let options = Options::default();
     let cube = read_stl_mm(CUBE, &options).unwrap();

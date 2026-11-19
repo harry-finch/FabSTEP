@@ -41,10 +41,27 @@ pub fn prepare_mesh_bodies_for_sections_controlled(
 ) -> Result<Vec<PreparedMesh>, FabError> {
     check_current()?;
     let raw = mesh_triangles(mesh)?;
-    let topology = source_components_controlled(&raw, options, check_current)?;
+    let SourcePreparation {
+        mesh,
+        welded,
+        adjacency,
+        components,
+    } = prepare_source_components_controlled(&raw, options, check_current)?;
     check_current()?;
-    let mut prepared = Vec::with_capacity(topology.len());
-    for component in topology {
+    // Identity preserves the weld representatives and source triangle order.
+    if is_identity_component(&components, raw.len()) {
+        let input_triangles = raw.len();
+        drop(raw);
+        drop(components);
+        let (body, _) =
+            finish_preparation(mesh, welded, input_triangles, adjacency, check_current)?;
+        check_current()?;
+        return Ok(vec![body]);
+    }
+    drop(mesh);
+    drop(adjacency);
+    let mut prepared = Vec::with_capacity(components.len());
+    for component in components {
         check_current()?;
         let triangles = component
             .analysis_to_source_triangles
@@ -225,14 +242,7 @@ fn analyze_bodies_with_provenance(
     // Its welding visited exactly the same original coordinates in the same
     // order as the historical per-body pass. Component discovery has already
     // proved connectivity, and the original adjacency order is retained.
-    if components.len() == 1
-        && components[0].analysis_to_source_triangles.len() == raw.len()
-        && components[0]
-            .analysis_to_source_triangles
-            .iter()
-            .enumerate()
-            .all(|(index, &source)| index == source)
-    {
+    if is_identity_component(&components, raw.len()) {
         let input_triangles = raw.len();
         drop(raw);
         let topology = components.pop().unwrap();
@@ -277,15 +287,21 @@ fn source_components(
     raw: &[[V; 3]],
     options: &Options,
 ) -> Result<Vec<crate::SourceComponentTopology>, FabError> {
-    source_components_controlled(raw, options, &mut || Ok(()))
+    Ok(prepare_source_components_controlled(raw, options, &mut || Ok(()))?.components)
 }
 
-fn source_components_controlled(
-    raw: &[[V; 3]],
-    options: &Options,
-    check_current: &mut impl FnMut() -> Result<(), FabError>,
-) -> Result<Vec<crate::SourceComponentTopology>, FabError> {
-    Ok(prepare_source_components_controlled(raw, options, check_current)?.components)
+fn is_identity_component(
+    components: &[crate::SourceComponentTopology],
+    input_triangles: usize,
+) -> bool {
+    let [component] = components else {
+        return false;
+    };
+    component
+        .analysis_to_source_triangles
+        .iter()
+        .copied()
+        .eq(0..input_triangles)
 }
 
 struct SourcePreparation {
@@ -302,7 +318,7 @@ fn prepare_source_components_controlled(
 ) -> Result<SourcePreparation, FabError> {
     check_current()?;
     validate_raw(raw, options)?;
-    let (mesh, welded) = weld_controlled(raw.to_vec(), options.weld_tolerance_mm, check_current)?;
+    let (mesh, welded) = weld_controlled(raw, options.weld_tolerance_mm, check_current)?;
     let adjacency = validate_topology_impl_controlled(&mesh, false, check_current)?;
     let mut seen = vec![false; raw.len()];
     let mut result = Vec::new();
@@ -418,7 +434,8 @@ fn prepare_raw(
     check_current()?;
     validate_raw(&raw, options)?;
     let input_triangles = raw.len();
-    let (mesh, welded) = weld_controlled(raw, options.weld_tolerance_mm, check_current)?;
+    let (mesh, welded) = weld_controlled(&raw, options.weld_tolerance_mm, check_current)?;
+    drop(raw);
     check_current()?;
     let adjacency = validate_topology_controlled(&mesh, check_current)?;
     finish_preparation(mesh, welded, input_triangles, adjacency, check_current)
@@ -502,7 +519,7 @@ fn finish_preparation(
 }
 
 fn weld_controlled(
-    raw: Vec<[[f64; 3]; 3]>,
+    raw: &[[V; 3]],
     tolerance: f64,
     check_current: &mut impl FnMut() -> Result<(), FabError>,
 ) -> Result<(Mesh, WeldStats), FabError> {
@@ -517,7 +534,7 @@ fn weld_controlled(
     let mut cells: BTreeMap<[i64; 3], Vec<usize>> = BTreeMap::new();
     let mut unique = BTreeSet::new();
     let mut welded = WeldStats::default();
-    for (triangle_index, triangle) in raw.into_iter().enumerate() {
+    for (triangle_index, &triangle) in raw.iter().enumerate() {
         if triangle_index % 1024 == 0 {
             check_current()?;
         }
@@ -615,47 +632,53 @@ fn validate_topology_impl_controlled(
     require_connected: bool,
     check_current: &mut (impl FnMut() -> Result<(), FabError> + ?Sized),
 ) -> Result<Vec<Vec<usize>>, FabError> {
-    let mut edges: BTreeMap<(usize, usize), Vec<(usize, bool)>> = BTreeMap::new();
+    let mut edges = BTreeMap::<_, [Option<(usize, bool)>; 2]>::new();
+    let mut non_manifold_edge = false;
     let mut stars = vec![Vec::new(); mesh.vertices.len()];
     for (index, &[a, b, c]) in mesh.triangles.iter().enumerate() {
         if index % 1024 == 0 {
             check_current()?;
         }
         for (u, v) in [(a, b), (b, c), (c, a)] {
-            edges
-                .entry((u.min(v), u.max(v)))
-                .or_default()
-                .push((index, u < v));
+            let incidences = edges.entry((u.min(v), u.max(v))).or_default();
+            if let Some(slot) = incidences.iter_mut().find(|incidence| incidence.is_none()) {
+                *slot = Some((index, u < v));
+            } else {
+                non_manifold_edge = true;
+            }
         }
         for (v, a, b) in [(a, b, c), (b, c, a), (c, a, b)] {
             stars[v].push((a, b));
         }
     }
-    if edges.values().any(|e| e.len() > 2) {
+    // Keep the global edge-error precedence when different defects coexist.
+    if non_manifold_edge {
         return Err(FabError::new(
             "mesh.non_manifold_edge",
             "Une arête appartient à plus de deux triangles.",
         ));
     }
-    if edges.values().any(|e| e.len() == 1) {
+    if edges.values().any(|e| e[1].is_none()) {
         return Err(FabError::new(
             "mesh.open",
             "Le maillage possède des arêtes ouvertes. Aucune fermeture automatique.",
         ));
     }
     let mut adjacency = vec![Vec::new(); mesh.triangles.len()];
-    for (index, edge) in edges.values().enumerate() {
+    for (index, [a, b]) in edges.into_values().enumerate() {
         if index % 1024 == 0 {
             check_current()?;
         }
-        if edge[0].1 == edge[1].1 {
+        let (a, a_forward) = a.unwrap();
+        let (b, b_forward) = b.unwrap();
+        if a_forward == b_forward {
             return Err(FabError::new(
                 "mesh.inconsistent_orientation",
                 "Deux triangles voisins parcourent une arête dans le même sens.",
             ));
         }
-        adjacency[edge[0].0].push(edge[1].0);
-        adjacency[edge[1].0].push(edge[0].0);
+        adjacency[a].push(b);
+        adjacency[b].push(a);
     }
     let mut seen = vec![false; mesh.triangles.len()];
     let mut pending = VecDeque::from([0]);

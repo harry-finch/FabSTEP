@@ -313,19 +313,19 @@ fn extract(
                 }
             }
             0 => {
-                let mut nodes = Vec::with_capacity(2);
-                for (u, v) in [
-                    (triangle[0], triangle[1]),
-                    (triangle[1], triangle[2]),
-                    (triangle[2], triangle[0]),
-                ] {
-                    if distances[u].is_sign_positive() != distances[v].is_sign_positive() {
-                        nodes.push(graph.crossing(u, v, mesh, &distances, frame)?);
-                    }
-                }
-                if nodes.len() == 2 {
-                    graph.add(nodes[0], nodes[1], work)?;
-                }
+                // Sign changes around the triangle come in pairs. Keep the
+                // cyclic edge order for crossings and their graph nodes.
+                let [a, b, c] = *triangle;
+                let [sa, sb, sc] = triangle.map(|v| distances[v].is_sign_positive());
+                let [(u, v), (w, x)] = match (sa != sb, sb != sc) {
+                    (false, false) => continue,
+                    (false, true) => [(b, c), (c, a)],
+                    (true, false) => [(a, b), (c, a)],
+                    (true, true) => [(a, b), (b, c)],
+                };
+                let first = graph.crossing(u, v, mesh, &distances, frame)?;
+                let second = graph.crossing(w, x, mesh, &distances, frame)?;
+                graph.add(first, second, work)?;
             }
             _ => unreachable!(),
         }
