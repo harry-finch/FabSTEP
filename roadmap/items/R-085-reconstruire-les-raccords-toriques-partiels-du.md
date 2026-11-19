@@ -3,7 +3,7 @@ id: R-085
 titre: "Reconstruire les raccords toriques partiels du pourtour de Flansch"
 resume: "Le secteur public à deux tores passe en Auto. Sur Flansch, les 26 refus du raccord sont corrigés. Le contrôle entier atteint encore trente minutes, avec un pic de 3,03 Gio."
 statut: en-cours
-jalon: post-v1
+jalon: v1.0
 cree: 2026-11-18
 maj: 2026-11-19
 livree:
