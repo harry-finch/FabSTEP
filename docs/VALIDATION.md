@@ -2654,3 +2654,28 @@ En Auto aux deux densités, le congé isolé conserve six plans et un cylindre, 
 Le workspace en profil test optimisé et verrouillé termine avec 711 tests réussis et 18 optionnels ignorés. Cette campagne a démarré avant la dernière variante du calcul UV. Le workspace final a été recompilé, les suites analyse/atlas ont été rejouées et les trois tests atlas en release avec `large-stl` ont passé, y compris le cas privé Flansch activé explicitement. Le contrôle de validité du groupe de triangles, la reconnaissance de l’atlas et la reconstruction d’un STEP complet sont trois épreuves distinctes.
 
 Les onze tests du worker, les six tests ciblés du module document en profil gros STL, les 54 tests ordinaires du bureau et le test opt-in d’échange avec le helper réel passent. Les 241 tests UI, le contrôle Svelte, le build de l’interface, Clippy strict du workspace et du worker, le contrôle de compilation du bureau et le formatage passent. Le build Vite garde son avertissement de taille de module. La rampe en protocole v1 donne un rapport de 33 402 531 octets. Le helper du dernier paquet de développement la convertit également en v2 avec le même volume et les mêmes 659 faces. Le build local macOS a été recréé dans `artifacts/FabSTEP.app`.
+
+## V-1261 — Raccord triangulaire entre deux bords toriques décalés
+
+Le témoin indépendant est un secteur annulaire fermé. Deux tores de rayons de tube 2,4 et 1,8 mm portent des bords presque tangents dont les sommets sont décalés dans la direction angulaire. Le petit STL contient 7 104 triangles. Sur la coque entière, le constructeur précédent échouait au 19e groupe du contrôle OCCT séquentiel. Sur la bande examinée, 32 des 126 couples arête/face étaient refusés.
+
+Pour un triangle presque coplanaire à un seul arc, le constructeur peut utiliser une surface bilinéaire rationnelle découpée sur un triangle. Les trois arêtes matérielles sont partagées. Les poids, le sens du jacobien projeté et la borne bidirectionnelle sur tout le triangle sont vérifiés avant la couture. À la relecture, le noyau contrôle les pôles effectifs, les poids et les trois courbes de bord dans l’espace paramétrique. Le banc natif couvre les deux orientations, un coin inversé par un déplacement de 60 nm, les génératrices droites représentées par une spline affine et des pénétrations réelles.
+
+| Source publique | STEP réimporté | Vérification |
+|---|---|---|
+| Secteur à deux tores, 7 104 triangles | 1 solide, 962 faces, 304,172708 mm³ | Borne continue de 0,009580 mm. Les 962 identités source sont conservées. Le maillage de contrôle à 0,005 mm contient 2 624 triangles. |
+| Même secteur, 166 848 triangles | 1 solide, 962 faces, 304,172709 mm³ | Helper v2 en Auto, 2 tores. Distances échantillonnées de 0,004546 mm de la source au résultat et 0,004540 mm en retour. STEP de 2 577 390 octets. |
+| Rampe à encoches, 194 694 triangles | 1 solide, 659 faces, 93,536793 mm³ | Helper v2 en Auto, 1 tore. Distances de 0,004717 et 0,004702 mm. |
+
+FreeCAD relit les deux variantes du secteur et trouve dans chacune un solide valide avec 2 tores, 640 plans et 320 surfaces B-splines. Les tests sont reproductibles depuis la racine du dépôt. La rampe utilise le Python de FreeCAD ou un Python disposant de NumPy.
+
+```sh
+sh scripts/qualify-atlas-interference.sh
+cargo build --release --manifest-path crates/fabstep-worker/Cargo.toml --offline --locked
+python3 scripts/qualify-large-torus-worker.py crates/fabstep-worker/target/release/fabstep-worker --fixture staggered
+python3 scripts/qualify-large-torus-worker.py crates/fabstep-worker/target/release/fabstep-worker --fixture ramp
+```
+
+**Flansch, contrôles ciblés.** Sur la coque construite depuis le STL original de 540 170 triangles, le même contrôle OCCT refuse 26 des 251 couples examinés sur le raccord entre les deux bords toriques avec l’ancien constructeur. Il les accepte tous après correction. Le contrôle étendu aux 1 907 nouvelles faces et aux 15 020 arêtes de contour des 43 tores accepte les 7 385 couples de boîtes englobantes qui se recouvrent. Les 1 907 supports et leurs bords sont retrouvés après un transfert STEP par lots. Le groupe historique de 46 faces passe avant et après transfert. Ces mesures portent sur une partie du contrôle nécessaire pour exporter le corps entier.
+
+**Coût du contrôle.** Un regroupement spatial expérimental couvre les 1 391 063 paires de boîtes de la coque native. Les groupes larges et la variante qui isole les grandes faces dépassent tous deux 4 Gio sur un échantillon de Flansch. Le produit conserve le contrôle mono-forme séquentiel.
