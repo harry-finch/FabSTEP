@@ -407,8 +407,9 @@ int main(int argc, char **argv) try {
   if (argc >= 2 && std::string(argv[1]) == "--isolated-worker") {
     atlas_interference::prepare_isolated_pool();
     atlas_interference::ScopedCheckPool pool;
-    if (!pool.parallel() || OSD_ThreadPool::DefaultPool()->NbThreads() != 2)
-      throw std::runtime_error("Expected the two-thread OCCT pool on this qualification host.");
+    const bool can_parallelize = OSD_Parallel::NbLogicalProcessors() >= 2;
+    if (pool.parallel() != can_parallelize || (can_parallelize && OSD_ThreadPool::DefaultPool()->NbThreads() != 2))
+      throw std::runtime_error("Unexpected OCCT pool configuration on this qualification host.");
     ++argv;
     --argc;
   }
