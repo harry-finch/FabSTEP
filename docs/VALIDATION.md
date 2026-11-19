@@ -2591,3 +2591,62 @@ Le même banc supervise le helper optimisé du paquet de développement (SHA-256
 Sur le même paquet, le test indépendant de la rampe de 194 694 triangles réussit avec 659 faces, un volume de 93,536793 mm³ et des distances de 0,004717 et 0,004703 mm. La suite Rust du workspace passe **707 tests**, aucun échec, 18 ignorés. Le bureau avec le vrai helper passe 51 tests, l’interface 238. Le formatage, Clippy, le build macOS, la compilation UI et le lint FabBoard passent. Les actions FabBoard conservent les vérifications manuelles dans FabSTEP et Fusion.
 
 Pour reprendre, commencer par mesurer la répartition du coût entre interférences arête/face et face/face sur le banc natif. Comparer toute optimisation sur le contrôle complet de la rampe et sur les témoins négatifs de V-1251 avant le rejeu du helper sur Flansch. Les gains mesurés sur un sous-ensemble de groupes figurent après V-1255.
+
+## V-1259 — Contre-expertise du contrôle d’interférence d’OCCT 7.9.3
+
+Le banc public `sh scripts/qualify-atlas-interference.sh` compare la référence OCCT au parcours par groupes. Il vérifie le refus d’une face dont le fil est ouvert, le verdict sur l’éventail quasi plan, l’acceptation de son raccord réparé au tore dans une même feuille puis entre deux feuilles, ainsi que les quatre configurations des triangles séparés ou sécants parmi 329 faces.
+
+Le test bi-forme de haut niveau examine les auto-interférences de chaque argument individuellement. Dans le chemin mono-forme, la routine de contrôle d’une face par elle-même réinitialise aussi la carte des paires brutes avant `PostTreat`. L’enveloppe publique vérifie le type d’argument et la validité BRep. Sauter simplement la routine individuelle omet des opérations nécessaires au verdict. [CheckerSI d’OCCT 7.9.3](https://github.com/Open-Cascade-SAS/OCCT/blob/V7_9_3/src/BOPAlgo/BOPAlgo_CheckerSI.cxx) · [ArgumentAnalyzer](https://github.com/Open-Cascade-SAS/OCCT/blob/V7_9_3/src/BOPAlgo/BOPAlgo_ArgumentAnalyzer.cxx) · [BRepAlgoAPI_Check](https://github.com/Open-Cascade-SAS/OCCT/blob/V7_9_3/src/BRepAlgoAPI/BRepAlgoAPI_Check.cxx)
+
+| Expérience locale | Verdict |
+|---|---|
+| Deux triangles sécants dans deux arguments de BRepAlgoAPI_Check | Acceptation erronée. Le contrôle mono-forme de production refuse le témoin. |
+| Sous-classe proposée, défaut de topologie et raccord légitime | Accepte la face ouverte et refuse le raccord valide entre deux feuilles. |
+| Deux arguments avec purge et filtrage des paires | Faux refus au groupe 11 de la rampe publique sur une paire face/face d’origine. La présence des autres faces dans le groupe importe. La paire extraite et testée seule est valide. |
+| Mono-forme adaptée, diagonales complètes, vérifications de type et BRep, repli sur avertissement | Rampe acceptée. Sur dix groupes de Flansch choisis à l’avance, 7,99 s CPU cumulées contre 7,67 s pour la référence. |
+| API publique parallèle sur la rampe | Les 48 groupes passent. Un passage de 20,48 à 7,64 s murales, RSS de 173 031 424 à 633 044 992 octets. |
+| Même API parallèle sur dix groupes du STEP de laboratoire Flansch | Dix verdicts identiques, dont cinq diagonales. 15,12 à 5,39 s murales cumulées, 7,67 à 10,51 s CPU. Le STEP comporte 46 671 faces. Les 6 949 groupes comprennent les diagonales. |
+
+Le rejeu jusqu’au premier refus sur le STEP de laboratoire `direct7/generic.step` (46 671 faces, antérieur à la réparation des six raccords de V-1257) s’arrête à la diagonale 3 094 sur 6 949, après 447 818 paires comptées et 1 189,62 s. Le pic mesuré du maximum RSS/empreinte physique est de 3 699 200 176 octets. Sur cette même diagonale, l’API séquentielle de référence refuse en 1,35 s, la mono-forme adaptée en 1,24 s et l’API publique parallèle en 0,52 s. Le noyau signale six interférences arête/face, reproduites séparément. Les faces B-splines 28 457, 28 459, 28 461, 28 463, 28 465 et 28 467 (numérotation native à partir de 1) passent chacune seule. Les arêtes signalées appartiennent à la face 5 326 et respectivement à la face d’indice suivant chacune des six B-splines. Le groupe et une paire minimale sont conservés localement dans `artifacts/argon/occt/diagnose/`. Les groupes ultérieurs n’ont pas été examinés. Ce fichier de laboratoire et le solide en cours de construction à partir du STL sont deux états différents.
+
+## V-1260 — Performances du maillage, de la fidélité et du helper
+
+Les deux corpus sont la rampe publique de 194 694 triangles et le STL privé Flansch de 540 170 triangles. Les signatures de l’atlas sérialisé, du modèle planaire et du rapport d’analyse sont identiques pour les deux versions sur chaque corpus. Les épreuves numériques sur la segmentation et les arcs courts ci-dessous concernent la nomination de candidats, avant certification.
+
+| Opération mesurée | Rampe | Flansch |
+|---|---:|---:|
+| Segmentation du maillage déjà préparé, médiane CPU sur neuf mesures alternées | 50,39 → 31,30 ms | 202,51 → 119,51 ms |
+| Mesure des cartes toriques, médiane CPU sur dix-huit passages en alternance | 25,69 → 21,23 ms | 391,12 → 207,22 ms |
+| Fidélité bidirectionnelle, médiane murale sur huit mesures alternées | 165,28 → 136,25 ms | 996,97 → 824,15 ms |
+| Pic RSS, fidélité et préparation en processus frais | 242,9 → 225,6 Mio | 495,7 → 470,2 Mio |
+
+Pour le BVH, l’arbre conserve les mêmes décisions et le même ordre de visite. Les rapports finaux correspondent octet par octet aux rapports NEON. Les compteurs de travail atteignent respectivement 3 056 449 et 34 210 829 unités. Une deuxième série Flansch donne 995,09 → 841,35 ms. La pile des distances donne 866,33 ms ajoutée à la compaction lors de cette série.
+
+Le helper de référence et le helper modifié ont traité la même rampe en protocole v2. La section DATA du STEP et les 2 261 octets du rapport sont identiques. Chacun publie un solide de 659 faces et de 93,536793 mm³. Les écarts échantillonnés sont de 0,004717 et 0,004702 mm. Sur un passage complet, les RSS respectifs valent 494 206 976 et 478 838 784 octets. Cette mesure inclut les changements du core et du BVH. Le gain propre à la suppression des listes de sélection n’a pas été isolé. Le helper conserve en mémoire l’analyse dense pendant la conversion.
+
+Sur 256 panneaux de 72 triangles arrondis en f32, l’ordre décroissant d’aire ramène la médiane de 14 à 6 régions planes. Il améliore 248 panneaux et en fragmente davantage cinq. Sur les 256 témoins pliés, aucun des deux ordres ne franchit le pli de pente 0,01. Cette sonde reproduit la croissance avec les seuils du core sans reconstruire un solide.
+
+Sur 1 536 arcs de rayon 2 mm à 15°, 30° et 45°, avec douze points et un bruit radial de 0,00001 mm, le passage de Kåsa à trois pas supplémentaires de Gauss–Newton conserve chaque décision de candidature. Au rayon de 0,06 mm, il perd quatorze candidatures. Pour une ellipse de rapport 0,7, les deux variantes nomment les mêmes 22 arcs de 15° sur 512. Le seuil d’étendue radiale et le conditionnement des arcs courts sont importants. Une amélioration du résidu quadratique ne garantit pas une meilleure décision.
+
+### Témoins de reconstruction pour R-113
+
+La recette `scripts/qualify-interrupted-surfaces-freecad.py` génère deux solides en millimètres, écrit leur STEP avec les courbes paramétriques, le réimporte, puis maille chaque référence à deux densités. En fournissant aussi le CLI, la recette reconstruit chaque STL en Auto et contrôle ses STEP avec FreeCAD. Les mesures suivantes proviennent de FreeCAD 1.1.1 / OCCT 7.8.1 pour les références et relectures, et de FabSTEP / OCCT 7.9.3 pour les reconstructions.
+
+| Solide témoin | Référence réimportée | Auto actuel |
+|---|---|---|
+| Bouchon Ø24 mm, lèvre de rayon 2 mm, taillée par un plan incliné de 15° | Un tore, un cylindre, trois plans. Deux arêtes B-splines partagées entre tore et plan, avec deux coordonnées UV variables. Volume 1 273,706621 mm³. | 708 triangles donnent 631 faces planes. 2 496 triangles donnent 2 274 faces planes. |
+| Axe Ø20 mm, perçage transversal Ø4,8 mm décalé de 3,2 mm | Deux cylindres et deux plans. Deux arêtes B-splines partagées par les cylindres. Volume 4 686,722892 mm³. | 428 triangles donnent 253 faces planes. 644 triangles donnent 370 faces planes. |
+
+Les deux références sont fermées et valides après transfert. Chacune des arêtes communes a deux incidences de sens opposés. Les quatre STEP produits par Auto sont des solides valides. Les nombres de faces sont des mesures de départ pour les futurs reconnaisseurs.
+
+### Témoin de composition pour R-114
+
+Le bloc avec congé et perçages sécants décrit dans [R-114](../roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md) a été qualifié avec et sans chacune de ces opérations. Les trois STEP de référence passent les contrôles BRep et BOP après réimport. La distance minimale entre les surfaces courbes des deux opérations est de 5,5 mm.
+
+En Auto aux deux densités, le congé isolé conserve six plans et un cylindre, et les perçages isolés six plans et trois faces cylindriques. La référence combinée comporte six plans et quatre faces cylindriques. Sur la pièce combinée, avec 982 puis 1 878 triangles, Auto conserve uniquement le cylindre du congé et produit respectivement 614 et 1 154 faces planes. Les six sorties Auto passent BRepCheck. Le contrôle BOP avancé de FreeCAD 1.1.1 signale `GeomAbs_C0` sur des arêtes des perçages isolés aux deux densités. Les résultats du congé et de la pièce combinée passent également ce contrôle avancé. Dans un second triplet à fraisure et congé, Auto retrouve déjà les deux familles ensemble aux deux densités.
+
+### Contrôles d’intégration
+
+Le workspace en profil test optimisé et verrouillé termine avec 711 tests réussis et 18 optionnels ignorés. Cette campagne a démarré avant la dernière variante du calcul UV. Le workspace final a été recompilé, les suites analyse/atlas ont été rejouées et les trois tests atlas en release avec `large-stl` ont passé, y compris le cas privé Flansch activé explicitement. Le contrôle de validité du groupe de triangles, la reconnaissance de l’atlas et la reconstruction d’un STEP complet sont trois épreuves distinctes.
+
+Les onze tests du worker, les six tests ciblés du module document en profil gros STL, les 54 tests ordinaires du bureau et le test opt-in d’échange avec le helper réel passent. Les 241 tests UI, le contrôle Svelte, le build de l’interface, Clippy strict du workspace et du worker, le contrôle de compilation du bureau et le formatage passent. Le build Vite garde son avertissement de taille de module. La rampe en protocole v1 donne un rapport de 33 402 531 octets. Le helper du dernier paquet de développement la convertit également en v2 avec le même volume et les mêmes 659 faces. Le build local macOS a été recréé dans `artifacts/FabSTEP.app`.

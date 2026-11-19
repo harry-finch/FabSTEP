@@ -9,6 +9,8 @@
 - Qualification R-112 : 710 tests workspace réussis et 18 optionnels ignorés, 55 tests bureau, 11 worker, 241 UI et 31 Python réussis. Le paquet autonome convertit la rampe publique de 194 694 triangles en 659 faces. Le geste de peinture et les essais Fusion des extensions sont à confirmer dans FabBoard.
 - Nettoyage A+B approuvé en [A-097](roadmap/actions/A-097-choisir-ce-qui-se-nettoie-dans-fabstep.md) : 40,8 Gio de caches et résidus déplacés à la Corbeille, projet ramené à 2,6 Gio. Le nettoyage avait conservé les empreintes des exécutables. Aucun fichier suivi retiré ; formatage Rust et contrôle des espaces Git réussis. La reconstruction et les tests prévus par [A-098](roadmap/actions/A-098-choisir-quand-recompiler-fabstep-apres-nettoyage.md) ont repris avec R-112.
 
+Le suivi Argon décrit les accélérations de la segmentation, de l’atlas et du contrôle de fidélité, ainsi que les limites du contrôle natif sur Flansch. Les prochaines qualifications géométriques figurent dans R-113 à R-115. [Résultats des essais](docs/VALIDATION.md#v-1259--contre-expertise-du-contrôle-dinterférence-docct-793)
+
 ## Extensions géométriques de développement
 
 R-094 à R-111 couvrent les révolutions cubiques régulières et irrégulières, les perçages obliques et décalés, les poches à congés connectés et les congés variables sur arêtes parallèles ou gauches. R-038 ajoute un relief bicubique explicite. R-050 étend la correction guidée à la sphère. Les résultats reproductibles figurent dans V-1222 à V-1251 et les essais Fusion dans les actions des sous-jalons.

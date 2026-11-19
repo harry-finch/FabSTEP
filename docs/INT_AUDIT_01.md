@@ -250,3 +250,25 @@ Deux recommandations ACCEPTED, dix ADAPTED, deux DEFERRED, une REJECTED et une A
 | Grande archive source sur checkout propre | 1 065 entrées, contenu revérifié avec le manifeste. |
 
 Les essais manuels sur un second Mac ou dans Fusion pour cette candidate et la reconstruction de bout en bout du STL privé ne faisaient pas partie des relectures exécutées. Les logs et la candidate sont locaux. Les fichiers du rapport source et du nettoyage local préexistant sont restés dans leur état Git initial.
+
+### Contre-expertise Argon du 19 novembre
+
+Cette passe reprend les propositions faites sur `0f29e00`. Les résultats détaillés sont dans V-1259 et V-1260 de `docs/VALIDATION.md`. Les étapes .13, .14, .15 et .16 sont indépendantes. Chaque commit peut être rétabli séparément. Les risques principaux étaient un changement des décisions de distance, une provenance incomplète et une acceptation erronée d’une intersection.
+
+| Proposition | Priorité et décision | Jalon et état | Motif et critère de validation |
+|---|---|---|---|
+| Métadonnées du BVH de fidélité | P2 · ACCEPTED | .13 · DONE | Tri stable sur les métadonnées temporaires, triangles compacts pour les requêtes. Comparer rapports, compteur de travail, RSS et temps sur les deux corpus. |
+| Distance précalculée sur la pile | P3 · DEFERRED | .13 · DEFERRED | Le bénéfice additionnel change de signe entre deux séries sur Flansch. |
+| Provenance inutilisée du helper | P2 · ADAPTED | .14 · DONE | Sur un STL à un corps, les conversions Auto destinées à l’export vérifient la partition et produisent les jetons natifs sans allouer les listes de sélection. Les rapports v1/v2 conservent leur format. L’analyse dense reste nécessaire au calcul. |
+| OCCT-1, suppression des tests individuels répétés | P1 · ADAPTED | .15 · DEFERRED | La variante littérale accepte une face ouverte et refuse un raccord valide. La variante mono-forme corrigée conserve le contrôle topologique et la table filtrée d’interférences. Les mesures sur les groupes observés ne justifient pas une dépendance aux détails internes d’OCCT 7.9.3. Témoins ajoutés au banc public. |
+| OCCT-2, deux arguments | P1 · REJECTED | .15 · CLOSED | Le contrôle bi-forme de haut niveau accepte deux triangles sécants. Le PaveFiller à deux arguments avec filtrage refuse une jonction légitime dans le groupe 11 de la rampe. Une simple distinction entre nouveaux indices et indices d’origine ne résout pas cette différence. |
+| OCCT-3, parallélisme public | P1 · NEEDS_EVIDENCE | .15 / R-085 | Employer la même opération publique sur chaque groupe. Qualifier durée, RSS et verdict sur le parcours complet, y compris le helper. |
+| Calcul UV des sommets | P2 · ACCEPTED | .16 · DONE | Calculer les UV uniquement pour les sommets admissibles. Comparer l’atlas, le modèle et le rapport complets. |
+| Régions planes d’un triangle | P2 · ADAPTED | .16 · DONE | Réutiliser la file de croissance et former directement le contour canonique. Le contrôle projeté des arêtes consécutives peut refuser une facette d’aire positive. Tester ce refus et les deux sens de parcours. |
+| Bords non isoparamétriques des tores | P2 · ADAPTED | R-113 · TODO | Une corde dans le domaine UV ne fournit pas à elle seule l’arête 3D commune. Qualifier une coupe oblique, ses deux courbes paramétriques, les coutures et l’écart continu sur les deux faces. |
+| Atlas cylindrique et conique interrompu | P2 · ADAPTED | R-113 · TODO | Commencer par une paroi cylindrique et une découpe connue. Pour les cônes, distinguer les sections elliptiques, paraboliques, hyperboliques ou dégénérées. Vérifier orientation, fidélité, fermeture et couverture indépendamment de Flansch. |
+| Composition locale dans Auto | P2 · ADAPTED | R-114 · TODO | Choisir deux familles déjà certifiées et un contre-exemple qui revendique la même zone. La composition doit conserver leurs plans porteurs, les arêtes partagées et une attribution exhaustive et déterministe. |
+| Graines planaires par aire | P2 · ADAPTED | R-115 · TODO | Une reprise ciblée mérite un essai. Le tri global aggrave cinq des 256 panneaux plans f32 du banc numérique. Vérifier les contours d’un solide complet et la provenance avant d’activer une reprise. |
+| Estimateur de cercle pour arcs courts | P3 · DEFERRED | R-113 · DEFERRED | Trois pas de Gauss–Newton n’ont gagné aucune candidature sur les témoins bruités décrits en V-1260. L’aptitude d’un autre estimateur, dont Taubin, reste à mesurer sur un cas rejeté à tort. |
+
+Les extensions de contrat envisagées pour les contours libres et la composition seront précisées à partir des témoins avant arbitrage. Les preuves de fermeture, d’interférence et d’écart restent les critères d’export.
