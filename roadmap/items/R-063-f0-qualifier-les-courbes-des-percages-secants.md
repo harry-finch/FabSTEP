@@ -2,11 +2,11 @@
 id: R-063
 titre: "F0 — qualifier les courbes des perçages sécants"
 resume: "Vérifier dans un laboratoire natif borné les courbes et paramètres de deux cylindres orthogonaux après réimport STEP, avant intégration du contrat R-036."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-17
-maj: 2026-11-17
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 ## But

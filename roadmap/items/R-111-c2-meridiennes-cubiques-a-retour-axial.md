@@ -2,11 +2,11 @@
 id: R-111
 titre: "C2 — méridiennes cubiques à retour axial"
 resume: "Reconnaître un retour axial sur un profil de rayon monotone et conserver les deux disques mesurés."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-19
 maj: 2026-11-19
-livree:
+livree: 2026-11-19
 ---
 ## But
 

@@ -2,11 +2,11 @@
 id: R-091
 titre: "F2 — perçages orthogonaux de rayons plus proches"
 resume: "Deux trous orthogonaux de rayons plus proches reconstruits. Sept STEP contrôlés dans FreeCAD, y compris quatre maillages indépendants. Essai FabSTEP et Fusion ouvert."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

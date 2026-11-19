@@ -2,11 +2,11 @@
 id: R-105
 titre: "F — Deux perçages sécants à axes obliques"
 resume: "Reconstruire les deux intersections transverses de perçages dont les axes se croisent dans un prisme à quatre bouches circulaires."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-19
 maj: 2026-11-19
-livree:
+livree: 2026-11-19
 ---
 ## But
 

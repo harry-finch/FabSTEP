@@ -2,11 +2,11 @@
 id: R-033
 titre: "C2 — profils de révolution courbes"
 resume: "Révolutions toriques ou cubiques, une ou deux travées, pointe axiale, maillage irrégulier et retour axial vérifié."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-13
 maj: 2026-11-19
-livree:
+livree: 2026-11-19
 ---
 
 ## But

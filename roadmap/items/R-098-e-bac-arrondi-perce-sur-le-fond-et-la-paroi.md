@@ -2,11 +2,11 @@
 id: R-098
 titre: "E — Bac arrondi percé sur le fond et la paroi"
 resume: "Qualifier un bac ouvert combinant trois perçages traversants et huit congés verticaux."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

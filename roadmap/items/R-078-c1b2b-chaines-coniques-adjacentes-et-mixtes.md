@@ -2,11 +2,11 @@
 id: R-078
 titre: "C1b2b — chaînes coniques adjacentes et mixtes"
 resume: "Reconstruire deux à huit cônes adjacents ou mêlés à des portées, avec une décomposition unique prouvée par les anneaux source."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-17
-maj: 2026-11-17
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

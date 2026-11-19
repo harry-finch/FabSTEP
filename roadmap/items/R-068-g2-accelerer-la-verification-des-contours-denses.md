@@ -2,11 +2,11 @@
 id: R-068
 titre: "G2 — accélérer la vérification des contours denses"
 resume: "Filtrage spatial borné des contours intégré et testé, avec prédicats inchangés. Le fichier de 540 170 triangles franchit ce contrôle puis atteint le budget de reconnaissance (R-069) ; aucun STEP produit. Build de développement mis à jour, qualification utilisateur ouverte."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-17
-maj: 2026-11-17
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 ## But

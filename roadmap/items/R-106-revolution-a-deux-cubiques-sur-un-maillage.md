@@ -2,11 +2,11 @@
 id: R-106
 titre: "Révolution à deux cubiques sur un maillage irrégulier"
 resume: "Reconstruire une méridienne à deux segments tangents dont le raccord se trouve entre deux hauteurs du STL."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-19
 maj: 2026-11-19
-livree:
+livree: 2026-11-19
 ---
 ## But
 

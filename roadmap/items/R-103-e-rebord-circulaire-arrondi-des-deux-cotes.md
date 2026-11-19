@@ -2,11 +2,11 @@
 id: R-103
 titre: "E — Rebord circulaire arrondi des deux côtés"
 resume: "Reconstruire les deux congés d’un rebord de récipient ouvert, y compris le quart de tore qui rejoint le cylindre par sa branche radiale intérieure."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-19
 maj: 2026-11-19
-livree:
+livree: 2026-11-19
 ---
 ## But
 

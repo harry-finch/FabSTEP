@@ -2,11 +2,11 @@
 id: R-062
 titre: "D1–E1 — arêtes arrondies et bac ouvert"
 resume: "Qualifier les arrondis cylindriques locaux et les bacs ouverts à coins verticaux arrondis, avec fond et vide source conservés."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-17
-maj: 2026-11-17
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 ## But

@@ -1,11 +1,12 @@
 ---
-id: "R-052"
+id: R-052
 titre: "DXF1 — exporter une face plane"
 resume: "Sélectionner une face du STEP validé, prévisualiser son contour dans son plan, puis **Exporter le profil DXF**"
-statut: "a-tester"
-jalon: "dxf"
-cree: "2026-11-13"
-maj: "2026-11-13"
+statut: livree
+jalon: dxf
+cree: 2026-11-13
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 | DXF1 — exporter une face plane | Sélectionner une face du STEP validé, prévisualiser son contour dans son plan, puis **Exporter le profil DXF** | Contour extérieur et trous conservés ; échelle 1:1, unité mm et repère 2D explicites ; lignes, arcs et cercles conservés lorsqu’ils sont disponibles dans la géométrie native ; réimport indépendant et contrôle des dimensions | Implémenté ; extraction native lignes/arcs/cercles, aperçu worker, export protégé par identité de résultat/sélection. 39 profils natifs relus par ezdxf sans erreur ni réparation ; 326 tests workspace, 19 bureau, 97 UI et contrôles globaux réussis. Parcours graphique et Fusion restants ; ADR-0024, V-1170/V-1171 |

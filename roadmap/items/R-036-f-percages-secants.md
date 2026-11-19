@@ -2,11 +2,11 @@
 id: R-036
 titre: "F — perçages sécants"
 resume: "Deux perçages sécants, quatre bouches circulaires et deux branches certifiées, y compris avec un décalage latéral."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-13
 maj: 2026-11-19
-livree:
+livree: 2026-11-19
 ---
 
 ## But

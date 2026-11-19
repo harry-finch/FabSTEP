@@ -2,11 +2,11 @@
 id: R-092
 titre: "F3 — reconnaître les perçages du bloc incliné en STL binaire"
 resume: "Deux poses et deux densités de STL binaire inclinés donnent six plans et trois cylindres aux réglages par défaut. Vérification Fusion ouverte."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

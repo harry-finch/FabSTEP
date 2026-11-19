@@ -2,11 +2,11 @@
 id: R-034
 titre: "D — congés partiels constants"
 resume: "Congés constants de fond de poche avec butées, coins, U ou circuit fermé."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-13
 maj: 2026-11-19
-livree:
+livree: 2026-11-19
 ---
 
 ## But

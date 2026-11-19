@@ -2,11 +2,11 @@
 id: R-057
 titre: "UX5 — reconstruction automatique et sélection des parois"
 resume: "Ouvrir et obtenir le meilleur STEP prouvé, sélectionner une paroi en un geste et corriger localement sans perdre les surfaces reconnues."
-statut: a-tester
+statut: livree
 jalon: atelier
 cree: 2026-11-16
-maj: 2026-11-16
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 ## But

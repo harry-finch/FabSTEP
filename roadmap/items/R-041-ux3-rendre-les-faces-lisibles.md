@@ -1,11 +1,12 @@
 ---
-id: "R-041"
+id: R-041
 titre: "UX3 — rendre les faces lisibles"
 resume: "Couleurs par face STEP, contours contrastés et sélection identifiable"
-statut: "a-tester"
-jalon: "atelier"
-cree: "2026-11-13"
-maj: "2026-11-13"
+statut: livree
+jalon: atelier
+cree: 2026-11-13
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 | UX3 — rendre les faces lisibles | Couleurs par face STEP, contours contrastés et sélection identifiable | Palette par thème, triangulation intérieure masquée, calcul hors fil UI, contrôle Contours dans Résultat STEP | Implémenté ; 36 tests UI, Svelte et build réussis, application reconstruite (V-1160). Vérification visuelle restant à qualifier |

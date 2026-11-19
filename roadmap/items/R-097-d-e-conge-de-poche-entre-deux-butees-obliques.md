@@ -2,11 +2,11 @@
 id: R-097
 titre: "D/E — Congé de poche entre deux butées obliques"
 resume: "Reconstruire une paroi cylindrique concave tangente et ses deux bords elliptiques dans une poche borgne."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

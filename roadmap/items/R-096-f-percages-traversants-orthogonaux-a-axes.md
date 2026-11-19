@@ -2,11 +2,11 @@
 id: R-096
 titre: "F — perçages traversants orthogonaux à axes décentrés"
 resume: "Reconstruire les deux intersections partagées lorsque le petit perçage est décentré par rapport au grand."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

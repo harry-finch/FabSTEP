@@ -2,11 +2,11 @@
 id: R-083
 titre: "F1 — reconnaître les perçages sécants depuis le STL"
 resume: "Prouver deux perçages centrés orthogonaux, leurs limites communes et leur reconstruction STEP, dans le domaine déjà autorisé par A-045."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 ## But

@@ -6,7 +6,7 @@
 
 - `artifacts/release/1.0.0/FabSTEP.app` reste le paquet autonome signé ad hoc, accepté sur un autre Mac et dans Fusion le 9 novembre (V-1115). Pas de signature Developer ID ni notarisation revendiquée.
 - `artifacts/FabSTEP.app` est le build macOS de développement du 19 novembre. Il inclut les lots géométriques jusqu’à R-111, le relief bicubique, la correction sphérique et le constructeur de zones toriques du helper. Il comprend aussi les corrections R-112, la préparation de coupe mono-corps et le rapport compact du helper. La candidate autonome est dans `artifacts/audit-neon/candidate/`. Son démarrage et les deux protocoles ont été vérifiés sur ce Mac avec Homebrew bloqué.
-- Qualification R-112 : 710 tests workspace réussis et 18 optionnels ignorés, 55 tests bureau, 11 worker, 241 UI et 31 Python réussis. Le paquet autonome convertit la rampe publique de 194 694 triangles en 659 faces. Le geste de peinture et les essais Fusion des extensions sont à confirmer dans FabBoard.
+- Qualification R-112 : 710 tests workspace réussis et 18 optionnels ignorés, 55 tests bureau, 11 worker, 241 UI et 31 Python réussis. Le paquet autonome convertit la rampe publique de 194 694 triangles en 659 faces. L’utilisateur a accepté les tests en attente, dont le geste de peinture et les essais Fusion, lors de la recette groupée du 19 novembre.
 - Second nettoyage A+B approuvé en [A-122](roadmap/actions/A-122-choisir-le-second-nettoyage-de-fabstep.md) : 16,9 Gio de caches et résidus déplacés à la Corbeille sur `fabboard/nettoyage-2026-11-19`, projet ramené de 22,3 à 5,4 Gio. Les deux applications et la candidate NEON sont identiques avant/après (empreintes de contenu SHA-256). Aucun fichier suivi retiré ; formatage Rust et contrôle des espaces Git réussis. Tests et builds après ce nettoyage non relancés, reportés au prochain développement selon la préférence conservée dans la proposition approuvée. Le premier nettoyage est conservé dans A-097 et DEVLOG.
 
 Le suivi Argon décrit les accélérations de la segmentation, de l’atlas et du contrôle de fidélité, ainsi que les limites du contrôle natif sur Flansch. Les prochaines qualifications géométriques figurent dans R-113 à R-115. [Résultats des essais](docs/VALIDATION.md#v-1259--contre-expertise-du-contrôle-dinterférence-docct-793)
@@ -44,7 +44,7 @@ Les familles mécaniques qualifiées comprennent extrusions, cylindres et cônes
 
 **R-089 / D–E** reconstruit deux quarts de cylindre de même rayon qui se rejoignent dans un coin à 90°. Le STEP partage une seule arête elliptique entre les deux faces. La sélection distingue les deux bandes de triangles source.
 
-Ces lots sont à tester dans FabBoard. Les détails de portée et de preuve sont dans V-1201/V-1203/V-1204/V-1205/V-1206/V-1208/V-1211/V-1213/V-1214/V-1216. Les compteurs de la v1 ne sont pas confondus avec ces extensions.
+Ces lots ont été acceptés lors de la recette groupée dans FabBoard. Les détails de portée et de preuve sont dans V-1201/V-1203/V-1204/V-1205/V-1206/V-1208/V-1211/V-1213/V-1214/V-1216. Les compteurs de la v1 ne sont pas confondus avec ces extensions.
 
 ## Limites et fichier Flansch
 
@@ -65,7 +65,7 @@ Lire les consignes du projet, le tableau ci-dessous et les actions FabBoard pour
 | F / R-036 | R-096, R-105 et R-108. Axes obliques et décentrage suivant la normale commune | Intersections multiples et bouches elliptiques |
 | G / R-037 | R-094, R-102 et R-109. Deux lois affines sur des arêtes parallèles ou gauches | Raccords qui se rejoignent et lois non linéaires |
 
-Les domaines spécifiés de C2/D/E/F/G sont **à tester**. La validation manuelle reste portée par chaque sous-jalon. Les limites dans la dernière colonne décrivent la portée géométrique démontrée.
+Les domaines spécifiés de C2/D/E/F/G sont **acceptés** dans les limites de chaque sous-jalon. Les limites dans la dernière colonne décrivent la portée géométrique démontrée.
 
 **Reprise Flansch — R-085.** V-1237 à V-1253 donnent les commandes de qualification du STEP fermé, du maillage partagé, de la reconnaissance directe et du certificat de source. V-1256 à V-1258 documentent le témoin minimal, la correction des six faces et le verdict du paquet final. La suite consiste à réduire le travail répété dans les comparaisons arête/face et face/face. Mesurer le contrôle complet d’abord sur la rampe publique puis sur Flansch, sous les plafonds ADR-0034 et avec les témoins d’intersection obligatoires.
 

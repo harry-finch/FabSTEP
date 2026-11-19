@@ -2,11 +2,11 @@
 id: R-065
 titre: "UX7 — suivre les étapes réelles de reconstruction"
 resume: "Afficher les étapes observées du moteur et le corps en cours, sans pourcentage ni temps restant inventés."
-statut: a-tester
+statut: livree
 jalon: atelier
 cree: 2026-11-17
-maj: 2026-11-17
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 ## But

@@ -2,11 +2,11 @@
 id: R-093
 titre: "Auto — reconnaître le trou traversant d’une plaque inclinée"
 resume: "Sur la plaque inclinée de 268 triangles, le mode Automatique reconstruit six faces planes et un cylindre de Ø6 mm. Sélectionner la paroi retrouve ses 126 triangles source."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

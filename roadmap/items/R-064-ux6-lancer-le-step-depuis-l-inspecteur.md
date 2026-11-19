@@ -2,11 +2,11 @@
 id: R-064
 titre: "UX6 — lancer le STEP depuis l’inspecteur"
 resume: "Ouvrir le fichier en aperçu source puis lancer sa reconstruction avec un bouton explicite dans le panneau de droite."
-statut: a-tester
+statut: livree
 jalon: atelier
 cree: 2026-11-17
-maj: 2026-11-17
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 ## But

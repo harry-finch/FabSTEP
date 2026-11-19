@@ -2,11 +2,11 @@
 id: R-099
 titre: "C2 — Révolution cubique terminée sur un sommet axial"
 resume: "Reconstruire une méridienne cubique entre un disque et une pointe présente dans le maillage."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

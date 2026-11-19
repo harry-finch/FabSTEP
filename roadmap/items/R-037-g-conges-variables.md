@@ -2,11 +2,11 @@
 id: R-037
 titre: "G — congés variables"
 resume: "Un ou deux congés à rayon affine sur arêtes parallèles ou gauches, avec les deux extrémités contrôlées."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-13
 maj: 2026-11-19
-livree:
+livree: 2026-11-19
 ---
 
 ## But

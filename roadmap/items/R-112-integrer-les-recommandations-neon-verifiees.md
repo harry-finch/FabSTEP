@@ -2,11 +2,11 @@
 id: R-112
 titre: "Intégrer les recommandations NEON vérifiées"
 resume: "Suivi des seize constats et des reports dans docs/INT_AUDIT_01.md, section NEON. Contrôle atlas restant lié à R-085."
-statut: a-tester
+statut: livree
 jalon: audit
 cree: 2026-11-19
 maj: 2026-11-19
-livree:
+livree: 2026-11-19
 ---
 ## But
 

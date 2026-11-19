@@ -2,11 +2,11 @@
 id: R-035
 titre: "E — boîtiers creux ouverts et percés"
 resume: "Bacs ouverts percés, parois et fonds, rebords et congés intérieurs vérifiés."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-13
 maj: 2026-11-19
-livree:
+livree: 2026-11-19
 ---
 
 ## But

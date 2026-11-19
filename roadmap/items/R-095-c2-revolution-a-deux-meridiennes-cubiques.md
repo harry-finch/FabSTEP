@@ -2,11 +2,11 @@
 id: R-095
 titre: "C2 — révolution à deux méridiennes cubiques tangentes"
 resume: "Reconstruire une paroi de révolution dont la méridienne comporte deux segments cubiques à tangente commune."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

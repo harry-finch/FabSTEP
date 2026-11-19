@@ -2,11 +2,11 @@
 id: R-090
 titre: "D/E — congés adjacents de rayons différents"
 resume: "Deux congés adjacents de rayons distincts dans une poche rectangulaire à butées droites. Auto produit deux faces cylindriques sélectionnables et conserve l’arc de prolongement en DXF."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

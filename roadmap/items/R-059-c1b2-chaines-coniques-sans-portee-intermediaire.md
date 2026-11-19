@@ -2,11 +2,11 @@
 id: R-059
 titre: "C1b2 — chaînes coniques sans portée intermédiaire"
 resume: "Deux à huit cônes adjacents ou mêlés à des portées sont couverts par R-060 et R-078. Les essais de la chaîne complète sont suivis en A-073 et A-074."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-17
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 Partie conservée du périmètre initial de R-032. Les classificateurs actuels fusionnent les bandes coniques consécutives selon une même loi affine ; identifier plusieurs cônes sans portée exige de prouver des frontières source complètes, des témoins intérieurs et une séparation des intervalles de pente. Aucune levée directe du garde ni découpe d’une méridienne lisse au niveau de chaque anneau. Cette recherche reste distincte de la tranche avec portées de R-032.

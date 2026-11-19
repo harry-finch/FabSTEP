@@ -2,11 +2,11 @@
 id: R-094
 titre: "G — congé à rayon variable maillé entre ses deux extrémités"
 resume: "Retrouver le congé linéaire sur une paroi dont les sommets appartiennent tous aux deux bords elliptiques."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

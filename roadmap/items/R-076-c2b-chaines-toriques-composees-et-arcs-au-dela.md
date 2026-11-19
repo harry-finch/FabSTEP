@@ -2,11 +2,11 @@
 id: R-076
 titre: "C2b — chaînes toriques composées et arcs au-delà de 90°"
 resume: "Reconstruire les trois autres zones courbes mesurées sur Flansch : raccord à deux cônes et arcs de 100°, avec frontières source et preuves continues."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-17
-maj: 2026-11-17
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

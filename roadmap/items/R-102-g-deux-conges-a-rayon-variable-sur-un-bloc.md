@@ -2,11 +2,11 @@
 id: R-102
 titre: "G — Deux congés à rayon variable sur un bloc"
 resume: "Reconstruire deux congés de lois linéaires distinctes sur des arêtes parallèles opposées."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

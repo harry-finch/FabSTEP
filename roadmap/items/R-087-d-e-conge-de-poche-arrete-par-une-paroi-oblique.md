@@ -2,11 +2,11 @@
 id: R-087
 titre: "D/E — congé de poche arrêté par une paroi oblique"
 resume: "Auto reconstruit le congé cylindrique entre une butée droite et une paroi oblique. Les profils de face conservent le cercle et l’ellipse."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

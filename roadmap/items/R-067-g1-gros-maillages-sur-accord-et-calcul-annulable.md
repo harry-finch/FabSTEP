@@ -2,11 +2,11 @@
 id: R-067
 titre: "G1 — gros maillages sur accord et calcul annulable"
 resume: "Autoriser un essai explicite au-delà de 100 000 triangles, avec avertissement, limites distinctes et arrêt du calcul ; qualifier d’abord le STL de 540 170 triangles."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-17
-maj: 2026-11-17
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 ## But

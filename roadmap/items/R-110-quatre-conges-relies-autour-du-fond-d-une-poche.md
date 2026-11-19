@@ -2,11 +2,11 @@
 id: R-110
 titre: "Quatre congés reliés autour du fond d’une poche"
 resume: "Reconstituer le circuit fermé de quatre cylindres autour d’un fond rectangulaire mesuré."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-19
 maj: 2026-11-19
-livree:
+livree: 2026-11-19
 ---
 ## But
 

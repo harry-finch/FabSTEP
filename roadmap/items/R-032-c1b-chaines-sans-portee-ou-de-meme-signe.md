@@ -2,11 +2,11 @@
 id: R-032
 titre: "C1b1 — chaînes coniques de même signe avec portées"
 resume: "Reconnaître deux à huit cônes de signes libres séparés par des portées cylindriques prouvées ; conserver les garde-fous contre les fausses ruptures."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-13
-maj: 2026-11-17
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 ## But

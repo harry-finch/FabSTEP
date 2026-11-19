@@ -1,6 +1,6 @@
 <!-- Généré par FabBoard depuis roadmap/ : ne pas modifier à la main. -->
 
-Les jalons décrivent des critères de sortie, pas des délais garantis. La v1 mécanique et son paquet macOS local ont été acceptés ; les extensions post-v1 appartiennent au build de développement et conservent leurs essais ouverts.
+Les jalons décrivent des critères de sortie, pas des délais garantis. La v1 mécanique et son paquet macOS local ont été acceptés ; les extensions post-v1 livrées appartiennent au build de développement. Le 19 novembre 2026, l’utilisateur a validé en bloc les tests en attente et les lots présentés à la recette. Le volet Flansch de R-085 reste en développement.
 
 L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée intégralement pour l’histoire. Elle contient les tableaux, critères et décisions d’origine. Les textes de chaque lot sont aussi conservés dans les éléments. Le [registre INT-AUDIT-01](docs/INT_AUDIT_01.md) garde autorité sur les suites de l’audit ; la [recherche post-v1](docs/POST_V1_RESEARCH.md) détaille les contrats géométriques.
 
@@ -8,303 +8,36 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 115** (20 %)
+**Avancement : 102 livrés sur 115** (89 %)
 
 ## Restant à faire
 
-1. **[R-060 C1b2a — deux cônes directement raccordés](roadmap/items/R-060-c1b2a-deux-cones-directement-raccordes.md)** · À tester · jalon post-v1
-   Reconstruire deux cônes adjacents lorsque leur rupture unique et leurs parois sont prouvées par les anneaux source.
-2. **[R-061 C2a — deux raccords toriques sur une portée](roadmap/items/R-061-c2a-deux-raccords-toriques-sur-une-portee.md)** · À tester · jalon post-v1
-   Reconstruire un profil exact arc–ligne–arc, avec deux congés toriques et une portée cylindrique commune.
-3. **[R-062 D1–E1 — arêtes arrondies et bac ouvert](roadmap/items/R-062-d1-e1-aretes-arrondies-et-bac-ouvert.md)** · À tester · jalon post-v1
-   Qualifier les arrondis cylindriques locaux et les bacs ouverts à coins verticaux arrondis, avec fond et vide source conservés.
-4. **[R-063 F0 — qualifier les courbes des perçages sécants](roadmap/items/R-063-f0-qualifier-les-courbes-des-percages-secants.md)** · À tester · jalon post-v1
-   Vérifier dans un laboratoire natif borné les courbes et paramètres de deux cylindres orthogonaux après réimport STEP, avant intégration du contrat R-036.
-5. **[R-032 C1b1 — chaînes coniques de même signe avec portées](roadmap/items/R-032-c1b-chaines-sans-portee-ou-de-meme-signe.md)** · À tester · jalon post-v1
-   Reconnaître deux à huit cônes de signes libres séparés par des portées cylindriques prouvées ; conserver les garde-fous contre les fausses ruptures.
-6. **[R-042 UX4 — simplifier l’atelier](roadmap/items/R-042-ux4-simplifier-latelier.md)** · À tester · jalon atelier
-   Donner la priorité à la pièce et aux actions courantes ; retirer les exemples de l’écran principal ; options et données techniques à la demande
-7. **[R-027 A — cône et encoche ouverte](roadmap/items/R-027-a-cone-et-encoche-ouverte.md)** · À tester · jalon post-v1
-   Fraisure complète et cylindre ouvert distincts dans un même corps, en Surfaces
-8. **[R-028 B — zones sphériques](roadmap/items/R-028-b-zones-spheriques.md)** · À tester · jalon post-v1
-   Zone entre deux anneaux plans sans pôle, puis variante concave
-9. **[R-029 Consolidation M2c — arcs décalés et adjacents](roadmap/items/R-029-consolidation-m2c-arcs-decales-et-adjacents.md)** · À tester · jalon post-v1
-   Recherche bornée d'arcs fragmentés, angles de triangulation différents selon la hauteur, génératrices source partagées par deux parois
-10. **[R-030 Petits raccords cylindriques contextuels](roadmap/items/R-030-petits-raccords-cylindriques-contextuels.md)** · À tester · jalon post-v1
-   Intervalle entier de 4–7 points entre deux parois prouvées ; rayon résolu et tangentes compatibles
-11. **[R-031 C1a — chaînes coniques alternées](roadmap/items/R-031-c1a-chaines-coniques-alternees.md)** · À tester · jalon post-v1
-   Trois à huit cônes alternés et portées résolues ; réimport indépendant et parcours graphique à qualifier.
-12. **[R-039 UX1 — choix compréhensibles](roadmap/items/R-039-ux1-choix-comprehensibles.md)** · À tester · jalon atelier
-   Mettre en avant conserver les facettes ou reconnaître les surfaces courbes ; regrouper les reconnaissances ciblées ; aide brève selon le choix, limites détaillées à la demande
-13. **[R-040 UX2 — recherche assistée des réglages](roadmap/items/R-040-ux2-recherche-assistee-des-reglages.md)** · À tester · jalon atelier
-   Comparer au plus sept tolérances radiales et appliquer explicitement la proposition
-14. **[R-041 UX3 — rendre les faces lisibles](roadmap/items/R-041-ux3-rendre-les-faces-lisibles.md)** · À tester · jalon atelier
-   Couleurs par face STEP, contours contrastés et sélection identifiable
-15. **[R-043 I1 — sélectionner et comprendre](roadmap/items/R-043-i1-selectionner-et-comprendre.md)** · À tester · jalon atelier
-   Cliquer sur la surface visible, surligner une zone contiguë du corps choisi, ajuster/effacer la sélection et afficher ce qui est reconnu ou refusé
-16. **[R-044 I1b — inspecter le STEP](roadmap/items/R-044-i1b-inspecter-le-step.md)** · À tester · jalon atelier
-   Afficher le résultat réimporté, sélectionner une ou plusieurs faces natives et étendre aux voisines ; conserver la sélection source en complément
-17. **[R-045 I1c — relier le STEP à la source](roadmap/items/R-045-i1c-relier-le-step-a-la-source.md)** · À tester · jalon atelier
-   Retrouver les triangles source des faces STEP sélectionnées sans correspondance approximative
-18. **[R-046 I2a — première reconstruction guidée](roadmap/items/R-046-i2a-premiere-reconstruction-guidee.md)** · À tester · jalon atelier
-   À partir de la sélection, indiquer une hypothèse de surface parmi les familles prises en charge et relancer une conversion contrôlée
-19. **[R-047 I2b — enchaîner les cylindres guidés](roadmap/items/R-047-i2b-enchainer-les-cylindres-guides.md)** · À tester · jalon atelier
-   Ajouter depuis le STEP courant, retirer une indication et récupérer la session après refus
-20. **[R-048 I2c — choisir la famille guidée](roadmap/items/R-048-i2c-choisir-la-famille-guidee.md)** · À tester · jalon atelier
-   Choisir Cylindre ou Cône sur les facettes sélectionnées ; enchaîner les indications
-21. **[R-052 DXF1 — exporter une face plane](roadmap/items/R-052-dxf1-exporter-une-face-plane.md)** · À tester · jalon dxf
-   Sélectionner une face du STEP validé, prévisualiser son contour dans son plan, puis **Exporter le profil DXF**
-22. **[R-053 DXF2a — coupe du STEP et ellipses exactes](roadmap/items/R-053-dxf2a-coupe-du-step-et-ellipses-exactes.md)** · À tester · jalon dxf
-   Placer un plan XY/XZ/YZ ou reprendre le plan d’une face plane, régler son décalage et son orientation, voir la coupe et exporter la section DXF
-23. **[R-054 DXF2b — coupe du maillage source](roadmap/items/R-054-dxf2b-coupe-du-maillage-source.md)** · À tester · jalon dxf
-   Couper le maillage préparé sans exiger un STEP réussi ; profils polygonaux et export DXF distinct.
-24. **[R-056 I2d — fusion plane guidée](roadmap/items/R-056-i2d-fusion-plane-guidee.md)** · À tester · jalon atelier
-   Ajouter Plan aux familles guidées : fusionner une sélection contiguë presque plane, sans déplacer ses sommets, après contrôle du solide.
-25. **[R-057 UX5 — reconstruction automatique et sélection des parois](roadmap/items/R-057-ux5-reconstruction-automatique-et-selection-des.md)** · À tester · jalon atelier
-   Ouvrir et obtenir le meilleur STEP prouvé, sélectionner une paroi en un geste et corriger localement sans perdre les surfaces reconnues.
-26. **[R-064 UX6 — lancer le STEP depuis l’inspecteur](roadmap/items/R-064-ux6-lancer-le-step-depuis-l-inspecteur.md)** · À tester · jalon atelier
-   Ouvrir le fichier en aperçu source puis lancer sa reconstruction avec un bouton explicite dans le panneau de droite.
-27. **[R-065 UX7 — suivre les étapes réelles de reconstruction](roadmap/items/R-065-ux7-suivre-les-etapes-reelles-de-reconstruction.md)** · À tester · jalon atelier
-   Afficher les étapes observées du moteur et le corps en cours, sans pourcentage ni temps restant inventés.
-28. **[R-066 UX8 — préciser le nombre de triangles refusés](roadmap/items/R-066-ux8-preciser-le-nombre-de-triangles-refuses.md)** · À tester · jalon atelier
-   Afficher le nombre exact de triangles d’un STL trop dense et le maximum autorisé.
-29. **[R-067 G1 — gros maillages sur accord et calcul annulable](roadmap/items/R-067-g1-gros-maillages-sur-accord-et-calcul-annulable.md)** · À tester · jalon post-v1
-   Autoriser un essai explicite au-delà de 100 000 triangles, avec avertissement, limites distinctes et arrêt du calcul ; qualifier d’abord le STL de 540 170 triangles.
-30. **[R-068 G2 — accélérer la vérification des contours denses](roadmap/items/R-068-g2-accelerer-la-verification-des-contours-denses.md)** · À tester · jalon post-v1
-   Filtrage spatial borné des contours intégré et testé, avec prédicats inchangés. Le fichier de 540 170 triangles franchit ce contrôle puis atteint le budget de reconnaissance (R-069) ; aucun STEP produit. Build de développement mis à jour, qualification utilisateur ouverte.
-31. **[R-069 G3 — réduire le coût de reconnaissance des maillages denses](roadmap/items/R-069-g3-reduire-le-cout-de-reconnaissance-des.md)** · À tester · jalon post-v1
-   Préparation mono-corps réutilisée et recherche d’arêtes limitée aux patchs, sans relâcher les preuves. Sur le STL de 540 170 triangles, analyse 99→51 s avec égalité bit à bit ; essai 111→66 s, encore refusé dans la recherche d’arcs ouverts (R-070), sans STEP. Build et tests réussis.
-32. **[R-070 G4 — borner la recherche des arcs ouverts denses](roadmap/items/R-070-g4-borner-la-recherche-des-arcs-ouverts-denses.md)** · À tester · jalon post-v1
-   Après G3, le fichier Flansch de 540 170 triangles s’arrête dans partial::candidates sur le budget partagé de reconnaissance. Mesurer la consommation avant cette recherche et ses fenêtres, puis étudier une réduction prouvée du travail ; les ajustements contraints par les extrémités ne sont pas monotones. Ne pas sauter des candidats ni relever le budget sans preuve.
-33. **[R-071 Accélérer les fenêtres d’arcs des contours complexes](roadmap/items/R-071-accelerer-les-fenetres-d-arcs-des-contours.md)** · À tester · jalon post-v1
-   Après G4, Flansch franchit le cercle dense mais épuise encore le budget sur la face 7 278, contour de 300 points réellement non circulaire. Étudier une réduction prouvée du coût des fenêtres, sans supposer la monotonie des ajustements ni augmenter le budget ; une nouvelle preuve numérique exige une qualification distincte.
-34. **[R-073 Qualifier la surveillance mémoire des gros STL sur macOS](roadmap/items/R-073-qualifier-la-surveillance-memoire-des-gros-stl.md)** · À tester · jalon post-v1
-   La sonde R-072 rapporte une empreinte physique de 6.9G malgré un RSS maximal échantillonné de 2,35 Gio. Comparer les métriques macOS et qualifier une surveillance adaptée avant toute augmentation de capacité ; préserver arrêt et nettoyage du helper.
-35. **[R-075 Reconstruire un raccord tore–cône–cylindre prouvé](roadmap/items/R-075-reconstruire-un-raccord-tore-cone-cylindre.md)** · À tester · jalon post-v1
-   Première extension issue de R-074 : reconstruire la zone de 64 080 triangles par trois surfaces, avec raccord tangent prouvé et bandes à deux anneaux. Contrat de données inchangé ; règle de preuve approuvée pour implémentation, sans promesse de convertir Flansch entier.
-36. **[R-076 C2b — chaînes toriques composées et arcs au-delà de 90°](roadmap/items/R-076-c2b-chaines-toriques-composees-et-arcs-au-dela.md)** · À tester · jalon post-v1
-   Reconstruire les trois autres zones courbes mesurées sur Flansch : raccord à deux cônes et arcs de 100°, avec frontières source et preuves continues.
-37. **[R-077 E2 — bac ouvert avec perçage du fond](roadmap/items/R-077-e2-bac-ouvert-avec-percage-du-fond.md)** · À tester · jalon post-v1
-   Qualifier un bac à coins arrondis avec un trou traversant le fond, sans remplir la cavité ni perdre les parois.
-38. **[R-078 C1b2b — chaînes coniques adjacentes et mixtes](roadmap/items/R-078-c1b2b-chaines-coniques-adjacentes-et-mixtes.md)** · À tester · jalon post-v1
-   Reconstruire deux à huit cônes adjacents ou mêlés à des portées, avec une décomposition unique prouvée par les anneaux source.
-39. **[R-081 D2 — reconstruire un coin local à trois arrondis](roadmap/items/R-081-d2-reconstruire-un-coin-local-a-trois-arrondis.md)** · À tester · jalon post-v1
-   Intégrer l’octant sphérique et ses trois raccords cylindriques à partir des frontières STL, avec preuve continue et STEP validé.
-40. **[R-082 G1 — reconstruire un raccord à rayon linéaire](roadmap/items/R-082-g1-reconstruire-un-raccord-a-rayon-lineaire.md)** · À tester · jalon post-v1
-   Reconnaître l’enveloppe conique inclinée à extrémités elliptiques d’un arrondi linéaire, sans la confondre avec des sections circulaires empilées.
-41. **[R-083 F1 — reconnaître les perçages sécants depuis le STL](roadmap/items/R-083-f1-reconnaitre-les-percages-secants-depuis-le.md)** · À tester · jalon post-v1
-   Prouver deux perçages centrés orthogonaux, leurs limites communes et leur reconstruction STEP, dans le domaine déjà autorisé par A-045.
-42. **[R-084 C2b — reconstruire une révolution à profil cubique](roadmap/items/R-084-c2b-reconstruire-une-revolution-a-profil-cubique.md)** · À tester · jalon post-v1
-   Un profil lisse cubique borné, deux disques source et un tour complet ; preuve continue, STEP contrôlé et famille Révolution explicite.
-43. **[R-080 Qualifier les 231 584 plans restants de Flansch](roadmap/items/R-080-qualifier-les-231-584-plans-restants-de-flansch.md)** · À tester · jalon post-v1
-   Après les quatre grandes zones reconstruites, Flansch conserve 231 584 faces planes et 24 surfaces analytiques. Identifier les zones encore facettisées et leurs familles possibles avant toute nouvelle extension ou proposition de plafond ; la validation native dense reste un obstacle séparé.
-44. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · À tester · jalon post-v1
-   Révolutions toriques ou cubiques, une ou deux travées, pointe axiale, maillage irrégulier et retour axial vérifié.
-45. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · À tester · jalon post-v1
-   Congés constants de fond de poche avec butées, coins, U ou circuit fermé.
-46. **[R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md)** · À tester · jalon post-v1
-   Bacs ouverts percés, parois et fonds, rebords et congés intérieurs vérifiés.
-47. **[R-036 F — perçages sécants](roadmap/items/R-036-f-percages-secants.md)** · À tester · jalon post-v1
-   Deux perçages sécants, quatre bouches circulaires et deux branches certifiées, y compris avec un décalage latéral.
-48. **[R-037 G — congés variables](roadmap/items/R-037-g-conges-variables.md)** · À tester · jalon post-v1
-   Un ou deux congés à rayon affine sur arêtes parallèles ou gauches, avec les deux extrémités contrôlées.
-49. **[R-059 C1b2 — chaînes coniques sans portée intermédiaire](roadmap/items/R-059-c1b2-chaines-coniques-sans-portee-intermediaire.md)** · À tester · jalon post-v1
-   Deux à huit cônes adjacents ou mêlés à des portées sont couverts par R-060 et R-078. Les essais de la chaîne complète sont suivis en A-073 et A-074.
-50. **[R-025 Découper les gros modules et mutualiser les helpers au besoin](roadmap/items/R-025-decouper-les-gros-modules-et-mutualiser-les-helpers-au-besoin.md)** · Idée · jalon audit
+1. **[R-025 Découper les gros modules et mutualiser les helpers au besoin](roadmap/items/R-025-decouper-les-gros-modules-et-mutualiser-les-helpers-au-besoin.md)** · Idée · jalon audit
    AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes
-51. **[R-026 Qualifier le garde de cocircularité des anneaux fermés](roadmap/items/R-026-qualifier-le-garde-de-cocircularite-des-anneaux-fermes.md)** · À tester · jalon audit
-   Le défaut de conditionnement a été reproduit puis corrigé dans R-070. Les anneaux clairsemés et les profils en D sont couverts par les tests de V-1194.
-52. **[R-038 H — surfaces libres](roadmap/items/R-038-h-surfaces-libres.md)** · À tester · jalon post-v1
-   Patch bicubique de type hauteur, quatre limites source sur un solide fermé
-53. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · Idée · jalon atelier
+2. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · Idée · jalon atelier
    Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
-54. **[R-050 I2 — élargir les familles guidées](roadmap/items/R-050-i2-elargir-les-familles-guidees.md)** · À tester · jalon atelier
-   Après Plan (R-056), ajouter le raccord torique guidé puis étudier les sphères.
-55. **[R-024 Préserver les caractères composés dans les noms de produits tronqués](roadmap/items/R-024-preserver-les-caracteres-composes-dans-les-noms-de-produits-tronques.md)** · Idée · jalon audit
+3. **[R-024 Préserver les caractères composés dans les noms de produits tronqués](roadmap/items/R-024-preserver-les-caracteres-composes-dans-les-noms-de-produits-tronques.md)** · Idée · jalon audit
    AUD-011 — Reproduire les cas Unicode utiles ; conserver le nom source et éviter une dépendance disproportionnée pour ce seul besoin
-56. **[R-023 Durcir les permissions locales Tauri](roadmap/items/R-023-durcir-les-permissions-locales-tauri.md)** · Idée · jalon audit
+4. **[R-023 Durcir les permissions locales Tauri](roadmap/items/R-023-durcir-les-permissions-locales-tauri.md)** · Idée · jalon audit
    AUD-014 — Définir le manifeste applicatif et tester les commandes autorisées/refusées, fenêtres et origines ; ne pas ajouter un fichier de capacités supposé suffisant
-57. **[R-022 Réduire le coût de démarrage du frontend](roadmap/items/R-022-reduire-le-cout-de-demarrage-du-frontend.md)** · Idée · jalon audit
+5. **[R-022 Réduire le coût de démarrage du frontend](roadmap/items/R-022-reduire-le-cout-de-demarrage-du-frontend.md)** · Idée · jalon audit
    AUD-009 — Mesurer le démarrage réel de la WebView ; retenir un chargement différé ou un découpage uniquement si le gain est démontré
-58. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
+6. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
    Signer et notariser le paquet macOS ; ces étapes restent ouvertes.
-59. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
+7. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
    Construire et qualifier la distribution sur Windows et Linux.
-60. **[R-021 Étudier la réutilisation entre instances 3MF](roadmap/items/R-021-etudier-la-reutilisation-entre-instances-3mf.md)** · Idée · jalon audit
+8. **[R-021 Étudier la réutilisation entre instances 3MF](roadmap/items/R-021-etudier-la-reutilisation-entre-instances-3mf.md)** · Idée · jalon audit
    AUD-006 — Démontrer un gain sur plusieurs instances ; établir un contrat tenant compte des transformations, de l’arrondi, du soudage et de la provenance avant tout cache
-61. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
+9. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
-62. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon post-v1
+10. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon post-v1
    Flansch compte 43 zones toriques. Six interférences arête/face sont reproduites sur la coque actuelle avant transfert. Corriger les raccords et requalifier le solide complet.
-63. **[R-086 D/E — poche borgne à congé de fond arrêté](roadmap/items/R-086-d-e-poche-borgne-a-conge-de-fond-arrete.md)** · À tester · jalon post-v1
-   Auto reconstruit un congé intérieur à deux butées, même quand ses extrémités comportent des nombres de facettes différents.
-64. **[R-087 D/E — congé de poche arrêté par une paroi oblique](roadmap/items/R-087-d-e-conge-de-poche-arrete-par-une-paroi-oblique.md)** · À tester · jalon post-v1
-   Auto reconstruit le congé cylindrique entre une butée droite et une paroi oblique. Les profils de face conservent le cercle et l’ellipse.
-65. **[R-088 D/E — poche à deux congés de fond opposés](roadmap/items/R-088-d-e-poche-a-deux-conges-de-fond-opposes.md)** · À tester · jalon post-v1
-   Reconstruire et mesurer séparément les deux arrondis parallèles d’une poche borgne, y compris lorsque leurs rayons diffèrent.
-66. **[R-089 D/E — jonction de deux congés adjacents de même rayon](roadmap/items/R-089-d-e-jonction-de-deux-conges-adjacents-de-meme.md)** · À tester · jalon post-v1
-   Dans un coin de poche à 90°, Auto reconstruit les deux congés de même rayon et conserve leur arête elliptique commune.
-67. **[R-090 D/E — congés adjacents de rayons différents](roadmap/items/R-090-d-e-conges-adjacents-de-rayons-differents.md)** · À tester · jalon post-v1
-   Deux congés adjacents de rayons distincts dans une poche rectangulaire à butées droites. Auto produit deux faces cylindriques sélectionnables et conserve l’arc de prolongement en DXF.
-68. **[R-091 F2 — perçages orthogonaux de rayons plus proches](roadmap/items/R-091-f2-percages-orthogonaux-de-rayons-plus-proches.md)** · À tester · jalon post-v1
-   Deux trous orthogonaux de rayons plus proches reconstruits. Sept STEP contrôlés dans FreeCAD, y compris quatre maillages indépendants. Essai FabSTEP et Fusion ouvert.
-69. **[R-092 F3 — reconnaître les perçages du bloc incliné en STL binaire](roadmap/items/R-092-f3-reconnaitre-les-percages-du-bloc-incline-en.md)** · À tester · jalon post-v1
-   Deux poses et deux densités de STL binaire inclinés donnent six plans et trois cylindres aux réglages par défaut. Vérification Fusion ouverte.
-70. **[R-093 Auto — reconnaître le trou traversant d’une plaque inclinée](roadmap/items/R-093-auto-reconnaitre-le-trou-traversant-d-une-plaque.md)** · À tester · jalon post-v1
-   Sur la plaque inclinée de 268 triangles, le mode Automatique reconstruit six faces planes et un cylindre de Ø6 mm. Sélectionner la paroi retrouve ses 126 triangles source.
-71. **[R-094 G — congé à rayon variable maillé entre ses deux extrémités](roadmap/items/R-094-g-conge-a-rayon-variable-maille-entre-ses-deux.md)** · À tester · jalon post-v1
-   Retrouver le congé linéaire sur une paroi dont les sommets appartiennent tous aux deux bords elliptiques.
-72. **[R-095 C2 — révolution à deux méridiennes cubiques tangentes](roadmap/items/R-095-c2-revolution-a-deux-meridiennes-cubiques.md)** · À tester · jalon post-v1
-   Reconstruire une paroi de révolution dont la méridienne comporte deux segments cubiques à tangente commune.
-73. **[R-096 F — perçages traversants orthogonaux à axes décentrés](roadmap/items/R-096-f-percages-traversants-orthogonaux-a-axes.md)** · À tester · jalon post-v1
-   Reconstruire les deux intersections partagées lorsque le petit perçage est décentré par rapport au grand.
-74. **[R-097 D/E — Congé de poche entre deux butées obliques](roadmap/items/R-097-d-e-conge-de-poche-entre-deux-butees-obliques.md)** · À tester · jalon post-v1
-   Reconstruire une paroi cylindrique concave tangente et ses deux bords elliptiques dans une poche borgne.
-75. **[R-098 E — Bac arrondi percé sur le fond et la paroi](roadmap/items/R-098-e-bac-arrondi-perce-sur-le-fond-et-la-paroi.md)** · À tester · jalon post-v1
-   Qualifier un bac ouvert combinant trois perçages traversants et huit congés verticaux.
-76. **[R-099 C2 — Révolution cubique terminée sur un sommet axial](roadmap/items/R-099-c2-revolution-cubique-terminee-sur-un-sommet.md)** · À tester · jalon post-v1
-   Reconstruire une méridienne cubique entre un disque et une pointe présente dans le maillage.
-77. **[R-100 E — Bac à rebord et deux cavités ouvertes](roadmap/items/R-100-e-bac-a-rebord-et-deux-cavites-ouvertes.md)** · À tester · jalon post-v1
-   Conserver le rebord en saillie et deux cavités de profondeur différente séparées par une cloison.
-78. **[R-101 D — Congés adjacents à angle aigu ou obtus](roadmap/items/R-101-d-conges-adjacents-a-angle-aigu-ou-obtus.md)** · À tester · jalon post-v1
-   Reconstruire deux congés de poche de même rayon partageant une arête elliptique sur la bissectrice du coin.
-79. **[R-102 G — Deux congés à rayon variable sur un bloc](roadmap/items/R-102-g-deux-conges-a-rayon-variable-sur-un-bloc.md)** · À tester · jalon post-v1
-   Reconstruire deux congés de lois linéaires distinctes sur des arêtes parallèles opposées.
-80. **[R-103 E — Rebord circulaire arrondi des deux côtés](roadmap/items/R-103-e-rebord-circulaire-arrondi-des-deux-cotes.md)** · À tester · jalon post-v1
-   Reconstruire les deux congés d’un rebord de récipient ouvert, y compris le quart de tore qui rejoint le cylindre par sa branche radiale intérieure.
-81. **[R-104 C2 — Révolution cubique sur une tessellation irrégulière](roadmap/items/R-104-c2-revolution-cubique-sur-une-tessellation.md)** · À tester · jalon post-v1
-   Reconstruire une méridienne cubique lorsque le maillage FreeCAD ne présente pas d’anneaux intérieurs complets.
-82. **[R-105 F — Deux perçages sécants à axes obliques](roadmap/items/R-105-f-deux-percages-secants-a-axes-obliques.md)** · À tester · jalon post-v1
-   Reconstruire les deux intersections transverses de perçages dont les axes se croisent dans un prisme à quatre bouches circulaires.
-83. **[R-106 Révolution à deux cubiques sur un maillage irrégulier](roadmap/items/R-106-revolution-a-deux-cubiques-sur-un-maillage.md)** · À tester · jalon post-v1
-   Reconstruire une méridienne à deux segments tangents dont le raccord se trouve entre deux hauteurs du STL.
-84. **[R-107 Trois congés en U au fond d’une poche](roadmap/items/R-107-trois-conges-en-u-au-fond-d-une-poche.md)** · À tester · jalon post-v1
-   Reconstruire trois congés cylindriques reliés par deux ellipses au fond de la même poche.
-85. **[R-108 Perçages obliques décalés suivant la normale commune](roadmap/items/R-108-percages-obliques-decales-suivant-la-normale.md)** · À tester · jalon post-v1
-   Reconstruire deux perçages dont les axes sont inclinés et décalés latéralement, à quatre bouches circulaires.
-86. **[R-109 Deux congés variables sur des arêtes gauches](roadmap/items/R-109-deux-conges-variables-sur-des-aretes-gauches.md)** · À tester · jalon post-v1
-   Reconstruire deux congés à rayon affine portés par deux arêtes disjointes non parallèles du même bloc.
-87. **[R-110 Quatre congés reliés autour du fond d’une poche](roadmap/items/R-110-quatre-conges-relies-autour-du-fond-d-une-poche.md)** · À tester · jalon post-v1
-   Reconstituer le circuit fermé de quatre cylindres autour d’un fond rectangulaire mesuré.
-88. **[R-111 C2 — méridiennes cubiques à retour axial](roadmap/items/R-111-c2-meridiennes-cubiques-a-retour-axial.md)** · À tester · jalon post-v1
-   Reconnaître un retour axial sur un profil de rayon monotone et conserver les deux disques mesurés.
-89. **[R-112 Intégrer les recommandations NEON vérifiées](roadmap/items/R-112-integrer-les-recommandations-neon-verifiees.md)** · À tester · jalon audit
-   Suivi des seize constats et des reports dans docs/INT_AUDIT_01.md, section NEON. Contrôle atlas restant lié à R-085.
-90. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · Idée
+11. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · Idée
    Comparer une découpe plane de tore et une paroi cylindrique ou conique interrompue sur des solides indépendants. Prouver la courbe commune, la provenance et la fidélité avant toute extension du modèle.
-91. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · Idée
+12. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · Idée
    Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto.
-92. **[R-115 Récupérer les plans fragmentés par la quantification du STL](roadmap/items/R-115-recuperer-les-plans-fragmentes-par-la.md)** · Idée
+13. **[R-115 Récupérer les plans fragmentés par la quantification du STL](roadmap/items/R-115-recuperer-les-plans-fragmentes-par-la.md)** · Idée
    Essayer une graine de grande aire sur les régions planes fragmentées en f32. Vérifier le contour, la provenance et les plis sur des solides avant de retenir une seconde segmentation.
-
-## Actions à faire
-
-- [ ] [A-001](roadmap/actions/A-001-essayer-la-combinaison-cone-et-encoche-dans-le.md) Essayer la combinaison cône et encoche dans le bureau (tester, R-027)
-- [ ] [A-002](roadmap/actions/A-002-reimporter-le-resultat-cone-et-encoche-dans-une.md) Réimporter le résultat cône et encoche dans une CAO indépendante (tester, R-027)
-- [ ] [A-003](roadmap/actions/A-003-essayer-les-zones-spheriques-dans-le-bureau.md) Essayer les zones sphériques dans le bureau (tester, R-028)
-- [ ] [A-004](roadmap/actions/A-004-reimporter-les-zones-spheriques-dans-une-cao.md) Réimporter les zones sphériques dans une CAO indépendante (tester, R-028)
-- [ ] [A-005](roadmap/actions/A-005-essayer-les-cylindres-ouverts-decales-dans-le.md) Essayer les cylindres ouverts décalés dans le bureau (tester, R-029)
-- [ ] [A-006](roadmap/actions/A-006-reimporter-les-cylindres-decales-dans-une-cao.md) Réimporter les cylindres décalés dans une CAO indépendante (tester, R-029)
-- [ ] [A-007](roadmap/actions/A-007-essayer-les-petits-raccords-contextuels-dans-le.md) Essayer les petits raccords contextuels dans le bureau (tester, R-030)
-- [ ] [A-008](roadmap/actions/A-008-reimporter-les-petits-raccords-dans-une-cao.md) Réimporter les petits raccords dans une CAO indépendante (tester, R-030)
-- [ ] [A-009](roadmap/actions/A-009-essayer-les-chaines-coniques-dans-le-bureau.md) Essayer les chaînes coniques dans le bureau (tester, R-031)
-- [ ] [A-010](roadmap/actions/A-010-reimporter-les-chaines-coniques-dans-une-cao.md) Réimporter les chaînes coniques dans une CAO indépendante (tester, R-031)
-- [ ] [A-011](roadmap/actions/A-011-verifier-les-choix-de-reconstruction-en-francais.md) Vérifier les choix de reconstruction en français et anglais (tester, R-039)
-- [ ] [A-012](roadmap/actions/A-012-essayer-la-recherche-assistee-et-son-application.md) Essayer la recherche assistée et son application explicite (tester, R-040)
-- [ ] [A-013](roadmap/actions/A-013-verifier-la-lisibilite-des-faces-step-dans-les.md) Vérifier la lisibilité des faces STEP dans les deux thèmes (tester, R-041)
-- [ ] [A-014](roadmap/actions/A-014-qualifier-le-parcours-complet-de-l-atelier-ux4.md) Qualifier le parcours complet de l’atelier UX4 (tester, R-042)
-- [ ] [A-015](roadmap/actions/A-015-qualifier-le-clavier-et-les-petits-ecrans-de-l.md) Qualifier le clavier et les petits écrans de l’atelier (tester, R-042)
-- [ ] [A-016](roadmap/actions/A-016-qualifier-la-selection-des-zones-source.md) Qualifier la sélection des zones source (tester, R-043)
-- [ ] [A-017](roadmap/actions/A-017-qualifier-la-selection-des-faces-step.md) Qualifier la sélection des faces STEP (tester, R-044)
-- [ ] [A-018](roadmap/actions/A-018-essayer-le-retour-exact-du-step-vers-la-source.md) Essayer le retour exact du STEP vers la source (tester, R-045)
-- [ ] [A-019](roadmap/actions/A-019-essayer-une-reconstruction-cylindrique-guidee.md) Essayer une reconstruction cylindrique guidée (tester, R-046)
-- [ ] [A-020](roadmap/actions/A-020-essayer-les-indications-guidees-successives-et.md) Essayer les indications guidées successives et leur retrait (tester, R-047)
-- [ ] [A-021](roadmap/actions/A-021-essayer-le-choix-cylindre-ou-cone-et-leur.md) Essayer le choix Cylindre ou Cône et leur enchaînement (tester, R-048)
-- [ ] [A-022](roadmap/actions/A-022-reimporter-le-resultat-guide-cylindre-et-cone.md) Réimporter le résultat guidé Cylindre et Cône dans une CAO indépendante (tester, R-048)
-- [ ] [A-023](roadmap/actions/A-023-essayer-l-apercu-et-la-sauvegarde-du-profil-de.md) Essayer l’aperçu et la sauvegarde du profil de face (tester, R-052)
-- [ ] [A-024](roadmap/actions/A-024-verifier-le-profil-de-face-dxf-dans-fusion.md) Vérifier le profil de face DXF dans Fusion (tester, R-052)
-- [ ] [A-025](roadmap/actions/A-025-essayer-les-plans-de-coupe-step-et-les-poignees.md) Essayer les plans de coupe STEP et les poignées (tester, R-053)
-- [ ] [A-026](roadmap/actions/A-026-verifier-les-coupes-step-et-ellipses-dxf-dans.md) Vérifier les coupes STEP et ellipses DXF dans Fusion (tester, R-053)
-- [ ] [A-027](roadmap/actions/A-027-essayer-les-coupes-du-maillage-source-dans-le.md) Essayer les coupes du maillage source dans le bureau (tester, R-054)
-- [ ] [A-028](roadmap/actions/A-028-verifier-les-coupes-polygonales-source-dans.md) Vérifier les coupes polygonales source dans Fusion (tester, R-054)
-- [ ] [A-029](roadmap/actions/A-029-valider-la-migration-de-la-feuille-de-route-de.md) Valider la migration de la feuille de route de FabSTEP (valider)
-- [ ] [A-031](roadmap/actions/A-031-examiner-la-figure-de-la-bride-percee-de-fabstep.md) Examiner la figure de la bride percée de FabSTEP (tester)
-- [ ] [A-033](roadmap/actions/A-033-verifier-la-correction-contextuelle-et-la.md) Vérifier la correction contextuelle et la lisibilité de FabSTEP (tester, R-042)
-- [ ] [A-034](roadmap/actions/A-034-choisir-la-portee-de-la-selection-pour-tore.md) Choisir la portée de la sélection pour Tore (decider, R-050)
-- [ ] [A-035](roadmap/actions/A-035-essayer-plan-dans-la-correction-guidee.md) Essayer Plan dans la correction guidée (tester, R-056)
-- [ ] [A-036](roadmap/actions/A-036-verifier-le-step-apres-correction-plane-dans.md) Vérifier le STEP après correction plane dans Fusion (tester, R-056)
-- [ ] [A-037](roadmap/actions/A-037-essayer-la-selection-rapide-et-la-correction.md) Essayer la sélection rapide et la correction automatique (tester, R-057)
-- [ ] [A-038](roadmap/actions/A-038-verifier-tore-et-le-step-automatique-dans-fusion.md) Vérifier Tore et le STEP automatique dans Fusion (tester, R-057)
-- [ ] [A-039](roadmap/actions/A-039-essayer-la-selection-de-faces-en-maintenant-le.md) Essayer la sélection de faces en maintenant le clic (tester, R-057)
-- [ ] [A-041](roadmap/actions/A-041-verifier-les-raccords-de-rainures-dans-fusion.md) Vérifier les raccords de rainures dans Fusion (tester, R-058)
-- [ ] [A-042](roadmap/actions/A-042-examiner-les-chaines-de-chanfreins-de-meme-signe.md) Examiner les chaînes de chanfreins de même signe (tester, R-032)
-- [ ] [A-043](roadmap/actions/A-043-reimporter-une-chaine-conique-dans-fusion.md) Réimporter une chaîne conique dans Fusion (tester, R-032)
-- [ ] [A-044](roadmap/actions/A-044-verifier-l-inspecteur-et-la-correction.md) Vérifier l’inspecteur et la correction simplifiés (tester, R-042)
-- [ ] [A-046](roadmap/actions/A-046-essayer-les-deux-cones-directement-raccordes.md) Essayer les deux cônes directement raccordés (tester, R-060)
-- [ ] [A-047](roadmap/actions/A-047-verifier-les-cones-raccordes-dans-fusion.md) Vérifier les cônes raccordés dans Fusion (tester, R-060)
-- [ ] [A-048](roadmap/actions/A-048-examiner-les-deux-arrondis-toriques.md) Examiner les deux arrondis toriques (tester, R-061)
-- [ ] [A-049](roadmap/actions/A-049-verifier-les-deux-tores-dans-fusion.md) Vérifier les deux tores dans Fusion (tester, R-061)
-- [ ] [A-050](roadmap/actions/A-050-examiner-le-bac-ouvert-et-ses-arrondis.md) Examiner le bac ouvert et ses arrondis (tester, R-062)
-- [ ] [A-051](roadmap/actions/A-051-verifier-le-bac-ouvert-dans-fusion.md) Vérifier le bac ouvert dans Fusion (tester, R-062)
-- [ ] [A-052](roadmap/actions/A-052-essayer-le-lancement-manuel-du-step.md) Essayer le lancement manuel du STEP (tester, R-064)
-- [ ] [A-053](roadmap/actions/A-053-verifier-le-suivi-de-reconstruction.md) Vérifier le suivi de reconstruction (tester, R-065)
-- [ ] [A-054](roadmap/actions/A-054-verifier-le-compte-du-stl-trop-dense.md) Vérifier le compte du STL trop dense (tester, R-066)
-- [ ] [A-056](roadmap/actions/A-056-essayer-et-annuler-un-gros-stl.md) Essayer et annuler un gros STL (tester, R-067)
-- [ ] [A-057](roadmap/actions/A-057-verifier-un-step-issu-du-mode-gros-stl.md) Vérifier un STEP issu du mode gros STL (tester, R-067)
-- [ ] [A-058](roadmap/actions/A-058-verifier-le-passage-des-contours-du-gros-stl.md) Vérifier le passage des contours du gros STL avec G2 (tester, R-068)
-- [ ] [A-059](roadmap/actions/A-059-verifier-le-gros-stl-apres-l-optimisation-g3.md) Vérifier le gros STL après l’optimisation G3 (tester, R-069)
-- [ ] [A-060](roadmap/actions/A-060-verifier-le-gros-stl-apres-g4.md) Vérifier le gros STL après G4 (tester, R-070)
-- [ ] [A-061](roadmap/actions/A-061-verifier-flansch-apres-l-optimisation-des-arcs.md) Vérifier Flansch après l’optimisation des arcs complexes (tester, R-071)
-- [ ] [A-063](roadmap/actions/A-063-verifier-l-annulation-apres-la-correction-du.md) Vérifier l’annulation après la correction du suivi mémoire (tester, R-073)
-- [ ] [A-065](roadmap/actions/A-065-examiner-le-raccord-tore-cone-cylindre-dans.md) Examiner le raccord tore–cône–cylindre dans FabSTEP (tester, R-075)
-- [ ] [A-066](roadmap/actions/A-066-verifier-le-raccord-tore-cone-cylindre-dans.md) Vérifier le raccord tore–cône–cylindre dans Fusion (tester, R-075)
-- [ ] [A-067](roadmap/actions/A-067-examiner-le-bilan-certifie-des-percages-secants.md) Examiner le bilan certifié des perçages sécants (valider, R-063)
-- [ ] [A-069](roadmap/actions/A-069-examiner-les-nouveaux-raccords-de-revolution.md) Examiner les nouveaux raccords de révolution (tester, R-076)
-- [ ] [A-070](roadmap/actions/A-070-verifier-les-nouveaux-raccords-dans-fusion.md) Vérifier les nouveaux raccords dans Fusion (tester, R-076)
-- [ ] [A-071](roadmap/actions/A-071-examiner-le-bac-perce-dans-fabstep.md) Examiner le bac percé dans FabSTEP (tester, R-077)
-- [ ] [A-072](roadmap/actions/A-072-verifier-le-bac-perce-dans-fusion.md) Vérifier le bac percé dans Fusion (tester, R-077)
-- [ ] [A-073](roadmap/actions/A-073-examiner-les-chaines-coniques-adjacentes-et.md) Examiner les chaînes coniques adjacentes et mixtes (tester, R-078)
-- [ ] [A-074](roadmap/actions/A-074-verifier-les-chaines-adjacentes-dans-fusion.md) Vérifier les chaînes adjacentes dans Fusion (tester, R-078)
-- [ ] [A-075](roadmap/actions/A-075-examiner-le-coin-local-a-trois-arrondis.md) Examiner le coin local à trois arrondis (tester, R-081)
-- [ ] [A-076](roadmap/actions/A-076-verifier-le-coin-a-trois-arrondis-dans-fusion.md) Vérifier le coin à trois arrondis dans Fusion (tester, R-081)
-- [ ] [A-077](roadmap/actions/A-077-examiner-le-raccord-a-rayon-lineaire-dans.md) Examiner le raccord à rayon linéaire dans FabSTEP (tester, R-082)
-- [ ] [A-078](roadmap/actions/A-078-verifier-les-raccords-elliptiques-dans-fusion.md) Vérifier les raccords elliptiques dans Fusion (tester, R-082)
-- [ ] [A-079](roadmap/actions/A-079-examiner-les-percages-secants-dans-fabstep.md) Examiner les perçages sécants dans FabSTEP (tester, R-083)
-- [ ] [A-080](roadmap/actions/A-080-verifier-les-percages-secants-dans-fusion.md) Vérifier les perçages sécants dans Fusion (tester, R-083)
-- [ ] [A-081](roadmap/actions/A-081-examiner-les-revolutions-cubiques-dans-fabstep.md) Examiner les révolutions cubiques dans FabSTEP (tester, R-084)
-- [ ] [A-082](roadmap/actions/A-082-verifier-les-revolutions-cubiques-dans-fusion.md) Vérifier les révolutions cubiques dans Fusion (tester, R-084)
-- [ ] [A-083](roadmap/actions/A-083-examiner-le-diagnostic-des-faces-restantes-de.md) Examiner le diagnostic des faces restantes de Flansch (valider, R-080)
-- [ ] [A-084](roadmap/actions/A-084-essayer-le-conge-torique-partiel-dans-fabstep.md) Essayer le congé torique partiel dans FabSTEP (tester, R-085)
-- [ ] [A-085](roadmap/actions/A-085-controler-le-secteur-annulaire-dans-fusion.md) Contrôler le secteur annulaire dans Fusion (tester, R-085)
-- [ ] [A-086](roadmap/actions/A-086-inspecter-le-conge-de-la-poche-dans-fabstep-et.md) Inspecter le congé de la poche dans FabSTEP et Fusion (tester, R-086)
-- [ ] [A-088](roadmap/actions/A-088-verifier-la-butee-elliptique-de-la-poche-dans.md) Vérifier la butée elliptique de la poche dans FabSTEP et Fusion (tester, R-087)
-- [ ] [A-090](roadmap/actions/A-090-mesurer-separement-les-deux-conges-opposes-dans.md) Mesurer séparément les deux congés opposés dans Fusion (tester, R-088)
-- [ ] [A-091](roadmap/actions/A-091-controler-le-coin-a-deux-conges-adjacents-dans.md) Contrôler le coin à deux congés adjacents dans FabSTEP et Fusion (tester, R-089)
-- [ ] [A-093](roadmap/actions/A-093-verifier-les-deux-conges-de-rayons-differents.md) Vérifier les deux congés de rayons différents dans FabSTEP et Fusion (tester, R-090)
-- [ ] [A-094](roadmap/actions/A-094-verifier-les-percages-secants-de-rayons-3-et-5.md) Vérifier les perçages sécants de rayons 3 et 5 mm dans Fusion (tester, R-091)
-- [ ] [A-095](roadmap/actions/A-095-verifier-le-bloc-incline-a-deux-percages-dans.md) Vérifier le bloc incliné à deux perçages dans Fusion (tester, R-092)
-- [ ] [A-096](roadmap/actions/A-096-verifier-le-trou-de-la-plaque-inclinee-dans.md) Vérifier le trou de la plaque inclinée dans FabSTEP et Fusion (tester, R-093)
-- [ ] [A-099](roadmap/actions/A-099-inspecter-le-conge-a-rayon-variable-dans-fusion.md) Inspecter le congé à rayon variable dans Fusion (tester, R-094)
-- [ ] [A-100](roadmap/actions/A-100-verifier-la-revolution-a-deux-segments-dans.md) Vérifier la révolution à deux segments dans Fusion (tester, R-095)
-- [ ] [A-101](roadmap/actions/A-101-verifier-les-deux-percages-decentres-dans-fusion.md) Vérifier les deux perçages décentrés dans Fusion (tester, R-096)
-- [ ] [A-102](roadmap/actions/A-102-verifier-les-deux-butees-inclinees-dans-fusion.md) Vérifier les deux butées inclinées dans Fusion (tester, R-097)
-- [ ] [A-103](roadmap/actions/A-103-inspecter-le-bac-et-ses-trois-percages-dans.md) Inspecter le bac et ses trois perçages dans Fusion (tester, R-098)
-- [ ] [A-104](roadmap/actions/A-104-inspecter-la-pointe-de-revolution-dans-fusion.md) Inspecter la pointe de révolution dans Fusion (tester, R-099)
-- [ ] [A-105](roadmap/actions/A-105-verifier-les-deux-reliefs-bicubiques-dans-fusion.md) Vérifier les deux reliefs bicubiques dans Fusion (tester, R-038)
-- [ ] [A-106](roadmap/actions/A-106-verifier-le-rebord-et-la-cloison-dans-fusion.md) Vérifier le rebord et la cloison dans Fusion (tester, R-100)
-- [ ] [A-107](roadmap/actions/A-107-essayer-la-correction-spherique-sur-un-dome.md) Essayer la correction sphérique sur un dôme (tester, R-050)
-- [ ] [A-108](roadmap/actions/A-108-verifier-les-deux-angles-de-poche-dans-fusion.md) Vérifier les deux angles de poche dans Fusion (tester, R-101)
-- [ ] [A-109](roadmap/actions/A-109-controler-les-deux-conges-variables-dans-fusion.md) Contrôler les deux congés variables dans Fusion (tester, R-102)
-- [ ] [A-110](roadmap/actions/A-110-verifier-les-deux-arrondis-du-rebord-dans-fusion.md) Vérifier les deux arrondis du rebord dans Fusion (tester, R-103)
-- [ ] [A-111](roadmap/actions/A-111-verifier-les-revolutions-sans-anneaux-interieurs.md) Vérifier les révolutions sans anneaux intérieurs dans Fusion (tester, R-104)
-- [ ] [A-112](roadmap/actions/A-112-verifier-les-percages-a-60-et-75-dans-fusion.md) Vérifier les perçages à 60° et 75° dans Fusion (tester, R-105)
-- [ ] [A-113](roadmap/actions/A-113-verifier-la-revolution-sur-les-stl-two-span-et.md) Vérifier la révolution sur les STL two_span et two_span_turned (tester, R-106)
-- [ ] [A-114](roadmap/actions/A-114-controler-les-trois-conges-du-fond-de-poche-dans.md) Contrôler les trois congés du fond de poche dans Fusion (tester, R-107)
-- [ ] [A-115](roadmap/actions/A-115-verifier-les-trous-obliques-decales-dans-fusion.md) Vérifier les trous obliques décalés dans Fusion (tester, R-108)
-- [ ] [A-116](roadmap/actions/A-116-essayer-les-deux-orientations-des-conges.md) Essayer les deux orientations des congés variables sur arêtes gauches (tester, R-109)
-- [ ] [A-117](roadmap/actions/A-117-inspecter-le-circuit-ferme-de-quatre-conges-dans.md) Inspecter le circuit fermé de quatre congés dans Fusion (tester, R-110)
-- [ ] [A-118](roadmap/actions/A-118-verifier-un-retour-axial-dans-fusion.md) Vérifier un retour axial dans Fusion (tester, R-111)
-- [ ] [A-121](roadmap/actions/A-121-verifier-la-peinture-et-l-export-dans-le-bureau.md) Vérifier la peinture et l’export dans le bureau (tester, R-112)
 
 ## Livré
 
@@ -347,6 +80,10 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 
 ### audit : Audit et performances
 
+- [R-112 Intégrer les recommandations NEON vérifiées](roadmap/items/R-112-integrer-les-recommandations-neon-verifiees.md) · livrée le 2026-11-19
+  Suivi des seize constats et des reports dans docs/INT_AUDIT_01.md, section NEON. Contrôle atlas restant lié à R-085.
+- [R-026 Qualifier le garde de cocircularité des anneaux fermés](roadmap/items/R-026-qualifier-le-garde-de-cocircularite-des-anneaux-fermes.md) · livrée le 2026-11-19
+  Le défaut de conditionnement a été reproduit puis corrigé dans R-070. Les anneaux clairsemés et les profils en D sont couverts par les tests de V-1194.
 - [R-051 PERF1 — preuves source réutilisées](roadmap/items/R-051-perf1-preuves-source-reutilisees.md) · livrée le 2026-11-10
   Cache privé et exact à chaque recherche ; mesures avant/après et équivalence des résultats consignées.
 - [R-020 INT-AUDIT-01 — intégration initiale](roadmap/items/R-020-int-audit-01-integration-initiale.md) · livrée le 2026-11-10
@@ -354,6 +91,122 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 
 ### post-v1 : Géométries après v1
 
+- [R-111 C2 — méridiennes cubiques à retour axial](roadmap/items/R-111-c2-meridiennes-cubiques-a-retour-axial.md) · livrée le 2026-11-19
+  Reconnaître un retour axial sur un profil de rayon monotone et conserver les deux disques mesurés.
+- [R-110 Quatre congés reliés autour du fond d’une poche](roadmap/items/R-110-quatre-conges-relies-autour-du-fond-d-une-poche.md) · livrée le 2026-11-19
+  Reconstituer le circuit fermé de quatre cylindres autour d’un fond rectangulaire mesuré.
+- [R-109 Deux congés variables sur des arêtes gauches](roadmap/items/R-109-deux-conges-variables-sur-des-aretes-gauches.md) · livrée le 2026-11-19
+  Reconstruire deux congés à rayon affine portés par deux arêtes disjointes non parallèles du même bloc.
+- [R-108 Perçages obliques décalés suivant la normale commune](roadmap/items/R-108-percages-obliques-decales-suivant-la-normale.md) · livrée le 2026-11-19
+  Reconstruire deux perçages dont les axes sont inclinés et décalés latéralement, à quatre bouches circulaires.
+- [R-107 Trois congés en U au fond d’une poche](roadmap/items/R-107-trois-conges-en-u-au-fond-d-une-poche.md) · livrée le 2026-11-19
+  Reconstruire trois congés cylindriques reliés par deux ellipses au fond de la même poche.
+- [R-106 Révolution à deux cubiques sur un maillage irrégulier](roadmap/items/R-106-revolution-a-deux-cubiques-sur-un-maillage.md) · livrée le 2026-11-19
+  Reconstruire une méridienne à deux segments tangents dont le raccord se trouve entre deux hauteurs du STL.
+- [R-105 F — Deux perçages sécants à axes obliques](roadmap/items/R-105-f-deux-percages-secants-a-axes-obliques.md) · livrée le 2026-11-19
+  Reconstruire les deux intersections transverses de perçages dont les axes se croisent dans un prisme à quatre bouches circulaires.
+- [R-104 C2 — Révolution cubique sur une tessellation irrégulière](roadmap/items/R-104-c2-revolution-cubique-sur-une-tessellation.md) · livrée le 2026-11-19
+  Reconstruire une méridienne cubique lorsque le maillage FreeCAD ne présente pas d’anneaux intérieurs complets.
+- [R-103 E — Rebord circulaire arrondi des deux côtés](roadmap/items/R-103-e-rebord-circulaire-arrondi-des-deux-cotes.md) · livrée le 2026-11-19
+  Reconstruire les deux congés d’un rebord de récipient ouvert, y compris le quart de tore qui rejoint le cylindre par sa branche radiale intérieure.
+- [R-102 G — Deux congés à rayon variable sur un bloc](roadmap/items/R-102-g-deux-conges-a-rayon-variable-sur-un-bloc.md) · livrée le 2026-11-19
+  Reconstruire deux congés de lois linéaires distinctes sur des arêtes parallèles opposées.
+- [R-101 D — Congés adjacents à angle aigu ou obtus](roadmap/items/R-101-d-conges-adjacents-a-angle-aigu-ou-obtus.md) · livrée le 2026-11-19
+  Reconstruire deux congés de poche de même rayon partageant une arête elliptique sur la bissectrice du coin.
+- [R-100 E — Bac à rebord et deux cavités ouvertes](roadmap/items/R-100-e-bac-a-rebord-et-deux-cavites-ouvertes.md) · livrée le 2026-11-19
+  Conserver le rebord en saillie et deux cavités de profondeur différente séparées par une cloison.
+- [R-099 C2 — Révolution cubique terminée sur un sommet axial](roadmap/items/R-099-c2-revolution-cubique-terminee-sur-un-sommet.md) · livrée le 2026-11-19
+  Reconstruire une méridienne cubique entre un disque et une pointe présente dans le maillage.
+- [R-098 E — Bac arrondi percé sur le fond et la paroi](roadmap/items/R-098-e-bac-arrondi-perce-sur-le-fond-et-la-paroi.md) · livrée le 2026-11-19
+  Qualifier un bac ouvert combinant trois perçages traversants et huit congés verticaux.
+- [R-097 D/E — Congé de poche entre deux butées obliques](roadmap/items/R-097-d-e-conge-de-poche-entre-deux-butees-obliques.md) · livrée le 2026-11-19
+  Reconstruire une paroi cylindrique concave tangente et ses deux bords elliptiques dans une poche borgne.
+- [R-096 F — perçages traversants orthogonaux à axes décentrés](roadmap/items/R-096-f-percages-traversants-orthogonaux-a-axes.md) · livrée le 2026-11-19
+  Reconstruire les deux intersections partagées lorsque le petit perçage est décentré par rapport au grand.
+- [R-095 C2 — révolution à deux méridiennes cubiques tangentes](roadmap/items/R-095-c2-revolution-a-deux-meridiennes-cubiques.md) · livrée le 2026-11-19
+  Reconstruire une paroi de révolution dont la méridienne comporte deux segments cubiques à tangente commune.
+- [R-094 G — congé à rayon variable maillé entre ses deux extrémités](roadmap/items/R-094-g-conge-a-rayon-variable-maille-entre-ses-deux.md) · livrée le 2026-11-19
+  Retrouver le congé linéaire sur une paroi dont les sommets appartiennent tous aux deux bords elliptiques.
+- [R-093 Auto — reconnaître le trou traversant d’une plaque inclinée](roadmap/items/R-093-auto-reconnaitre-le-trou-traversant-d-une-plaque.md) · livrée le 2026-11-19
+  Sur la plaque inclinée de 268 triangles, le mode Automatique reconstruit six faces planes et un cylindre de Ø6 mm. Sélectionner la paroi retrouve ses 126 triangles source.
+- [R-092 F3 — reconnaître les perçages du bloc incliné en STL binaire](roadmap/items/R-092-f3-reconnaitre-les-percages-du-bloc-incline-en.md) · livrée le 2026-11-19
+  Deux poses et deux densités de STL binaire inclinés donnent six plans et trois cylindres aux réglages par défaut. Vérification Fusion ouverte.
+- [R-091 F2 — perçages orthogonaux de rayons plus proches](roadmap/items/R-091-f2-percages-orthogonaux-de-rayons-plus-proches.md) · livrée le 2026-11-19
+  Deux trous orthogonaux de rayons plus proches reconstruits. Sept STEP contrôlés dans FreeCAD, y compris quatre maillages indépendants. Essai FabSTEP et Fusion ouvert.
+- [R-090 D/E — congés adjacents de rayons différents](roadmap/items/R-090-d-e-conges-adjacents-de-rayons-differents.md) · livrée le 2026-11-19
+  Deux congés adjacents de rayons distincts dans une poche rectangulaire à butées droites. Auto produit deux faces cylindriques sélectionnables et conserve l’arc de prolongement en DXF.
+- [R-089 D/E — jonction de deux congés adjacents de même rayon](roadmap/items/R-089-d-e-jonction-de-deux-conges-adjacents-de-meme.md) · livrée le 2026-11-19
+  Dans un coin de poche à 90°, Auto reconstruit les deux congés de même rayon et conserve leur arête elliptique commune.
+- [R-088 D/E — poche à deux congés de fond opposés](roadmap/items/R-088-d-e-poche-a-deux-conges-de-fond-opposes.md) · livrée le 2026-11-19
+  Reconstruire et mesurer séparément les deux arrondis parallèles d’une poche borgne, y compris lorsque leurs rayons diffèrent.
+- [R-087 D/E — congé de poche arrêté par une paroi oblique](roadmap/items/R-087-d-e-conge-de-poche-arrete-par-une-paroi-oblique.md) · livrée le 2026-11-19
+  Auto reconstruit le congé cylindrique entre une butée droite et une paroi oblique. Les profils de face conservent le cercle et l’ellipse.
+- [R-086 D/E — poche borgne à congé de fond arrêté](roadmap/items/R-086-d-e-poche-borgne-a-conge-de-fond-arrete.md) · livrée le 2026-11-19
+  Auto reconstruit un congé intérieur à deux butées, même quand ses extrémités comportent des nombres de facettes différents.
+- [R-084 C2b — reconstruire une révolution à profil cubique](roadmap/items/R-084-c2b-reconstruire-une-revolution-a-profil-cubique.md) · livrée le 2026-11-19
+  Un profil lisse cubique borné, deux disques source et un tour complet ; preuve continue, STEP contrôlé et famille Révolution explicite.
+- [R-083 F1 — reconnaître les perçages sécants depuis le STL](roadmap/items/R-083-f1-reconnaitre-les-percages-secants-depuis-le.md) · livrée le 2026-11-19
+  Prouver deux perçages centrés orthogonaux, leurs limites communes et leur reconstruction STEP, dans le domaine déjà autorisé par A-045.
+- [R-082 G1 — reconstruire un raccord à rayon linéaire](roadmap/items/R-082-g1-reconstruire-un-raccord-a-rayon-lineaire.md) · livrée le 2026-11-19
+  Reconnaître l’enveloppe conique inclinée à extrémités elliptiques d’un arrondi linéaire, sans la confondre avec des sections circulaires empilées.
+- [R-081 D2 — reconstruire un coin local à trois arrondis](roadmap/items/R-081-d2-reconstruire-un-coin-local-a-trois-arrondis.md) · livrée le 2026-11-19
+  Intégrer l’octant sphérique et ses trois raccords cylindriques à partir des frontières STL, avec preuve continue et STEP validé.
+- [R-080 Qualifier les 231 584 plans restants de Flansch](roadmap/items/R-080-qualifier-les-231-584-plans-restants-de-flansch.md) · livrée le 2026-11-19
+  Après les quatre grandes zones reconstruites, Flansch conserve 231 584 faces planes et 24 surfaces analytiques. Identifier les zones encore facettisées et leurs familles possibles avant toute nouvelle extension ou proposition de plafond ; la validation native dense reste un obstacle séparé.
+- [R-078 C1b2b — chaînes coniques adjacentes et mixtes](roadmap/items/R-078-c1b2b-chaines-coniques-adjacentes-et-mixtes.md) · livrée le 2026-11-19
+  Reconstruire deux à huit cônes adjacents ou mêlés à des portées, avec une décomposition unique prouvée par les anneaux source.
+- [R-077 E2 — bac ouvert avec perçage du fond](roadmap/items/R-077-e2-bac-ouvert-avec-percage-du-fond.md) · livrée le 2026-11-19
+  Qualifier un bac à coins arrondis avec un trou traversant le fond, sans remplir la cavité ni perdre les parois.
+- [R-076 C2b — chaînes toriques composées et arcs au-delà de 90°](roadmap/items/R-076-c2b-chaines-toriques-composees-et-arcs-au-dela.md) · livrée le 2026-11-19
+  Reconstruire les trois autres zones courbes mesurées sur Flansch : raccord à deux cônes et arcs de 100°, avec frontières source et preuves continues.
+- [R-075 Reconstruire un raccord tore–cône–cylindre prouvé](roadmap/items/R-075-reconstruire-un-raccord-tore-cone-cylindre.md) · livrée le 2026-11-19
+  Première extension issue de R-074 : reconstruire la zone de 64 080 triangles par trois surfaces, avec raccord tangent prouvé et bandes à deux anneaux. Contrat de données inchangé ; règle de preuve approuvée pour implémentation, sans promesse de convertir Flansch entier.
+- [R-073 Qualifier la surveillance mémoire des gros STL sur macOS](roadmap/items/R-073-qualifier-la-surveillance-memoire-des-gros-stl.md) · livrée le 2026-11-19
+  La sonde R-072 rapporte une empreinte physique de 6.9G malgré un RSS maximal échantillonné de 2,35 Gio. Comparer les métriques macOS et qualifier une surveillance adaptée avant toute augmentation de capacité ; préserver arrêt et nettoyage du helper.
+- [R-071 Accélérer les fenêtres d’arcs des contours complexes](roadmap/items/R-071-accelerer-les-fenetres-d-arcs-des-contours.md) · livrée le 2026-11-19
+  Après G4, Flansch franchit le cercle dense mais épuise encore le budget sur la face 7 278, contour de 300 points réellement non circulaire. Étudier une réduction prouvée du coût des fenêtres, sans supposer la monotonie des ajustements ni augmenter le budget ; une nouvelle preuve numérique exige une qualification distincte.
+- [R-070 G4 — borner la recherche des arcs ouverts denses](roadmap/items/R-070-g4-borner-la-recherche-des-arcs-ouverts-denses.md) · livrée le 2026-11-19
+  Après G3, le fichier Flansch de 540 170 triangles s’arrête dans partial::candidates sur le budget partagé de reconnaissance. Mesurer la consommation avant cette recherche et ses fenêtres, puis étudier une réduction prouvée du travail ; les ajustements contraints par les extrémités ne sont pas monotones. Ne pas sauter des candidats ni relever le budget sans preuve.
+- [R-069 G3 — réduire le coût de reconnaissance des maillages denses](roadmap/items/R-069-g3-reduire-le-cout-de-reconnaissance-des.md) · livrée le 2026-11-19
+  Préparation mono-corps réutilisée et recherche d’arêtes limitée aux patchs, sans relâcher les preuves. Sur le STL de 540 170 triangles, analyse 99→51 s avec égalité bit à bit ; essai 111→66 s, encore refusé dans la recherche d’arcs ouverts (R-070), sans STEP. Build et tests réussis.
+- [R-068 G2 — accélérer la vérification des contours denses](roadmap/items/R-068-g2-accelerer-la-verification-des-contours-denses.md) · livrée le 2026-11-19
+  Filtrage spatial borné des contours intégré et testé, avec prédicats inchangés. Le fichier de 540 170 triangles franchit ce contrôle puis atteint le budget de reconnaissance (R-069) ; aucun STEP produit. Build de développement mis à jour, qualification utilisateur ouverte.
+- [R-067 G1 — gros maillages sur accord et calcul annulable](roadmap/items/R-067-g1-gros-maillages-sur-accord-et-calcul-annulable.md) · livrée le 2026-11-19
+  Autoriser un essai explicite au-delà de 100 000 triangles, avec avertissement, limites distinctes et arrêt du calcul ; qualifier d’abord le STL de 540 170 triangles.
+- [R-063 F0 — qualifier les courbes des perçages sécants](roadmap/items/R-063-f0-qualifier-les-courbes-des-percages-secants.md) · livrée le 2026-11-19
+  Vérifier dans un laboratoire natif borné les courbes et paramètres de deux cylindres orthogonaux après réimport STEP, avant intégration du contrat R-036.
+- [R-062 D1–E1 — arêtes arrondies et bac ouvert](roadmap/items/R-062-d1-e1-aretes-arrondies-et-bac-ouvert.md) · livrée le 2026-11-19
+  Qualifier les arrondis cylindriques locaux et les bacs ouverts à coins verticaux arrondis, avec fond et vide source conservés.
+- [R-061 C2a — deux raccords toriques sur une portée](roadmap/items/R-061-c2a-deux-raccords-toriques-sur-une-portee.md) · livrée le 2026-11-19
+  Reconstruire un profil exact arc–ligne–arc, avec deux congés toriques et une portée cylindrique commune.
+- [R-060 C1b2a — deux cônes directement raccordés](roadmap/items/R-060-c1b2a-deux-cones-directement-raccordes.md) · livrée le 2026-11-19
+  Reconstruire deux cônes adjacents lorsque leur rupture unique et leurs parois sont prouvées par les anneaux source.
+- [R-059 C1b2 — chaînes coniques sans portée intermédiaire](roadmap/items/R-059-c1b2-chaines-coniques-sans-portee-intermediaire.md) · livrée le 2026-11-19
+  Deux à huit cônes adjacents ou mêlés à des portées sont couverts par R-060 et R-078. Les essais de la chaîne complète sont suivis en A-073 et A-074.
+- [R-038 H — surfaces libres](roadmap/items/R-038-h-surfaces-libres.md) · livrée le 2026-11-19
+  Patch bicubique de type hauteur, quatre limites source sur un solide fermé
+- [R-037 G — congés variables](roadmap/items/R-037-g-conges-variables.md) · livrée le 2026-11-19
+  Un ou deux congés à rayon affine sur arêtes parallèles ou gauches, avec les deux extrémités contrôlées.
+- [R-036 F — perçages sécants](roadmap/items/R-036-f-percages-secants.md) · livrée le 2026-11-19
+  Deux perçages sécants, quatre bouches circulaires et deux branches certifiées, y compris avec un décalage latéral.
+- [R-035 E — boîtiers creux ouverts et percés](roadmap/items/R-035-e-boitiers-creux-ouverts-et-perces.md) · livrée le 2026-11-19
+  Bacs ouverts percés, parois et fonds, rebords et congés intérieurs vérifiés.
+- [R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md) · livrée le 2026-11-19
+  Congés constants de fond de poche avec butées, coins, U ou circuit fermé.
+- [R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md) · livrée le 2026-11-19
+  Révolutions toriques ou cubiques, une ou deux travées, pointe axiale, maillage irrégulier et retour axial vérifié.
+- [R-032 C1b1 — chaînes coniques de même signe avec portées](roadmap/items/R-032-c1b-chaines-sans-portee-ou-de-meme-signe.md) · livrée le 2026-11-19
+  Reconnaître deux à huit cônes de signes libres séparés par des portées cylindriques prouvées ; conserver les garde-fous contre les fausses ruptures.
+- [R-031 C1a — chaînes coniques alternées](roadmap/items/R-031-c1a-chaines-coniques-alternees.md) · livrée le 2026-11-19
+  Trois à huit cônes alternés et portées résolues ; réimport indépendant et parcours graphique à qualifier.
+- [R-030 Petits raccords cylindriques contextuels](roadmap/items/R-030-petits-raccords-cylindriques-contextuels.md) · livrée le 2026-11-19
+  Intervalle entier de 4–7 points entre deux parois prouvées ; rayon résolu et tangentes compatibles
+- [R-029 Consolidation M2c — arcs décalés et adjacents](roadmap/items/R-029-consolidation-m2c-arcs-decales-et-adjacents.md) · livrée le 2026-11-19
+  Recherche bornée d'arcs fragmentés, angles de triangulation différents selon la hauteur, génératrices source partagées par deux parois
+- [R-028 B — zones sphériques](roadmap/items/R-028-b-zones-spheriques.md) · livrée le 2026-11-19
+  Zone entre deux anneaux plans sans pôle, puis variante concave
+- [R-027 A — cône et encoche ouverte](roadmap/items/R-027-a-cone-et-encoche-ouverte.md) · livrée le 2026-11-19
+  Fraisure complète et cylindre ouvert distincts dans un même corps, en Surfaces
 - [R-079 D2–G0 — qualifier les raccords locaux et le rayon linéaire](roadmap/items/R-079-d2-g0-qualifier-les-raccords-locaux-et-le-rayon.md) · livrée le 2026-11-17
   Établir les preuves et le contrat minimum pour un coin à trois arrondis et une enveloppe à rayon linéaire avant intégration.
 - [R-074 Qualifier les grandes zones courbes de Flansch](roadmap/items/R-074-qualifier-les-grandes-zones-courbes-de-flansch.md) · livrée le 2026-11-17
@@ -362,3 +215,47 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
   Flansch franchit désormais la reconnaissance avec 4 cylindres et 8 cônes, mais conserve 501 900 plans, soit 501 912 faces au total. Le suivi du résultat est limité à 100 000 faces. Identifier les zones qui restent facettisées et les réductions géométriquement prouvées possibles ; examiner les coûts CAO, mémoire et inspection avant toute proposition de changement de limite ou de simplification.
 - [R-058 Raccords ouverts cylindre–chanfrein](roadmap/items/R-058-raccords-ouverts-cylindre-chanfrein.md) · livrée le 2026-11-17
   Reconstruire ensemble les parois cylindriques ouvertes et leurs chanfreins coniques partiels, avec contours partagés et validation du solide entier.
+
+### atelier : Inspection, guidage et atelier
+
+- [R-066 UX8 — préciser le nombre de triangles refusés](roadmap/items/R-066-ux8-preciser-le-nombre-de-triangles-refuses.md) · livrée le 2026-11-19
+  Afficher le nombre exact de triangles d’un STL trop dense et le maximum autorisé.
+- [R-065 UX7 — suivre les étapes réelles de reconstruction](roadmap/items/R-065-ux7-suivre-les-etapes-reelles-de-reconstruction.md) · livrée le 2026-11-19
+  Afficher les étapes observées du moteur et le corps en cours, sans pourcentage ni temps restant inventés.
+- [R-064 UX6 — lancer le STEP depuis l’inspecteur](roadmap/items/R-064-ux6-lancer-le-step-depuis-l-inspecteur.md) · livrée le 2026-11-19
+  Ouvrir le fichier en aperçu source puis lancer sa reconstruction avec un bouton explicite dans le panneau de droite.
+- [R-057 UX5 — reconstruction automatique et sélection des parois](roadmap/items/R-057-ux5-reconstruction-automatique-et-selection-des.md) · livrée le 2026-11-19
+  Ouvrir et obtenir le meilleur STEP prouvé, sélectionner une paroi en un geste et corriger localement sans perdre les surfaces reconnues.
+- [R-056 I2d — fusion plane guidée](roadmap/items/R-056-i2d-fusion-plane-guidee.md) · livrée le 2026-11-19
+  Ajouter Plan aux familles guidées : fusionner une sélection contiguë presque plane, sans déplacer ses sommets, après contrôle du solide.
+- [R-050 I2 — élargir les familles guidées](roadmap/items/R-050-i2-elargir-les-familles-guidees.md) · livrée le 2026-11-19
+  Après Plan (R-056), ajouter le raccord torique guidé puis étudier les sphères.
+- [R-048 I2c — choisir la famille guidée](roadmap/items/R-048-i2c-choisir-la-famille-guidee.md) · livrée le 2026-11-19
+  Choisir Cylindre ou Cône sur les facettes sélectionnées ; enchaîner les indications
+- [R-047 I2b — enchaîner les cylindres guidés](roadmap/items/R-047-i2b-enchainer-les-cylindres-guides.md) · livrée le 2026-11-19
+  Ajouter depuis le STEP courant, retirer une indication et récupérer la session après refus
+- [R-046 I2a — première reconstruction guidée](roadmap/items/R-046-i2a-premiere-reconstruction-guidee.md) · livrée le 2026-11-19
+  À partir de la sélection, indiquer une hypothèse de surface parmi les familles prises en charge et relancer une conversion contrôlée
+- [R-045 I1c — relier le STEP à la source](roadmap/items/R-045-i1c-relier-le-step-a-la-source.md) · livrée le 2026-11-19
+  Retrouver les triangles source des faces STEP sélectionnées sans correspondance approximative
+- [R-044 I1b — inspecter le STEP](roadmap/items/R-044-i1b-inspecter-le-step.md) · livrée le 2026-11-19
+  Afficher le résultat réimporté, sélectionner une ou plusieurs faces natives et étendre aux voisines ; conserver la sélection source en complément
+- [R-043 I1 — sélectionner et comprendre](roadmap/items/R-043-i1-selectionner-et-comprendre.md) · livrée le 2026-11-19
+  Cliquer sur la surface visible, surligner une zone contiguë du corps choisi, ajuster/effacer la sélection et afficher ce qui est reconnu ou refusé
+- [R-042 UX4 — simplifier l’atelier](roadmap/items/R-042-ux4-simplifier-latelier.md) · livrée le 2026-11-19
+  Donner la priorité à la pièce et aux actions courantes ; retirer les exemples de l’écran principal ; options et données techniques à la demande
+- [R-041 UX3 — rendre les faces lisibles](roadmap/items/R-041-ux3-rendre-les-faces-lisibles.md) · livrée le 2026-11-19
+  Couleurs par face STEP, contours contrastés et sélection identifiable
+- [R-040 UX2 — recherche assistée des réglages](roadmap/items/R-040-ux2-recherche-assistee-des-reglages.md) · livrée le 2026-11-19
+  Comparer au plus sept tolérances radiales et appliquer explicitement la proposition
+- [R-039 UX1 — choix compréhensibles](roadmap/items/R-039-ux1-choix-comprehensibles.md) · livrée le 2026-11-19
+  Mettre en avant conserver les facettes ou reconnaître les surfaces courbes ; regrouper les reconnaissances ciblées ; aide brève selon le choix, limites détaillées à la demande
+
+### dxf : Profils et sections DXF
+
+- [R-054 DXF2b — coupe du maillage source](roadmap/items/R-054-dxf2b-coupe-du-maillage-source.md) · livrée le 2026-11-19
+  Couper le maillage préparé sans exiger un STEP réussi ; profils polygonaux et export DXF distinct.
+- [R-053 DXF2a — coupe du STEP et ellipses exactes](roadmap/items/R-053-dxf2a-coupe-du-step-et-ellipses-exactes.md) · livrée le 2026-11-19
+  Placer un plan XY/XZ/YZ ou reprendre le plan d’une face plane, régler son décalage et son orientation, voir la coupe et exporter la section DXF
+- [R-052 DXF1 — exporter une face plane](roadmap/items/R-052-dxf1-exporter-une-face-plane.md) · livrée le 2026-11-19
+  Sélectionner une face du STEP validé, prévisualiser son contour dans son plan, puis **Exporter le profil DXF**

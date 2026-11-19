@@ -2,11 +2,11 @@
 id: R-026
 titre: "Qualifier le garde de cocircularité des anneaux fermés"
 resume: "Le défaut de conditionnement a été reproduit puis corrigé dans R-070. Les anneaux clairsemés et les profils en D sont couverts par les tests de V-1194."
-statut: a-tester
+statut: livree
 jalon: audit
 cree: 2026-11-13
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 | Qualifier le garde de cocircularité des anneaux fermés | AUD-017 | P2, preuve préalable | Construire une reproduction du défaut supposé ; conserver la protection des anneaux peu échantillonnés. Aucun remplacement direct par `fit_circle` sans cette preuve |

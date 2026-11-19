@@ -2,11 +2,11 @@
 id: R-066
 titre: "UX8 — préciser le nombre de triangles refusés"
 resume: "Afficher le nombre exact de triangles d’un STL trop dense et le maximum autorisé."
-statut: a-tester
+statut: livree
 jalon: atelier
 cree: 2026-11-17
-maj: 2026-11-17
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 ## But

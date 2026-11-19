@@ -2,11 +2,11 @@
 id: R-056
 titre: "I2d — fusion plane guidée"
 resume: "Ajouter Plan aux familles guidées : fusionner une sélection contiguë presque plane, sans déplacer ses sommets, après contrôle du solide."
-statut: a-tester
+statut: livree
 jalon: atelier
 cree: 2026-11-15
-maj: 2026-11-15
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 ## But

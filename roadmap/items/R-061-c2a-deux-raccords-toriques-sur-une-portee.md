@@ -2,11 +2,11 @@
 id: R-061
 titre: "C2a — deux raccords toriques sur une portée"
 resume: "Reconstruire un profil exact arc–ligne–arc, avec deux congés toriques et une portée cylindrique commune."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-17
-maj: 2026-11-17
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 ## But

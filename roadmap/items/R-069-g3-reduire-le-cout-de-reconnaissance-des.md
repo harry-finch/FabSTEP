@@ -2,11 +2,11 @@
 id: R-069
 titre: "G3 — réduire le coût de reconnaissance des maillages denses"
 resume: "Préparation mono-corps réutilisée et recherche d’arêtes limitée aux patchs, sans relâcher les preuves. Sur le STL de 540 170 triangles, analyse 99→51 s avec égalité bit à bit ; essai 111→66 s, encore refusé dans la recherche d’arcs ouverts (R-070), sans STEP. Build et tests réussis."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-17
-maj: 2026-11-17
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 ## But

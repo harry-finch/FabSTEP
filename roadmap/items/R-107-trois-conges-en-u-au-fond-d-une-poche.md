@@ -2,11 +2,11 @@
 id: R-107
 titre: "Trois congés en U au fond d’une poche"
 resume: "Reconstruire trois congés cylindriques reliés par deux ellipses au fond de la même poche."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-19
 maj: 2026-11-19
-livree:
+livree: 2026-11-19
 ---
 ## But
 

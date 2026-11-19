@@ -2,11 +2,11 @@
 id: R-050
 titre: "I2 — élargir les familles guidées"
 resume: "Après Plan (R-056), ajouter le raccord torique guidé puis étudier les sphères."
-statut: a-tester
+statut: livree
 jalon: atelier
 cree: 2026-11-13
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

@@ -2,11 +2,11 @@
 id: R-086
 titre: "D/E — poche borgne à congé de fond arrêté"
 resume: "Auto reconstruit un congé intérieur à deux butées, même quand ses extrémités comportent des nombres de facettes différents."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

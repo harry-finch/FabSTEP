@@ -1,11 +1,12 @@
 ---
-id: "R-054"
+id: R-054
 titre: "DXF2b — coupe du maillage source"
 resume: "Couper le maillage préparé sans exiger un STEP réussi ; profils polygonaux et export DXF distinct."
-statut: "a-tester"
-jalon: "dxf"
-cree: "2026-11-13"
-maj: "2026-11-13"
+statut: livree
+jalon: dxf
+cree: 2026-11-13
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 **DXF2b — coupe source implémentée.** La vue Source propose une coupe du maillage préparé, même après refus de reconnaissance STEP. Préparation topologique indépendante des contours plans, validation native de tous les corps et de leur séparation, puis extraction polygonale pure bornée. Aucun ajustement de courbe ni fermeture par proximité ; trous, composantes et corps vides restent explicites. Le contrôleur distingue les identités source/STEP et préserve le STEP existant. Les prétraitements sont consultables et les exports source utilisent le suffixe `-mesh-section.dxf`. Quatorze DXF de corpus, dont le sock-clip, sont relus indépendamment ; détails et contrôles globaux en V-1176, architecture dans ADR-0026. Le parcours natif et Fusion restent à qualifier.

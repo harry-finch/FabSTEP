@@ -2,11 +2,11 @@
 id: R-042
 titre: "UX4 — simplifier l’atelier"
 resume: "Donner la priorité à la pièce et aux actions courantes ; retirer les exemples de l’écran principal ; options et données techniques à la demande"
-statut: a-tester
+statut: livree
 jalon: atelier
 cree: 2026-11-13
-maj: 2026-11-17
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 ## But

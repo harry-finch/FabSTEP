@@ -1,11 +1,12 @@
 ---
-id: "R-031"
+id: R-031
 titre: "C1a — chaînes coniques alternées"
 resume: "Trois à huit cônes alternés et portées résolues ; réimport indépendant et parcours graphique à qualifier."
-statut: "a-tester"
-jalon: "post-v1"
-cree: "2026-11-13"
-maj: "2026-11-13"
+statut: livree
+jalon: post-v1
+cree: 2026-11-13
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 
 | C1 — chaînes de révolution | Plusieurs chanfreins/portées, puis ruptures de pente sans portée | Chaque rupture issue de la source et séparée du bruit ; refus des méridiennes douces découpées artificiellement ; provenance et borne | C1a implémenté : 3 à 8 cônes alternés et portées résolues avec témoins intérieurs ; 7 exports/8 solides OCCT et suite globale réussis : 228 workspace, 5 bureau, 7 UI (V-1125–V-1127). C1b sans portée ou de même signe reste à étudier |

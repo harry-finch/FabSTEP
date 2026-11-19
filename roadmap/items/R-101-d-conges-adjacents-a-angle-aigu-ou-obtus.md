@@ -2,11 +2,11 @@
 id: R-101
 titre: "D — Congés adjacents à angle aigu ou obtus"
 resume: "Reconstruire deux congés de poche de même rayon partageant une arête elliptique sur la bissectrice du coin."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

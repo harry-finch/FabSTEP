@@ -1,4 +1,4 @@
-Les jalons décrivent des critères de sortie, pas des délais garantis. La v1 mécanique et son paquet macOS local ont été acceptés ; les extensions post-v1 appartiennent au build de développement et conservent leurs essais ouverts.
+Les jalons décrivent des critères de sortie, pas des délais garantis. La v1 mécanique et son paquet macOS local ont été acceptés ; les extensions post-v1 livrées appartiennent au build de développement. Le 19 novembre 2026, l’utilisateur a validé en bloc les tests en attente et les lots présentés à la recette. Le volet Flansch de R-085 reste en développement.
 
 L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée intégralement pour l’histoire. Elle contient les tableaux, critères et décisions d’origine. Les textes de chaque lot sont aussi conservés dans les éléments. Le [registre INT-AUDIT-01](docs/INT_AUDIT_01.md) garde autorité sur les suites de l’audit ; la [recherche post-v1](docs/POST_V1_RESEARCH.md) détaille les contrats géométriques.
 

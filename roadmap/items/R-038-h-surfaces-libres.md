@@ -2,11 +2,11 @@
 id: R-038
 titre: "H — surfaces libres"
 resume: "Patch bicubique de type hauteur, quatre limites source sur un solide fermé"
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-13
-maj: 2026-11-18
-livree:
+maj: 2026-11-19
+livree: 2026-11-19
 ---
 ## But
 

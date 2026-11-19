@@ -3,10 +3,14 @@ id: A-100
 type: tester
 titre: "Vérifier la révolution à deux segments dans Fusion"
 element: R-095
-statut: a-faire
+statut: fait
 cree: 2026-11-18
 par: agent
-fait:
+fait: 2026-11-19
 ---
 
 Ouvrir fixtures/smooth_revolution/two_span.stl dans FabSTEP, cliquer sur « Reconstruire le STEP » et exporter. Dans Fusion, vérifier les deux faces planes et la paroi courbe continue entre elles. Signaler une cassure ou une facettisation de la paroi.
+
+## Réponse
+
+Accepté par l’utilisateur lors de la validation groupée des tests et des jalons du 19 novembre 2026.
