@@ -599,6 +599,25 @@ fn recognize_policy_with_proofs(
             Err(e) => return Err(e),
         }
     }
+    if failure.is_some() && rims.len() == 2 && patches.is_empty() {
+        match smooth_revolution::returning::candidate(a, &segmentation, &rims, o, &mut work) {
+            Ok(Some(_)) if scope.is_some() => {
+                return Err(FabError::new(
+                    "guidance.family_unproven",
+                    "La révolution à retour axial exige le corps entier.",
+                ))
+            }
+            Ok(Some(result)) => return Ok(result),
+            Ok(None) => (),
+            Err(e)
+                if automatic
+                    && matches!(
+                        e.code.as_str(),
+                        "recognition.surface_unproven" | "recognition.deviation_exceeded"
+                    ) => {}
+            Err(e) => return Err(e),
+        }
+    }
     let mut rejected = usize::from(failure.is_some());
     let patches = if automatic {
         let mut proven = Vec::new();

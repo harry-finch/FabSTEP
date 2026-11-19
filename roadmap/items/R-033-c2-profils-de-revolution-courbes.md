@@ -2,7 +2,7 @@
 id: R-033
 titre: "C2 — profils de révolution courbes"
 resume: "Profils toriques, méridiennes cubiques mono- ou bi-travée, pointe axiale et premier domaine sur tessellation irrégulière."
-statut: en-cours
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-13
 maj: 2026-11-19
@@ -73,3 +73,5 @@ R-099 — Reconstruire une méridienne cubique entre un disque et une pointe pr�
 R-104 — Reconstruire une méridienne cubique lorsque le maillage FreeCAD ne présente pas d’anneaux intérieurs complets. Voir V-1234.
 
 R-106 — Reconstruire une méridienne à deux segments tangents dont le raccord se trouve entre deux hauteurs du STL. Voir V-1236.
+
+R-111 — Reconnaître un retour axial sur un profil de rayon monotone et conserver les deux disques mesurés. Voir V-1248.

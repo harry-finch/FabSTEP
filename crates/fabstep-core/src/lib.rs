@@ -470,13 +470,17 @@ pub struct CubicRevolutionSpan {
 }
 
 /// One full exterior turn of the fitted positive Bernstein radius r(t),
-/// with axial distance height_mm*t. The two end circles are witnessed.
+/// with axial distance height_mm*t, or an affine radius and cubic axial
+/// distance for a returning meridian. The end circles are witnessed.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SmoothRevolution {
     pub origin: [f64; 3],
     pub axis: [f64; 3],
     pub height_mm: f64,
     pub radii_mm: [f64; 4],
+    /// Interior axial Bernstein controls relative to the first measured cap.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub axial_controls_mm: Option<[f64; 2]>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub second_span: Option<CubicRevolutionSpan>,
     /// At a witnessed axial tip the first endpoint has no circle. Both ring

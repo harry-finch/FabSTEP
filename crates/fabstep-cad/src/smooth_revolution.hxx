@@ -16,6 +16,12 @@ gp_Pnt revolution_center(const SmoothRevolutionData &d, double t) {
   return point_at(d.origin, 0).Translated(gp_Vec(direction(d.axis)) * (d.height * t));
 }
 
+gp_Pnt revolution_pole_center(const SmoothRevolutionData &d, size_t i, double t) {
+  if (d.returning && (i == 1 || i == 2))
+    return point_at(d.origin, 0).Translated(gp_Vec(direction(d.axis)) * d.axial[i - 1]);
+  return revolution_center(d, t);
+}
+
 // A clamped cubic with an optional internal knot of multiplicity two.
 // Expanding that knot once yields the two adjacent Bernstein polygons.
 struct MeridianPoles {
@@ -84,8 +90,38 @@ double radius_control(const SmoothRevolutionData &d, size_t i) {
   return i <= 3 ? d.radii[i] : d.next_radii[i - 4];
 }
 
+bool bounded_axial_return(const SmoothRevolutionData &d) {
+  const double p = d.axial[0], q = d.axial[1], h = d.height;
+  const double a = 3. * p - 3. * q + h, b = 2. * (q - 2. * p), disc = b*b - 4. * a*p;
+  const auto &r = d.radii;
+  const double sign = r[3] > r[0] ? 1. : -1.;
+  if (!(d.knot == 0. && r[0] > revolution_precision && r[3] > revolution_precision &&
+        std::min({sign * (r[1] - r[0]), sign * (r[2] - r[1]), sign * (r[3] - r[2])}) > revolution_precision &&
+        std::max(std::abs(3*r[1] - 2*r[0] - r[3]), std::abs(3*r[2] - r[0] - 2*r[3])) <= revolution_precision &&
+        a > 0. && p > 0. && h > q && disc > 0.))
+    return false;
+  const double hi = (-b + std::sqrt(disc)) / (2. * a), lo = p / (a * hi);
+  const auto z = [&](double t) {
+    return t * (3. * p * (1. - t) * (1. - t) + t * (3. * q * (1. - t) + t * h));
+  };
+  return lo > 0. && lo < hi && hi < 1. && z(lo) < h - revolution_precision &&
+         z(hi) > revolution_precision && z(lo) - z(hi) > revolution_precision;
+}
+
 double revolution_volume(const SmoothRevolutionData &d) {
   constexpr double c3[]{1, 3, 3, 1}, c6[]{1, 6, 15, 20, 15, 6, 1};
+  if (d.returning) {
+    // Signed π∫r² dz. Integrate the actual transferred controls, including
+    // any tolerated roundoff in the affine radial controls.
+    constexpr double c2[]{1, 2, 1}, c8[]{1, 8, 28, 56, 70, 56, 28, 8, 1};
+    const double dz[]{d.axial[0], d.axial[1] - d.axial[0], d.height - d.axial[1]};
+    double integral = 0.;
+    for (int i = 0; i < 4; ++i)
+      for (int j = 0; j < 4; ++j)
+        for (int k = 0; k < 3; ++k)
+          integral += d.radii[i] * d.radii[j] * dz[k] * c3[i] * c3[j] * c2[k] / (3. * c8[i+j+k]);
+    return (revolution_period / 2.) * integral;
+  }
   double square_integral = 0.;
   const int spans = d.knot ? 2 : 1;
   for (int span = 0; span < spans; ++span) {
@@ -175,10 +211,18 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
   if (expected && (bool(d.knot) != bool(expected->knot) ||
                    std::abs(d.knot - expected->knot) * d.height > revolution_precision))
     throw invalid;
+  if (poles.size() == 4 && !d.knot && pole_end < 0) {
+    for (size_t i = 0; i < 2; ++i)
+      d.axial[i] = gp_Vec(origin, poles[i+1]).Dot(axis);
+    d.returning = std::max(std::abs(d.axial[0] - d.height / 3.), std::abs(d.axial[1] - 2. * d.height / 3.)) >
+                  revolution_precision;
+  }
+  if (expected && d.returning != expected->returning)
+    throw invalid;
   constexpr double derivative_margin = 1. + 1.e-11;
   for (size_t i = 0; i < poles.size(); ++i) {
     const double t = meridian.parameter(i);
-    const auto center = revolution_center(d, t);
+    const auto center = revolution_pole_center(d, i, t);
     const bool at_pole = (i == 0 && pole_end == 0) || (i + 1 == poles.size() && pole_end == 1);
     const double r = at_pole ? 0. : gp_Vec(center, poles[i]).Dot(radial);
     if ((!at_pole && !(r > revolution_precision)) ||
@@ -196,7 +240,7 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
               : (i <= 3 ? expected->knot * i / 3. : expected->knot + (1. - expected->knot) * (i - 3) / 3.);
       const double expected_r = radius_control(*expected, i);
       if (std::abs(r - expected_r) > revolution_precision ||
-          revolution_center(*expected, expected_t).Translated(radial * expected_r).Distance(poles[i]) >
+          revolution_pole_center(*expected, i, expected_t).Translated(radial * expected_r).Distance(poles[i]) >
               revolution_precision)
         throw invalid;
     }
@@ -217,7 +261,10 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
     }
     const double a = radius_control(d, off), b = radius_control(d, off + 1), c = radius_control(d, off + 2),
                  e = radius_control(d, off + 3);
-    if (std::max(std::abs(3 * b - 2 * a - e), std::abs(3 * c - a - 2 * e)) <= revolution_precision)
+    const bool affine_radius = std::max(std::abs(3 * b - 2 * a - e), std::abs(3 * c - a - 2 * e)) <= revolution_precision;
+    if (affine_radius != bool(d.returning))
+      throw invalid;
+    if (d.returning && !bounded_axial_return(d))
       throw invalid;
   }
   const double max_radius = proof.max_radius;
@@ -291,7 +338,10 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
   // millimetres, including levels near a steep portion of the meridian.
   const double u_scale = std::max(1., max_radius);
   const double slope = proof.max_mixed_derivative;
-  const double v_scale = std::max(1., std::hypot(d.height, slope));
+  const double axial_speed = d.returning
+      ? 3. * std::max({std::abs(d.axial[0]), std::abs(d.axial[1] - d.axial[0]), std::abs(d.height - d.axial[1])})
+      : d.height;
+  const double v_scale = std::max(1., std::hypot(axial_speed, slope));
   const auto u0 = wall.FirstUParameter(), u1 = wall.LastUParameter();
   const auto full_span = [](double a, double b, double low, double high, double scale) {
     return std::max(std::abs(std::min(a, b) - low), std::abs(std::max(a, b) - high)) * scale <=
@@ -362,7 +412,7 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
     if (std::abs(seam_radial.Dot(axis)) * max_radius > revolution_precision)
       throw invalid;
     for (size_t i = 0; i < poles.size(); ++i)
-      if (revolution_center(d, meridian.parameter(i))
+      if (revolution_pole_center(d, i, meridian.parameter(i))
               .Translated(seam_radial * radius_control(d, i))
               .Distance(seam.points[i]) > revolution_precision)
         throw invalid;
@@ -374,6 +424,8 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
 
 TopoDS_Solid build_smooth_revolution(const SmoothRevolutionData &d, const size_t *caps, const size_t *wall,
                                      FaceLabels *labels) {
+  if (d.returning && !bounded_axial_return(d))
+    throw CadFailure{invalid_solid, "La méridienne ne prouve pas une sous-coupe simple entre ses deux disques."};
   const gp_Vec radial(gp_Ax2(point_at(d.origin, 0), direction(d.axis)).XDirection());
   TColgp_Array1OfPnt poles(1, d.knot ? 6 : 4);
   Handle(Geom_Curve) curve;
@@ -396,7 +448,7 @@ TopoDS_Solid build_smooth_revolution(const SmoothRevolutionData &d, const size_t
     curve = new Geom_BSplineCurve(poles, knots, mult, 3);
   } else {
     for (int i = 0; i < 4; ++i)
-      poles(i + 1) = revolution_center(d, i / 3.).Translated(radial * d.radii[i]);
+      poles(i + 1) = revolution_pole_center(d, i, i / 3.).Translated(radial * d.radii[i]);
     curve = new Geom_BezierCurve(poles);
   }
   const auto bottom = revolution_center(d, 0), top = revolution_center(d, 1);

@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 110** (21 %)
+**Avancement : 23 livrés sur 111** (21 %)
 
 ## Restant à faire
 
@@ -98,7 +98,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Un profil lisse cubique borné, deux disques source et un tour complet ; preuve continue, STEP contrôlé et famille Révolution explicite.
 43. **[R-080 Qualifier les 231 584 plans restants de Flansch](roadmap/items/R-080-qualifier-les-231-584-plans-restants-de-flansch.md)** · À tester · jalon post-v1
    Après les quatre grandes zones reconstruites, Flansch conserve 231 584 faces planes et 24 surfaces analytiques. Identifier les zones encore facettisées et leurs familles possibles avant toute nouvelle extension ou proposition de plafond ; la validation native dense reste un obstacle séparé.
-44. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · En cours · jalon post-v1
+44. **[R-033 C2 — profils de révolution courbes](roadmap/items/R-033-c2-profils-de-revolution-courbes.md)** · À tester · jalon post-v1
    Profils toriques, méridiennes cubiques mono- ou bi-travée, pointe axiale et premier domaine sur tessellation irrégulière.
 45. **[R-034 D — congés partiels constants](roadmap/items/R-034-d-conges-partiels-constants.md)** · À tester · jalon post-v1
    Congés constants de fond de poche avec butées, coins, U ou circuit fermé.
@@ -186,6 +186,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Reconstruire deux congés à rayon affine portés par deux arêtes disjointes non parallèles du même bloc.
 87. **[R-110 Quatre congés reliés autour du fond d’une poche](roadmap/items/R-110-quatre-conges-relies-autour-du-fond-d-une-poche.md)** · À tester · jalon post-v1
    Reconstituer le circuit fermé de quatre cylindres autour d’un fond rectangulaire mesuré.
+88. **[R-111 C2 — méridiennes cubiques à retour axial](roadmap/items/R-111-c2-meridiennes-cubiques-a-retour-axial.md)** · À tester · jalon post-v1
+   Reconnaître un retour axial sur un profil de rayon monotone et conserver les deux disques mesurés.
 
 ## Actions à faire
 
@@ -293,6 +295,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-115](roadmap/actions/A-115-verifier-les-trous-obliques-decales-dans-fusion.md) Vérifier les trous obliques décalés dans Fusion (tester, R-108)
 - [ ] [A-116](roadmap/actions/A-116-essayer-les-deux-orientations-des-conges.md) Essayer les deux orientations des congés variables sur arêtes gauches (tester, R-109)
 - [ ] [A-117](roadmap/actions/A-117-inspecter-le-circuit-ferme-de-quatre-conges-dans.md) Inspecter le circuit fermé de quatre congés dans Fusion (tester, R-110)
+- [ ] [A-118](roadmap/actions/A-118-verifier-un-retour-axial-dans-fusion.md) Vérifier un retour axial dans Fusion (tester, R-111)
 
 ## Livré
 

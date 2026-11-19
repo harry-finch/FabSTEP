@@ -266,6 +266,8 @@ struct NativeSmoothRevolution {
     radii: [f64; 4],
     knot: f64,
     next_radii: [f64; 3],
+    axial: [f64; 2],
+    returning: i32,
 }
 
 #[repr(C)]
@@ -1824,6 +1826,12 @@ fn build_smooth_revolution(
             (span.start_fraction, span.next_radii_mm)
         }
     };
+    let axial = f.axial_controls_mm.unwrap_or([0.; 2]);
+    if f.axial_controls_mm.is_some()
+        && (knot != 0. || pole != 0 || axial.iter().any(|x| !x.is_finite()))
+    {
+        return Err(invalid());
+    }
     let radii = || {
         f.radii_mm.iter().copied().chain(
             f.second_span
@@ -1836,6 +1844,7 @@ fn build_smooth_revolution(
         .into_iter()
         .chain(radii())
         .chain([f.height_mm])
+        .chain(axial)
         .map(f64::abs)
         .fold(1., f64::max);
     let roundoff = 512. * f64::EPSILON * scale;
@@ -1859,7 +1868,10 @@ fn build_smooth_revolution(
     {
         return Err(invalid());
     }
-    let feature_extent = radii().fold(f.height_mm, f64::max).max(1.);
+    let feature_extent = radii()
+        .chain(axial.map(f64::abs))
+        .fold(f.height_mm, f64::max)
+        .max(1.);
     let axis_norm = f.axis.iter().map(|v| v * v).sum::<f64>().sqrt();
     if (axis_norm - 1.).abs() * feature_extent > 5e-8 {
         return Err(invalid());
@@ -1910,6 +1922,8 @@ fn build_smooth_revolution(
         radii: f.radii_mm,
         knot,
         next_radii,
+        axial,
+        returning: i32::from(f.axial_controls_mm.is_some()),
     };
     native_step(|output, error, capacity| unsafe {
         fabstep_build_smooth_revolution_step(
