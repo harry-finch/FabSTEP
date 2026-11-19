@@ -5,7 +5,7 @@ resume: "Sur Flansch, le laboratoire réimporte 2 083 faces et retrouve leurs de
 statut: en-cours
 jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-18
+maj: 2026-11-19
 livree:
 ---
 
@@ -35,6 +35,4 @@ Essayer le secteur public dans FabSTEP et vérifier le solide exporté dans Fusi
 
 ## État vérifié
 
-Le domaine à plans radiaux est intégré dans Auto et Surfaces. Les essais A-084 et A-085 restent ouverts. Sur Flansch, le laboratoire réimporte une coque de 2 083 faces comprenant les trois flancs longs, les cinq chaînes de perçage, les épaulements et les dix marquages en creux. Elle inclut aussi 267 facettes raccordées au bord des cylindres longs et couvre 460 044 des 540 170 triangles du fichier.
-
-Trois nappes et trois triangles isolés, soit 80 126 triangles, restent à raccorder. Leurs 77 396 propriétaires porteraient le total à 79 479 faces. La suite porte sur les limites courbes partagées avec ces facettes, le solide entier, sa tessellation et la conversion dans l’application. Le helper actuel refuse encore Flansch à 231 608 faces. Reproduction et mesures dans V-1210.
+Le domaine à plans radiaux est intégré dans Auto et Surfaces. Les essais A-084 et A-085 restent ouverts. Sur Flansch, le laboratoire réimporte maintenant un solide fermé de 13 802 faces. Les 540 170 triangles source ont un propriétaire. La tessellation OCCT à 0,005 mm atteint 215 486 triangles. Le helper de production conserve son refus. V-1237 décrit le rejeu du solide, le témoin indépendant et les quatre contrôles de refus. La suite porte sur le maillage à bords communs et la construction directe du candidat dans le helper.
