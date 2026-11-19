@@ -1,8 +1,8 @@
 ---
 id: R-113
 titre: "Qualifier les contours obliques et les parois de révolution interrompues"
-resume: "Comparer une découpe plane de tore et une paroi cylindrique ou conique interrompue sur des solides indépendants. Prouver la courbe commune, la provenance et la fidélité avant toute extension du modèle."
-statut: en-cours
+resume: "La lèvre torique est qualifiée à deux densités. Sur trois petits STL d’arbres percés, le prototype mesure deux cylindres et produit un STEP valide à quatre faces."
+statut: a-tester
 jalon: v1.0
 cree: 2026-11-19
 maj: 2026-11-19
@@ -33,4 +33,8 @@ Attribuer chaque triangle au même propriétaire que le mailleur du solide de r�
 
 ## Vérifications de l'utilisateur
 
-Relire le bilan des deux formes et des limites de la reconstruction dans FabBoard.
+Valider la qualification de la lèvre et de l’arbre percé, et choisir la suite pour l’intégration de l’arbre dans Auto.
+
+## Résultats
+
+La lèvre torique et son plan partagent deux branches. Le banc vérifie leur couverture et leur écart sur tout le bord aux deux densités. L’arbre percé est également reconnu depuis ses seuls triangles dans le prototype. Les deux STL donnent un solide STEP valide à quatre faces et conservent tous leurs propriétaires source. Une seconde pièce de dimensions différentes passe le même contrôle. Auto produit encore des facettes sur ces témoins. L’intégration dans le bureau demande un domaine natif pour la paroi extérieure percée. Les résultats, contre-exemples et commandes figurent en V-1264.

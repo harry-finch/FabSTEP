@@ -6,7 +6,7 @@ L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée i
 
 L’ordre des lots restants reprend le document d’origine ; les priorités et dépendances exprimées dans leurs textes restent applicables. Aucun nouveau développement n’est autorisé par cette migration.
 
-Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
+Le prochain essai de Flansch aura lieu après la fin des développements de reconnaissance géométrique. Les qualifications intermédiaires utilisent de petits solides indépendants. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
 **Avancement : 102 livrés sur 121** (84 %)
 
@@ -16,8 +16,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Les 46 671 faces passent le contrôle géométrique en laboratoire. Le rejeu de Flansch est reporté après les développements de reconnaissance pour limiter la RAM.
 2. **[R-115 Récupérer les plans fragmentés par la quantification du STL](roadmap/items/R-115-recuperer-les-plans-fragmentes-par-la.md)** · À tester · jalon v1.0
    Le bloc tourné et la pièce pliée donnent respectivement six et sept faces planes en Auto. Les 96 triangles de chaque STL conservent leur attribution après relecture du STEP.
-3. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · En cours · jalon v1.0
-   Comparer une découpe plane de tore et une paroi cylindrique ou conique interrompue sur des solides indépendants. Prouver la courbe commune, la provenance et la fidélité avant toute extension du modèle.
+3. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · À tester · jalon v1.0
+   La lèvre torique est qualifiée à deux densités. Sur trois petits STL d’arbres percés, le prototype mesure deux cylindres et produit un STEP valide à quatre faces.
 4. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · Idée
    Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto.
 5. **[R-116 Estimer les normales sur copie Taubin en lecture seule](roadmap/items/R-116-estimer-les-normales-sur-copie-taubin-en-lecture.md)** · Spécifiée · jalon v1.0
@@ -54,6 +54,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 ## Actions à faire
 
 - [ ] [A-124](roadmap/actions/A-124-verifier-les-six-et-sept-faces-des-deux-stl.md) Vérifier les six et sept faces des deux STL tournés (tester, R-115)
+- [ ] [A-125](roadmap/actions/A-125-valider-les-contours-interrompus-et-la-suite-de.md) Valider les contours interrompus et la suite de l’arbre percé (valider, R-113)
 
 ## Livré
 

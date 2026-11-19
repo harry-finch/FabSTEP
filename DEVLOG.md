@@ -565,3 +565,8 @@ Le mode Planar et la sortie plane d’Auto peuvent réunir des fragments dont un
 ## 2026-11-19 — R-085, validation du corps après transfert STEP
 
 Le contrôle local de distance au tore, les raccords sur arcs courts et leur maillage à bord commun sont intégrés. Une loi de parcours corrigée sur 29 bords circulaires permet au solide entier de passer le contrôle géométrique après transfert et de conserver ses 46 671 identités. La fidélité passe dans les deux sens sur les 540 170 triangles du STL source. Le rejeu du paquet atteint toujours trente minutes au contrôle des interférences. Les témoins de régression, les résultats des contrôles indépendants et les groupes les plus coûteux sont consignés en V-1262.
+
+
+## 2026-11-19 — R-113, premiers contours interrompus
+
+Le banc retrouve tous les triangles des cinq faces d’une lèvre oblique et des quatre faces d’un arbre percé. Sur l’arbre, il découvre aussi les supports depuis le STL et réimporte le STEP de laboratoire sur deux densités et une variante dimensionnelle. Les commandes, bornes continues et limites du transfert sont dans V-1264. Les essais Flansch sont différés jusqu’à la fin des développements de reconnaissance.
