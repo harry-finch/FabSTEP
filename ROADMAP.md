@@ -13,10 +13,10 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 ## Restant à faire
 
 1. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon v1.0
-   Flansch conserve ses 46 671 faces et passe le contrôle géométrique après relecture STEP en laboratoire. Dans le paquet, le contrôle des intersections atteint encore trente minutes.
+   Les 46 671 faces passent le contrôle géométrique en laboratoire. Le rejeu de Flansch est reporté après les développements de reconnaissance pour limiter la RAM.
 2. **[R-115 Récupérer les plans fragmentés par la quantification du STL](roadmap/items/R-115-recuperer-les-plans-fragmentes-par-la.md)** · À tester · jalon v1.0
    Le bloc tourné et la pièce pliée donnent respectivement six et sept faces planes en Auto. Les 96 triangles de chaque STL conservent leur attribution après relecture du STEP.
-3. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · Idée · jalon v1.0
+3. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · En cours · jalon v1.0
    Comparer une découpe plane de tore et une paroi cylindrique ou conique interrompue sur des solides indépendants. Prouver la courbe commune, la provenance et la fidélité avant toute extension du modèle.
 4. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · Idée
    Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto.
