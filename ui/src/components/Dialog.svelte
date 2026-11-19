@@ -4,8 +4,8 @@
   // droite). Échap et le bouton fermer appellent `onclose`. Réservée aux
   // tâches qui interrompent vraiment (aide, saisie d'un essai, import) :
   // jamais pour une action courante.
-  import { X } from '@lucide/svelte';
-  import type { Snippet } from 'svelte';
+  import X from '@lucide/svelte/icons/x';
+  import { onMount, type Snippet } from 'svelte';
   import { t } from '../lib/i18n.svelte';
 
   let {
@@ -22,14 +22,26 @@
     footer?: Snippet<[{ close: () => void }]>;
   } = $props();
 
-  let dialog = $state<HTMLDialogElement>();
+  let dialog: HTMLDialogElement;
+  let previousFocus: HTMLElement | null = null;
   const uid = `dlg-${Math.random().toString(36).slice(2, 9)}`;
-  const close = () => dialog?.close();
+  const close = () => { if (dialog.open) dialog.close(); };
 
-  $effect(() => dialog?.showModal());
+  onMount(() => {
+    if (dialog.open) return;
+    if (document.activeElement instanceof HTMLElement) previousFocus = document.activeElement;
+    dialog.showModal();
+  });
+
+  function handleClose() {
+    if (previousFocus?.isConnected && document.activeElement !== previousFocus) {
+      previousFocus.focus({ preventScroll: true });
+    }
+    onclose();
+  }
 </script>
 
-<dialog bind:this={dialog} style:width={`min(${width}px, calc(100vw - 32px))`} aria-labelledby={uid} {onclose}>
+<dialog bind:this={dialog} style:width={`min(${width}px, calc(100vw - 32px))`} aria-labelledby={uid} onclose={handleClose}>
   <header>
     <h2 id={uid}>{title}</h2>
     <button class="btn quiet icon" type="button" aria-label={t('common.close')} onclick={close}><X size={16} /></button>

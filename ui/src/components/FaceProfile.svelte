@@ -1,6 +1,6 @@
 <script lang="ts">
   // Profil 2D contextuel : courbes natives, repère explicite, export du seul résultat courant.
-  import { Download } from '@lucide/svelte';
+  import Download from '@lucide/svelte/icons/download';
   import ProfilePreview from './ProfilePreview.svelte';
   import { i18n, t, type Key } from '../lib/i18n.svelte';
   import type { FaceProfileState } from '../lib/face-profile';

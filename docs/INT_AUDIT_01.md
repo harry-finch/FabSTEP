@@ -143,14 +143,14 @@ Rapport local `docs/audit-neon.md`, SHA-256 `3b6819c6683f2d29b9d8c902f50988fbcf1
 | 004 | NEEDS_DECISION | P1 | .11 | BLOCKED | Le rapport dense contient mesh/model, et le superviseur charge sa représentation JSON. Le supprimer touche les consommateurs et le protocole. Arbitrage A-119 avant sérialisation compacte. |
 | 005 | ADAPTED | P2 | .9 | IN_PROGRESS | Préparation de coupe mono-corps et ressoudage mesurables. La topologie partagée, le remplacement des tables ordonnées, les grilles et le retrait du clone de rollback demandent une preuve distincte de parité et de gain. |
 | 006 | NEEDS_DECISION | P1 | .12 | BLOCKED | Le build de développement embarque le helper, le script de release v1 inventorie uniquement le bureau. A-120 porte sur la prochaine archive et la vérification rétrospective. |
-| 007 | ADAPTED | P2 | .10 | IN_PROGRESS | Tableaux immuables, conversion directe des positions et rectangle de peinture partagé. Un nouveau BVH demande une mesure de latence WebKit, de mémoire et de fidélité du picking. |
+| 007 | ADAPTED | P2 | .10 | DONE | Tableaux immuables, conversion directe des positions et rectangle de peinture partagé. Un nouveau BVH demande une mesure de latence WebKit, de mémoire et de fidélité du picking. |
 | 008 | ADAPTED | P1 | .8 | DONE | Mesurer le flux STEP emprunté et limiter les adaptateurs non restreints aux usages compatibles. La détection des coutures toriques exige encore les bornes UV de la face. |
 | 009 | ADAPTED | P2 | .9 | IN_PROGRESS | Mesurer l’index et les distances avec maxima, échantillons et budgets identiques. Tri, SAH, pile, normales et hachage s’évaluent indépendamment, aucune accélération présumée. |
 | 010 | ACCEPTED | P1 | .7 | DONE | Écriture et sync sous mutex. Deux contrôles de fraîcheur encadrent la préparation et le renommage reste sérialisé avec l’invalidation. |
 | 011 | ADAPTED | P2 | .7 | DONE | Snapshots de progression transitoires. Les octets STEP, rapports et fins de job nécessitent encore leur sync. Recherche multi-réglages et provenance à mesurer séparément, les réglages peuvent modifier soudage et composants. |
 | 012 | DEFERRED | P2 | .9 | DEFERRED | Mesurer les intersections de sections indépendamment de la projection des paires candidates. Une réécriture des preuves partielles exige un gain sur un modèle concerné et la parité des refus. |
-| 013 | ADAPTED | P2 | .10 | IN_PROGRESS | Peinture et Échap, décimales pendant l’édition et export frais, focus et identité du nouvel aperçu. Préserver précision et annuler/rétablir. |
-| 014 | ADAPTED | P3 | .10 | IN_PROGRESS | Mesurer les imports ciblés d’icônes. Garder la couverture Unicode des noms de fichiers. Chunks séparés à considérer après mesure du démarrage. |
+| 013 | ADAPTED | P2 | .10 | DONE | Peinture et Échap, décimales pendant l’édition et export frais, focus et identité du nouvel aperçu. Préserver précision et annuler/rétablir. |
+| 014 | ADAPTED | P3 | .10 | DONE | Mesurer les imports ciblés d’icônes. Garder la couverture Unicode des noms de fichiers. Chunks séparés à considérer après mesure du démarrage. |
 | 015 | ADAPTED | P2 | .6 | DONE | La limite existante n’acceptait pas un STL tronqué comme succès. Diagnostiquer la taille avant parse pour les deux formats et refuser tôt une sortie occupée tout en conservant la publication atomique. |
 | 016 | ADAPTED | P2/P3 | .6–.8, .10 | IN_PROGRESS | Fetch du verrou worker, publication de l’archive source, gardes ABI et relecture du type de fichier ouvert. Un lien de helper local n’authentifie pas son éditeur ; conserver le contrat développeur. Découpage C++/App, MSVC, NDEBUG et retrait de composants à reprendre selon un coût mesuré ou une cible Windows active. Corriger les repères documentaires vérifiés. |
 
@@ -187,3 +187,9 @@ La tessellation lit les octets STEP empruntés. Les chemins qui inspectent le su
 | Flansch expérimental déjà construit, 130 701 976 octets, un passage par version | 18,86 → 17,99 s | 3 162 832 896 → 2 899 460 096 octets |
 
 Pour Flansch, échantillonnage 100 ms, 175 415 sommets, 98 576 triangles. Le délai total de reconstruction depuis le STL reste ouvert dans R-085. Preuves locales dans `artifacts/neon-cad/`.
+
+### .10 — Sélection, tolérances et construction de l’interface · DONE / PASS
+
+AUD-007, 013 et 014. Les maillages reçus sont immuables dans Svelte. La peinture partage le rectangle de la vue entre les échantillons, Échap annule le geste et préserve la sélection. Un nouvel aperçu remplace ses géométries à révision source identique. Les tolérances conservent la précision décimale en FR/EN et s’appliquent sur Entrée ou à la sortie du champ. Le dialogue d’aide restitue le focus. Les imports d’icônes sont ciblés. La liste des polices reste complète.
+
+Sur une grille de 100 000 triangles (médiane de 25 passages, Node sur M4), préparation des positions 16,50 → 1,22 ms et des contours 31,84 → 13,58 ms, coordonnées identiques. Ces mesures isolent la préparation des données. Build Vite local 4 262 → 226 modules, 1,18 s → 0,465 s sur le passage comparatif. Module principal 876,08 ko, 236,75 ko gzip, avertissement de taille toujours présent. 240 tests UI réussis et Svelte 0 erreur, 0 avertissement. Un parcours Chrome/WebGL avec pont Tauri simulé couvre peinture/Échap, tolérances FR/EN, focus, invalidation à l’export, nouvel aperçu et historique.

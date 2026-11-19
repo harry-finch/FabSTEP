@@ -1,6 +1,6 @@
 <script lang="ts">
   // Ligne de divulgation discrète (« ▸ Avancé ») ; l'état est mémorisé.
-  import { ChevronRight } from '@lucide/svelte';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import type { Snippet } from 'svelte';
   import { storageKey } from '../lib/app';
 

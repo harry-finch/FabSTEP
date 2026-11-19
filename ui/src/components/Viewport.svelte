@@ -16,7 +16,8 @@
   import { FacePaintStroke } from '../lib/face-paint';
   import { FaceClickSequence } from '../lib/region-selection';
   import { pickVisibleStepFace, pickVisibleSourceTriangle } from '../lib/source-picking';
-  let { sectionPlane,sectionBounds,sectionMode,onsectiontransform,onsectiondrag,stepDisplay, bytes, results, preview, format, fitSignal, showEdges, unit, sourceRevision, selectionMode, zone, onpick, onmiss, stepPreview, stepTriangles, onfacepick, onfaceregion, onfacepaint, sourceHighlights }: {sectionPlane:ProfileFrame|null;sectionBounds:number[][]|null;sectionMode:SectionManipulationMode|null;onsectiontransform:(frame:ProfileFrame)=>void;onsectiondrag:(active:boolean,cancelled?:boolean)=>void; stepDisplay:StepDisplay|null; sourceHighlights:{ previewBodyId:string; triangles:number[] }[]|null; stepPreview:ResultFaces|null; stepTriangles:number[]; onfacepick:(face:number, additive:boolean)=>void; onfaceregion:(face:number)=>void; onfacepaint:(faces:number[])=>void; sourceRevision:number; selectionMode:boolean; zone:SourceZone | null; onpick:(bodyId:string, triangle:number) => void; onmiss:()=>void; unit: 'mm' | 'inch'; bytes: Uint8Array | null; results: BodyResult[]; preview: DocumentPreview | null; format: 'stl'|'3mf'; fitSignal: number; showEdges: boolean } = $props();
+  import { appendPatchBoundaries, trianglePositions } from '../lib/mesh-display';
+  let { label,sectionPlane,sectionBounds,sectionMode,onsectiontransform,onsectiondrag,stepDisplay, bytes, results, preview, format, fitSignal, showEdges, unit, sourceRevision, selectionMode, zone, onpick, onmiss, stepPreview, stepTriangles, onfacepick, onfaceregion, onfacepaint, sourceHighlights }: {label:string|null;sectionPlane:ProfileFrame|null;sectionBounds:number[][]|null;sectionMode:SectionManipulationMode|null;onsectiontransform:(frame:ProfileFrame)=>void;onsectiondrag:(active:boolean,cancelled?:boolean)=>void; stepDisplay:StepDisplay|null; sourceHighlights:{ previewBodyId:string; triangles:number[] }[]|null; stepPreview:ResultFaces|null; stepTriangles:number[]; onfacepick:(face:number, additive:boolean)=>void; onfaceregion:(face:number)=>void; onfacepaint:(faces:number[])=>void; sourceRevision:number; selectionMode:boolean; zone:SourceZone | null; onpick:(bodyId:string, triangle:number) => void; onmiss:()=>void; unit: 'mm' | 'inch'; bytes: Uint8Array | null; results: BodyResult[]; preview: DocumentPreview | null; format: 'stl'|'3mf'; fitSignal: number; showEdges: boolean } = $props();
   let host: HTMLDivElement;
   let rebuild = () => {}; let rebuildEdges = () => {}; let rebuildSection = () => {};let updateSectionControls=()=>{};let updatePicking=()=>{};let highlight = () => {}; let recolor = () => {}; let fit = () => {};
   onMount(() => {
@@ -39,7 +40,7 @@
     let sectionGroup=new THREE.Group();scene.add(sectionGroup);
     const overlay = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ transparent:true, opacity:0.65, side:THREE.DoubleSide, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-2 })); scene.add(overlay);
     const meshes = new Map<string, THREE.Mesh>();
-    let renderedRevision = -1, renderedNative = false, renderedStep:ResultFaces|null = null;
+    let renderedRevision = -1, renderedBodies: DocumentPreview['bodies'] | null = null, renderedStep:ResultFaces|null = null;
     let renderedBytes:Uint8Array|null=null, renderedUnit=unit, renderedFormat=format;
     let rawGeneration=0, denseRaw=false;
     let rawPreview:ReturnType<typeof createStlPreviewWorker>|null=null;
@@ -75,15 +76,19 @@
     renderer.domElement.addEventListener('pointerdown',claimManipulation,true);for(const type of ['pointermove','pointerup','pointercancel'])renderer.domElement.addEventListener(type,guardOtherPointer as EventListener,true);renderer.domElement.addEventListener('lostpointercapture',lostCapture);window.addEventListener('keydown',cancelTransformKey,true);
     const clicks = new FaceClickSequence();
     const paint=new FacePaintStroke();let paintFrame=0,paintDocument:ResultFaces|null=null;
-    function hitFace(x:number,y:number){
-      const rect=renderer.domElement.getBoundingClientRect();
-      if(!rect.width||!rect.height||x<rect.left||x>rect.right||y<rect.top||y>rect.bottom)return null;
-      return pickVisibleStepFace(raycaster,[...meshes.values()],new THREE.Vector2((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1),camera);
-    }
+    const paintPointer = new THREE.Vector2();
     function flushPaint(){
       if(paintFrame){cancelAnimationFrame(paintFrame);paintFrame=0;}
       if(paintDocument!==stepPreview||!selectionMode||sectionMode){finishPaint(false);return;}
-      const faces=paint.sample(hitFace);if(faces.length)onfacepaint(faces);
+      const rect = renderer.domElement.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const targets = [...meshes.values()];
+      const faces = paint.sample((x, y) => {
+        if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return null;
+        paintPointer.set((x - rect.left) / rect.width * 2 - 1, -(y - rect.top) / rect.height * 2 + 1);
+        return pickVisibleStepFace(raycaster, targets, paintPointer, camera);
+      });
+      if (faces.length) onfacepaint(faces);
     }
     function finishPaint(flush:boolean){
       if(flush)flushPaint();
@@ -108,7 +113,7 @@
       controls.mouseButtons.RIGHT=selecting?THREE.MOUSE.ROTATE:THREE.MOUSE.PAN;
       controls.mouseButtons.MIDDLE=selecting?THREE.MOUSE.PAN:THREE.MOUSE.DOLLY;
     };
-    const cancelPaintKey=(e:KeyboardEvent)=>{if(e.key==='Escape'&&paint.pointer!==null){e.preventDefault();finishPaint(false);gesture.cancel();clicks.clear();}};
+    const cancelPaintKey=(e:KeyboardEvent)=>{if(e.key==='Escape'&&paint.pointer!==null){e.preventDefault();e.stopImmediatePropagation();finishPaint(false);gesture.cancel();clicks.clear();}};
     window.addEventListener('keydown',cancelPaintKey,true);
     renderer.domElement.addEventListener('pointerdown',paintDown,true);
     renderer.domElement.addEventListener('lostpointercapture',paintLost);
@@ -201,13 +206,14 @@
       overlay.geometry.computeBoundingSphere(); draw();
     };
     rebuild = () => {
-      // Les résultats et changements de sélection ne reconstruisent jamais les meshes source.
-      if (renderedRevision === sourceRevision && renderedNative === !!preview && renderedStep === stepPreview && renderedBytes === bytes && renderedUnit === unit && renderedFormat === format) return;
+      // Le guidage peut changer la requête de l’aperçu sans remplacer ses corps.
+      const bodies = preview?.bodies ?? null;
+      if (renderedRevision === sourceRevision && renderedBodies === bodies && renderedStep === stepPreview && renderedBytes === bytes && renderedUnit === unit && renderedFormat === format) return;
       const shouldFit = renderedRevision !== sourceRevision || !meshes.size;
       const generation=++rawGeneration;rawPreview?.clear();
       renderedBytes=bytes;renderedUnit=unit;renderedFormat=format;
       denseRaw=!stepPreview&&!preview&&!!bytes&&largeStlTriangles(bytes,format)!==null;
-      renderedRevision = sourceRevision; renderedNative = !!preview; renderedStep = stepPreview; finishPaint(false);gesture.cancel();clicks.clear();
+      renderedRevision = sourceRevision; renderedBodies = bodies; renderedStep = stepPreview; finishPaint(false);gesture.cancel();clicks.clear();
       scene.remove(group); disposeGroup(group); group = new THREE.Group(); scene.add(group); meshes.clear();
       const addMesh = (id:string, geometry:THREE.BufferGeometry, sourceTriangles?:Uint32Array) => {
         if(!sourceTriangles)geometry.computeVertexNormals();
@@ -217,12 +223,20 @@
         meshes.set(id,mesh); group.add(mesh);
       };
       if (stepPreview) {
-        const positions = stepPreview.mesh.triangles.flatMap(triangle => triangle.flatMap(index => stepPreview!.mesh.vertices[index]));
-        const geo = new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3)); addMesh('step',geo);
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(trianglePositions(stepPreview.mesh), 3));
+        addMesh('step', geometry);
         const owners = new Uint32Array(stepPreview.mesh.triangles.length);
         for (const face of stepPreview.faces) owners.fill(face.id,face.triangle_start,face.triangle_start+face.triangle_count);
         meshes.get('step')!.userData.stepFaces = owners;
-      } else if (preview) { for (const body of preview.bodies) { const positions = body.mesh.triangles.flatMap(triangle => triangle.flatMap(index => body.mesh.vertices[index] ?? [])); if (positions.length) { const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); addMesh(body.id,geo); } } }
+      } else if (bodies) {
+        for (const body of bodies) {
+          if (!body.mesh.triangles.length) continue;
+          const geometry = new THREE.BufferGeometry();
+          geometry.setAttribute('position', new THREE.BufferAttribute(trianglePositions(body.mesh), 3));
+          addMesh(body.id, geometry);
+        }
+      }
       else if (bytes && format === 'stl') {
         if(denseRaw) {
           if(!rawPreview) {
@@ -256,21 +270,7 @@
         for (const result of results) {
         const patchOwners = result.rounded_box_recognition?.triangle_faces ?? result.height_patch_recognition?.triangle_faces;
         if (patchOwners) {
-          // Show the source edges shared by distinct proven surface patches.
-          const mesh = result.analysis.mesh;
-          const edges = new Map<string, { owner:string; a:number; b:number }>();
-          mesh.triangles.forEach((triangle, index) => {
-            const owner = JSON.stringify(patchOwners[index]);
-            for (let i = 0; i < 3; i++) {
-              const a = triangle[i], b = triangle[(i + 1) % 3];
-              const key = a < b ? `${a}:${b}` : `${b}:${a}`;
-              const previous = edges.get(key);
-              if (previous) {
-                if (previous.owner !== owner) points.push(...mesh.vertices[a], ...mesh.vertices[b]);
-                edges.delete(key);
-              } else { edges.set(key, { owner, a, b }); }
-            }
-          });
+          appendPatchBoundaries(result.analysis.mesh, patchOwners, points);
         } else if (result.rounded_recognition || result.revolved_recognition || result.mixed_recognition) {
           const model = result.rounded_recognition?.model.revolved.mixed ?? result.revolved_recognition?.model.mixed ?? result.mixed_recognition!.model;
           for (const plane of model.planes) for (const loop of plane.loops) {
@@ -343,5 +343,5 @@
   $effect(() => { void fitSignal; fit(); });
   $effect(()=>{void selectionMode;void stepPreview;void sourceRevision;void sectionMode;updatePicking();});
 </script>
-<div class="viewport" class:selecting={selectionMode&&!sectionMode} bind:this={host}></div>
+<div role="img" aria-label={label ?? undefined} aria-hidden={!label} class="viewport" class:selecting={selectionMode&&!sectionMode} bind:this={host}></div>
 <style>.viewport { position:absolute; inset:0; overflow:hidden; } .viewport.selecting :global(canvas) { cursor:crosshair; } .viewport :global(canvas) { display:block; width:100%; height:100%; }</style>

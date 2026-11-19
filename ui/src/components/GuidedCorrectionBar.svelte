@@ -1,7 +1,7 @@
 <script lang="ts">
   // Correction contextuelle près du modèle ; seules les familles natives prises
   // en charge sont proposées. La préparation remplace explicitement le résultat.
-  import { X } from '@lucide/svelte';
+  import X from '@lucide/svelte/icons/x';
   import Segmented from './Segmented.svelte';
   import { t } from '../lib/i18n.svelte';
   import type { GuidedFamily } from '../lib/types';

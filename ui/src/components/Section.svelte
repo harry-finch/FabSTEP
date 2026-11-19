@@ -1,7 +1,7 @@
 <script lang="ts">
   // Section repliable d'un panneau : titre discret en petites capitales,
   // numéro d'étape optionnel, actions à droite. L'état ouvert est mémorisé.
-  import { ChevronRight } from '@lucide/svelte';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import type { Snippet } from 'svelte';
   import { storageKey } from '../lib/app';
   import { ContextReveal } from '../lib/context-reveal';

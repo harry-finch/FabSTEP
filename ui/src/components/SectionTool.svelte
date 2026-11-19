@@ -1,6 +1,10 @@
 <script lang="ts">
   // Section du STEP : réglages contextuels, solides explicites et aperçu fermé sans découper le document.
-  import {Download,Move,RotateCw,RotateCcw,X} from '@lucide/svelte';
+  import Download from '@lucide/svelte/icons/download';
+  import Move from '@lucide/svelte/icons/move';
+  import RotateCw from '@lucide/svelte/icons/rotate-cw';
+  import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+  import X from '@lucide/svelte/icons/x';
   import Section from './Section.svelte';
   import Disclosure from './Disclosure.svelte';
   import NumField from './NumField.svelte';

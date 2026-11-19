@@ -1,6 +1,7 @@
 <script lang="ts">
   // Source démontrée de la sélection STEP ; les faces natives restent sélectionnées au retour.
-  import { ArrowLeft, X } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import X from '@lucide/svelte/icons/x';
   import Section from './Section.svelte';
   import Disclosure from './Disclosure.svelte';
   import { t } from '../lib/i18n.svelte';

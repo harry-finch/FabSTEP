@@ -1,6 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CircleHelp, Download, FileUp, Focus, Monitor, Moon, MousePointer2, Scissors, Sun, TriangleAlert } from '@lucide/svelte';
+  import CircleHelp from '@lucide/svelte/icons/circle-help';
+  import Download from '@lucide/svelte/icons/download';
+  import FileUp from '@lucide/svelte/icons/file-up';
+  import Focus from '@lucide/svelte/icons/focus';
+  import Monitor from '@lucide/svelte/icons/monitor';
+  import Moon from '@lucide/svelte/icons/moon';
+  import MousePointer2 from '@lucide/svelte/icons/mouse-pointer-2';
+  import Scissors from '@lucide/svelte/icons/scissors';
+  import Sun from '@lucide/svelte/icons/sun';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import ParameterSearch from './components/ParameterSearch.svelte';
   import { ParameterSearchReplies, proposedTolerance, type SearchToken, type ParameterSearchResponse } from './lib/parameter-search';
   import Section from './components/Section.svelte';
@@ -9,6 +18,7 @@
   import ProcessingIndicator from './components/ProcessingIndicator.svelte';
   import { watchConversionProgress, type ConversionProgress } from './lib/conversion-progress';
   import Dialog from './components/Dialog.svelte';
+  import NumField from './components/NumField.svelte';
   import SourceInspection from './components/SourceInspection.svelte';
   import StepInspection from './components/StepInspection.svelte';
   import GuidedCorrectionBar from './components/GuidedCorrectionBar.svelte';
@@ -34,7 +44,7 @@
   import {cloneSectionFrame,cloneSectionInput,localSectionFrame,offsetSectionFrame,transformedSectionInput,type SectionManipulationMode} from './lib/section-manipulation';
   import packageInfo from '../package.json';
   import { theme } from './lib/theme.svelte';
-  import { i18n, t, type Key } from './lib/i18n.svelte';
+  import { i18n, LOCALES, t, type Key } from './lib/i18n.svelte';
   import type { Options, Result, DocumentPreview, BodyResult, SelectionTopology, ResultFaces, GuidedFamily, GuidedReport } from './lib/types';
   const initial: Options = { input_unit:'mm', weld_tolerance_mm:0.000001, plane_tolerance_mm:0.000001, reconstruction:'auto', cylinder_fit_tolerance_mm:0.00001, max_deviation_mm:0.05 };
   let options = $state<Options>({ ...initial });
@@ -43,7 +53,7 @@
     return { ...value, weld_tolerance_mm:positiveOr(value.weld_tolerance_mm, initial.weld_tolerance_mm), plane_tolerance_mm:positiveOr(value.plane_tolerance_mm, initial.plane_tolerance_mm), cylinder_fit_tolerance_mm:positiveOr(value.cylinder_fit_tolerance_mm, initial.cylinder_fit_tolerance_mm), max_deviation_mm:positiveOr(value.max_deviation_mm, initial.max_deviation_mm) };
   }
   try { options = restoreOptions(initial,localStorage.getItem('fabstep.options.v2'),localStorage.getItem('fabstep.options.v1')); } catch { /* stockage optionnel */ }
-  let bytes = $state<Uint8Array | null>(null), name = $state(''), result = $state<Result | null>(null), preview = $state<DocumentPreview | null>(null);
+  let bytes = $state.raw<Uint8Array | null>(null), name = $state(''), result = $state.raw<Result | null>(null), preview = $state.raw<DocumentPreview | null>(null);
   let errorState = $state<{ kind: 'key'; key: Key } | { kind: 'native'; value: unknown } | null>(null);
   const error = $derived.by(() => { void i18n.locale; return errorState ? (errorState.kind === 'key' ? t(errorState.key) : errorText(errorState.value)) : ''; });
   let format = $state<'stl'|'3mf'>('stl'), selectedId = $state('');
@@ -58,7 +68,7 @@
   let input: HTMLInputElement; let current = $state(Date.now() * 1000); let fileToken = 0, queued = false; let history: Options[] = [], future: Options[] = [];
   let sourceId: number | null = null, uploadedSourceId: number | null = null;
   // L'identité géométrique source reste indépendante des requêtes de conversion.
-  let sourceRevision = $state(0), selectionMode = $state(false), sourceZone = $state<SourceZone|null>(null);
+  let sourceRevision = $state(0), selectionMode = $state(false), sourceZone = $state.raw<SourceZone|null>(null);
   let zoneInspection = $state<ZoneInspection|null>(null), topologyState = $state<'pending'|'ready'|'unavailable'>('unavailable'), hasMore = $state(true);
   const selectionReplies = new SelectionReplies();
   let selectionWorker:Worker|null = null, ringSession = false;
@@ -98,8 +108,8 @@
       selectionWorker.postMessage({ type:'prepare', token:selectionReplies.next(id), topology, bodyCounts:Object.fromEntries(doc.bodies.map(body => [body.id,body.mesh.triangles.length])) });
     } catch { if (id === current && sourceId === key && revision === sourceRevision) { topologyState = 'unavailable'; zoneInspection = null; } }
   }
-  let stepDisplay = $state<StepDisplay|null>(null);
-  let stepView = $state(false), stepDocument = $state<ResultFaces|null>(null), stepSelection = $state<StepSelection|null>(null);
+  let stepDisplay = $state.raw<StepDisplay|null>(null);
+  let stepView = $state(false), stepDocument = $state.raw<ResultFaces|null>(null), stepSelection = $state.raw<StepSelection|null>(null);
   let stepPending = $state(false), stepUnavailable = $state(false), mappedSource = $state(false);
   let stepSelectionPending = $state(false);
   let regionError = $state<string|null>(null);
@@ -426,9 +436,19 @@
     const unitChanged = patch.input_unit !== undefined && patch.input_unit !== options.input_unit;
     options = { ...options, ...patch }; commitOptions(); invalidate(!unitChanged);
   }
-  function editNumber(patch: Partial<Options>) { options = { ...options, ...patch }; invalidate(true); }
-  function finishNumber(e: FocusEvent | KeyboardEvent) {
-    if (e instanceof KeyboardEvent) { if (e.key !== 'Enter') return; e.preventDefault(); (e.currentTarget as HTMLInputElement).blur(); return; }
+  type Tolerance = 'weld_tolerance_mm' | 'plane_tolerance_mm' | 'cylinder_fit_tolerance_mm' | 'max_deviation_mm';
+  let scrubbedTolerance: Tolerance | null = null;
+  function changeTolerance(field: Tolerance, value: number) {
+    if (value === options[field]) return;
+    if (field === scrubbedTolerance) {
+      options = { ...options, [field]: value };
+      invalidate(true);
+    } else {
+      change({ [field]: value });
+    }
+  }
+  function finishToleranceScrub() {
+    scrubbedTolerance = null;
     commitOptions();
   }
   function saveOptions() { if (!validPreferences(committed)) return; try { localStorage.setItem('fabstep.options.v2', JSON.stringify(committed)); } catch { /* optionnel */ } }
@@ -519,9 +539,9 @@
     <span class="filename" title={name || t('workspace.noFile')}>{name || t('workspace.noFile')}</span>
     <div class="spacer"></div>
     <div class="switch" role="group" aria-label={t('workspace.language')}>
-      {#each ['fr','en'] as lang}
-        <button aria-pressed={i18n.locale === lang} class:active={i18n.locale === lang} onclick={() => i18n.set(lang as 'fr'|'en')}>
-          {lang.toUpperCase()}
+      {#each LOCALES as { id, label }}
+        <button lang={id} aria-label={label} aria-pressed={i18n.locale === id} class:active={i18n.locale === id} onclick={() => i18n.set(id)}>
+          {id.toUpperCase()}
         </button>
       {/each}
     </div>
@@ -543,7 +563,10 @@
       class="btn quiet icon"
       title={t('workspace.helpTitle')}
       aria-label={t('workspace.helpTitle')}
-      onclick={() => showHelp = true}
+      onclick={(event) => {
+        event.currentTarget.focus({ preventScroll: true });
+        showHelp = true;
+      }}
     >
       <CircleHelp size={16}/>
     </button>
@@ -626,6 +649,7 @@
       {/if}
       <div class="canvas">
         <Viewport
+          label={bytes && (format === 'stl' || preview) ? (stepView ? t('stepInspection.preview') : t('workspace.preview')) : null}
           stepDisplay={stepView ? stepDisplay : null}
           sectionPlane={sectionActive?sectionDisplayFrame:null}
           {sectionBounds}
@@ -869,87 +893,15 @@
             </select>
           </label>
           <p class="muted">{options.reconstruction === 'auto' ? t('workspace.autoIntent') : options.reconstruction === 'height_patch' ? t('workspace.heightPatchIntent') : t('workspace.manualIntent')}</p>
-          <label class="property numeric-property" title={t('workspace.weldHint')}>
-            <span>
-              {t('workspace.weld')}
-              <span class="hint">ⓘ</span>
-            </span>
-            <span class="number">
-              <input
-                class="input"
-                type="number"
-                min="0"
-                step="any"
-                value={options.weld_tolerance_mm}
-                aria-invalid={!Number.isFinite(options.weld_tolerance_mm) || options.weld_tolerance_mm <= 0}
-                oninput={(e) => editNumber({ weld_tolerance_mm:e.currentTarget.valueAsNumber })}
-                onblur={finishNumber}
-                onkeydown={finishNumber}
-              />
-              <span>mm</span>
-            </span>
-          </label>
-          <label class="property numeric-property" title={t('workspace.planeHint')}>
-            <span>
-              {t('workspace.plane')}
-              <span class="hint">ⓘ</span>
-            </span>
-            <span class="number">
-              <input
-                class="input"
-                type="number"
-                min="0"
-                step="any"
-                value={options.plane_tolerance_mm}
-                aria-invalid={!Number.isFinite(options.plane_tolerance_mm) || options.plane_tolerance_mm <= 0}
-                oninput={(e) => editNumber({ plane_tolerance_mm:e.currentTarget.valueAsNumber })}
-                onblur={finishNumber}
-                onkeydown={finishNumber}
-              />
-              <span>mm</span>
-            </span>
-          </label>
+          {@render toleranceField('weld_tolerance_mm', 'workspace.weld', 'workspace.weldHint', 0.000001)}
+          {@render toleranceField('plane_tolerance_mm', 'workspace.plane', 'workspace.planeHint', 0.000001)}
           {#if options.reconstruction !== 'planar' || stepView || !!guidedAttempt || !validPreferences(options)}
-            <label class="property numeric-property" title={t(options.reconstruction === 'height_patch' ? 'workspace.heightToleranceHint' : 'workspace.fitToleranceHint')}>
-              <span>
-                {t(options.reconstruction === 'height_patch' ? 'workspace.heightTolerance' : 'workspace.fitTolerance')}
-                <span class="hint">ⓘ</span>
-              </span>
-              <span class="number">
-                <input
-                  class="input"
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={options.cylinder_fit_tolerance_mm}
-                  aria-invalid={!Number.isFinite(options.cylinder_fit_tolerance_mm) || options.cylinder_fit_tolerance_mm <= 0}
-                  oninput={(e) => editNumber({ cylinder_fit_tolerance_mm:e.currentTarget.valueAsNumber })}
-                  onblur={finishNumber}
-                  onkeydown={finishNumber}
-                />
-                <span>mm</span>
-              </span>
-            </label>
-            <label class="property numeric-property" title={t('workspace.maxDeviationHint')}>
-              <span>
-                {t('workspace.maxDeviation')}
-                <span class="hint">ⓘ</span>
-              </span>
-              <span class="number">
-                <input
-                  class="input"
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={options.max_deviation_mm}
-                  aria-invalid={!Number.isFinite(options.max_deviation_mm) || options.max_deviation_mm <= 0}
-                  oninput={(e) => editNumber({ max_deviation_mm:e.currentTarget.valueAsNumber })}
-                  onblur={finishNumber}
-                  onkeydown={finishNumber}
-                />
-                <span>mm</span>
-              </span>
-            </label>
+            {#if options.reconstruction === 'height_patch'}
+              {@render toleranceField('cylinder_fit_tolerance_mm', 'workspace.heightTolerance', 'workspace.heightToleranceHint', 0.000001)}
+            {:else}
+              {@render toleranceField('cylinder_fit_tolerance_mm', 'workspace.fitTolerance', 'workspace.fitToleranceHint', 0.000001)}
+            {/if}
+            {@render toleranceField('max_deviation_mm', 'workspace.maxDeviation', 'workspace.maxDeviationHint', 0.01)}
             {#if options.reconstruction !== 'height_patch'}<p class="muted">{t('workspace.toleranceExplanation')}</p>{/if}
           {/if}
           <Disclosure id="reconstruction-limits" label={t('workspace.reconstructionLimits')}>
@@ -1175,6 +1127,22 @@
     <div class="drop-overlay">{t('workspace.drop')}</div>
   {/if}
 </div>
+{#snippet toleranceField(field: Tolerance, label: Key, hint: Key, step: number)}
+  <NumField
+    label={t(label)}
+    hint={t(hint)}
+    value={options[field]}
+    kind="plain"
+    unit="mm"
+    decimals="exact"
+    {step}
+    invalid={!Number.isFinite(options[field]) || options[field] <= 0}
+    onchange={(value) => changeTolerance(field, value)}
+    onbegin={() => { scrubbedTolerance = field; }}
+    onend={finishToleranceScrub}
+  />
+{/snippet}
+
 <style>
   .app {
     height: 100%;
@@ -1425,23 +1393,6 @@
   }
   .mode-property select {
     width: 100%;
-  }
-  .hint {
-    color: var(--text-muted);
-  }
-  .number {
-    display: flex;
-    flex: none;
-    align-items: center;
-    gap: var(--s1);
-    color: var(--text-muted);
-  }
-  .number input {
-    width: var(--workshop-number-width);
-    text-align: right;
-  }
-  .number input[aria-invalid="true"] {
-    border-color: var(--danger);
   }
   .muted {
     color: var(--text-muted);

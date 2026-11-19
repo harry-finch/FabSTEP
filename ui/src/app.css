@@ -235,7 +235,6 @@ a:hover {
 
 .input:focus {
   border-color: var(--accent);
-  outline: none;
 }
 
 /* Boutons : primaire / secondaire / discret. */

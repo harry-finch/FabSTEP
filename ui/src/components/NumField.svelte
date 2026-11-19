@@ -11,7 +11,8 @@
   // `onreset` (FabWeave) : quand la valeur diffère de la valeur proposée
   // (`modified`), un ↺ discret à côté du libellé y revient ; son infobulle
   // (`resetHint`) donne la valeur proposée.
-  import { Info, RotateCcw } from '@lucide/svelte';
+  import Info from '@lucide/svelte/icons/info';
+  import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import { tip } from '../lib/tip';
   import { ui } from '../lib/ui.svelte';
   import { i18n, intlLocale } from '../lib/i18n.svelte';
@@ -47,7 +48,7 @@
     /** Bornes en unités du modèle (mm, degrés…) : bornes de saisie, pas une correction cachée. */
     min?: number;
     max?: number;
-    decimals?: number;
+    decimals?: number | 'exact';
     unit?: string;
     hint?: string;
     invalid?: boolean;
@@ -68,30 +69,36 @@
   const dstep = $derived(step ?? (kind === 'count' ? 1 : inch ? 0.01 : isLen ? 0.1 : 1));
   const shownUnit = $derived(unit ?? (isLen ? lengthUnit(ui.units) : kind === 'angle' ? '°' : kind === 'percent' ? '%' : ''));
 
-  const fmt = (v: number) =>
-    new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: dec, useGrouping: false }).format(v);
+  function fmt(v: number): string {
+    if (dec === 'exact') return i18n.locale === 'fr' ? String(v).replace('.', ',') : String(v);
+    return new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: dec, useGrouping: false }).format(v);
+  }
 
   let text = $state('');
   let focused = $state(false);
+  let input: HTMLInputElement;
   $effect(() => {
     if (!focused) text = Number.isFinite(value) ? fmt(shown(value)) : '';
   });
 
   function parse(raw: string): number | undefined {
     const compact = raw.trim().replace(/\s/g, '');
-    const s = i18n.locale === 'fr' ? compact.replace(',', '.') : compact.replace(/,/g, '');
+    const s = i18n.locale === 'fr' ? compact.replace(',', '.') : dec === 'exact' ? compact : compact.replace(/,/g, '');
     if (s === '') return undefined;
+    if (dec === 'exact' && !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(s)) return undefined;
     const n = Number(s);
     return Number.isFinite(n) ? n : undefined;
   }
 
   const clampModel = (v: number) => Math.min(max, Math.max(min, v));
   const roundShown = (v: number) => {
+    if (dec === 'exact') return v;
     const k = 10 ** dec;
     return Math.round(v * k) / k;
   };
 
   function commit() {
+    if (text === fmt(shown(value))) return;
     const v = parse(text);
     if (v === undefined) {
       text = fmt(shown(value));
@@ -106,6 +113,8 @@
     const el = e.currentTarget as HTMLInputElement;
     if (e.key === 'Enter') el.blur();
     if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
       text = fmt(shown(value));
       el.blur();
     }
@@ -122,7 +131,8 @@
   // Défilement par le libellé.
   let scrub: { x: number; start: number; pointer: number } | null = null;
   function scrubStart(e: PointerEvent) {
-    if (disabled || e.button !== 0) return;
+    if (disabled || e.button !== 0 || e.isPrimary === false || scrub) return;
+    if (focused) input.blur();
     scrub = { x: e.clientX, start: shown(value), pointer: e.pointerId };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     onbegin?.();
@@ -150,6 +160,7 @@
     onpointermove={scrubMove}
     onpointerup={scrubEnd}
     onpointercancel={scrubEnd}
+    onlostpointercapture={scrubEnd}
   >
     <span class="ltext">{label}</span>
     {#if hint}
@@ -171,6 +182,7 @@
   </label>
   <input
     id={uid}
+    bind:this={input}
     aria-label={label}
     aria-invalid={invalid || undefined}
     class="input tabular"

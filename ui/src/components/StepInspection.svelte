@@ -1,6 +1,9 @@
 <script lang="ts">
   // Faces natives : sélection multiple, voisinage par arête, provenance et profil DXF.
-  import { ArrowRight, Minus, Plus, X } from '@lucide/svelte';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import Minus from '@lucide/svelte/icons/minus';
+  import Plus from '@lucide/svelte/icons/plus';
+  import X from '@lucide/svelte/icons/x';
   import Section from './Section.svelte';
   import Disclosure from './Disclosure.svelte';
   import FaceProfile from './FaceProfile.svelte';

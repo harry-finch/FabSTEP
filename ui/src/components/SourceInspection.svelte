@@ -1,6 +1,8 @@
 <script lang="ts">
   // Inspecteur source : anneaux topologiques réversibles, sans effet sur la reconstruction.
-  import { Minus, Plus, X } from '@lucide/svelte';
+  import Minus from '@lucide/svelte/icons/minus';
+  import Plus from '@lucide/svelte/icons/plus';
+  import X from '@lucide/svelte/icons/x';
   import Section from './Section.svelte';
   import Disclosure from './Disclosure.svelte';
   import { t, type Key } from '../lib/i18n.svelte';
