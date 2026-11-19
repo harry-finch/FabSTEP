@@ -2549,3 +2549,15 @@ Une occurrence de sommet de la rampe dense a été décalée de 0,000019997 mm a
 ## V-1255 — Helper optimisé dans le paquet macOS de développement
 
 Sur le même STL public de 194 694 triangles et la même version du noyau, le binaire debug du helper termine en 163,71 s et le binaire release en 85,37 s. Le calcul entre en construction après 74,67 s en debug et 4,20 s en release. Les deux rapports contiennent les mêmes 659 faces, le même volume et les mêmes distances. Le maximum du RSS et de l’empreinte physique échantillonnés vaut respectivement 457 752 576 et 460 144 640 octets. Le build du bureau conserve son profil de développement et embarque le helper release adjacent. Le worker reste compilé séparément et le superviseur applique les mêmes plafonds.
+
+### Pistes mesurées pour les interférences du gros atlas
+
+Le découpage spatial de Flansch donne 6 949 groupes à contrôler. Les bancs suivants ont servi à choisir la suite du travail.
+
+| Variante | Mesure sur le même cas | Décision |
+| --- | --- | --- |
+| Grouper les triangles coplanaires indépendants des contours toriques | 46 671 → 38 763 faces, baisse de 2,8 % de l’empreinte à la relecture, durée de 48,55 → 57,23 s | Conserver comme piste de réduction de taille |
+| Exclure les paires de triangles séparées par un axe avec marge | 351 131 paires exclues, 6 750 groupes restants. Sur les mêmes 32 groupes, 92,27 → 90,20 s | Gain trop faible pour ajouter un second contrôle en production |
+| Couvrir les portions toriques dans le repère UV | 46 125 → 29 804 paires tore/autre, 433 groupes modifiés sur 6 949. Sur neuf groupes concernés, 67,83 → 47,13 s CPU, dont 16,62 s gagnées dans un seul groupe | Poursuivre uniquement avec une mesure du contrôle entier |
+
+La priorité pour Flansch est de réduire le coût du contrôle exact des intersections arête/face et face/face sur les raccords. La reconnaissance des supports, l’écriture, la relecture géométrique, le maillage et la distance ont chacun un témoin reproductible.
