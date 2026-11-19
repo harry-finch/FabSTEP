@@ -57,9 +57,10 @@ fn supports(mesh: &Mesh, p: &Partition, tol: f64) -> Result<Supports, FabError> 
     })
 }
 
-fn same_ellipse(a: &EllipticArc, b: &EllipticArc) -> Result<(), FabError> {
-    checked(a.vertices == [b.vertices[1], b.vertices[0]])?;
-    checked(dot(a.axis, b.axis) < -1. + 1e-12)?;
+pub(super) fn same_ellipse(a: &EllipticArc, b: &EllipticArc) -> Result<(), FabError> {
+    let reverse = a.vertices == [b.vertices[1], b.vertices[0]];
+    checked(reverse || a.vertices == b.vertices)?;
+    checked(dot(a.axis, b.axis) * if reverse { -1. } else { 1. } > 1. - 1e-12)?;
     // For a quarter ellipse the offsets at either endpoint are exactly
     // the two coefficients of C*cos(t) + S*sin(t), t in [0, pi/2].
     // Reversing t interchanges these coefficients. The sum below bounds
@@ -73,8 +74,13 @@ fn same_ellipse(a: &EllipticArc, b: &EllipticArc) -> Result<(), FabError> {
         })
     };
     let [ca, sa] = coefficients(a);
-    let [cb, sb] = coefficients(b);
-    checked(norm(sub(a.center, b.center)) + norm(sub(ca, sb)) + norm(sub(sa, cb)) < 1e-8)
+    let [cb, sb] = if reverse {
+        let [c, s] = coefficients(b);
+        [s, c]
+    } else {
+        coefficients(b)
+    };
+    checked(norm(sub(a.center, b.center)) + norm(sub(ca, cb)) + norm(sub(sa, sb)) < 1e-8)
 }
 
 pub(super) fn fit(
@@ -171,6 +177,7 @@ pub(super) fn fit(
                 wall: id,
                 rails: [sides[k], floor],
                 circle_plane: stops[k],
+                near: p.planes[stops[k]].support,
                 ellipse_plane: other,
                 far: Plane {
                     origin: corner,

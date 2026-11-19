@@ -1245,9 +1245,17 @@ TopoDS_Solid build_mixed_solid(
   }
   std::vector<TopoDS_Edge> shared_arcs(blend ? 2*blend_count : arc_count + size_t(pocket_walls));
   if (pocket_walls) {
-    for (size_t i = 0; i < arc_count; ++i) {
-      const auto face = pocket::wall(arcs[i], ellipses[double_stop ? 1 : 0], points, wires, shared_arcs[i],
-                                     shared_arcs[arc_count], arc_count == 2, double_stop ? ellipses : nullptr);
+    // For a U, build the central wall first. Each flank then binds the
+    // same 3D elliptic edge and adds its own cylindrical p-curve.
+    const bool network = arc_count == 3;
+    for (size_t k = 0; k < arc_count; ++k) {
+      const size_t i = network ? (k + 2) % 3 : k;
+      const bool central = network && i == 2;
+      const auto& far = ellipses[network ? (i == 0 ? 0 : 1) : size_t(double_stop)];
+      const size_t far_edge = network ? (i == 0 ? 2 : 3) : arc_count;
+      const auto face = pocket::wall(arcs[i], far, points, wires, shared_arcs[i],
+                                     shared_arcs[far_edge], (arc_count == 2 || network) && !central,
+                                     (double_stop || central) ? ellipses : nullptr, central);
       sewing.Add(face);
       if (labels && partial_tokens) labels->push_back({face, partial_tokens[i]});
     }
@@ -2037,6 +2045,30 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   SurfaceCounts found{};
   size_t quarter_cylinders = 0;
   bool partial_torus = false;
+  // An unlabelled reimport must have the full U signature before considering
+  // the pocket certificate; unrelated 14-face solids use their own validator.
+  int u_planes = 0, u_cylinders = 0;
+  if (faces.Extent() == 14) {
+    for (int i = 1; i <= faces.Extent(); ++i) {
+      const auto type = BRepAdaptor_Surface(TopoDS::Face(faces(i))).GetType();
+      u_planes += type == GeomAbs_Plane;
+      u_cylinders += type == GeomAbs_Cylinder;
+    }
+  }
+  bool u_pocket = false;
+  if (u_planes == 11 && u_cylinders == 3) {
+    TopTools_IndexedDataMapOfShapeListOfShape incidence;
+    TopExp::MapShapesAndUniqueAncestors(shape, TopAbs_EDGE, TopAbs_FACE, incidence);
+    int joins = 0;
+    for (int i = 1; i <= incidence.Extent(); ++i) {
+      const auto& owners = incidence.FindFromIndex(i);
+      if (owners.Extent() == 2 &&
+          BRepAdaptor_Surface(TopoDS::Face(owners.First())).GetType() == GeomAbs_Cylinder &&
+          BRepAdaptor_Surface(TopoDS::Face(owners.Last())).GetType() == GeomAbs_Cylinder &&
+          BRepAdaptor_Curve(TopoDS::Edge(incidence.FindKey(i))).GetType() == GeomAbs_Ellipse) ++joins;
+    }
+    u_pocket = joins == 2;
+  }
   bool cylinder_spline = false;
   for (int i = 1; i <= faces.Extent(); ++i) {
     const BRepAdaptor_Surface surface(TopoDS::Face(faces(i)));
@@ -2057,7 +2089,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
         }
         if (surface.LastUParameter() - surface.FirstUParameter() < 2.0 * std::acos(-1.0) - 1.0e-9) {
           ++found.partial;
-          if ((!expected || expected->elliptic_cylinders) && (faces.Extent() == 12 || faces.Extent() == 13)) {
+          if ((!expected || expected->elliptic_cylinders) && (faces.Extent() == 12 || faces.Extent() == 13 || u_pocket)) {
             for (TopExp_Explorer it(faces(i), TopAbs_EDGE); it.More(); it.Next()) {
               if (BRepAdaptor_Curve(TopoDS::Edge(it.Current())).GetType() == GeomAbs_Ellipse) {
                 ++found.elliptic_cylinders;
@@ -3962,8 +3994,11 @@ static int build_pocket_step(size_t walls, const double* points, size_t point_co
   counts.elliptic_cylinders = walls;
   pocket::Domain expected{{}, walls};
   return validated_step([&] {
-    for (size_t i = 0; i < walls; ++i)
-      expected.walls[i] = pocket::geometry(circles[i], ellipse[double_stop ? 1 : 0], points, double_stop ? ellipse : nullptr);
+    for (size_t i = 0; i < walls; ++i) {
+      const bool central = walls == 3 && i == 2;
+      const size_t far = walls == 3 ? size_t(i != 0) : size_t(double_stop);
+      expected.walls[i] = pocket::geometry(circles[i], ellipse[far], points, (double_stop || central) ? ellipse : nullptr);
+    }
     return build_mixed_solid(points, point_count, nullptr, 0, normals, 11, plane_loops, loops,
         segments, nullptr, 0, circles, walls, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0,
         plane_tokens, nullptr, tracked, nullptr, nullptr, nullptr, wall_tokens, nullptr, 0, nullptr,
@@ -3995,6 +4030,15 @@ extern "C" int fabstep_build_adjacent_pocket_step(
     const EllipticArcData* ellipse, const size_t* plane_tokens, const size_t* wall_tokens,
     StepOutput* output, char* error, size_t capacity) noexcept {
   return build_pocket_step(2, points, point_count, normals, plane_loops, loops, segments, circles,
+                           ellipse, plane_tokens, wall_tokens, output, error, capacity);
+}
+
+extern "C" int fabstep_build_u_pocket_step(
+    const double* points, size_t point_count, const double* normals, const size_t* plane_loops,
+    const MixedLoopData* loops, const MixedSegmentData* segments, const MixedArcData* circles,
+    const EllipticArcData* ellipse, const size_t* plane_tokens, const size_t* wall_tokens,
+    StepOutput* output, char* error, size_t capacity) noexcept {
+  return build_pocket_step(3, points, point_count, normals, plane_loops, loops, segments, circles,
                            ellipse, plane_tokens, wall_tokens, output, error, capacity);
 }
 

@@ -8,7 +8,7 @@ L’ordre des lots restants reprend le document d’origine ; les priorités et 
 
 Flansch sert de pièce d’essai pour les géométries complexes. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 23 livrés sur 106** (22 %)
+**Avancement : 23 livrés sur 107** (21 %)
 
 ## Restant à faire
 
@@ -178,6 +178,8 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
    Reconstruire les deux intersections transverses de perçages dont les axes se croisent dans un prisme à quatre bouches circulaires.
 83. **[R-106 Révolution à deux cubiques sur un maillage irrégulier](roadmap/items/R-106-revolution-a-deux-cubiques-sur-un-maillage.md)** · À tester · jalon post-v1
    Reconstruire une méridienne à deux segments tangents dont le raccord se trouve entre deux hauteurs du STL.
+84. **[R-107 Trois congés en U au fond d’une poche](roadmap/items/R-107-trois-conges-en-u-au-fond-d-une-poche.md)** · À tester · jalon post-v1
+   Reconstruire trois congés cylindriques reliés par deux ellipses au fond de la même poche.
 
 ## Actions à faire
 
@@ -281,6 +283,7 @@ Flansch sert de pièce d’essai pour les géométries complexes. Les prochains 
 - [ ] [A-111](roadmap/actions/A-111-verifier-les-revolutions-sans-anneaux-interieurs.md) Vérifier les révolutions sans anneaux intérieurs dans Fusion (tester, R-104)
 - [ ] [A-112](roadmap/actions/A-112-verifier-les-percages-a-60-et-75-dans-fusion.md) Vérifier les perçages à 60° et 75° dans Fusion (tester, R-105)
 - [ ] [A-113](roadmap/actions/A-113-verifier-la-revolution-sur-les-stl-two-span-et.md) Vérifier la révolution sur les STL two_span et two_span_turned (tester, R-106)
+- [ ] [A-114](roadmap/actions/A-114-controler-les-trois-conges-du-fond-de-poche-dans.md) Contrôler les trois congés du fond de poche dans Fusion (tester, R-107)
 
 ## Livré
 

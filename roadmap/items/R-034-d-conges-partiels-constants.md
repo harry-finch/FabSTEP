@@ -62,3 +62,5 @@ Le contrat local est approuvé par A-068/ADR-0036. R-081 intègre le coin à tro
 R-097 — Reconstruire une paroi cylindrique concave tangente et ses deux bords elliptiques dans une poche borgne. Voir V-1225.
 
 R-101 — Reconstruire deux congés de poche de même rayon partageant une arête elliptique sur la bissectrice du coin. Voir V-1231.
+
+R-107 — Reconstruire trois congés cylindriques reliés par deux ellipses au fond de la même poche. Voir V-1238.
