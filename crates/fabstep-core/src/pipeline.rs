@@ -399,8 +399,16 @@ fn analyze_prepared_with_provenance(
     } = prepared;
     // Preserve the historical analysis report wording after its contour proof.
     diagnostics[0].message = "Topologie et contours contrôlés ; la validité géométrique 3D doit être confirmée par le noyau CAO.".into();
-    let segmentation =
-        crate::planar::build_with_provenance(&mesh, &adjacency, options.plane_tolerance_mm)?;
+    let segmentation = if options.reconstruction == crate::ReconstructionMode::Planar {
+        let (partition, merged) =
+            crate::planar::build_for_output(&mesh, &adjacency, options.plane_tolerance_mm)?;
+        if merged > 0 {
+            diagnostics.push(crate::planar::recovered_diagnostic(merged));
+        }
+        partition
+    } else {
+        crate::planar::build_with_provenance(&mesh, &adjacency, options.plane_tolerance_mm)?
+    };
     let model = segmentation.model;
     let approximate_faces = segmentation.approximate_faces;
     if approximate_faces > 0 {
