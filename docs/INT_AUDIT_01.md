@@ -140,7 +140,7 @@ Rapport local `docs/audit-neon.md`, SHA-256 `3b6819c6683f2d29b9d8c902f50988fbcf1
 | 001 | DEFERRED | P1 | R-085 | DEFERRED | Travail répété et délai réel sur Flansch. Deux triangles qui se croisent sont acceptés avec le contrôle OCCT bi-forme proposé. Le banc de quatre verdicts et les cas V-1251 à V-1258 restent les témoins. Reprendre sur une accélération équivalente pour les interférences internes **et** croisées, sous les plafonds actuels. |
 | 002 | REJECTED | P1 | — | CLOSED | Le solide construit et le solide relu sont distincts. V-1256 montre un défaut avant transfert et V-1252 une perte de découpe après transfert. Supprimer un des deux contrôles enlèverait une preuve indépendante. |
 | 003 | ALREADY_FIXED | P2 | — | CLOSED | Le constructeur filtre déjà topologie, coplanarité et injectivité avant FaceFace. Les 174 s proviennent d’une sonde exhaustive. Six éventails sont réparés sur la pièce. |
-| 004 | ADAPTED | P1 | .11 | IN_PROGRESS | Le rapport dense contient mesh/model, et le superviseur charge sa représentation JSON. Le supprimer touche les consommateurs et le protocole. A-119 approuvée le 19 novembre. |
+| 004 | ADAPTED | P1 | .11 | DONE | Le rapport dense contient mesh/model, et le superviseur charge sa représentation JSON. Le supprimer touche les consommateurs et le protocole. A-119 approuvée le 19 novembre. |
 | 005 | ADAPTED | P2 | .9 | DONE | Préparation de coupe mono-corps et ressoudage mesurables. La topologie partagée, le remplacement des tables ordonnées, les grilles et le retrait du clone de rollback demandent une preuve distincte de parité et de gain. |
 | 006 | ACCEPTED | P1 | .12 | IN_PROGRESS | Le build de développement embarque le helper, le script de release v1 inventorie uniquement le bureau. A-120 approuvée pour la prochaine archive et la vérification rétrospective. |
 | 007 | ADAPTED | P2 | .10 | DONE | Tableaux immuables, conversion directe des positions et rectangle de peinture partagé. Un nouveau BVH demande une mesure de latence WebKit, de mémoire et de fidélité du picking. |
@@ -203,3 +203,18 @@ Sur la rampe publique à 49 222 triangles (`qualify-flange-public.py ramp`, u=54
 Deux décisions ont évolué après mesure. AUD-012 devient ADAPTED avec la seule optimisation locale de section. Les projections par paire, les fenêtres et le partage d’une topologie entre modules restent différés. AUD-009 devient DEFERRED. La variante combinant cache et hachage a ralenti la fidélité sur la rampe (163,692 → 175,778 ms) et sur le maillage expérimental de Flansch (868,524 → 910,016 ms). Une autre disposition a donné des écarts inférieurs à la variabilité entre passages. Les deux directions et les comptes d’échantillons sont identiques. Le code de fidélité initial est conservé. Mesures dans `artifacts/neon-core/`.
 
 Le banc public de bout en bout `scripts/qualify-large-torus-worker.py` mesure désormais aussi le temps du helper et les tailles du STEP et du rapport. Le lancer avec le binaire release et Python équipé de NumPy. Sur macOS, `/usr/bin/time -l` autour du banc fournit les métriques du processus pour une comparaison à environnement identique. Le compteur Work reste un budget interne.
+
+
+### .11 — Rapport compact du gros STL · DONE / PASS
+
+Arbitrage A-119 accepté. Le helper et le superviseur partagent un rapport typé v2 réservé aux mesures et à l’inspection, plafonné à 4 Mio. Le bureau transmet à la vue un marqueur de version et obtient les faces affichées depuis le STEP validé. L’ancien rapport reste disponible pour les requêtes v1. Un refus initial de version par un ancien helper autorise un seul nouvel essai v1. L’identité, les limites, l’échéance commune et la fraîcheur restent vérifiées. La revue croisée a conduit à refuser les enveloppes mélangées, à comparer les quatre tolérances en tenant compte de l’arrondi JSON et à contrôler le marqueur de fin du STEP.
+
+| Rampe publique, 194 694 triangles | v1 | v2 |
+|---|---:|---:|
+| Rapport privé | 33 402 531 octets | 2 261 octets |
+| Lecture, désérialisation et libération, médiane de cinq processus release | 115,71 ms | 0,046 ms |
+| Pic RSS du processus de mesure, mêmes passages | 315 654 144 octets | 18 104 320 octets |
+
+Les deux rapports concordent sur toutes les mesures conservées, dont 659 faces et un volume de 93,536793 mm³. La section DATA des STEP de 1 784 117 octets est identique. Les maxima de fidélité sont 0,004717 et 0,004702 mm. La mesure de lecture utilise le DOM historique et le type compact dans un processus isolé ; elle exclut la reconstruction et la WebView. Les durées globales ont été mesurées sous des charges différentes. Reproduction de la géométrie, taille et durée du helper via `scripts/qualify-large-torus-worker.py <helper> --protocol 1` puis `--protocol 2`. Journaux locaux dans `artifacts/audit-neon/worker-report/`.
+
+55 tests bureau, dont le passage de relais avec les deux générations de helpers, 11 tests worker, 241 tests UI. Le parcours Chrome/WebGL avec un STL binaire de 100 001 triangles et un pont Tauri simulé couvre consentement, source brute, rapport compact, diagnostics traduits, sélection de face STEP et commande d’export. En WKWebView macOS séparée, l’édition d’une tolérance, la restauration du focus, l’invalidation à l’export et la nouvelle géométrie ont été observées. Le clic de sélection synthétique en fenêtre masquée n’a pas abouti au test de peinture WebKit ; le parcours peinture a réussi dans Chrome.

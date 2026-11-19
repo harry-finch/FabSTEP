@@ -9,7 +9,7 @@ import tempfile
 import time
 
 
-def qualify(worker):
+def qualify(worker, version=2):
     with tempfile.TemporaryDirectory(prefix="fabstep-atlas-") as scratch:
         job = Path(scratch)
         subprocess.run(
@@ -32,7 +32,7 @@ def qualify(worker):
             stream.seek(80)
             assert int.from_bytes(stream.read(4), "little") == 194_694
         request = {
-            "version": 1,
+            "version": version,
             "source_id": 1,
             "request_id": 1,
             "options": {
@@ -49,8 +49,13 @@ def qualify(worker):
         subprocess.run([worker.resolve(), "--job-dir", job], timeout=1800, check=True)
         elapsed = time.monotonic() - start
         completion = json.loads((job / "completion.json").read_bytes())
-        assert completion["status"] == "success", completion
+        assert completion["version"] == version and completion["status"] == "success", completion
         report = json.loads((job / "report.json").read_bytes())
+        if version == 2:
+            assert report["version"] == 2
+            assert (job / "report.json").stat().st_size < 1024**2
+            report = report["report"]
+            assert set(report["bodies"][0]["analysis"]) == {"report"}
         cad = report["cad"]
         assert (cad["solids"], cad["faces"], cad["toroidal_faces"]) == (1, 659, 1)
         assert 93.52 < cad["volume_mm3"] < 93.55
@@ -61,7 +66,7 @@ def qualify(worker):
         )
         assert 0 < (job / "result.step").stat().st_size < 128 * 1024**2
         print(f"{cad['faces']} faces, {cad['volume_mm3']:.6f} mm³", fidelity)
-        print(json.dumps({"helper_seconds": round(elapsed, 3),
+        print(json.dumps({"protocol": version, "helper_seconds": round(elapsed, 3),
                           "report_bytes": (job / "report.json").stat().st_size,
                           "step_bytes": (job / "result.step").stat().st_size}))
 
@@ -69,4 +74,6 @@ def qualify(worker):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("worker", type=Path)
-    qualify(parser.parse_args().worker)
+    parser.add_argument("--protocol", type=int, choices=[1, 2], default=2)
+    args = parser.parse_args()
+    qualify(args.worker, args.protocol)

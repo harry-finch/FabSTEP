@@ -1,6 +1,9 @@
 //! One isolated large-STL job. No native object, client path or STEP enters the
 //! desktop cache until the trusted adjacent worker has exited and committed it.
 use super::{io_error, lock_error, progress, stale, EngineState, Response, MAX_SOURCE_BYTES};
+use fabstep_app::isolated_report::{
+    CompactDocumentReport, CompactWorkerReport, COMPACT_REPORT_LIMIT, COMPACT_REPORT_VERSION,
+};
 use fabstep_app::{ConversionCheckpoint, ConversionPhase, DocumentStep, InputFormat};
 use fabstep_core::{FabError, Options};
 use serde::{Deserialize, Serialize};
@@ -465,23 +468,42 @@ fn wait_for_child_with_monitor(
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum CompletionState {
+    Ready,
+    LegacyVersion,
+}
+
 fn completion(
     directory: &Path,
-    request_id: u64,
-    source_id: u64,
+    request: &Request<'_>,
     success: bool,
-) -> Result<(), FabError> {
+) -> Result<CompletionState, FabError> {
     let response: Completion = serde_json::from_slice(&read_limited(
         &directory.join("completion.json"),
         COMPLETION_LIMIT,
     )?)
     .map_err(|_| protocol())?;
-    if response.version != 1 || response.request_id != request_id || response.source_id != source_id
-    {
+    if response.request_id != request.request_id || response.source_id != request.source_id {
+        return Err(protocol());
+    }
+    if response.version != request.version {
+        // A v1 helper rejects v2 at the request boundary, before reading the STL.
+        // Retry only this specific refusal. Never repeat a conversion that started.
+        if request.version == COMPACT_REPORT_VERSION
+            && response.version == 1
+            && !success
+            && response.status == "error"
+            && response.error.is_some_and(|e| e.code == "worker.request_invalid")
+            && ["progress.json", "report.json", "result.step"].iter().all(|name|
+                matches!(fs::symlink_metadata(directory.join(name)), Err(e) if e.kind() == std::io::ErrorKind::NotFound))
+        {
+            return Ok(CompletionState::LegacyVersion);
+        }
         return Err(protocol());
     }
     match (response.status.as_str(), response.error) {
-        ("success", None) if success => Ok(()),
+        ("success", None) if success => Ok(CompletionState::Ready),
         ("error", Some(error)) if !error.code.is_empty() && error.code.len() <= 128 => {
             Err(FabError::new(error.code, error.message))
         }
@@ -489,58 +511,94 @@ fn completion(
     }
 }
 
-fn supervise(
-    lease: Lease,
-    state: Arc<EngineState>,
-    observer: progress::ProgressObserver,
-    helper: PathBuf,
-    bytes: Arc<Vec<u8>>,
-    options: Options,
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub(super) enum IsolatedReport {
+    Compact {
+        report_version: u32,
+        #[serde(flatten)]
+        report: Box<CompactDocumentReport>,
+    },
+    Legacy(Value),
+}
+
+// Request and report each cross a JSON number parser. Adjacent positive f64s
+// can round differently across that round trip. Compare in ULPs so that even
+// very small tolerances cannot match a materially different setting.
+fn same_settings(settings: &fabstep_app::ProcessingSettings, options: &Options) -> bool {
+    settings.reconstruction == options.reconstruction
+        && [
+            (settings.weld_tolerance_mm, options.weld_tolerance_mm),
+            (settings.plane_tolerance_mm, options.plane_tolerance_mm),
+            (
+                settings.cylinder_fit_tolerance_mm,
+                options.cylinder_fit_tolerance_mm,
+            ),
+            (settings.max_deviation_mm, options.max_deviation_mm),
+        ]
+        .into_iter()
+        .all(|(reported, requested)| {
+            reported.is_finite()
+                && reported > 0.0
+                && reported.to_bits().abs_diff(requested.to_bits()) <= 4
+        })
+}
+
+fn complete_step(bytes: &[u8]) -> bool {
+    bytes.starts_with(b"ISO-10303-21;") && bytes.trim_ascii_end().ends_with(b"END-ISO-10303-21;")
+}
+
+fn compact_report(
+    encoded: &[u8],
     count: usize,
-) -> Result<(Value, Vec<u8>), FabError> {
-    let directory = tempfile::tempdir().map_err(io_error)?;
-    // Locals drop before the Lease parameter. This extra reaper is declared
-    // after TempDir so errors and unwinding stop the process before deletion;
-    // Lease marks completion only after both resources have been cleaned up.
-    let _reaper = ReapBeforeDirectory(Arc::clone(&lease.job));
-    lease.job.check(&state)?;
-    write_input(
-        directory.path(),
-        &bytes,
-        &Request {
-            version: 1,
-            request_id: lease.job.request_id,
-            source_id: lease.job.source_id,
-            options: &options,
-        },
-    )?;
+    options: &Options,
+) -> Result<IsolatedReport, FabError> {
+    let envelope: CompactWorkerReport = serde_json::from_slice(encoded).map_err(|_| protocol())?;
+    let report = envelope.report;
+    let unit = match options.input_unit {
+        fabstep_core::InputUnit::Mm => "mm",
+        fabstep_core::InputUnit::Inch => "inch",
+    };
+    let triangles = report.bodies.iter().try_fold(0usize, |total, b| {
+        total.checked_add(b.analysis.report.input_triangles)
+    });
+    if envelope.version != COMPACT_REPORT_VERSION
+        || report.source.format != InputFormat::Stl
+        || report.source.unit != unit
+        || !matches!(report.source.unit_origin, fabstep_app::UnitOrigin::Selected)
+        || !same_settings(&report.settings, options)
+        || !(1..=32).contains(&report.bodies.len())
+        || triangles != Some(count)
+        || report.cad.solids != report.bodies.len()
+        || !(1..=100_000).contains(&report.cad.faces)
+        || report
+            .bodies
+            .iter()
+            .any(|b| b.analysis.report.input_triangles == 0 || b.cad.solids != 1)
     {
-        // Cancellation shares this short lock with spawn, closing the window
-        // where a cancelled job could register a new child after cancel returns.
-        let mut slot = lease.job.child.lock().map_err(lock_error)?;
-        lease.job.check(&state)?;
-        *slot = Some(
-            Command::new(helper)
-                .arg("--job-dir")
-                .arg(directory.path())
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn()
-                .map_err(|_| problem("unavailable", "Le moteur isolé ne peut pas être lancé."))?,
+        return Err(protocol());
+    }
+    Ok(IsolatedReport::Compact {
+        report_version: COMPACT_REPORT_VERSION,
+        report: Box::new(report),
+    })
+}
+
+fn read_report(
+    directory: &Path,
+    request: &Request<'_>,
+    count: usize,
+) -> Result<IsolatedReport, FabError> {
+    let path = directory.join("report.json");
+    if request.version == COMPACT_REPORT_VERSION {
+        return compact_report(
+            &read_limited(&path, COMPACT_REPORT_LIMIT)?,
+            count,
+            request.options,
         );
     }
-    let status = wait_for_child(&lease, &state, &observer, directory.path(), TIMEOUT)?;
-    lease.job.check(&state)?;
-    completion(
-        directory.path(),
-        lease.job.request_id,
-        lease.job.source_id,
-        status.success(),
-    )?;
-    let encoded = read_limited(&directory.path().join("report.json"), REPORT_LIMIT)?;
+    let encoded = read_limited(&path, REPORT_LIMIT)?;
     let report: Value = serde_json::from_slice(&encoded).map_err(|_| protocol())?;
-    drop(encoded);
     let bodies = report
         .get("bodies")
         .and_then(Value::as_array)
@@ -563,13 +621,84 @@ fn supervise(
     {
         return Err(protocol());
     }
-    lease.job.check(&state)?;
-    let step = read_limited(&directory.path().join("result.step"), STEP_LIMIT)?;
-    if !step.starts_with(b"ISO-10303-21;") {
+    // A legacy response must actually carry legacy geometry. A compact
+    // document stripped of its envelope must never take the v1 UI path.
+    if ["version", "report_version", "report", "request_id"]
+        .iter()
+        .any(|key| report.get(key).is_some())
+        || bodies.iter().any(|body| {
+            let arrays = [
+                "/analysis/mesh/vertices",
+                "/analysis/mesh/triangles",
+                "/analysis/model/vertices",
+                "/analysis/model/faces",
+            ];
+            arrays
+                .iter()
+                .any(|path| !body.pointer(path).is_some_and(Value::is_array))
+        })
+    {
         return Err(protocol());
     }
-    lease.job.check(&state)?;
-    Ok((report, step))
+    Ok(IsolatedReport::Legacy(report))
+}
+
+fn supervise(
+    lease: Lease,
+    state: Arc<EngineState>,
+    observer: progress::ProgressObserver,
+    helper: PathBuf,
+    bytes: Arc<Vec<u8>>,
+    options: Options,
+    count: usize,
+) -> Result<(IsolatedReport, Vec<u8>), FabError> {
+    let mut request = Request {
+        version: COMPACT_REPORT_VERSION,
+        request_id: lease.job.request_id,
+        source_id: lease.job.source_id,
+        options: &options,
+    };
+    let started = Instant::now();
+    loop {
+        let directory = tempfile::tempdir().map_err(io_error)?;
+        // Drop the child before its private directory, including on cancellation.
+        let _reaper = ReapBeforeDirectory(Arc::clone(&lease.job));
+        lease.job.check(&state)?;
+        write_input(directory.path(), &bytes, &request)?;
+        {
+            let mut slot = lease.job.child.lock().map_err(lock_error)?;
+            lease.job.check(&state)?;
+            *slot = Some(
+                Command::new(&helper)
+                    .arg("--job-dir")
+                    .arg(directory.path())
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .spawn()
+                    .map_err(|_| {
+                        problem("unavailable", "Le moteur isolé ne peut pas être lancé.")
+                    })?,
+            );
+        }
+        let remaining = TIMEOUT.saturating_sub(started.elapsed());
+        let status = wait_for_child(&lease, &state, &observer, directory.path(), remaining)?;
+        lease.job.check(&state)?;
+        if completion(directory.path(), &request, status.success())?
+            == CompletionState::LegacyVersion
+        {
+            request.version = 1;
+            continue;
+        }
+        let report = read_report(directory.path(), &request, count)?;
+        lease.job.check(&state)?;
+        let step = read_limited(&directory.path().join("result.step"), STEP_LIMIT)?;
+        if !complete_step(&step) {
+            return Err(protocol());
+        }
+        lease.job.check(&state)?;
+        return Ok((report, step));
+    }
 }
 
 #[tauri::command]
@@ -579,7 +708,7 @@ pub(super) async fn convert_large_document(
     options: Options,
     confirmed: bool,
     state: State<'_, Arc<EngineState>>,
-) -> Result<Response<Value>, FabError> {
+) -> Result<Response<IsolatedReport>, FabError> {
     if !confirmed {
         return Err(problem(
             "confirmation_required",
@@ -731,29 +860,45 @@ mod tests {
     #[test]
     fn completion_requires_identity_success_and_bounded_regular_payloads() {
         let dir = tempfile::tempdir().unwrap();
+        let options = Options::default();
+        let request = Request {
+            version: 1,
+            request_id: 7,
+            source_id: 3,
+            options: &options,
+        };
         let file = dir.path().join("completion.json");
         fs::write(
             &file,
             br#"{"version":1,"request_id":7,"source_id":3,"status":"success"}"#,
         )
         .unwrap();
-        completion(dir.path(), 7, 3, true).unwrap();
+        completion(dir.path(), &request, true).unwrap();
         assert_eq!(
-            completion(dir.path(), 8, 3, true).unwrap_err().code,
+            completion(
+                dir.path(),
+                &Request {
+                    request_id: 8,
+                    ..request
+                },
+                true
+            )
+            .unwrap_err()
+            .code,
             "worker.protocol"
         );
         assert_eq!(
-            completion(dir.path(), 7, 3, false).unwrap_err().code,
+            completion(dir.path(), &request, false).unwrap_err().code,
             "worker.protocol"
         );
         fs::write(&file, br#"{"version":1,"request_id":7,"source_id":3,"status":"error","error":{"code":"planar.too_complex","message":"refused"}}"#).unwrap();
         assert_eq!(
-            completion(dir.path(), 7, 3, false).unwrap_err().code,
+            completion(dir.path(), &request, false).unwrap_err().code,
             "planar.too_complex"
         );
         fs::write(&file, br#"{"version":1,"request_id":0,"source_id":0,"status":"error","error":{"code":"worker.request_invalid","message":"invalid"}}"#).unwrap();
         assert_eq!(
-            completion(dir.path(), 7, 3, false).unwrap_err().code,
+            completion(dir.path(), &request, false).unwrap_err().code,
             "worker.protocol"
         );
         File::create(&file)
@@ -769,6 +914,143 @@ mod tests {
         assert_eq!(
             read_limited(&file, COMPLETION_LIMIT).unwrap_err().code,
             "worker.protocol"
+        );
+    }
+
+    #[test]
+    fn only_a_pristine_v1_request_refusal_negotiates_legacy() {
+        let directory = tempfile::tempdir().unwrap();
+        let request = Request {
+            version: COMPACT_REPORT_VERSION,
+            request_id: 7,
+            source_id: 3,
+            options: &Options::default(),
+        };
+        let file = directory.path().join("completion.json");
+        let mut message = serde_json::json!({"version":1,"request_id":7,"source_id":3,
+            "status":"error","error":{"code":"worker.request_invalid","message":"version"}});
+        fs::write(&file, message.to_string()).unwrap();
+        assert_eq!(
+            completion(directory.path(), &request, false).unwrap(),
+            CompletionState::LegacyVersion
+        );
+        for name in ["progress.json", "result.step", "report.json"] {
+            let payload = directory.path().join(name);
+            fs::write(&payload, []).unwrap();
+            assert_eq!(
+                completion(directory.path(), &request, false)
+                    .unwrap_err()
+                    .code,
+                "worker.protocol"
+            );
+            fs::remove_file(payload).unwrap();
+        }
+        assert_eq!(
+            completion(directory.path(), &request, true)
+                .unwrap_err()
+                .code,
+            "worker.protocol"
+        );
+        message["version"] = 3.into();
+        fs::write(&file, message.to_string()).unwrap();
+        assert_eq!(
+            completion(directory.path(), &request, false)
+                .unwrap_err()
+                .code,
+            "worker.protocol"
+        );
+        message["version"] = COMPACT_REPORT_VERSION.into();
+        fs::write(&file, message.to_string()).unwrap();
+        assert_eq!(
+            completion(directory.path(), &request, false)
+                .unwrap_err()
+                .code,
+            "worker.request_invalid"
+        );
+    }
+
+    #[test]
+    fn truncated_step_and_materially_different_tolerances_are_refused() {
+        assert!(!complete_step(b"ISO-10303-21;"));
+        assert!(!complete_step(b"ISO-10303-21;\nEND-ISO-10303-2"));
+        assert!(complete_step(b"ISO-10303-21;\nEND-ISO-10303-21;\r\n"));
+        let options = Options {
+            plane_tolerance_mm: 1.53e-20,
+            ..Options::default()
+        };
+        let mut report = fabstep_app::ProcessingSettings::from(&options);
+        report.plane_tolerance_mm = options.plane_tolerance_mm.next_up();
+        assert!(same_settings(&report, &options));
+        report.plane_tolerance_mm *= 1.01;
+        assert!(!same_settings(&report, &options));
+    }
+
+    #[test]
+    fn compact_reports_require_the_version_fields_and_consistent_body_counts() {
+        let dir = tempfile::tempdir().unwrap();
+        let options = Options::default();
+        let converted = fabstep_app::convert_document(
+            include_bytes!("../../../fixtures/cube.stl"),
+            InputFormat::Stl,
+            &options,
+        )
+        .unwrap();
+        let envelope = serde_json::to_value(CompactWorkerReport::from(&converted.report)).unwrap();
+        let request = Request {
+            version: COMPACT_REPORT_VERSION,
+            request_id: 7,
+            source_id: 3,
+            options: &options,
+        };
+        let path = dir.path().join("report.json");
+        fs::write(&path, envelope.to_string()).unwrap();
+        let response =
+            serde_json::to_value(read_report(dir.path(), &request, 12).unwrap()).unwrap();
+        assert_eq!(response["report_version"], COMPACT_REPORT_VERSION);
+        assert!(response["bodies"][0]["analysis"].get("mesh").is_none());
+        assert_eq!(
+            read_report(dir.path(), &request, 11).unwrap_err().code,
+            "worker.protocol"
+        );
+        for (pointer, value) in [
+            ("/version", 1.into()),
+            ("/report/settings/max_deviation_mm", 0.15.into()),
+            ("/report/cad/solids", 2.into()),
+            ("/report/source/format", "3mf".into()),
+            ("/report/guidance_hints", serde_json::json!([null])),
+            ("/report/bodies/0/analysis", serde_json::json!({"mesh":[]})),
+            ("/report/bodies/0/cad/solids", 0.into()),
+        ] {
+            let mut invalid = envelope.clone();
+            *invalid.pointer_mut(pointer).unwrap() = value;
+            fs::write(&path, invalid.to_string()).unwrap();
+            assert_eq!(
+                read_report(dir.path(), &request, 12).unwrap_err().code,
+                "worker.protocol",
+                "{pointer}"
+            );
+        }
+        let legacy = Request {
+            version: 1,
+            ..request
+        };
+        fs::write(&path, envelope["report"].to_string()).unwrap();
+        assert_eq!(
+            read_report(dir.path(), &legacy, 12).unwrap_err().code,
+            "worker.protocol"
+        );
+        fs::write(&path, serde_json::to_vec(&converted.report).unwrap()).unwrap();
+        assert!(matches!(
+            read_report(dir.path(), &legacy, 12),
+            Ok(IsolatedReport::Legacy(_))
+        ));
+        File::create(&path)
+            .unwrap()
+            .set_len(COMPACT_REPORT_LIMIT as u64 + 1)
+            .unwrap();
+        assert_eq!(
+            read_report(dir.path(), &request, 12).unwrap_err().code,
+            "worker.output_too_large"
         );
     }
 
@@ -1074,6 +1356,14 @@ mod tests {
             std::env::var_os("FABSTEP_TEST_WORKER")
                 .expect("FABSTEP_TEST_WORKER must name the real worker explicitly"),
         );
+        check_real_worker_handoff(helper, true);
+        if let Some(path) = std::env::var_os("FABSTEP_TEST_LEGACY_WORKER") {
+            check_real_worker_handoff(PathBuf::from(path), false);
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn check_real_worker_handoff(helper: PathBuf, compact: bool) {
         assert!(helper.is_absolute() && helper.is_file());
         // The command's >100k admission is tested independently. A small real
         // cube keeps this process/protocol/parent-publication test inexpensive.
@@ -1102,6 +1392,8 @@ mod tests {
             12,
         )
         .unwrap();
+        assert_eq!(matches!(report, IsolatedReport::Compact { .. }), compact);
+        let report = serde_json::to_value(&report).unwrap();
         assert_eq!(report["cad"]["solids"], 1);
         assert_eq!(report["cad"]["faces"], 6);
         assert_eq!(report["cad"]["planar_faces"], 6);

@@ -20,11 +20,32 @@ export type Source = { format: 'stl' | '3mf'; unit: string; unit_origin: 'select
 export type BodyProvenance = { generated_name?: boolean; model_path?: string | null; object_id?: number | null; build_item?: number | null; instance_path?: unknown; component_index?: number };
 export type DocumentPreview = { request_id: number; source: Source; bodies: { id: string; name: string; provenance?: BodyProvenance; mesh: Mesh }[]; diagnostics: Diagnostic[] };
 export type HeightPatchRecognition = { model: { origin: number[]; size: number[]; heights: number[][] }; triangle_faces: number[]; report: RecognitionReport };
-export type BodyResult = { id: string; name: string; provenance: BodyProvenance; analysis: { mesh: { vertices: number[][]; triangles: number[][] }; model: { vertices: number[][]; faces: { loops: number[][]; normal: number[] }[] }; report: { input_triangles: number; vertices: number; planar_faces: number; welded_vertices: number; volume_mm3: number; bounds_mm: number[][]; diagnostics: Diagnostic[] } }; cad: { solids: number; faces: number; planar_faces: number; cylindrical_faces: number; conical_faces: number; spherical_faces: number; toroidal_faces: number; revolution_faces?: number; volume_mm3: number; bounds_mm: number[][]; kernel: string }; recognition: { extrusion: { origin: number[]; axis: number[]; x_axis: number[]; height_mm: number; outer: ProfileLoop; holes: ProfileLoop[] }; report: RecognitionReport } | null; height_patch_recognition?: HeightPatchRecognition | null; rounded_box_recognition?: RoundedBoxRecognition | null; rounded_recognition: { model: RoundedModel; report: RecognitionReport; triangle_faces: { kind: 'plane' | 'cylinder' | 'partial_cylinder' | 'partial_cone' | 'cone' | 'sphere' | 'spherical_octant' | 'linear_blend' | 'cross_drill' | 'smooth_revolution' | 'torus_sector' | 'torus'; index: number }[] } | null; revolved_recognition: { model: RevolvedModel; report: RecognitionReport; triangle_faces: { kind: 'plane' | 'cylinder' | 'cone'; index: number }[] } | null; mixed_recognition?: { model: MixedModel; report: RecognitionReport; triangle_faces: { kind: 'plane' | 'cylinder' | 'partial_cylinder'; index: number }[] } | null; fidelity?: Fidelity | null };
+type AnalysisReport = { input_triangles: number; vertices: number; planar_faces: number; welded_vertices: number; volume_mm3: number; bounds_mm: number[][]; diagnostics: Diagnostic[] };
+type CadReport = { solids: number; faces: number; planar_faces: number; cylindrical_faces: number; conical_faces: number; spherical_faces: number; toroidal_faces: number; revolution_faces?: number; volume_mm3: number; bounds_mm: number[][]; kernel: string };
+type BodyOverview = { id: string; name: string; provenance: BodyProvenance; cad: CadReport; fidelity?: Fidelity | null };
+export type BodyResult = BodyOverview & { analysis: { mesh: Mesh; model: { vertices: number[][]; faces: { loops: number[][]; normal: number[] }[] }; report: AnalysisReport }; recognition: { extrusion: { origin: number[]; axis: number[]; x_axis: number[]; height_mm: number; outer: ProfileLoop; holes: ProfileLoop[] }; report: RecognitionReport } | null; height_patch_recognition?: HeightPatchRecognition | null; rounded_box_recognition?: RoundedBoxRecognition | null; rounded_recognition: { model: RoundedModel; report: RecognitionReport; triangle_faces: { kind: 'plane' | 'cylinder' | 'partial_cylinder' | 'partial_cone' | 'cone' | 'sphere' | 'spherical_octant' | 'linear_blend' | 'cross_drill' | 'smooth_revolution' | 'torus_sector' | 'torus'; index: number }[] } | null; revolved_recognition: { model: RevolvedModel; report: RecognitionReport; triangle_faces: { kind: 'plane' | 'cylinder' | 'cone'; index: number }[] } | null; mixed_recognition?: { model: MixedModel; report: RecognitionReport; triangle_faces: { kind: 'plane' | 'cylinder' | 'partial_cylinder'; index: number }[] } | null };
 
 export type GuidedFamily = 'sphere'|'auto'|'plane'|'cylinder'|'cone'|'torus';
 export type GuidedReport = { hint_id:number; family:GuidedFamily; selected_face_ids:number[]; preview_body_id:string; analysis_body_id:string; selected_source_triangle_ids:number[]; reconstructed_source_triangle_ids:number[] };
-export type Result = { guidance_hints:GuidedReport[]; guidance?:GuidedReport|null; settings: Omit<Options, 'input_unit'>; request_id: number; source: Source; bodies: BodyResult[]; cad: BodyResult['cad']; diagnostics: Diagnostic[] };
+type ResultOverview = { guidance_hints: GuidedReport[]; settings: Omit<Options, 'input_unit'>; request_id: number; source: Source; cad: CadReport; diagnostics: Diagnostic[] };
+export type Result = ResultOverview & { report_version?: 1; guidance?: GuidedReport | null; bodies: BodyResult[] };
+
+/** The supervised large-STL worker transports measurements and diagnostics only. */
+type RecognitionSummary = { report: RecognitionReport };
+type RecognitionWithPlanes = RecognitionSummary & { planar_faces: number };
+type DenseBodyResult = BodyOverview & {
+  settings: ResultOverview['settings'];
+  analysis: { report: AnalysisReport };
+  recognition: RecognitionSummary | null;
+  mixed_recognition: RecognitionWithPlanes | null;
+  revolved_recognition: RecognitionWithPlanes | null;
+  rounded_recognition: RecognitionWithPlanes | null;
+  rounded_box_recognition: RecognitionSummary | null;
+  height_patch_recognition: RecognitionSummary | null;
+};
+export type DenseResult = ResultOverview & { report_version: 2; guidance_hints: []; bodies: DenseBodyResult[] };
+export type ConversionResult = Result | DenseResult;
+export type ConversionBody = BodyResult | DenseBodyResult;
 
 /** Provenance topologique exacte ; chaque voisin est un indice du maillage source placé. */
 export type SelectionTopology = { request_id:number; source_id:number; components:{ preview_body_id:string; analysis_body_id:string; analysis_to_source_triangles:number[]; source_triangle_neighbors:number[][] }[] };

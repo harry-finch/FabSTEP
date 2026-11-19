@@ -2,7 +2,7 @@
 //! Les sommets, milieux d'arêtes et barycentres sont tous examinés. Ces maxima
 //! échantillonnés ne constituent pas une borne de Hausdorff des surfaces continues.
 use fabstep_core::{FabError, Mesh};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 type Point = [f64; 3];
@@ -10,7 +10,7 @@ const MAX_TRIANGLES: usize = 100_000;
 const MAX_VERTICES: usize = 300_000;
 const MAX_WORK: usize = 50_000_000;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FidelityReport {
     pub source_to_result_mm: f64,
     pub result_to_source_mm: f64,

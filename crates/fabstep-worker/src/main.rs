@@ -1,5 +1,8 @@
 //! Private one-job process: the ordinary validated application pipeline runs
 //! here with large-STL limits, never inside the desktop process.
+use fabstep_app::isolated_report::{
+    CompactWorkerReport, COMPACT_REPORT_LIMIT, COMPACT_REPORT_VERSION,
+};
 use fabstep_app::{
     convert_shared_document_with_provenance_controlled, ConversionCheckpoint, ConversionPhase,
     InputFormat,
@@ -14,13 +17,22 @@ use std::sync::Arc;
 const MIB: usize = 1024 * 1024;
 const SOURCE_LIMIT: usize = 64 * MIB;
 const REQUEST_LIMIT: usize = 16 * 1024;
-const REPORT_LIMIT: usize = 128 * MIB;
+const LEGACY_REPORT_LIMIT: usize = 128 * MIB;
 const STEP_LIMIT: usize = 128 * MIB;
 const PROGRESS_LIMIT: usize = 1024;
 const COMPLETION_LIMIT: usize = 8 * 1024;
 
 #[derive(Clone, Copy, Default)]
+#[repr(u32)]
+enum ProtocolVersion {
+    #[default]
+    Legacy = 1,
+    Compact = COMPACT_REPORT_VERSION,
+}
+
+#[derive(Clone, Copy, Default)]
 struct Identity {
+    protocol: ProtocolVersion,
     request_id: u64,
     source_id: u64,
 }
@@ -286,13 +298,16 @@ fn read_request(directory: &Path, identity: &mut Identity) -> Result<Request, Fa
         .and_then(|v| v.as_u64())
         .unwrap_or(0);
     identity.source_id = value.get("source_id").and_then(|v| v.as_u64()).unwrap_or(0);
+    if value.get("version").and_then(|v| v.as_u64()) == Some(u64::from(COMPACT_REPORT_VERSION)) {
+        identity.protocol = ProtocolVersion::Compact;
+    }
     let request: Request = serde_json::from_value(value).map_err(|_| {
         FabError::new(
             "worker.request_invalid",
             "La requête privée du moteur est invalide.",
         )
     })?;
-    if request.version != 1
+    if request.version != identity.protocol as u32
         || request.request_id == 0
         || request.source_id == 0
         || request.source_id > request.request_id
@@ -314,7 +329,7 @@ fn completion(identity: Identity, error: Option<&FabError>) -> Completion {
         value[..end].to_owned()
     }
     Completion {
-        version: 1,
+        version: identity.protocol as u32,
         request_id: identity.request_id,
         source_id: identity.source_id,
         status: if error.is_some() { "error" } else { "success" },
@@ -362,7 +377,11 @@ fn publish_success<T: Serialize>(
         step: false,
         committed: false,
     };
-    atomic_json(directory, "report.json", REPORT_LIMIT, report)?;
+    let report_limit = match identity.protocol {
+        ProtocolVersion::Legacy => LEGACY_REPORT_LIMIT,
+        ProtocolVersion::Compact => COMPACT_REPORT_LIMIT,
+    };
+    atomic_json(directory, "report.json", report_limit, report)?;
     payloads.report = true;
     atomic_bytes(directory, "result.step", STEP_LIMIT, step)?;
     payloads.step = true;
@@ -403,12 +422,17 @@ fn execute_job(directory: &Path) -> Result<bool, FabError> {
                 )
             },
         )?;
-        publish_success(
-            directory,
-            identity,
-            &converted.report,
-            converted.step.bytes(),
-        )
+        let step = converted.step.bytes();
+        match identity.protocol {
+            ProtocolVersion::Legacy => {
+                publish_success(directory, identity, &converted.report, step)
+            }
+            ProtocolVersion::Compact => {
+                let report = CompactWorkerReport::from(&converted.report);
+                drop(converted.report);
+                publish_success(directory, identity, &report, step)
+            }
+        }
     })();
     match result {
         Ok(()) => Ok(true),
@@ -460,7 +484,20 @@ mod tests {
             Self(directory)
         }
         fn request(&self) {
-            fs::write(self.0.join("request.json"),serde_json::to_vec(&serde_json::json!({"version":1,"request_id":7,"source_id":3,"options":Options::default()})).unwrap()).unwrap();
+            self.request_with_options(1, &Options::default());
+        }
+        fn request_with_options(&self, version: u32, options: &Options) {
+            let request = serde_json::json!({
+                "version": version,
+                "request_id": 7,
+                "source_id": 3,
+                "options": options,
+            });
+            fs::write(
+                self.0.join("request.json"),
+                serde_json::to_vec(&request).unwrap(),
+            )
+            .unwrap();
         }
         fn finished(&self) -> serde_json::Value {
             serde_json::from_slice(&fs::read(self.0.join("completion.json")).unwrap()).unwrap()
@@ -487,17 +524,42 @@ mod tests {
 
     #[test]
     fn malformed_options_preserve_the_request_identity() {
+        for version in [1, COMPACT_REPORT_VERSION] {
+            let job = TestJob::new();
+            let request = serde_json::json!({
+                "version": version,
+                "request_id": 7,
+                "source_id": 3,
+                "options": {"input_unit": "unknown"},
+            });
+            fs::write(
+                job.0.join("request.json"),
+                serde_json::to_vec(&request).unwrap(),
+            )
+            .unwrap();
+            assert!(!execute_job(&job.0).unwrap());
+            let result = job.finished();
+            assert_eq!(result["version"], version);
+            assert_eq!(result["request_id"], 7);
+            assert_eq!(result["source_id"], 3);
+            assert_eq!(result["error"]["code"], "worker.request_invalid");
+        }
+    }
+
+    #[test]
+    fn an_unknown_protocol_returns_a_structured_error_before_conversion() {
         let job = TestJob::new();
-        fs::write(
-            job.0.join("request.json"),
-            br#"{"version":1,"request_id":7,"source_id":3,"options":{"input_unit":"unknown"}}"#,
-        )
-        .unwrap();
+        job.request_with_options(99, &Options::default());
         assert!(!execute_job(&job.0).unwrap());
         let result = job.finished();
+        assert_eq!(result["version"], 1);
         assert_eq!(result["request_id"], 7);
         assert_eq!(result["source_id"], 3);
+        assert_eq!(result["status"], "error");
         assert_eq!(result["error"]["code"], "worker.request_invalid");
+        for file in ["progress.json", "report.json", "result.step"] {
+            assert!(!job.0.join(file).exists());
+        }
     }
 
     #[test]
@@ -540,21 +602,43 @@ mod tests {
 
     #[test]
     fn failed_completion_removes_both_payloads() {
+        for protocol in [ProtocolVersion::Legacy, ProtocolVersion::Compact] {
+            let job = TestJob::new();
+            fs::create_dir(job.0.join("completion.json")).unwrap();
+            assert!(publish_success(
+                &job.0,
+                Identity {
+                    protocol,
+                    request_id: 7,
+                    source_id: 3
+                },
+                &serde_json::json!({"ok":true}),
+                b"STEP"
+            )
+            .is_err());
+            assert!(!job.0.join("result.step").exists());
+            assert!(!job.0.join("report.json").exists());
+            assert_eq!(fs::read_dir(&job.0).unwrap().count(), 1);
+        }
+    }
+
+    #[test]
+    fn compact_report_limit_refuses_publication_without_payloads() {
         let job = TestJob::new();
-        fs::create_dir(job.0.join("completion.json")).unwrap();
-        assert!(publish_success(
+        let report = "x".repeat(COMPACT_REPORT_LIMIT);
+        let error = publish_success(
             &job.0,
             Identity {
+                protocol: ProtocolVersion::Compact,
                 request_id: 7,
-                source_id: 3
+                source_id: 3,
             },
-            &serde_json::json!({"ok":true}),
-            b"STEP"
+            &report,
+            b"STEP",
         )
-        .is_err());
-        assert!(!job.0.join("result.step").exists());
-        assert!(!job.0.join("report.json").exists());
-        assert_eq!(fs::read_dir(&job.0).unwrap().count(), 1);
+        .unwrap_err();
+        assert_eq!(error.code, "worker.output_too_large");
+        assert_eq!(fs::read_dir(&job.0).unwrap().count(), 0);
     }
 
     #[test]
@@ -599,6 +683,7 @@ mod tests {
         .unwrap();
         assert!(execute_job(&job.0).unwrap());
         let done = job.finished();
+        assert_eq!(done["version"], 1);
         assert_eq!(done["status"], "success");
         assert!(done.get("error").is_none());
         assert_eq!(done["request_id"], 7);
@@ -606,9 +691,61 @@ mod tests {
             serde_json::from_slice(&fs::read(job.0.join("report.json")).unwrap()).unwrap();
         assert_eq!(report["cad"]["solids"], 1);
         assert_eq!(report["cad"]["faces"], 6);
+        assert!(report["bodies"][0]["analysis"]["mesh"]["triangles"].is_array());
+        assert!(report["bodies"][0]["analysis"]["model"]["faces"].is_array());
         assert!(fs::metadata(job.0.join("result.step")).unwrap().len() > 0);
         let progress: serde_json::Value =
             serde_json::from_slice(&fs::read(job.0.join("progress.json")).unwrap()).unwrap();
         assert_eq!(progress["phase"], "finish");
+    }
+
+    #[test]
+    fn compact_report_keeps_validated_measurements_and_coverage_without_geometry() {
+        let options = Options {
+            reconstruction: fabstep_core::ReconstructionMode::Cylinders,
+            ..Options::default()
+        };
+        let [legacy, compact] = [1, COMPACT_REPORT_VERSION].map(|version| {
+            let job = TestJob::new();
+            job.request_with_options(version, &options);
+            fs::write(
+                job.0.join("source.stl"),
+                include_bytes!("../../../fixtures/m2c_open_arc.stl"),
+            )
+            .unwrap();
+            assert!(execute_job(&job.0).unwrap());
+            let done = job.finished();
+            assert_eq!(done["version"], version);
+            assert_eq!(done["status"], "success");
+            assert_eq!(done["request_id"], 7);
+            assert_eq!(done["source_id"], 3);
+            assert!(fs::metadata(job.0.join("result.step")).unwrap().len() > 0);
+            let bytes = fs::read(job.0.join("report.json")).unwrap();
+            if version == COMPACT_REPORT_VERSION {
+                let encoded: CompactWorkerReport = serde_json::from_slice(&bytes).unwrap();
+                assert_eq!(encoded.version, version);
+            }
+            serde_json::from_slice::<serde_json::Value>(&bytes).unwrap()
+        });
+        let compact = &compact["report"];
+        for key in ["source", "settings", "cad", "diagnostics", "guidance_hints"] {
+            assert_eq!(compact[key], legacy[key]);
+        }
+        let old_body = &legacy["bodies"][0];
+        let new_body = &compact["bodies"][0];
+        for key in ["id", "name", "provenance", "settings", "cad", "fidelity"] {
+            assert_eq!(new_body[key], old_body[key], "{key}");
+        }
+        assert_eq!(
+            new_body["analysis"],
+            serde_json::json!({"report": old_body["analysis"]["report"]})
+        );
+        assert_eq!(
+            new_body["mixed_recognition"],
+            serde_json::json!({
+                "report": old_body["mixed_recognition"]["report"],
+                "planar_faces": old_body["mixed_recognition"]["model"]["planes"].as_array().unwrap().len(),
+            })
+        );
     }
 }

@@ -226,7 +226,9 @@ L’interface interroge cet instantané seulement pendant la conversion, au plus
 
 ## Gros STL — processus isolé
 
-`fabstep-worker`, exclu du workspace comme le bureau, compile la capacité source `large-stl` séparément. Le bureau conserve les limites ordinaires et supervise un seul processus d’essai explicite. Le protocole privé et versionné borne entrées, progression, rapport et STEP ; publication seulement après sortie réussie et contrôle de l’identité courante. Annulation et invalidation arrêtent le processus, puis récupèrent sa fin avant nettoyage. Le résultat transféré ne contient pas d’objet OCCT et ne revendique pas de provenance guidée. Voir [ADR-0034](docs/adr/0034-isolated-large-stl-worker.md) pour limites, portée et qualification.
+`fabstep-worker`, exclu du workspace comme le bureau, compile la capacité source `large-stl` séparément. Le bureau conserve les limites ordinaires et supervise un seul processus d’essai explicite. Le protocole privé et versionné borne entrées, progression, rapport et STEP ; publication seulement après sortie réussie et contrôle de l’identité courante. Annulation et invalidation arrêtent le processus, puis récupèrent sa fin avant nettoyage. Le résultat transféré ne contient pas d’objet OCCT et ne revendique pas de provenance guidée.
+
+Le bureau demande le rapport privé v2, plafonné à 4 Mio. Le helper projette les mesures, diagnostics et comptes nécessaires à l’inspecteur dans un type partagé. La géométrie d’aperçu provient du STL source ou du STEP relu. Le bureau vérifie version, identité, nombre de triangles, solides, format et unité avant la publication. Un ancien bureau peut encore demander le rapport v1 au nouveau helper. Un nouveau bureau réessaie une fois en v1 si un ancien helper refuse la version avant toute progression ou sortie. Ce repli utilise un dossier neuf, la même réservation et la même échéance. Le format ordinaire du bureau et du CLI est distinct de cet échange privé. Voir [ADR-0034](docs/adr/0034-isolated-large-stl-worker.md) pour limites, portée et qualification.
 
 
 ### Surveillance mémoire du helper macOS — R-073

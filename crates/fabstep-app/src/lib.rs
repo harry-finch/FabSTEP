@@ -11,7 +11,7 @@ use fabstep_core::{
     RoundedRecognition,
 };
 use fabstep_verify::{compare_meshes, FidelityReport};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 pub use fabstep_core::{SOURCE_MAX_TRIANGLES, SOURCE_MAX_VERTICES};
 
@@ -20,6 +20,7 @@ use control::{controlled, ConversionControl};
 pub use control::{ConversionCheckpoint, ConversionPhase};
 mod document;
 pub use document::*;
+pub mod isolated_report;
 mod parameter_search;
 pub use parameter_search::{search_parameters, ParameterSearchReport, ParameterTrial};
 mod source_section;
@@ -33,7 +34,7 @@ use source_proof_cache::SourceProofCache;
 /// Snapshot des réglages géométriques de la requête. L'unité effective est
 /// portée séparément par DocumentSource : une préférence STL ne décrit pas un 3MF.
 /// Les deux seuils analytiques sont actifs dans tous les modes analytiques.
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProcessingSettings {
     pub reconstruction: ReconstructionMode,
     pub weld_tolerance_mm: f64,

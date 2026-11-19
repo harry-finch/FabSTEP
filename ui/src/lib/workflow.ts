@@ -3,7 +3,7 @@ import { validPreferences } from './editing.ts';
 import { acceptsGuidedResult } from './guided.ts';
 import { uploadSource, type SourceBridge } from './source.ts';
 import type { Key } from './i18n.svelte';
-import type { DocumentPreview, GuidedFamily, GuidedReport, Options, Result } from './types.ts';
+import type { ConversionResult, DocumentPreview, GuidedFamily, GuidedReport, Options, Result } from './types.ts';
 export type WorkflowState = {
   largeTriangles: number | null;
   largeAccepted: boolean;
@@ -17,7 +17,7 @@ export type WorkflowState = {
   sourceId: number | null;
   uploadedSourceId: number | null;
   sourceRevision: number;
-  result: Result | null;
+  result: ConversionResult | null;
   preview: DocumentPreview | null;
   selectedId: string;
   errorState: {
@@ -162,7 +162,7 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
       if (state.processing?.requestId === id) {
         state.processing.phase = 'converting';
       }
-      const converted = await bridge.invoke<Result>(large ? 'convert_large_document' : 'convert_document', { requestId: id, sourceId: key, options: opts, ...(large ? { confirmed: true } : {}) });
+      const converted = await bridge.invoke<ConversionResult>(large ? 'convert_large_document' : 'convert_document', { requestId: id, sourceId: key, options: opts, ...(large ? { confirmed: true } : {}) });
       if (!disposed && id === state.current && converted.request_id === id) {
         state.selectedId = '';
         state.result = converted;

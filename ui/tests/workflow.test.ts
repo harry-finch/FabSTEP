@@ -3,7 +3,7 @@ import { strict as assert } from 'node:assert';
 import { isGuidedRefusal } from '../src/lib/guided.ts';
 import { createWorkflow, type WorkflowState } from '../src/lib/workflow.ts';
 import type { SourceBridge } from '../src/lib/source.ts';
-import type { BodyResult, DocumentPreview, GuidedReport, Options, Result } from '../src/lib/types.ts';
+import type { BodyResult, DenseResult, DocumentPreview, GuidedReport, Options, Result } from '../src/lib/types.ts';
 const initial: Options = {
   input_unit: 'mm', reconstruction: 'planar', weld_tolerance_mm: 1e-6, plane_tolerance_mm: 1e-6, cylinder_fit_tolerance_mm: 1e-5, max_deviation_mm: 0.05
 };
@@ -776,27 +776,49 @@ function denseStl(count = 100_001) {
   return bytes;
 }
 
-test('dense binary STL waits for explicit consent and skips ordinary native preview', async () => {
-  const f = fixture();
-  f.workflow.setSource(denseStl());
-  f.flush(); await tick();
-  assert.equal(f.state.largeTriangles, 100_001);
-  assert.equal(f.count('upload_source'), 0);
-  assert.equal(f.state.busy, false);
-  await f.workflow.reconstruct();
-  assert.equal(f.count('convert_large_document'), 0);
-  const task = f.workflow.reconstruct(true);
-  await f.uploaded();
-  assert.equal(f.count('preview_document'), 0);
-  assert.equal(f.count('convert_document'), 0);
-  const call = f.latest('convert_large_document');
-  assert.equal((call.args as Record<string, unknown>).confirmed, true);
-  call.pending.resolve(result(f.state.current));
-  await task;
-  assert.ok(f.workflow.canExport());
-  assert.equal(f.state.preview, null);
-  assert.equal(f.hooks.filter(hook => hook.startsWith('prepare:')).length, 0);
-});
+function compactResult(requestId: number): DenseResult {
+  const full = result(requestId);
+  const { id, name, provenance, cad, analysis, fidelity } = full.bodies[0];
+  return {
+    report_version: 2, request_id: requestId, settings: full.settings, source: full.source,
+    cad: full.cad, diagnostics: full.diagnostics, guidance_hints: [],
+    bodies: [{
+      id, name, provenance, cad, fidelity, settings: full.settings,
+      analysis: { report: { ...analysis.report, input_triangles: 100_001 } },
+      recognition: null, mixed_recognition: null, revolved_recognition: null,
+      rounded_recognition: null, rounded_box_recognition: null, height_patch_recognition: null,
+    }],
+  };
+}
+
+for (const [version, report] of [['legacy', result], ['compact', compactResult]] as const) {
+  test(`dense binary STL waits for consent and publishes the ${version} result`, async () => {
+    const f = fixture();
+    const bytes = denseStl();
+    f.workflow.setSource(bytes);
+    f.flush(); await tick();
+    assert.equal(f.state.largeTriangles, 100_001);
+    assert.equal(f.count('upload_source'), 0);
+    assert.equal(f.state.busy, false);
+    await f.workflow.reconstruct();
+    assert.equal(f.count('convert_large_document'), 0);
+    const task = f.workflow.reconstruct(true);
+    await f.uploaded();
+    assert.equal(f.count('preview_document'), 0);
+    assert.equal(f.count('convert_document'), 0);
+    const call = f.latest('convert_large_document');
+    assert.equal((call.args as Record<string, unknown>).confirmed, true);
+    const returned = report(f.state.current);
+    call.pending.resolve(returned);
+    await task;
+    assert.ok(f.workflow.canExport());
+    assert.equal(f.state.result, returned);
+    assert.equal(f.state.bytes, bytes);
+    assert.equal(f.state.preview, null);
+    assert.equal(f.hooks.filter(hook => hook.startsWith('prepare:')).length, 0);
+    assert.ok(f.hooks.includes(`ready:${f.state.current}`));
+  });
+}
 
 test('dense cancellation waits for supervisor and rejects even a late successful result', async () => {
   const f = fixture(); f.workflow.setSource(denseStl());
@@ -805,7 +827,7 @@ test('dense cancellation waits for supervisor and rejects even a late successful
   const cancel = f.workflow.cancelLarge();
   assert.equal(f.state.cancelling, true);
   assert.equal(f.workflow.canExport(), false);
-  f.latest('convert_large_document').pending.resolve(result(id));
+  f.latest('convert_large_document').pending.resolve(compactResult(id));
   await task;
   assert.equal(f.state.result, null);
   assert.equal(f.state.cancelling, true);

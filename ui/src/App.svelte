@@ -45,7 +45,7 @@
   import packageInfo from '../package.json';
   import { theme } from './lib/theme.svelte';
   import { i18n, LOCALES, t, type Key } from './lib/i18n.svelte';
-  import type { Options, Result, DocumentPreview, BodyResult, SelectionTopology, ResultFaces, GuidedFamily, GuidedReport } from './lib/types';
+  import type { Options, ConversionResult, DocumentPreview, ConversionBody, SelectionTopology, ResultFaces, GuidedFamily, GuidedReport } from './lib/types';
   const initial: Options = { input_unit:'mm', weld_tolerance_mm:0.000001, plane_tolerance_mm:0.000001, reconstruction:'auto', cylinder_fit_tolerance_mm:0.00001, max_deviation_mm:0.05 };
   let options = $state<Options>({ ...initial });
   const positiveOr = (value: unknown, fallback: number): number => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
@@ -53,7 +53,9 @@
     return { ...value, weld_tolerance_mm:positiveOr(value.weld_tolerance_mm, initial.weld_tolerance_mm), plane_tolerance_mm:positiveOr(value.plane_tolerance_mm, initial.plane_tolerance_mm), cylinder_fit_tolerance_mm:positiveOr(value.cylinder_fit_tolerance_mm, initial.cylinder_fit_tolerance_mm), max_deviation_mm:positiveOr(value.max_deviation_mm, initial.max_deviation_mm) };
   }
   try { options = restoreOptions(initial,localStorage.getItem('fabstep.options.v2'),localStorage.getItem('fabstep.options.v1')); } catch { /* stockage optionnel */ }
-  let bytes = $state.raw<Uint8Array | null>(null), name = $state(''), result = $state.raw<Result | null>(null), preview = $state.raw<DocumentPreview | null>(null);
+  let bytes = $state.raw<Uint8Array | null>(null), name = $state(''), result = $state.raw<ConversionResult | null>(null), preview = $state.raw<DocumentPreview | null>(null);
+  let largeTriangles = $state<number | null>(null);
+  const ordinaryBodies = $derived(result?.report_version === 2 ? [] : result?.bodies ?? []);
   let errorState = $state<{ kind: 'key'; key: Key } | { kind: 'native'; value: unknown } | null>(null);
   const error = $derived.by(() => { void i18n.locale; return errorState ? (errorState.kind === 'key' ? t(errorState.key) : errorText(errorState.value)) : ''; });
   let format = $state<'stl'|'3mf'>('stl'), selectedId = $state('');
@@ -98,7 +100,7 @@
   }
   function interpretSourceZone() {
     if (!selectionWorker || topologyState !== 'ready') return;
-    selectionWorker.postMessage({ type:'interpret', token:selectionReplies.next(current), items:attributions(result?.bodies ?? []) });
+    selectionWorker.postMessage({ type:'interpret', token:selectionReplies.next(current), items:attributions(ordinaryBodies) });
   }
   async function prepareSelection(id:number, key:number, opts:Options, doc:DocumentPreview, revision:number) {
     try {
@@ -122,7 +124,7 @@
   let guidedAttempt = $state<{ requestId:number; status:'pending'|'success'|'refused' }|null>(null);
   const guidedRefusal = $derived(isGuidedRefusal(guidedAttempt,current,!!error));
   const errorTitle = $derived(guidedRefusal ? 'guidance.notApplied' : 'workspace.failed');
-  const eligibleGuidedFaces = $derived(!busy && !processing && result?.request_id === current && result.settings.reconstruction !== 'height_patch' ? guidedFaces(stepDocument,stepSelection,current,sourceId,guidanceHints.length) : null);
+  const eligibleGuidedFaces = $derived(!largeTriangles && result?.report_version !== 2 && !busy && !processing && result?.request_id === current && result.settings.reconstruction !== 'height_patch' ? guidedFaces(stepDocument,stepSelection,current,sourceId,guidanceHints.length) : null);
   const stepContextReveal = new ContextReveal();
   let stepWorker:Worker|null = null, pendingStepDocument:ResultFaces|null = null;
   const stepReplies = new SelectionReplies();
@@ -235,7 +237,6 @@
     }
   });
   const native = () => (window as unknown as { __TAURI_INTERNALS__?: Internals }).__TAURI_INTERNALS__;
-  let largeTriangles = $state<number | null>(null);
   let largeAccepted = $state(false);
   let cancelling = $state(false);
   const canPrepareGuidance = $derived(!largeTriangles && canPrepareCorrection(result,current,options.reconstruction,!!native(),busy || !!processing) && (options.reconstruction === 'height_patch' || stepDocument?.source_correspondence.status !== 'exact'));
@@ -457,11 +458,34 @@
     const from = redo ? future : history, to = redo ? history : future;
     const prev = from.pop(); if (prev) { const unitChanged = prev.input_unit !== options.input_unit; to.push({ ...committed }); committed = { ...prev }; options = { ...prev }; saveOptions(); invalidate(!unitChanged); }
   }
-  const diagnosticText = (code: string, fallback: string, body: BodyResult | null = selection) => { if (code === 'recognition.rounded_coverage' && body?.rounded_recognition) return t('engine.rounded_coverage', { spheres:body.rounded_recognition.report.spheres, tori:body.rounded_recognition.report.tori, cylinders:body.rounded_recognition.report.cylinders, cones:body.rounded_recognition.report.cones, planes:body.rounded_recognition.model.revolved.mixed.planes.length }); if (code === 'recognition.revolved_coverage' && body?.revolved_recognition) return t('engine.revolved_coverage', { cones:body.revolved_recognition.report.cones, cylinders:body.revolved_recognition.report.cylinders, planes:body.revolved_recognition.model.mixed.planes.length }); if (code === 'recognition.mixed_coverage' && body?.mixed_recognition) return t('engine.mixed_coverage', { cylinders:body.mixed_recognition.report.cylinders, planes:body.mixed_recognition.model.planes.length }); if (code === 'mesh.vertices_moved') { const distance = fallback.match(/([+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*mm/i)?.[1]; if (distance) return t('engine.verticesMoved', { distance }); } return diagnosticKeys[code] ? t(diagnosticKeys[code]) : `${t('engine.unknownDetail')}: ${fallback}`; };
+  function diagnosticText(code: string, fallback: string, body: ConversionBody | null = selection) {
+    const rounded = body?.rounded_recognition;
+    if (code === 'recognition.rounded_coverage' && rounded) {
+      const { spheres, tori, cylinders, cones } = rounded.report;
+      const planes = 'planar_faces' in rounded ? rounded.planar_faces : rounded.model.revolved.mixed.planes.length;
+      return t('engine.rounded_coverage', { spheres, tori, cylinders, cones, planes });
+    }
+    const revolved = body?.revolved_recognition;
+    if (code === 'recognition.revolved_coverage' && revolved) {
+      const { cylinders, cones } = revolved.report;
+      const planes = 'planar_faces' in revolved ? revolved.planar_faces : revolved.model.mixed.planes.length;
+      return t('engine.revolved_coverage', { cylinders, cones, planes });
+    }
+    const mixed = body?.mixed_recognition;
+    if (code === 'recognition.mixed_coverage' && mixed) {
+      const planes = 'planar_faces' in mixed ? mixed.planar_faces : mixed.model.planes.length;
+      return t('engine.mixed_coverage', { cylinders:mixed.report.cylinders, planes });
+    }
+    if (code === 'mesh.vertices_moved') {
+      const distance = fallback.match(/([+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*mm/i)?.[1];
+      if (distance) return t('engine.verticesMoved', { distance });
+    }
+    return diagnosticKeys[code] ? t(diagnosticKeys[code]) : `${t('engine.unknownDetail')}: ${fallback}`;
+  }
   const notices = $derived.by(() => {
-    const documentNotices = (result?.diagnostics ?? preview?.diagnostics ?? []).map(diagnostic => ({ diagnostic, body:null as BodyResult|null, index:0 }));
+    const documentNotices = (result?.diagnostics ?? preview?.diagnostics ?? []).map(diagnostic => ({ diagnostic, body:null, index:0 }));
     const bodies = result?.bodies ?? [];
-    return [...documentNotices, ...bodies.flatMap(body => body.analysis.report.diagnostics.map(diagnostic => ({ diagnostic, body, index:result?.bodies.indexOf(body) ?? 0 })))];
+    return [...documentNotices, ...bodies.flatMap((body, index) => body.analysis.report.diagnostics.map(diagnostic => ({ diagnostic, body, index })))];
   });
   // Les avertissements de tous les corps restent visibles même si un seul corps est inspecté.
   // Les comptes de couverture et remarques techniques restent consultables dans Détails.
@@ -469,9 +493,10 @@
   const selectedBody = $derived(stepView || mappedSource ? null : result?.bodies.find(body => body.id === selectedId) ?? null);
   const selectedPreview = $derived(stepView || mappedSource ? null : preview?.bodies.find(body => body.id === selectedId) ?? null);
   const selection = $derived(stepView || mappedSource ? null : selectedBody ?? (selectedId ? null : result?.bodies.length === 1 ? result.bodies[0] : null));
+  const geometryResults = $derived(selection ? ordinaryBodies.filter(body => body.id === selection.id) : ordinaryBodies);
   const report = $derived(selection?.recognition?.report ?? selection?.mixed_recognition?.report ?? selection?.revolved_recognition?.report ?? selection?.rounded_recognition?.report ?? selection?.rounded_box_recognition?.report ?? null);
-  const heightPatches = $derived((selection ? [selection] : result?.bodies ?? []).flatMap(body => body.height_patch_recognition ? [body.height_patch_recognition] : []));
-  const heightBound = $derived(heightPatches.length ? Math.max(...heightPatches.map(r => r.report.max_deviation_bound_mm)) : null);
+  const heightPatches = $derived((selection ? [selection] : result?.bodies ?? []).flatMap(body => body.height_patch_recognition ? [body.height_patch_recognition.report] : []));
+  const heightBound = $derived(heightPatches.length ? Math.max(...heightPatches.map(r => r.max_deviation_bound_mm)) : null);
   const metrics = $derived(selection?.cad ?? result?.cad ?? null);
   const sourceTriangles = $derived(selection ? selection.analysis.report.input_triangles : result ? result.bodies.reduce((sum, body) => sum + body.analysis.report.input_triangles, 0) : selectedPreview ? selectedPreview.mesh.triangles.length : preview?.bodies.reduce((sum, body) => sum + body.mesh.triangles.length, 0) ?? null);
   const sourceVertices = $derived(selection ? selection.analysis.report.vertices : result ? result.bodies.reduce((sum, body) => sum + body.analysis.report.vertices, 0) : selectedPreview ? selectedPreview.mesh.vertices.length : preview?.bodies.reduce((sum, body) => sum + body.mesh.vertices.length, 0) ?? null);
@@ -668,7 +693,7 @@
           onfaceregion={selectStepRegion}
           onfacepaint={paintStepFaces}
           {bytes}
-          results={selection ? [selection] : result?.bodies ?? []}
+          results={geometryResults}
           {preview}
           {format}
           {fitSignal}
