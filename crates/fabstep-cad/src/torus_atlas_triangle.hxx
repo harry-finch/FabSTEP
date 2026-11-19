@@ -11,12 +11,14 @@
 #include <GeomConvert.hxx>
 #include <Geom_BSplineSurface.hxx>
 #include <Geom_BezierSurface.hxx>
+#include <TopExp.hxx>
 #include <TopExp_Explorer.hxx>
 #include <TopoDS.hxx>
 #include <TopoDS_Wire.hxx>
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <gp_Circ.hxx>
 #include <optional>
 namespace atlas_triangle {
@@ -195,6 +197,62 @@ inline bool material_side(const TopoDS_Edge &edge, const TopoDS_Face &face, int 
   }
   return true;
 }
+// A STEP reader can insert a fourth, degenerate coedge when closing the
+// pcurves at an end of the circular rim. Prove the whole coedge lies within
+// native confusion of its sole topological vertex on this regular surface.
+inline std::optional<gp_Pnt> corner(const TopoDS_Edge &edge, const TopoDS_Face &face) {
+  if (!BRep_Tool::Degenerated(edge) || !BRep_Tool::SameParameter(edge))
+    return {};
+  TopoDS_Vertex first, last;
+  TopExp::Vertices(edge, first, last);
+  double lo, hi;
+  if (first.IsNull() || last.IsNull() || !first.IsSame(last) || !BRep_Tool::Curve(edge, lo, hi).IsNull() ||
+      BRep_Tool::Tolerance(edge) > Precision::Confusion() || BRep_Tool::Tolerance(first) > Precision::Confusion())
+    return {};
+  const BRepAdaptor_Surface surface(face, false);
+  if (surface.GetType() != GeomAbs_BSplineSurface || surface.UDegree() != 1 || surface.VDegree() != 1)
+    return {};
+  const auto net = surface.BSpline();
+  if (net->NbUPoles() != 2 || net->NbVPoles() != 2 || net->IsUPeriodic() || net->IsVPeriodic() ||
+      net->UKnot(1) != 0. || net->UKnot(2) != 1. || net->VKnot(1) != 0. || net->VKnot(2) != 1.)
+    return {};
+  const BRepAdaptor_Curve2d pc(edge, face);
+  if (pc.GetType() != GeomAbs_Line || !(pc.LastParameter() > pc.FirstParameter()))
+    return {};
+  const auto a = pc.Value(pc.FirstParameter()), b = pc.Value(pc.LastParameter());
+  const gp_Pnt2d end = a.X() < .5 ? gp_Pnt2d(0, 1) : gp_Pnt2d(1, 0);
+  if (!(a.Distance(end) <= 1e-8 && b.Distance(end) <= 1e-8))
+    return {};
+  const auto vertex = BRep_Tool::Pnt(first);
+  // A bilinear homogeneous net on a straight UV segment is quadratic.
+  // Its middle Bernstein control is the average of the two mixed evaluations.
+  // Positive weights then enclose the entire image in the control-point ball.
+  struct Homogeneous {
+    gp_XYZ delta;
+    double weight;
+  };
+  auto evaluate = [&](double u, double v) {
+    Homogeneous result{{0., 0., 0.}, 0.};
+    for (int i = 0; i < 2; ++i)
+      for (int j = 0; j < 2; ++j) {
+        const double w = net->Weight(i + 1, j + 1) * (i ? u : 1. - u) * (j ? v : 1. - v);
+        result.delta += (net->Pole(i + 1, j + 1).XYZ() - vertex.XYZ()) * w;
+        result.weight += w;
+      }
+    return result;
+  };
+  const auto m = evaluate(a.X(), b.Y()), n = evaluate(b.X(), a.Y());
+  const Homogeneous middle{(m.delta + n.delta) * .5, (m.weight + n.weight) * .5};
+  double scale = 0.;
+  for (int i = 1; i <= 2; ++i)
+    for (int j = 1; j <= 2; ++j)
+      scale = std::max(scale, net->Weight(i, j) * net->Pole(i, j).Distance(vertex));
+  const double rounding = 64. * std::numeric_limits<double>::epsilon() * scale;
+  for (const auto &h : {evaluate(a.X(), a.Y()), middle, evaluate(b.X(), b.Y())})
+    if (!(h.weight > 0. && h.delta.Modulus() + rounding < h.weight * (.5 * Precision::Confusion())))
+      return {};
+  return vertex;
+}
 inline bool matches(const TopoDS_Face &face) {
   const BRepAdaptor_Surface s(face, false);
   if (s.GetType() != GeomAbs_BSplineSurface || s.UDegree() != 1 || s.VDegree() != 1)
@@ -207,10 +265,24 @@ inline bool matches(const TopoDS_Face &face) {
   if (!(weight > 0.) || std::abs(net->Weight(2, 1) / weight - 1.) > 1e-12 ||
       std::abs(net->Weight(1, 2) / weight - 1.) > 1e-12)
     return false;
+  TopExp_Explorer wires(face, TopAbs_WIRE);
+  if (!wires.More())
+    return false;
+  wires.Next();
+  if (wires.More())
+    return false;
   std::array<bool, 3> seen{};
+  TopoDS_Vertex collapsed;
+  std::array<TopoDS_Edge, 3> material;
   for (TopExp_Explorer it(face, TopAbs_EDGE); it.More(); it.Next()) {
     const auto edge = TopoDS::Edge(it.Current());
-    if (BRep_Tool::Degenerated(edge) || !BRep_Tool::SameParameter(edge))
+    if (BRep_Tool::Degenerated(edge)) {
+      if (!collapsed.IsNull() || !corner(edge, face))
+        return false;
+      collapsed = TopExp::FirstVertex(edge);
+      continue;
+    }
+    if (!BRep_Tool::SameParameter(edge))
       return false;
     int side = 0;
     while (side < 3 && !material_side(edge, face, side))
@@ -218,6 +290,7 @@ inline bool matches(const TopoDS_Face &face) {
     if (side == 3 || seen[side])
       return false;
     seen[side] = true;
+    material[side] = edge;
     if (side < 2) {
       // Sewing may keep the adjacent loft's degree-one generator.
       const BRepAdaptor_Curve curve(edge);
@@ -239,6 +312,14 @@ inline bool matches(const TopoDS_Face &face) {
         return false;
     }
   }
-  return seen[0] && seen[1] && seen[2];
+  if (!(seen[0] && seen[1] && seen[2]))
+    return false;
+  if (!collapsed.IsNull()) {
+    const auto touches = [&](const TopoDS_Edge &edge) {
+      return collapsed.IsSame(TopExp::FirstVertex(edge)) || collapsed.IsSame(TopExp::LastVertex(edge));
+    };
+    return touches(material[2]) && (touches(material[0]) != touches(material[1]));
+  }
+  return true;
 }
 } // namespace atlas_triangle

@@ -1,5 +1,7 @@
 namespace atlas_domain {
 inline std::optional<gp_Pnt> pole(const TopoDS_Face &face, const TopoDS_Edge &edge) {
+  if (auto point = atlas_triangle::corner(edge, face); point && atlas_triangle::matches(face))
+    return point;
   if (auto known = trimfan::pole(face, edge))
     return known;
   if (!BRep_Tool::Degenerated(edge))

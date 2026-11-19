@@ -12,6 +12,9 @@
 #include <STEPControl_Reader.hxx>
 #include <STEPControl_Writer.hxx>
 #include <TopoDS_Compound.hxx>
+#include <GCE2d_MakeSegment.hxx>
+#include <Geom2d_BezierCurve.hxx>
+#include <Geom2d_Line.hxx>
 #include <iostream>
 #include <sstream>
 namespace {
@@ -146,6 +149,82 @@ void short_quadratic() {
   require(atlas_triangle::matches(read) && BRepCheck_Analyzer(read, true, false, true).IsValid() &&
               valid(read), "reimported short circular triangle is invalid");
 }
+// The STEP reader can close slightly mismatched 2D endpoints by adding an
+// edge at the endpoint of a long, independently generated circular collar.
+void reimported_corner() {
+  const gp_Ax2 axes(gp_Pnt(14, 35, 9), gp_Dir(.000008, .000011, 1));
+  Handle(Geom_Circle) circle = new Geom_Circle(axes, .75);
+  const double start = .246, sweep = .00204;
+  gp_Pnt last;
+  gp_Vec tangent;
+  circle->D1(start + sweep, last, tangent);
+  const auto first = circle->Value(start);
+  const auto apex = first.Translated(gp_Vec(axes.Direction()) * 55. + gp_Vec(.00000013, .00000008, 0));
+  const auto va = BRepBuilderAPI_MakeVertex(first).Vertex(), vz = BRepBuilderAPI_MakeVertex(apex).Vertex();
+  const auto vb = BRepBuilderAPI_MakeVertex(last.Translated(tangent.Normalized() * 2.7e-12)).Vertex();
+  const auto arc = BRepBuilderAPI_MakeEdge(circle, va, vb, start, start + sweep).Edge();
+  std::array<TopoDS_Edge, 3> edges{arc, BRepBuilderAPI_MakeEdge(vb, vz).Edge(),
+                                   BRepBuilderAPI_MakeEdge(vz, va).Edge()};
+  const auto patch = atlas_triangle::geometry(arc, apex).value();
+  const auto normal = gp_Vec(apex, first).Crossed(gp_Vec(apex, last)).Normalized();
+  const auto built = atlas_triangle::make(edges, 0, patch, normal);
+  require(built && valid(*built) && atlas_triangle::matches(*built), "native collar with shared corner failed");
+  const auto read = step_face(*built);
+  require(valid(read) && BRepCheck_Analyzer(read, true, false, true).IsValid() && atlas_triangle::matches(read),
+          "STEP corner lost the regular triangle");
+  TopoDS_Edge corner;
+  for (TopExp_Explorer it(read, TopAbs_EDGE); it.More(); it.Next())
+    if (const auto e = TopoDS::Edge(it.Current()); BRep_Tool::Degenerated(e))
+      corner = e;
+  BRep_Builder builder;
+  if (corner.IsNull()) {
+    // Another OCCT patch may close the wire directly. Exercise the same
+    // degenerate topology explicitly on that build for the adversarial cases.
+    TopoDS_Vertex vertex;
+    for (TopExp_Explorer it(read, TopAbs_VERTEX); it.More(); it.Next()) {
+      const auto v = TopoDS::Vertex(it.Current());
+      if (BRep_Tool::Pnt(v).Distance(last) < Precision::Confusion())
+        vertex = v;
+    }
+    require(!vertex.IsNull(), "missing circular endpoint");
+    builder.MakeEdge(corner);
+    builder.Degenerated(corner, true);
+    builder.Add(corner, vertex.Oriented(TopAbs_FORWARD));
+    builder.Add(corner, vertex.Oriented(TopAbs_REVERSED));
+    builder.UpdateEdge(corner, new Geom2d_Line(gp_Pnt2d(0, 1), gp_Dir2d(1, -1)), read, Precision::Confusion());
+    builder.Range(corner, read, 0., 1e-9);
+    TopExp_Explorer wires(read, TopAbs_WIRE);
+    auto wire = TopoDS::Wire(wires.Current());
+    wire.Free(true);
+    builder.Add(wire, corner);
+  }
+  require(atlas_triangle::matches(read) && bool(atlas_triangle::corner(corner, read)), "missing pointlike corner");
+  // Stay within the 1e-8 UV neighborhood, but move in a direction in which
+  // the surface covers more than native confusion. Endpoint incidence alone is insufficient.
+  Handle(Geom2d_Curve) long_edge = new Geom2d_Line(gp_Pnt2d(0, 1), gp_Dir2d(0, -1));
+  builder.UpdateEdge(corner, long_edge, read, Precision::Confusion());
+  builder.Range(corner, read, 0., 8e-9);
+  require(!atlas_triangle::matches(read), "coedge with material 3D extent was accepted");
+  TColgp_Array1OfPnt2d poles(1, 3);
+  poles(1) = gp_Pnt2d(0, 1);
+  poles(2) = gp_Pnt2d(5e-9, 1 - 5e-9);
+  poles(3) = poles(1);
+  builder.UpdateEdge(corner, new Geom2d_BezierCurve(poles), read, Precision::Confusion());
+  builder.Range(corner, read, 0., 1.);
+  require(!atlas_triangle::matches(read), "nonmonotone corner curve was accepted");
+  // Add a separate closed inner trim to the otherwise regular native face.
+  const auto support = BRep_Tool::Surface(*built);
+  const gp_Pnt2d inner[]{{.2, .2}, {.2, .3}, {.3, .2}};
+  BRepBuilderAPI_MakeWire hole;
+  for (int i = 0; i < 3; ++i) {
+    Handle(Geom2d_Curve) segment = GCE2d_MakeSegment(inner[i], inner[(i + 1) % 3]).Value();
+    hole.Add(BRepBuilderAPI_MakeEdge(segment, support).Edge());
+  }
+  require(hole.IsDone() && hole.Wire().Closed(), "could not prepare inner wire");
+  TopoDS_Face perforated = *built;
+  builder.Add(perforated, hole.Wire());
+  require(!atlas_triangle::matches(perforated), "regular triangle with an inner loop was accepted");
+}
 // Displace the virtual fourth pole by less than the support-comparison
 // tolerance while reversing its projected corner. Its three material
 // vertices and its pcurves still match the intended signature.
@@ -186,7 +265,8 @@ int main() try {
   sample(true);
   nearly_folded();
   short_quadratic();
-  std::cout << "Two orientations, fidelity bound, STEP roundtrip and penetrating controls passed.\n";
+  reimported_corner();
+  std::cout << "Two orientations, fidelity bound, STEP roundtrip, pointlike collar corners and penetrating controls passed.\n";
 } catch (const std::exception &e) {
   std::cerr << e.what() << '\n';
   return 1;
