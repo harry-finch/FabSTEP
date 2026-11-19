@@ -10,6 +10,7 @@
 #include <BRepTools_WireExplorer.hxx>
 #include <BRep_Tool.hxx>
 #include <Geom2d_BSplineCurve.hxx>
+#include <ElSLib.hxx>
 #include <NCollection_IncAllocator.hxx>
 #include <Poly_Triangulation.hxx>
 #include <TopExp_Explorer.hxx>
@@ -280,6 +281,33 @@ inline bool supports(const TopoDS_Face &face) {
   return edges > 0;
 }
 
+// A STEP vertex can have two slightly different UV images on incident
+// isoparametric edges. Retain the constant coordinate of each incident edge.
+// All boundary nodes in 3D still come from the same shared edge samples.
+inline UV corner_uv(UV previous, UV end, UV start, UV next, const gp_Torus &torus, const gp_Pnt &vertex) {
+  const auto delta = [](double a, double b) { return std::remainder(a - b, 6.2831853071795864769); };
+  constexpr double angular = 1e-7, linear = 1e-7;
+  if (std::min(std::abs(delta(previous[0], start[0])), std::abs(delta(previous[1], start[1]))) < angular)
+    return start;
+  // Only distinct, unambiguous isoparametric directions define a corner.
+  for (int fixed = 0; fixed < 2; ++fixed) {
+    const int other = 1 - fixed;
+    if (std::abs(delta(previous[fixed], end[fixed])) >= angular ||
+        std::abs(delta(previous[other], end[other])) < angular ||
+        std::abs(delta(start[other], next[other])) >= angular ||
+        std::abs(delta(start[fixed], next[fixed])) < angular)
+      continue;
+    const double du = delta(end[0], start[0]), dv = delta(end[1], start[1]);
+    if (std::hypot((torus.MajorRadius() + torus.MinorRadius()) * du, torus.MinorRadius() * dv) > linear)
+      return start;
+    UV corner = start;
+    corner[fixed] += delta(end[fixed], start[fixed]);
+    if (ElSLib::Value(corner[0], corner[1], torus).Distance(vertex) <= linear)
+      return corner;
+  }
+  return start;
+}
+
 template <class Samples>
 Handle(Poly_Triangulation) mesh(const TopoDS_Face &face, double deflection, double angle,
                                 size_t limit, const Samples &samples) {
@@ -287,6 +315,8 @@ Handle(Poly_Triangulation) mesh(const TopoDS_Face &face, double deflection, doub
   BRepAdaptor_Surface surface(face);
   std::vector<UV> chart;
   std::vector<gp_Pnt> prescribed;
+  struct Span { size_t first; UV end; };
+  std::vector<Span> spans;
   gp_Pnt end;
   TopExp_Explorer wires(face, TopAbs_WIRE);
   for (BRepTools_WireExplorer ex(TopoDS::Wire(wires.Current()), face); ex.More(); ex.Next()) {
@@ -299,6 +329,7 @@ Handle(Poly_Triangulation) mesh(const TopoDS_Face &face, double deflection, doub
                 std::abs(chain.back().parameter - pc.LastParameter()) < 1e-7,
             "p-curve range");
     bool reverse = edge.Orientation() == TopAbs_REVERSED;
+    const size_t first = chart.size();
     for (size_t i = 0; i < chain.size(); ++i) {
       const auto &item = chain[reverse ? chain.size() - 1 - i : i];
       const auto uv = pc.Value(item.parameter);
@@ -306,6 +337,7 @@ Handle(Poly_Triangulation) mesh(const TopoDS_Face &face, double deflection, doub
       if (i == 0 && !chart.empty())
         require(item.point.Distance(end) <= 1e-7, "open chart boundary");
       if (i + 1 == chain.size()) {
+        spans.push_back({first, {uv.X(), uv.Y()}});
         end = item.point;
         break;
       }
@@ -314,6 +346,12 @@ Handle(Poly_Triangulation) mesh(const TopoDS_Face &face, double deflection, doub
     }
   }
   require(!prescribed.empty() && end.Distance(prescribed.front()) <= 1e-7, "open trim wire");
+  const auto torus = surface.Torus();
+  for (size_t i = 0; i < spans.size(); ++i) {
+    const auto &from = spans[i], &to = spans[(i + 1) % spans.size()];
+    const size_t last = to.first ? to.first - 1 : chart.size() - 1;
+    chart[to.first] = corner_uv(chart[last], from.end, chart[to.first], to.end, torus, prescribed[to.first]);
+  }
   require(deflection > 5e-7, "deflection below edge tolerance");
   auto data = build(chart, surface.Torus().MajorRadius(), surface.Torus().MinorRadius(),
                     deflection - 5e-7, limit, angle);
