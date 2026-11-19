@@ -26,6 +26,7 @@ const en: Shape<typeof fr> = {
   engine: { toric_sector_endpoints_projected: "The torus sector endpoints were adjusted. The deviation bound includes their displacement.",
     unequal_pocket_fitted: "The two fillets of different radii share a curved edge.",
     closed_pocket_fitted: "The four floor fillets meet along four elliptical arcs.",
+    trimmed_tori_fitted: "The toroidal surfaces were reconstructed with their boundaries.",
     u_pocket_fitted: "The three floor fillets meet along two elliptical arcs.",
     adjacent_pocket_fitted: "The two pocket fillets meet along an elliptical arc.",
     double_oblique_pocket_fitted: "The pocket fillet meets the two inclined stops along two elliptical arcs.",

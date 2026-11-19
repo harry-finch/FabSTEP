@@ -7,7 +7,56 @@ import struct
 import numpy as np
 
 
-def ramp(path, n, m):
+def refine_skin(points, triangles, rounds):
+    """Refine the toric interior and keep the original shared boundary knots."""
+    for _ in range(rounds):
+        indices = triangles.ravel()
+        pairs = np.sort(
+            np.stack((indices, np.roll(triangles, -1, axis=1).ravel()), axis=1), axis=1
+        )
+        edges, inverse, count = np.unique(
+            pairs, axis=0, return_inverse=True, return_counts=True
+        )
+        interior = count == 2
+        ids = np.full(len(edges), -1)
+        ids[interior] = len(points) + np.arange(np.count_nonzero(interior))
+        sides = points[edges[interior]]
+        u = np.arctan2(sides[:, :, 2], sides[:, :, 1]).mean(axis=1)
+        v = np.arctan2(
+            sides[:, :, 0], np.hypot(sides[:, :, 1], sides[:, :, 2]) - 20.0
+        ).mean(axis=1)
+        radius = 20.0 + 1.7 * np.cos(v)
+        points = np.vstack(
+            (
+                points,
+                np.stack(
+                    (1.7 * np.sin(v), radius * np.cos(u), radius * np.sin(u)), axis=1
+                ),
+            )
+        )
+        refined = []
+        for corners, mid in zip(triangles, ids[inverse].reshape(-1, 3)):
+            if np.all(mid >= 0):
+                refined.extend(
+                    [[corners[k], mid[k], mid[(k - 1) % 3]] for k in range(3)]
+                )
+                refined.append(mid.tolist())
+            elif np.all(mid < 0):
+                refined.append(corners.tolist())
+            elif np.count_nonzero(mid >= 0) == 1:
+                k = int(np.nonzero(mid >= 0)[0][0])
+                a, b, c = np.roll(corners, -k)
+                refined.extend([[a, mid[k], c], [mid[k], b, c]])
+            else:
+                k = int(np.nonzero(mid < 0)[0][0])
+                a, b, c = np.roll(corners, -k)
+                m1, m2 = mid[(k + 1) % 3], mid[(k + 2) % 3]
+                refined.extend([[a, b, m1], [a, m1, m2], [m2, m1, c]])
+        triangles = np.array(refined)
+    return points, triangles
+
+
+def ramp(path, n, m, sparse_floor=False, subdivisions=0):
     # Height skin over an annular sector. Both radial notches interrupt the
     # toroidal chart. Vertical side walls and the planar bottom close it.
     R, r = 20.0, 1.7
@@ -39,7 +88,37 @@ def ramp(path, n, m):
     b = np.roll(T, -1, axis=1).ravel()
     k = np.minimum(a, b) * N + np.maximum(a, b)
     _, i, counts = np.unique(k, return_index=True, return_counts=True)
-    out = T.tolist() + (T[:, ::-1] + N).tolist()
+    if sparse_floor:
+        # Only the exterior contour of the bottom needs the top skin's knots.
+        # Between two angular stations connect the ordered radial samples.
+        # Notch endpoints retain their actual floor vertices on both strips.
+        ends = np.union1d(a[i[counts == 1]], b[i[counts == 1]])
+        stations = [sorted(ends[ends // (m + 1) == k] % (m + 1)) for k in range(n + 1)]
+        floor = []
+        for k in range(n):
+            lo = m // 4 if 2 * n // 3 <= k < 3 * n // 4 else 0
+            hi = m // 2 if n // 3 <= k < n // 2 else m
+            rows = [[j for j in stations[k + side] if lo <= j <= hi] for side in (0, 1)]
+            idx = [0, 0]
+
+            def vertex(side):
+                return N + (k + side) * (m + 1) + rows[side][idx[side]]
+
+            while idx[0] + 1 < len(rows[0]) or idx[1] + 1 < len(rows[1]):
+                left, right = vertex(0), vertex(1)
+                advance_right = idx[0] + 1 == len(rows[0]) or (
+                    idx[1] + 1 < len(rows[1])
+                    and rows[1][idx[1] + 1] <= rows[0][idx[0] + 1]
+                )
+                side = int(advance_right)
+                idx[side] += 1
+                floor.append([vertex(side), right, left])
+        if len(T) * 4**subdivisions + len(floor) + 2 * len(ends) > 600_000:
+            raise ValueError("Reference exceeds the large-STL source limit")
+        p, skin = refine_skin(p, T, subdivisions)
+        out = skin.tolist() + floor
+    else:
+        out = T.tolist() + (T[:, ::-1] + N).tolist()
     for at in i[counts == 1]:
         x, y = a[at], b[at]
         out.extend([[x, y + N, y], [x, x + N, y + N]])
@@ -105,12 +184,26 @@ if __name__ == "__main__":
     gen.add_argument("--u", type=int, default=60)
     gen.add_argument("--v", type=int, default=36)
     src = sub.add_parser("witness")
+    gen.add_argument(
+        "--sparse-floor",
+        action="store_true",
+        help="retain only contour knots on the plane, for dense toroidal test meshes",
+    )
+    gen.add_argument(
+        "--subdivisions",
+        type=int,
+        choices=range(4),
+        default=0,
+        help="refine the toric skin of a sparse-floor reference",
+    )
     src.add_argument("stl", type=Path)
     src.add_argument("output", type=Path)
     args = parser.parse_args()
     if args.action == "ramp":
         if not 24 <= args.u <= 150 or not 16 <= args.v <= 100:
             raise ValueError("Unsupported angular resolution")
-        ramp(args.output, args.u, args.v)
+        if args.subdivisions and not args.sparse_floor:
+            parser.error("--subdivisions requires --sparse-floor")
+        ramp(args.output, args.u, args.v, args.sparse_floor, args.subdivisions)
     else:
         witness(args.stl, args.output)

@@ -10,6 +10,8 @@ use fabstep_core::{
     GuidanceFamily, InputUnit, Mesh, Options, ReconstructionMode, Severity,
 };
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "large-stl")]
+mod torus_atlas;
 use std::sync::{Arc, OnceLock};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -976,6 +978,8 @@ fn convert_analyzed_document(
             }
         })?;
     }
+    #[cfg(feature = "large-stl")]
+    let single_stl = format == InputFormat::Stl && document.bodies.len() == 1;
     let mut bodies = Vec::with_capacity(document.bodies.len());
     let mut steps = Vec::with_capacity(document.bodies.len());
     let mut source_faces = Vec::new();
@@ -1026,18 +1030,39 @@ fn convert_analyzed_document(
                 let selected = hint.selected_source_triangle_ids.iter().map(|triangle| source.analysis_to_source_triangles.binary_search(triangle).map_err(|_| FabError::new("guidance.invalid_selection", "Triangle absent de la composante."))).collect::<Result<Vec<_>,_>>()?;
                 Ok((family,selected))
             }).collect::<Result<Vec<_>, FabError>>()?;
-            let recognized = control.run(ConversionPhase::Recognition,Some(body_index),|| {
-                if requests.is_empty() { fabstep_core::recognize_automatic(&body.analysis,options) }
-                else { fabstep_core::recognize_automatic_guided(&body.analysis,options,&requests) }
-            }).map_err(|e|body_error(e,&body.id,&body.name))?;
-            for (hint,(family,selection)) in hints.into_iter().zip(&requests) {
-                hint.reconstructed_source_triangle_ids = fabstep_core::guided_rounded_region(&recognized,*family,selection)?.into_iter().map(|t|source.analysis_to_source_triangles[t]).collect();
-            }
-            let faces=rounded_source_faces(&body.id,&source,&recognized)?;
-            let first=source_faces.len()+1;
-            let tokens=(first..first+faces.len()).collect::<Vec<_>>();
-            source_faces.extend(faces);
-            convert_analysis_with_recognized(body.analysis,options,Some(&tokens),Some(Recognized::Rounded(recognized)),control,body_index,source_proofs.as_deref_mut())
+            (|| {
+                let candidate = control.run(ConversionPhase::Recognition, Some(body_index), || {
+                    if requests.is_empty() {
+                        fabstep_core::recognize_automatic(&body.analysis, options)
+                    } else {
+                        fabstep_core::recognize_automatic_guided(&body.analysis, options, &requests)
+                    }
+                });
+                #[cfg(feature = "large-stl")]
+                if requests.is_empty() && single_stl
+                    && body.analysis.mesh.triangles.len() > 100_000
+                    && torus_atlas::should_retry(&candidate) {
+                    let atlas = control.run(ConversionPhase::Recognition, Some(body_index), ||
+                        fabstep_core::torus_atlas::recognize(&body.analysis.mesh, options.max_deviation_mm))?;
+                    if let Some(atlas) = atlas {
+                        drop(candidate);
+                        return torus_atlas::convert(body.analysis, (&body.id, &source), options,
+                            &atlas, &mut source_faces, control, body_index);
+                    }
+                }
+                let recognized = candidate?;
+                for (hint, (family, selection)) in hints.into_iter().zip(&requests) {
+                    hint.reconstructed_source_triangle_ids =
+                        fabstep_core::guided_rounded_region(&recognized, *family, selection)?
+                            .into_iter().map(|t| source.analysis_to_source_triangles[t]).collect();
+                }
+                let faces = rounded_source_faces(&body.id, &source, &recognized)?;
+                let first = source_faces.len() + 1;
+                let tokens = (first..first + faces.len()).collect::<Vec<_>>();
+                source_faces.extend(faces);
+                convert_analysis_with_recognized(body.analysis, options, Some(&tokens),
+                    Some(Recognized::Rounded(recognized)), control, body_index, source_proofs.as_deref_mut())
+            })()
         } else if !hints.is_empty() {
             let selections = hints.iter().map(|hint| {
                 hint.selected_source_triangle_ids.iter().map(|triangle| {
