@@ -117,6 +117,7 @@ fn segment(
     let mut triangle_regions = vec![usize::MAX; mesh.triangles.len()];
     let mut approximate_faces = 0;
     let mut split_observed = false;
+    let mut pending = VecDeque::new();
     for seed in 0..mesh.triangles.len() {
         if assigned[seed] {
             continue;
@@ -125,7 +126,7 @@ fn segment(
         let origin = mesh.vertices[mesh.triangles[seed][0]];
         let mut region = BTreeSet::new();
         let mut split_by_distance = false;
-        let mut pending = VecDeque::from([seed]);
+        pending.push_back(seed);
         assigned[seed] = true;
         let mut max_residual: f64 = 0.0;
         let mut extent: f64 = 0.0;
@@ -176,7 +177,15 @@ fn segment(
         if max_residual > extent * f64::EPSILON * 128.0 {
             approximate_faces += 1;
         }
-        let loops = boundaries(mesh, &region)?;
+        let loops = if region.len() == 1 {
+            // Preserve winding and the canonical first vertex chosen by boundaries().
+            let mut contour = mesh.triangles[seed];
+            let first = (0..3).min_by_key(|&i| contour[i]).unwrap();
+            contour.rotate_left(first);
+            vec![contour.to_vec()]
+        } else {
+            boundaries(mesh, &region)?
+        };
         let loops = validate_loops(mesh, loops, origin, n, checks)?;
         for &triangle in &region {
             triangle_regions[triangle] = faces.len();
@@ -528,6 +537,48 @@ fn inside(p: P2, polygon: &[P2], checks: &mut usize) -> Result<bool, FabError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn isolated_facets_preserve_winding_start_vertex_and_ambiguous_edge_rejection() {
+        for (triangle, expected) in [([2, 0, 1], [0, 1, 2]), ([1, 0, 2], [0, 2, 1])] {
+            let mesh = Mesh {
+                vertices: vec![[0., 0., 0.], [1., 0., 0.], [0., 1., 0.]],
+                triangles: vec![triangle],
+            };
+            let mut checks = MAX_SEGMENT_CHECKS;
+            let segmentation = segment(
+                &mesh,
+                &[vec![]],
+                &triangle_normals(&mesh),
+                0.,
+                &mut checks,
+                false,
+            )
+            .unwrap();
+            assert_eq!(segmentation.model.faces[0].loops, [expected]);
+            assert_eq!(checks, MAX_SEGMENT_CHECKS);
+        }
+        // Positive signed area, but the projected consecutive edges cannot be separated.
+        let mesh = Mesh {
+            vertices: vec![[0., 0., 0.], [1., 1., 0.], [2., 2. + 2. * f64::EPSILON, 0.]],
+            triangles: vec![[0, 1, 2]],
+        };
+        let mut checks = 0;
+        let error = segment(
+            &mesh,
+            &[vec![]],
+            &triangle_normals(&mesh),
+            0.,
+            &mut checks,
+            false,
+        )
+        .err()
+        .unwrap();
+        assert_eq!(error.code, "planar.invalid_contour");
+        assert!(error.message.contains("Arêtes consécutives"));
+        assert_eq!(checks, 0);
+    }
+
     #[test]
     fn geometric_contours_reject_crossings() {
         assert!(intersects([0., 0.], [2., 2.], [0., 2.], [2., 0.]));

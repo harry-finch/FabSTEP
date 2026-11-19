@@ -24,12 +24,14 @@ fn constant(a: P, b: P, m: Torus) -> Option<usize> {
 
 pub(super) fn measure(src: &Source, m: Torus, blocked: &[bool], limit: f64) -> Vec<TorusChart> {
     let points: &[_] = &src.points;
-    let valid: Vec<_> = points
-        .iter()
-        .enumerate()
-        .map(|(i, &p)| !blocked[i] && m.distance(p).abs() < 2e-5)
-        .collect();
-    let uv: Vec<_> = points.iter().map(|&p| m.uv(p)).collect();
+    // Only triangles with three valid vertices enter the chart or its rim.
+    let mut valid = Vec::with_capacity(points.len());
+    let mut uv = Vec::with_capacity(points.len());
+    for (&p, &blocked) in points.iter().zip(blocked) {
+        let on_surface = !blocked && m.distance(p).abs() < 2e-5;
+        valid.push(on_surface);
+        uv.push(if on_surface { m.uv(p) } else { [0.; 2] });
+    }
     let mut selected: Vec<_> = src
         .tris
         .iter()
