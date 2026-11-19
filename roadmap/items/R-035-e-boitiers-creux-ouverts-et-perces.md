@@ -64,3 +64,5 @@ R-098 — Qualifier un bac ouvert combinant trois perçages traversants et huit 
 R-100 — Conserver le rebord en saillie et deux cavités de profondeur différente séparées par une cloison. Voir V-1229.
 
 R-103 — Reconstruire les deux congés d’un rebord de récipient ouvert, y compris le quart de tore qui rejoint le cylindre par sa branche radiale intérieure. Voir V-1233.
+
+R-110 couvre le fond à quatre congés d’une cavité, y compris le contrôle du vide sur le témoin traversant (V-1243).

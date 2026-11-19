@@ -1,10 +1,10 @@
-//! Three quarter cylinders around the floor of a rectangular pocket.
+//! Three or four quarter cylinders around the floor of a rectangular pocket.
 use super::*;
 
 struct Supports {
-    sides: [usize; 3], // flanks first, central wall last
+    sides: [usize; 4], // left, right, center, opposite center
     floor: usize,
-    stop: usize,
+    closed: bool,
     radius: f64,
 }
 
@@ -65,10 +65,11 @@ fn supports(
             checked(stop.replace(i).is_none() && lo.abs() < tol && hi > 8. * tol)?;
         }
     }
-    let stop = stop.ok_or_else(unsupported)?;
-    checked(rails.len() == 3)?;
+    let closed = stop.is_none();
+    checked(rails.len() == if closed { 4 } else { 3 })?;
     let r = heights.iter().sum::<f64>() / heights.len() as f64;
     checked(heights.iter().all(|&h| (h - r).abs() <= tol))?;
+    let stop = stop.unwrap_or_else(|| rails.pop().unwrap());
     let stop_normal = p.planes[stop].support.normal;
     let central = rails
         .iter()
@@ -98,14 +99,19 @@ fn supports(
         p.planes[i].support = center_plane(mesh, &p.planes[i], normal);
     }
     Ok(Supports {
-        sides: [left, right, center],
+        sides: [left, right, center, stop],
         floor,
-        stop,
+        closed,
         radius: r,
     })
 }
 
-fn split(mesh: &Mesh, p: &mut Partition, lateral: [Plane; 3], tol: f64) -> Result<(), FabError> {
+fn split<const N: usize>(
+    mesh: &Mesh,
+    p: &mut Partition,
+    lateral: [Plane; N],
+    tol: f64,
+) -> Result<(), FabError> {
     // The inward distance to the closest curved side determines the owner.
     // Every vertex of each triangle must lie in that same closed cell.
     for (t, id) in p.owners.iter_mut().enumerate() {
@@ -114,12 +120,12 @@ fn split(mesh: &Mesh, p: &mut Partition, lateral: [Plane; 3], tol: f64) -> Resul
         }
         let d = mesh.triangles[t].map(|v| lateral.map(|s| s.distance(mesh.vertices[v])));
         let mean = |k| d.iter().map(|row| row[k]).sum::<f64>() / 3.;
-        let mut ks = [0, 1, 2];
+        let mut ks: [usize; N] = std::array::from_fn(|i| i);
         ks.sort_by(|&i, &j| mean(i).total_cmp(&mean(j)));
         let k = ks[0];
         checked(
             mean(ks[1]) - mean(k) > tol
-                && d.iter().all(|row| (0..3).all(|j| row[k] <= row[j] + tol)),
+                && d.iter().all(|row| (0..N).all(|j| row[k] <= row[j] + tol)),
         )?;
         *id = WALL + k;
     }
@@ -137,32 +143,68 @@ pub(super) fn fit(
     work.spend(80 * mesh.triangles.len())?;
     let tol = o.cylinder_fit_tolerance_mm.min(1e-5);
     let Supports {
-        sides,
+        sides: [left, right, center, stop],
         floor,
-        stop,
+        closed,
         radius,
     } = supports(mesh, adjacency, p, tol)?;
-    let lateral = sides.map(|i| p.planes[i].support);
-    split(mesh, p, lateral, tol)?;
-    let bisector = |k: usize| -> Result<Plane, FabError> {
+    let sides = if closed {
+        vec![left, center, right, stop]
+    } else {
+        vec![left, right, center]
+    };
+    let planes = [left, center, right, stop].map(|i| p.planes[i].support);
+    if closed {
+        split(mesh, p, planes, tol)?;
+    } else {
+        split(mesh, p, [planes[0], planes[2], planes[1]], tol)?;
+    }
+    let bisector = |a: usize, b: usize| -> Result<Plane, FabError> {
+        let (a, b) = (p.planes[sides[a]].support, p.planes[sides[b]].support);
+        let base = p.planes[floor].support;
         Ok(Plane {
-            origin: intersection(
-                [lateral[k], lateral[2], p.planes[floor].support],
-                p.planes[floor].support.origin,
-            )
-            .ok_or_else(unsupported)?,
-            normal: unit(sub(lateral[k].normal, lateral[2].normal)).ok_or_else(unsupported)?,
+            origin: intersection([a, b, base], base.origin).ok_or_else(unsupported)?,
+            normal: unit(sub(a.normal, b.normal)).ok_or_else(unsupported)?,
         })
     };
-    let ends = [bisector(0)?, bisector(1)?];
+    // End planes for each cylindrical chart. In a cycle the previous
+    // wall's upper trim is exactly the current wall's lower trim.
+    let mut caps = Vec::new();
+    if closed {
+        // A fully witnessed floor is a disk with one straight rail shared
+        // with each of the four cylinders and no other incident surface.
+        prove_disk(mesh, adjacency, &p.owners, floor)?;
+        let mut adjoining = BTreeSet::new();
+        for &(i, j) in p.cuts.keys() {
+            if i == floor {
+                adjoining.insert(j);
+            } else if j == floor {
+                adjoining.insert(i);
+            }
+        }
+        checked(adjoining == BTreeSet::from([WALL, WALL + 1, WALL + 2, WALL + 3]))?;
+        for k in 0..4 {
+            let prev = (k + 3) % 4;
+            let next = (k + 1) % 4;
+            caps.push((
+                WALL + prev,
+                WALL + next,
+                bisector(k, prev)?,
+                bisector(k, next)?,
+            ));
+        }
+    } else {
+        let a = bisector(0, 2)?;
+        let b = bisector(1, 2)?;
+        caps.extend([
+            (stop, WALL + 2, p.planes[stop].support, a),
+            (stop, WALL + 2, p.planes[stop].support, b),
+            (WALL, WALL + 1, a, b),
+        ]);
+    }
     let mut result = Vec::new();
-    for (k, &side) in sides.iter().enumerate() {
+    for (k, (&side, (low, high, mut near, mut far))) in sides.iter().zip(caps).enumerate() {
         let id = WALL + k;
-        let (low, high, mut near, mut far) = if k < 2 {
-            (stop, WALL + 2, p.planes[stop].support, ends[k])
-        } else {
-            (WALL, WALL + 1, ends[0], ends[1])
-        };
         prove_disk(mesh, adjacency, &p.owners, id)?;
         let neighbors: BTreeSet<_> = p
             .cuts
@@ -204,10 +246,22 @@ pub(super) fn fit(
             },
         )?);
     }
-    adjacent::same_ellipse(
-        &result[0].ellipse,
-        result[2].near_ellipse.as_ref().ok_or_else(unsupported)?,
-    )?;
-    adjacent::same_ellipse(&result[1].ellipse, &result[2].ellipse)?;
+    if closed {
+        for k in 0..4 {
+            let end = &result[k].ellipse;
+            let next = result[(k + 1) % 4]
+                .near_ellipse
+                .as_ref()
+                .ok_or_else(unsupported)?;
+            checked(end.vertices == next.vertices)?;
+            adjacent::same_ellipse(end, next)?;
+        }
+    } else {
+        adjacent::same_ellipse(
+            &result[0].ellipse,
+            result[2].near_ellipse.as_ref().ok_or_else(unsupported)?,
+        )?;
+        adjacent::same_ellipse(&result[1].ellipse, &result[2].ellipse)?;
+    }
     Ok(result)
 }

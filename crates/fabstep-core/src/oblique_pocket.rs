@@ -1,6 +1,7 @@
 //! Concave pocket fillets bounded by a right stop and an elliptic arc.
 //! Each ellipse can belong to an oblique plane or another fillet. A U has two
-//! distinct elliptic edges incident on its central wall.
+//! distinct elliptic edges incident on its central wall. Four fillets close
+//! a rectangular circuit around a measured planar floor.
 //! The eleven planar neighbors are seeded from the largest source triangles. Only
 //! the fully certified partition (including the pocket opening) is returned.
 use crate::math::{cross, dot, norm, scale, sub, Sum, V};
@@ -166,11 +167,17 @@ fn partition(
             owners[t] = i;
         }
     }
-    prove_disk(mesh, adjacency, &owners, WALL)?;
+    let contours = prove_open_patch(mesh, adjacency, &owners, WALL)?;
     // Before splitting a U, its common planar stop has two disconnected
     // interfaces with the unlabelled curved strip. Only the dedicated
     // recognizer can certify those cuts after assigning all three walls.
-    let (cuts, neighbor) = collect_interfaces(mesh, &owners, true)?;
+    let (cuts, neighbor) = if contours == 2 {
+        // The four unlabelled walls form a single annulus around a real floor.
+        // Ordered interfaces exist only after splitting that annulus.
+        (Cuts::new(), Neighbors::new())
+    } else {
+        collect_interfaces(mesh, &owners, true)?
+    };
     Ok(Partition {
         planes: patches,
         owners,
@@ -185,6 +192,15 @@ fn prove_disk(
     owners: &[usize],
     id: usize,
 ) -> Result<(), FabError> {
+    checked(prove_open_patch(mesh, adjacency, owners, id)? == 1)
+}
+
+fn prove_open_patch(
+    mesh: &Mesh,
+    adjacency: &[Vec<usize>],
+    owners: &[usize],
+    id: usize,
+) -> Result<usize, FabError> {
     let first = owners
         .iter()
         .position(|&i| i == id)
@@ -200,10 +216,14 @@ fn prove_disk(
     }
     checked(wall.len() == owners.iter().filter(|&&v| v == id).count())?;
     let wall_loops = crate::planar::boundaries(mesh, &wall)?;
-    checked(wall_loops.len() == 1)?;
+    checked((1..=2).contains(&wall_loops.len()))?;
     let vertices: BTreeSet<_> = wall.iter().flat_map(|&t| mesh.triangles[t]).collect();
-    checked(2 * vertices.len() + 2 * wall.len() == 2 + 3 * wall.len() + wall_loops[0].len())?;
-    Ok(())
+    let boundary = wall_loops.iter().map(Vec::len).sum::<usize>();
+    checked(
+        2 * vertices.len() + 2 * wall.len()
+            == 2 * (2 - wall_loops.len()) + 3 * wall.len() + boundary,
+    )?;
+    Ok(wall_loops.len())
 }
 
 type Neighbors = BTreeMap<(usize, usize), usize>;
@@ -550,7 +570,13 @@ fn candidate(
     let cylinders = geoms.len();
     let adjacent = cylinders == 2;
     let double_stop = geoms[0].near_ellipse.is_some();
-    let (fitted, adjusted, description) = if cylinders == 3 {
+    let (fitted, adjusted, description) = if cylinders == 4 {
+        (
+            "recognition.closed_pocket_fitted",
+            "recognition.adjacent_pocket_adjusted",
+            "Les quatre congés de la poche partagent un fond plan et quatre arêtes elliptiques.",
+        )
+    } else if cylinders == 3 {
         (
             "recognition.u_pocket_fitted",
             "recognition.adjacent_pocket_adjusted",
@@ -582,12 +608,19 @@ fn candidate(
     // For a U, store both seams in the central chart's orientation. Each
     // flank recovers its own orientation from its cylinder axis.
     let chart = if cylinders == 3 { &geoms[2] } else { &geoms[0] };
-    let ellipses = chart
-        .near_ellipse
-        .iter()
-        .chain([&chart.ellipse])
-        .cloned()
-        .collect();
+    let ellipses = if cylinders == 4 {
+        geoms
+            .iter()
+            .map(|g| g.near_ellipse.clone().ok_or_else(unsupported))
+            .collect::<Result<_, _>>()?
+    } else {
+        chart
+            .near_ellipse
+            .iter()
+            .chain([&chart.ellipse])
+            .cloned()
+            .collect()
+    };
     let mixed = MixedModel {
         vertices: points.vertices,
         planes,
@@ -601,7 +634,9 @@ fn candidate(
             .collect(),
         partial_cylinders: (0..cylinders)
             .map(|index| MixedPartialCylinder {
-                arcs: if cylinders == 3 {
+                arcs: if cylinders == 4 {
+                    [index, (index + 1) % 4]
+                } else if cylinders == 3 {
                     if index == 2 {
                         [0, 1]
                     } else {

@@ -3,39 +3,75 @@ use fabstep_cad::ResultFaceFamily;
 use fabstep_core::{Options, ReconstructionMode};
 
 #[test]
-fn both_junctions_share_the_central_wall_after_step_transfer() {
+fn open_and_closed_networks_preserve_every_junction_and_source_owner_after_step_transfer() {
     let o = Options {
         reconstruction: ReconstructionMode::Auto,
         ..Default::default()
     };
-    for (source, volume, width) in [
+    for (source, volume, width, closed_length) in [
         (
             include_bytes!("../../../fixtures/u_pocket/u-coarse.stl").as_slice(),
             17894.797218,
             22.,
+            None,
         ),
         (
             include_bytes!("../../../fixtures/u_pocket/u-fine.stl").as_slice(),
             17894.797218,
             22.,
+            None,
         ),
         (
             include_bytes!("../../../fixtures/u_pocket/wide-coarse.stl").as_slice(),
             17428.748259,
             29.,
+            None,
         ),
         (
             include_bytes!("../../../fixtures/u_pocket/wide-fine.stl").as_slice(),
             17428.748259,
             29.,
+            None,
         ),
         (
             include_bytes!("../../../fixtures/u_pocket/narrow-fine.stl").as_slice(),
             20844.678295,
             7.,
+            None,
+        ),
+        (
+            include_bytes!("../../../fixtures/closed_pocket/loop-coarse.stl").as_slice(),
+            17921.309022,
+            22.,
+            Some(18.),
+        ),
+        (
+            include_bytes!("../../../fixtures/closed_pocket/loop-fine.stl").as_slice(),
+            17921.309022,
+            22.,
+            Some(18.),
+        ),
+        (
+            include_bytes!("../../../fixtures/closed_pocket/wide-fine.stl").as_slice(),
+            17446.779975,
+            29.,
+            Some(15.),
+        ),
+        (
+            include_bytes!("../../../fixtures/closed_pocket/narrow-coarse.stl").as_slice(),
+            20851.071178,
+            7.,
+            Some(18.),
+        ),
+        (
+            include_bytes!("../../../fixtures/closed_pocket/sections.stl").as_slice(),
+            17921.309022,
+            22.,
+            Some(18.),
         ),
     ] {
         let doc = convert_document_with_provenance(source, InputFormat::Stl, &o).unwrap();
+        let walls = if closed_length.is_some() { 4 } else { 3 };
         let cad = &doc.report.cad;
         assert_eq!(
             (
@@ -44,7 +80,7 @@ fn both_junctions_share_the_central_wall_after_step_transfer() {
                 cad.cylindrical_faces,
                 cad.planar_faces
             ),
-            (1, 14, 3, 11)
+            (1, 11 + walls, walls, 11)
         );
         assert!((cad.volume_mm3 - volume).abs() < 0.001);
         let conversion = &doc.report.bodies[0].conversion;
@@ -78,8 +114,13 @@ fn both_junctions_share_the_central_wall_after_step_transfer() {
                 if !plane {
                     let x = points.iter().map(|q| q[0] - 5.).sum::<f64>() / 3.;
                     let y = points.iter().map(|q| q[1] - 6.).sum::<f64>() / 3.;
-                    let distance = [x, width - x, y];
-                    let which = (0..3)
+                    let distance = [
+                        x,
+                        width - x,
+                        y,
+                        closed_length.map_or(f64::INFINITY, |length| length - y),
+                    ];
+                    let which = (0..walls)
                         .min_by(|&a, &b| distance[a].total_cmp(&distance[b]))
                         .unwrap();
                     classes.insert(which);
@@ -94,7 +135,14 @@ fn both_junctions_share_the_central_wall_after_step_transfer() {
                     .iter()
                     .filter(|&&i| faces.result.faces[i].family == ResultFaceFamily::Cylinder)
                     .count();
-                assert_eq!(links, if side == 2 { 2 } else { 1 });
+                assert_eq!(
+                    links,
+                    if closed_length.is_some() || side == 2 {
+                        2
+                    } else {
+                        1
+                    }
+                );
             }
             owners.extend_from_slice(&owner.source_triangle_ids);
         }
@@ -102,7 +150,7 @@ fn both_junctions_share_the_central_wall_after_step_transfer() {
         assert!(owners
             .into_iter()
             .eq(0..conversion.analysis.mesh.triangles.len()));
-        assert_eq!(wall_groups.len(), 3);
+        assert_eq!(wall_groups.len(), walls);
     }
 }
 
@@ -176,4 +224,37 @@ fn isolated_u_and_two_wall_pockets_keep_their_own_faces_after_document_transfer(
         }
     }
     assert_eq!(counts, [3, 2]);
+}
+
+#[test]
+fn forged_closed_cycle_requires_four_distinct_ellipses_and_the_real_planar_floor() {
+    let o = Options {
+        reconstruction: ReconstructionMode::Auto,
+        ..Default::default()
+    };
+    let a = fabstep_core::analyze_stl(
+        include_bytes!("../../../fixtures/closed_pocket/sections.stl"),
+        &o,
+    )
+    .unwrap();
+    let model = fabstep_core::recognize_automatic(&a, &o).unwrap().model;
+    let mut wrong = model.clone();
+    wrong.revolved.mixed.partial_cylinders[3].arcs = [3, 1];
+    let mut collapsed = model.clone();
+    collapsed.revolved.mixed.elliptic_arcs[0] = collapsed.revolved.mixed.elliptic_arcs[1].clone();
+    let mut missing = model;
+    let floor = missing
+        .revolved
+        .mixed
+        .planes
+        .iter_mut()
+        .find(|p| p.normal[2] > 0.9999 && p.loops.len() == 1)
+        .unwrap();
+    floor.loops.clear();
+    for m in [wrong, collapsed, missing] {
+        assert_eq!(
+            fabstep_cad::build_rounded_step(&m).unwrap_err().code,
+            "cad.invalid_model"
+        );
+    }
 }

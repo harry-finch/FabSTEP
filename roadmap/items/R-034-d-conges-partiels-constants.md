@@ -64,3 +64,5 @@ R-097 — Reconstruire une paroi cylindrique concave tangente et ses deux bords 
 R-101 — Reconstruire deux congés de poche de même rayon partageant une arête elliptique sur la bissectrice du coin. Voir V-1231.
 
 R-107 — Reconstruire trois congés cylindriques reliés par deux ellipses au fond de la même poche. Voir V-1238.
+
+R-110 — Reconstituer le circuit fermé de quatre cylindres autour d’un fond rectangulaire mesuré. Voir V-1243.
