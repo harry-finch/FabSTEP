@@ -18,22 +18,22 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
    Le bloc tourné et la pièce pliée donnent respectivement six et sept faces planes en Auto. Les 96 triangles de chaque STL conservent leur attribution après relecture du STEP.
 3. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · À tester · jalon v1.0
    La lèvre torique est qualifiée à deux densités. Sur trois petits STL d’arbres percés, le prototype mesure deux cylindres et produit un STEP valide à quatre faces.
-4. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · Idée
-   Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto.
-5. **[R-116 Estimer les normales sur copie Taubin en lecture seule](roadmap/items/R-116-estimer-les-normales-sur-copie-taubin-en-lecture.md)** · Spécifiée · jalon v1.0
+4. **[R-116 Estimer les normales sur copie Taubin en lecture seule](roadmap/items/R-116-estimer-les-normales-sur-copie-taubin-en-lecture.md)** · À tester · jalon v1.0
    Calculer des normales lissées sur une copie temporaire sans déplacer les sommets source, uniquement pour stabiliser la segmentation et la découverte de candidats sur les STL quantifiés ou bruités.
-6. **[R-117 Proposer des cylindres, cônes et sphères par normales sur bandes résiduelles](roadmap/items/R-117-proposer-des-cylindres-cones-et-spheres-par.md)** · Spécifiée · jalon v1.0
+5. **[R-117 Proposer des cylindres, cônes et sphères par normales sur bandes résiduelles](roadmap/items/R-117-proposer-des-cylindres-cones-et-spheres-par.md)** · En cours · jalon v1.0
    Utiliser les rayons de normales et l'angle de normale constant sur les chaînes de bandes non planes pour découvrir des parois interrompues, en conservant toutes les preuves géométriques existantes.
-7. **[R-025 Découper les gros modules et mutualiser les helpers au besoin](roadmap/items/R-025-decouper-les-gros-modules-et-mutualiser-les-helpers-au-besoin.md)** · Idée · jalon audit
-   AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes
-8. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · Idée · jalon atelier
-   Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
-9. **[R-119 Isoler une zone interne par boîte de découpe visuelle 3D](roadmap/items/R-119-isoler-une-zone-interne-par-boite-de-decoupe.md)** · Spécifiée · jalon atelier
+6. **[R-119 Isoler une zone interne par boîte de découpe visuelle 3D](roadmap/items/R-119-isoler-une-zone-interne-par-boite-de-decoupe.md)** · À tester · jalon atelier
    Ajouter une boîte de découpe visuelle manipulable dans la vue 3D (Source et Résultat STEP) pour inspecter, sélectionner et corriger des cavités internes sans modifier le solide ni l'export.
-10. **[R-120 Proposer une correction guidée sur les parois similaires](roadmap/items/R-120-proposer-une-correction-guidee-sur-les-parois.md)** · Spécifiée · jalon atelier
+7. **[R-120 Proposer une correction guidée sur les parois similaires](roadmap/items/R-120-proposer-une-correction-guidee-sur-les-parois.md)** · À tester · jalon atelier
    Après une correction guidée acceptée, rechercher en lecture seule les parois géométriquement analogues du document, les prévisualiser puis appliquer celles qui passent les preuves strictes après accord explicite.
-11. **[R-121 Afficher la carte de chaleur d'écart 3D sur le résultat STEP](roadmap/items/R-121-afficher-la-carte-de-chaleur-d-ecart-3d-sur-le.md)** · Spécifiée · jalon atelier
+8. **[R-121 Afficher la carte de chaleur d'écart 3D sur le résultat STEP](roadmap/items/R-121-afficher-la-carte-de-chaleur-d-ecart-3d-sur-le.md)** · À tester · jalon atelier
    Superposer dans la vue Résultat STEP une coloration par écart échantillonné au maillage source avec légende en millimètres, calculée à la demande en lecture seule sans affecter l'export.
+9. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · Idée
+   Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto.
+10. **[R-025 Découper les gros modules et mutualiser les helpers au besoin](roadmap/items/R-025-decouper-les-gros-modules-et-mutualiser-les-helpers-au-besoin.md)** · Idée · jalon audit
+   AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes
+11. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · Idée · jalon atelier
+   Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
 12. **[R-024 Préserver les caractères composés dans les noms de produits tronqués](roadmap/items/R-024-preserver-les-caracteres-composes-dans-les-noms-de-produits-tronques.md)** · Idée · jalon audit
    AUD-011 — Reproduire les cas Unicode utiles ; conserver le nom source et éviter une dépendance disproportionnée pour ce seul besoin
 13. **[R-023 Durcir les permissions locales Tauri](roadmap/items/R-023-durcir-les-permissions-locales-tauri.md)** · Idée · jalon audit
@@ -55,6 +55,10 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
 
 - [ ] [A-124](roadmap/actions/A-124-verifier-les-six-et-sept-faces-des-deux-stl.md) Vérifier les six et sept faces des deux STL tournés (tester, R-115)
 - [ ] [A-125](roadmap/actions/A-125-valider-les-contours-interrompus-et-la-suite-de.md) Valider les contours interrompus et la suite de l’arbre percé (valider, R-113)
+- [ ] [A-126](roadmap/actions/A-126-controler-le-toit-quantifie-a-six-faces-dans.md) Contrôler le toit quantifié à six faces dans Fusion (tester, R-116)
+- [ ] [A-127](roadmap/actions/A-127-isoler-une-paroi-interne-avec-la-boite-de.md) Isoler une paroi interne avec la boîte de découpe (tester, R-119)
+- [ ] [A-128](roadmap/actions/A-128-lire-les-ecarts-sur-le-bossage-borgne.md) Lire les écarts sur le bossage borgne (tester, R-121)
+- [ ] [A-129](roadmap/actions/A-129-propager-une-correction-aux-trois-trous-de-meme.md) Propager une correction aux trois trous de même rayon (tester, R-120)
 
 ## Livré
 

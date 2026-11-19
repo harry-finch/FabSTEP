@@ -570,3 +570,7 @@ Le contrôle local de distance au tore, les raccords sur arcs courts et leur mai
 ## 2026-11-19 — R-113, premiers contours interrompus
 
 Le banc retrouve tous les triangles des cinq faces d’une lèvre oblique et des quatre faces d’un arbre percé. Sur l’arbre, il découvre aussi les supports depuis le STL et réimporte le STEP de laboratoire sur deux densités et une variante dimensionnelle. Les commandes, bornes continues et limites du transfert sont dans V-1264. Les essais Flansch sont différés jusqu’à la fin des développements de reconnaissance.
+
+## 2026-11-19 — Inspection des écarts et corrections répétées
+
+La vue STEP mesure à la demande les distances des sommets affichés au maillage soudé. La boîte de découpe permet de choisir une paroi intérieure et la recherche de parois similaires propose les répétitions de la dernière indication acceptée. Les tests du bureau portent sur le bossage borgne et une plaque à cinq perçages. Le noyau récupère aussi des plans fragmentés sur le toit quantifié et deux cylindres de faible ouverture. Les preuves par témoin et les limites sont décrites en V-1265 à V-1269.
