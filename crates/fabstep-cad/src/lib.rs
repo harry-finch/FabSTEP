@@ -8,6 +8,9 @@ use fabstep_core::{
 };
 
 const MAX_RESULT_FACES: usize = 100_000;
+mod torus_atlas;
+pub use torus_atlas::build_torus_atlas_step_with_provenance;
+
 const MAX_SOURCE_TRIANGLES: usize = fabstep_core::SOURCE_MAX_TRIANGLES;
 const MAX_SOURCE_VERTICES: usize = fabstep_core::SOURCE_MAX_VERTICES;
 use serde::{Deserialize, Serialize};
