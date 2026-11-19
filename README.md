@@ -49,6 +49,8 @@ Un STL binaire de 100 001 à 600 000 triangles affiche un avertissement et son c
 
 L’essai ne garantit pas la conversion : la validité géométrique, les budgets de travail et les plafonds du résultat restent obligatoires. En Automatique, le suivi source du résultat reste limité à 100 000 faces : un maillage admis à l’entrée peut donc être refusé si trop de surfaces restent facettisées. Ce refus indique le nombre de faces reconstruites, distinct du nombre de triangles importés. Dans cette première tranche, correction guidée, recherche de paramètres et coupe source sont indisponibles pour ces nouveaux fichiers denses. Les fonctions habituelles restent disponibles sous le seuil. Voir [ADR-0034](docs/adr/0034-isolated-large-stl-worker.md) et [R-067](roadmap/items/R-067-g1-gros-maillages-sur-accord-et-calcul-annulable.md).
 
+En mode **Automatique**, le helper peut reconstruire des surfaces toriques à contour découpé sur un STL dense à un seul corps. La rampe de référence de 194 694 triangles donne un solide de 659 faces. Le helper contrôle les dimensions, le volume et l’écart au maillage après relecture du STEP. La correspondance nécessaire à la correction guidée dans le bureau reste limitée aux fichiers du mode ordinaire.
+
 Le script `scripts/build-macos-dev.sh` construit le bureau et son helper séparément et copie les deux dans `artifacts/FabSTEP.app`. Ne pas activer `large-stl` sur le bureau ordinaire ni réunir leurs builds Cargo. Le paquet autonome v1 n’est pas modifié.
 
 ### Exporter une face en DXF — build de développement

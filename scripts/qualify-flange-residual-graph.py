@@ -43,12 +43,12 @@ def compress(owners, charts):
     return owners
 
 
-def source_graph(folder, charts):
+def source_graph(folder, charts, large=False):
     if folder.is_file():
         public = runpy.run_path(
             str(Path(__file__).with_name("qualify-flange-residual-tori.py"))
         )
-        pts, tri, _ = public["read_source"](folder)
+        pts, tri, _ = public["read_source"](folder, large)
         _, _, twin = public["edges"](tri, len(pts))
         require((twin >= 0).all(), "Open public source mesh")
         pairs = np.column_stack((np.arange(len(twin)), twin))
@@ -140,7 +140,7 @@ def refine(source, native, anchors):
     right = left.copy()
     for token, (i, j) in enumerate(anchors, 1):
         left[i] = right[j] = token
-    for depth in range(96):
+    for depth in range(min(512, 24_000_000 // n)):
         labels = {}
 
         def update(adj, old):
@@ -169,8 +169,8 @@ def refine(source, native, anchors):
     raise ValueError("Face graph refinement exceeded its work limit")
 
 
-def main(folder, path, output, charts):
-    owners, source, centers = source_graph(folder, charts)
+def main(folder, path, output, charts, large=False):
+    owners, source, centers = source_graph(folder, charts, large)
     native, other, totals, counts = native_graph(path, len(source))
     distances, nearest = cKDTree(other).query(centers, k=2)
     # Existing measured source triangles remote from the adjusted seam retain
@@ -204,5 +204,6 @@ if __name__ == "__main__":
     for name in ("checkpoint", "graph", "output"):
         p.add_argument(name, type=Path)
     p.add_argument("--charts", type=Path)
+    p.add_argument("--large-source", action="store_true")
     a = p.parse_args()
-    main(a.checkpoint, a.graph, a.output, a.charts)
+    main(a.checkpoint, a.graph, a.output, a.charts, a.large_source)
