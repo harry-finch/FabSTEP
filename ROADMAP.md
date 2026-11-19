@@ -16,7 +16,7 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
    Les 46 671 faces passent le contrôle géométrique en laboratoire. Le rejeu de Flansch est reporté après les développements de reconnaissance pour limiter la RAM.
 2. **[R-115 Récupérer les plans fragmentés par la quantification du STL](roadmap/items/R-115-recuperer-les-plans-fragmentes-par-la.md)** · À tester · jalon v1.0
    Le bloc tourné et la pièce pliée donnent respectivement six et sept faces planes en Auto. Les 96 triangles de chaque STL conservent leur attribution après relecture du STEP.
-3. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · À tester · jalon v1.0
+3. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · En cours · jalon v1.0
    La lèvre torique est qualifiée à deux densités. Sur trois petits STL d’arbres percés, le prototype mesure deux cylindres et produit un STEP valide à quatre faces.
 4. **[R-116 Estimer les normales sur copie Taubin en lecture seule](roadmap/items/R-116-estimer-les-normales-sur-copie-taubin-en-lecture.md)** · À tester · jalon v1.0
    Calculer des normales lissées sur une copie temporaire sans déplacer les sommets source, uniquement pour stabiliser la segmentation et la découverte de candidats sur les STL quantifiés ou bruités.
@@ -38,7 +38,7 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
    AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes
 13. **[R-023 Durcir les permissions locales Tauri](roadmap/items/R-023-durcir-les-permissions-locales-tauri.md)** · À tester · jalon audit
    AUD-014 — Définir le manifeste applicatif et tester les commandes autorisées/refusées, fenêtres et origines ; ne pas ajouter un fichier de capacités supposé suffisant
-14. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · Idée
+14. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · En cours
    Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto.
 15. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
    Signer et notariser le paquet macOS ; ces étapes restent ouvertes.
@@ -54,11 +54,13 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
 ## Actions à faire
 
 - [ ] [A-124](roadmap/actions/A-124-verifier-les-six-et-sept-faces-des-deux-stl.md) Vérifier les six et sept faces des deux STL tournés (tester, R-115)
-- [ ] [A-125](roadmap/actions/A-125-valider-les-contours-interrompus-et-la-suite-de.md) Valider les contours interrompus et la suite de l’arbre percé (valider, R-113)
 - [ ] [A-126](roadmap/actions/A-126-controler-le-toit-quantifie-a-six-faces-dans.md) Contrôler le toit quantifié à six faces dans Fusion (tester, R-116)
 - [ ] [A-127](roadmap/actions/A-127-isoler-une-paroi-interne-avec-la-boite-de.md) Isoler une paroi interne avec la boîte de découpe (tester, R-119)
 - [ ] [A-128](roadmap/actions/A-128-lire-les-ecarts-sur-le-bossage-borgne.md) Lire les écarts sur le bossage borgne (tester, R-121)
 - [ ] [A-129](roadmap/actions/A-129-propager-une-correction-aux-trois-trous-de-meme.md) Propager une correction aux trois trous de même rayon (tester, R-120)
+- [ ] [A-130](roadmap/actions/A-130-essayer-l-historique-des-corrections-sur-une.md) Essayer l’historique des corrections sur une pièce (tester, R-049)
+- [ ] [A-131](roadmap/actions/A-131-verifier-les-dialogues-natifs-d-ouverture-et-d.md) Vérifier les dialogues natifs d’ouverture et d’export (tester, R-023)
+- [ ] [A-132](roadmap/actions/A-132-verifier-le-nom-3mf-tronque-dans-la-cao.md) Vérifier le nom 3MF tronqué dans la CAO (tester, R-024)
 
 ## Livré
 

@@ -2849,3 +2849,9 @@ Builds Vite de production comparés à 047c11e, préparés depuis les mêmes sou
 | Canvas alloués à vide | 1 | 0 |
 
 Les sept montages ont été mesurés dans les deux variantes. Une WebView de référence, passée en arrière-plan, a suspendu le rafraîchissement avant l’ouverture du cube. La deuxième ligne porte sur six dessins de référence et sept dessins avec chargement différé. Ces temps concernent la WebView et incluent le coût reporté à la première ouverture. Ils ne mesurent pas le lancement global du processus Tauri.
+
+## V-1271 — Atelier, historique, permissions et noms de produit
+
+- **R-049 et R-025.** Sur le bossage borgne, le service natif accepte la modification cylindre → Auto, refuse le cône et conserve les indications. Annuler et rétablir relancent le calcul sur la même zone source. Le test du lot de perçages vérifie successivement quatre, un puis quatre cylindres. Les plafonds sont de 16 états et de 400 000 indices cumulés. La recette en fenêtre Tauri vérifie les commandes en français et en anglais ainsi que la disponibilité de l’export après retour à un résultat validé.
+- **R-023.** Le test du résolveur de permissions Tauri compare les commandes déclarées aux 30 commandes enregistrées. La recette positive du circuit d’import, de construction, d’inspection et de coupe a produit un STEP de 225 753 octets et un DXF de face de 10 890 octets. Les destinations temporaires étaient injectées pour cette recette. La boîte de sauvegarde interactive est suivie par A-131.
+- **R-024.** Tests des deux côtés de la limite de 60 octets pour accent décomposé, drapeau, idéogramme et emoji avec modificateur. Le cube de `m3_name_grapheme.3mf` est réimporté comme un solide. Le nom source complet et un diagnostic d’adaptation figurent au rapport.

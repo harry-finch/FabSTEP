@@ -2,11 +2,35 @@
 id: R-114
 titre: "Composer deux reconnaissances locales sur un même solide"
 resume: "Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto."
-statut: idee
+statut: en-cours
 cree: 2026-11-19
 maj: 2026-11-19
 livree:
 ---
+
+## But
+
+Reconstruire sur le même bloc un perçage sécant et un congé extérieur dont les volumes et les surfaces sont disjoints.
+
+## Inclus
+
+Un bloc orthogonal, deux perçages traversants et un congé longitudinal extérieur de rayon constant. Le raccord étend le contrat privé core/CAO approuvé le 19 novembre. Les triangles proviennent des deux opérations et des six plans porteurs.
+
+## Hors périmètre
+
+Les opérations dont les frontières ou les revendications se recouvrent gardent le traitement de repli. La composition arbitraire de reconnaisseurs dépasse cette première configuration.
+
+## Dépendances
+
+Les deux chaînes d’intersection des perçages, la construction des arcs et génératrices du congé et la traçabilité source du corps doivent être vérifiées ensemble.
+
+## Critères d'acceptation
+
+Dix faces STEP sur deux densités, volume vérifié indépendamment, contrôle des quatre arêtes partagées et des deux branches de perçage après relecture, attribution exhaustive. Refus du contre-exemple à revendications concurrentes.
+
+## Vérifications de l'utilisateur
+
+Ouvrir les STL du bloc composé, lancer Auto et sélectionner le congé puis les trois parois de perçages dans la vue STEP.
 
 ## Témoin qualifié
 
