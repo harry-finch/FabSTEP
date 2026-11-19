@@ -1042,8 +1042,9 @@ fn convert_analyzed_document(
                 if requests.is_empty() && single_stl
                     && body.analysis.mesh.triangles.len() > 100_000
                     && torus_atlas::should_retry(&candidate) {
+                    let remaining = torus_atlas::available_deviation(options)?;
                     let atlas = control.run(ConversionPhase::Recognition, Some(body_index), ||
-                        fabstep_core::torus_atlas::recognize(&body.analysis.mesh, options.max_deviation_mm))?;
+                        fabstep_core::torus_atlas::recognize(&body.analysis.mesh, remaining))?;
                     if let Some(atlas) = atlas {
                         drop(candidate);
                         return torus_atlas::convert(body.analysis, (&body.id, &source), options,
