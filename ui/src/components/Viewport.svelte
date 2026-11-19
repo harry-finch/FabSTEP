@@ -162,11 +162,14 @@
     window.addEventListener('blur',pointerCancel);
     const material = new THREE.MeshStandardMaterial({ roughness: 0.8, metalness: 0.05, side: THREE.DoubleSide });
     const stepMaterial = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.9, metalness:0, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1 });
+    // Lighting would make the same distance change colour as the model rotates.
+    const deviationMaterial = new THREE.MeshBasicMaterial({vertexColors:true, side:THREE.DoubleSide,
+      polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1, toneMapped:false});
     const lineMaterial = new THREE.LineBasicMaterial();
     const stepLineMaterial = new THREE.LineBasicMaterial({depthTest:true,depthWrite:false});
     applyClip = () => {
       const planes = box ? clipPlanes(box) : null;
-      for (const target of [material, stepMaterial, lineMaterial, stepLineMaterial, overlay.material]) {
+      for (const target of [material, stepMaterial, deviationMaterial, lineMaterial, stepLineMaterial, overlay.material]) {
         if ((target.clippingPlanes?.length ?? 0) !== (planes?.length ?? 0)) target.needsUpdate = true;
         target.clippingPlanes = planes;
       }
@@ -174,22 +177,26 @@
       draw();
     };
     const colorStep = (css:CSSStyleDeclaration) => {
-      const geometry = meshes.get('step')?.geometry;
-      if (!geometry || !stepPreview || !stepDisplay) return;
-      const palette = Array.from({length:STEP_PALETTE_SIZE},(_,i) => new THREE.Color(css.getPropertyValue(`--view-face-${i+1}`).trim()));
+      const mesh = meshes.get('step');
+      if (!mesh || !stepPreview || !stepDisplay) return;
+      const geometry = mesh.geometry;
+      mesh.material = stepDisplay.deviation ? deviationMaterial : stepMaterial;
       const size = geometry.getAttribute('position').count * 3;
       const previous = geometry.getAttribute('color');
       const attribute = previous instanceof THREE.BufferAttribute && previous.array instanceof Float32Array && previous.array.length === size ? previous : new THREE.BufferAttribute(new Float32Array(size),3);
       const colors = attribute.array as Float32Array;
       if (stepDisplay.deviation) writeDeviationColors(colors, stepPreview.mesh.triangles, stepDisplay.deviation, css);
-      else for (const face of stepPreview.faces) {
-        const color = palette[stepDisplay.faceSlots[face.id]];
-        for (let i = face.triangle_start * 9; i < (face.triangle_start + face.triangle_count) * 9; i += 3) { colors[i] = color.r; colors[i+1] = color.g; colors[i+2] = color.b; }
+      else {
+        const palette = Array.from({length:STEP_PALETTE_SIZE},(_,i) => new THREE.Color(css.getPropertyValue(`--view-face-${i+1}`).trim()));
+        for (const face of stepPreview.faces) {
+          const color = palette[stepDisplay.faceSlots[face.id]];
+          for (let i = face.triangle_start * 9; i < (face.triangle_start + face.triangle_count) * 9; i += 3) color.toArray(colors,i);
+        }
       }
       if (attribute !== previous) geometry.setAttribute('color',attribute);
       attribute.needsUpdate = true;
     };
-    recolor = () => { const css = getComputedStyle(document.documentElement); const color = (key: string) => css.getPropertyValue(key).trim(); scene.background = new THREE.Color(color('--view-bg')); material.color.set(color('--view-mesh')); lineMaterial.color.set(color('--view-edge')); stepLineMaterial.color.set(color('--view-face-edge')); clipControl.recolor(color('--text-secondary'), color('--accent')); colorStep(css); overlay.material.color.set(color('--accent')); overlay.material.opacity = stepPreview ? 0.9 : 0.65;  ambient.color.set(color('--view-light')); ambient.groundColor.set(color('--view-ground')); directional.color.set(color('--view-light')); draw(); };
+    recolor = () => { const css = getComputedStyle(document.documentElement); const color = (key: string) => css.getPropertyValue(key).trim(); scene.background = new THREE.Color(color('--view-bg')); material.color.set(color('--view-mesh')); lineMaterial.color.set(color('--view-edge')); stepLineMaterial.color.set(color('--view-face-edge')); clipControl.recolor(color('--text-secondary'), color('--accent')); colorStep(css); overlay.material.color.set(color('--accent')); overlay.material.opacity = stepDisplay?.deviation ? 0.35 : stepPreview ? 0.9 : 0.65;  ambient.color.set(color('--view-light')); ambient.groundColor.set(color('--view-ground')); directional.color.set(color('--view-light')); draw(); };
     fit = () => { const box = new THREE.Box3().setFromObject(group); if (box.isEmpty()) return; const center = box.getCenter(new THREE.Vector3()); const size = box.getSize(new THREE.Vector3()); const radius = Math.max(size.length() / 2, 0.01); controls.target.copy(center); camera.position.copy(center).add(new THREE.Vector3(1.5, -2, 1.4).normalize().multiplyScalar(radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 1.15)); camera.near = radius / 1000; camera.far = radius * 1000; camera.updateProjectionMatrix(); controls.update(); draw(); };
     const disposeGroup = (target:THREE.Group) => target.traverse(o => { if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) o.geometry.dispose(); });
     const disposeSection=()=>sectionGroup.traverse(object=>{if(object instanceof THREE.Mesh||object instanceof THREE.Line){object.geometry.dispose();for(const material of Array.isArray(object.material)?object.material:[object.material])material.dispose();}});
@@ -373,7 +380,7 @@
     };
     const resize = new ResizeObserver(() => { const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); draw(); }); resize.observe(host);
     recolor(); rebuild(); rebuildEdges();
-    return () => { disposing=true;clipControl.dispose();applyClip=()=>{};rawGeneration++;rawPreview?.dispose();window.removeEventListener('keydown',cancelPaintKey,true);finishPaint(false);updatePicking=()=>{};renderer.domElement.removeEventListener('pointerdown',paintDown,true);renderer.domElement.removeEventListener('lostpointercapture',paintLost);if(manipulation.blocksPicking())finishManipulation(true,false);updateSectionControls=()=>{};transform.removeEventListener('mouseDown',transformDown);transform.removeEventListener('mouseUp',transformUp);transform.removeEventListener('objectChange',transformChanged);transform.removeEventListener('change',draw);transform.dispose();resize.disconnect(); controls.dispose();renderer.domElement.removeEventListener('pointerdown',claimManipulation,true);for(const type of ['pointermove','pointerup','pointercancel'])renderer.domElement.removeEventListener(type,guardOtherPointer as EventListener,true);renderer.domElement.removeEventListener('lostpointercapture',lostCapture);window.removeEventListener('keydown',cancelTransformKey,true); renderer.domElement.removeEventListener('pointerdown',pointerDown); renderer.domElement.removeEventListener('pointermove',pointerMove); renderer.domElement.removeEventListener('pointerup',pointerUp); renderer.domElement.removeEventListener('pointercancel',pointerCancel); window.removeEventListener('blur',pointerCancel); disposeGroup(edges);disposeSection();overlay.geometry.dispose(); overlay.material.dispose(); cancelAnimationFrame(frame); group.traverse(o => { if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) o.geometry.dispose(); }); material.dispose(); stepMaterial.dispose(); lineMaterial.dispose(); stepLineMaterial.dispose(); renderer.dispose(); renderer.domElement.remove(); };
+    return () => { disposing=true;clipControl.dispose();applyClip=()=>{};rawGeneration++;rawPreview?.dispose();window.removeEventListener('keydown',cancelPaintKey,true);finishPaint(false);updatePicking=()=>{};renderer.domElement.removeEventListener('pointerdown',paintDown,true);renderer.domElement.removeEventListener('lostpointercapture',paintLost);if(manipulation.blocksPicking())finishManipulation(true,false);updateSectionControls=()=>{};transform.removeEventListener('mouseDown',transformDown);transform.removeEventListener('mouseUp',transformUp);transform.removeEventListener('objectChange',transformChanged);transform.removeEventListener('change',draw);transform.dispose();resize.disconnect(); controls.dispose();renderer.domElement.removeEventListener('pointerdown',claimManipulation,true);for(const type of ['pointermove','pointerup','pointercancel'])renderer.domElement.removeEventListener(type,guardOtherPointer as EventListener,true);renderer.domElement.removeEventListener('lostpointercapture',lostCapture);window.removeEventListener('keydown',cancelTransformKey,true); renderer.domElement.removeEventListener('pointerdown',pointerDown); renderer.domElement.removeEventListener('pointermove',pointerMove); renderer.domElement.removeEventListener('pointerup',pointerUp); renderer.domElement.removeEventListener('pointercancel',pointerCancel); window.removeEventListener('blur',pointerCancel); disposeGroup(edges);disposeSection();overlay.geometry.dispose(); overlay.material.dispose(); cancelAnimationFrame(frame); group.traverse(o => { if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) o.geometry.dispose(); }); material.dispose(); stepMaterial.dispose(); deviationMaterial.dispose(); lineMaterial.dispose(); stepLineMaterial.dispose(); renderer.dispose(); renderer.domElement.remove(); };
   });
   $effect(() => { void bytes; void preview; void format; void unit; void sourceRevision; void stepPreview; untrack(rebuild); });
   $effect(() => { void results; void showEdges; void stepPreview; void stepDisplay; rebuildEdges(); });

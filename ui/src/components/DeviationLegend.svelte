@@ -15,6 +15,6 @@
 <style>
   .legend{position:absolute;bottom:calc(var(--s5) + var(--s3));left:var(--s3);padding:var(--s2);background:var(--bg-panel);border:1px solid var(--divider);border-radius:var(--radius);color:var(--text-secondary);font-size:var(--fs-xs);pointer-events:none;font-variant-numeric:tabular-nums}
   strong{font-weight:500;color:var(--text-primary)}
-  .scale{height:var(--s1);margin-top:var(--s2);background:linear-gradient(to right,var(--view-deviation-low),var(--view-deviation-mid),var(--view-deviation-high))}
+  .scale{height:var(--s1);margin-top:var(--s2);background:linear-gradient(to right in srgb-linear,var(--view-deviation-low),var(--view-deviation-mid),var(--view-deviation-high))}
   .range{display:flex;justify-content:space-between;gap:var(--s4);margin:var(--s1) 0}
 </style>

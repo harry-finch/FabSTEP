@@ -85,6 +85,8 @@ Les quatre pièces du [corpus mécanique indépendant](fixtures/complex_v1/READM
 
 Dans le build de développement, ouvrir un STL ou 3MF affiche d’abord le maillage source. Vérifier l’unité du STL puis cliquer sur **Reconstruire le STEP** dans le panneau de droite. Le résultat validé s’affiche ensuite automatiquement. Chaque nouveau fichier attend son propre lancement ; après ce premier calcul, les modifications de réglages conservent leur recalcul habituel. Le suivi affiche les étapes réelles du moteur, le corps en cours et la durée écoulée. Les opérations natives sans mesure interne gardent un indicateur d’activité ; aucun pourcentage de temps restant n’est estimé.
 
+Dans **Résultat STEP**, choisir **Écart au maillage** pour colorer le solide selon la distance entre chaque sommet affiché et le maillage source. La légende indique en millimètres le minimum, le maximum et le seuil du document. Cliquer sur une face affiche son maximum local. La mesure est disponible sur les documents ordinaires. Pour examiner une paroi intérieure, activer **Boîte de découpe** et déplacer une poignée. Le STEP et les profils DXF s’exportent en entier.
+
 Un STL refusé pour dépassement du plafond affiche son nombre exact de triangles et la limite de 100 000 (binaire de longueur cohérente ou ASCII syntaxiquement valide). Ce plafond est une protection de l’application pour borner stockage et travail avant reconnaissance, construction CAO et contrôles ; ce n’est pas une limite du format STEP ni une garantie de durée pour tout modèle inférieur au plafond. La limite reste inchangée.
 
 ## Construire

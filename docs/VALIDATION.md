@@ -2804,6 +2804,8 @@ Le test du bureau utilise la vue Svelte/WKWebView, les commandes Tauri et le mot
 
 Les tests natifs vérifient les distances bit à bit face à une recherche exhaustive, les maxima des faces, une source 3MF avec placements, les limites et l’annulation. Le bureau attache le calcul à la révision, à la source et au STEP immuable. La mesure échantillonne les sommets de la tessellation d’affichage dans la direction résultat vers source. Les tests `ui/tests/deviation-map.test.ts` vérifient le retour aux couleurs par face, la péremption des mesures et l’ordre des sommets lors de la coloration.
 
+Le contrôle R-121 a également été rejoué avec la boîte active et une borne Z réduite. La légende, la mesure locale et l’export restent disponibles. Les couleurs de mesure sont rendues sans éclairage directionnel pour qu’une rotation de la pièce conserve la lecture de l’échelle.
+
 ## V-1268 — R-120, propagation d’une correction guidée
 
 `fixtures/r120-repeated-bores.stl` est une plaque à cinq trous traversants. Quatre trous ont un rayon de 3 mm et le cinquième un rayon de 3,9 mm. Dans le bureau macOS, la recette a ouvert cette pièce en mode Plans, sélectionné une facette intérieure puis essayé Cylindre. La recherche a proposé les trois autres parois de rayon 3 mm. L’export était disponible pendant la recherche et après son annulation. Une seconde recherche suivie d’Appliquer a donné quatre indications acceptées et un STEP exportable. Le test natif vérifie quatre cylindres après réimport, la fidélité du document et le maintien du grand trou en facettes.
