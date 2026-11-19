@@ -2804,7 +2804,7 @@ Le test du bureau utilise la vue Svelte/WKWebView, les commandes Tauri et le mot
 
 Les tests natifs vérifient les distances bit à bit face à une recherche exhaustive, les maxima des faces, une source 3MF avec placements, les limites et l’annulation. Le bureau attache le calcul à la révision, à la source et au STEP immuable. La mesure échantillonne les sommets de la tessellation d’affichage dans la direction résultat vers source. Les tests `ui/tests/deviation-map.test.ts` vérifient le retour aux couleurs par face, la péremption des mesures et l’ordre des sommets lors de la coloration.
 
-Le contrôle R-121 a également été rejoué avec la boîte active et une borne Z réduite. La légende, la mesure locale et l’export restent disponibles. Les couleurs de mesure sont rendues sans éclairage directionnel pour qu’une rotation de la pièce conserve la lecture de l’échelle.
+Le contrôle R-121 a également été rejoué avec la boîte active et une borne Z réduite. La légende, la mesure locale et l’export restent disponibles. Les couleurs de mesure sont rendues sans éclairage directionnel pour qu’une rotation de la pièce conserve la lecture de l’échelle. Dans une seconde recette de la même vue, la destination des deux dialogues de sauvegarde était imposée dans un répertoire temporaire. Les commandes natives ont écrit le STEP et le DXF pendant l’affichage des écarts. FreeCAD relit un solide valide de dix faces et de 5 971,72567 mm³. Le DXF se termine par EOF et contient 96 segments et deux cercles.
 
 ## V-1268 — R-120, propagation d’une correction guidée
 
@@ -2819,3 +2819,20 @@ Deux petits STL de 22° exercent le parcours Automatique. Le secteur `fixtures/r
 Les normales de la bande nomment un support candidat. Les contours, génératrices, appuis voisins, résidus et borne continue sont vérifiés sur les points soudés. Ce recours s’applique après les reconnaisseurs historiques, aux secteurs de 15° à moins de 30° avec deux extrémités polygonales planes et parallèles. Il est limité à 8 192 triangles et 256 sommets par contour. Une ellipse, une rangée intermédiaire déplacée et un pli à la tangence restent facettisés. Le test natif est `cargo test -p fabstep-app --test narrow_normal_wall --offline`.
 
 Sur les bandes coniques et sphériques découpées, la qualification Rust `cargo test -p fabstep-core --lib residual_supports --offline` couvre deux bandes synthétiques tournées en f32 de 320 triangles chacune, deux fenêtres sur STL fermés et des contre-exemples. Les résidus maximaux aux sommets sont de 0,000001240 mm pour le cône et de 0,000001159 mm pour la sphère. Chaque recherche consomme 155 600 unités de travail. Les bornes entre chaque triangle et sa propre projection radiale sont de 0,009315527 et 0,019020436 mm. Ces mesures qualifient le support local. La construction d’une face STEP sur ces nouveaux domaines demande encore la preuve des contours partagés, des raccords et de la couverture.
+
+### Recette commune des lots R-114 à R-121 du 19 novembre
+
+`sh scripts/check.sh` a terminé avec le code 0 sur la révision de code `744b90e`. Le profil de test conservait les assertions et contrôles de débordement, avec optimisation de niveau 2 pour core, CAD et verify. Le Python de qualification disposait de NumPy et SciPy. Le formatage Rust, Clippy avec avertissements interdits, Svelte Check et le build Vite passent.
+
+| Vérification | Résultat |
+|---|---:|
+| Python | 31 réussis |
+| Détection de la version OCCT | 4 réussis |
+| Workspace Rust | 733 réussis, 18 optionnels ignorés |
+| Interface | 248 réussis |
+| Bureau | 56 réussis, test de relais exécuté séparément |
+| Helper isolé | 11 réussis |
+| Séries de tests du profil large | 184 réussis, 5 optionnels ignorés |
+| Relais bureau → helper réel sur macOS | 1 réussi |
+
+Le build de développement est `artifacts/FabSTEP.app`. Les deux exécutables du paquet ont été comparés aux sorties du build local. Les essais Flansch et ses captures volumineuses restent différés. Les actions FabBoard A-126 à A-129 portent sur la recette utilisateur des plans quantifiés, de la boîte de découpe, de la carte d’écart et des parois similaires.
