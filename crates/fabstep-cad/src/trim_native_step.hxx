@@ -45,23 +45,27 @@ private:
   bool exceeded = false;
 };
 
+#include "torus_atlas_stream.hxx"
+
 // Serialize one complete root set. OCCT's compact representation keeps the
 // 3D edge curves and surface supports; the reader recomputes the optional
 // parametric curves. The caller must validate the complete reimport as usual.
 template <class Transfer>
-std::unique_ptr<StepOutputBuffer> write_bounded_step(Transfer transfer, size_t limit = step_document_limit) {
+std::unique_ptr<StepOutputBuffer> write_bounded_step(Transfer transfer, size_t limit = step_document_limit, bool dense = false) {
   for (bool compact : {false, true}) {
     STEPControl_Writer writer;
     transfer(writer, compact);
     auto buffer = std::make_unique<StepOutputBuffer>(limit);
-    std::ostream stream(buffer.get());
+    AtlasStepStream leaders(*buffer);
+    std::ostream stream(dense ? static_cast<std::streambuf*>(&leaders) : buffer.get());
     const auto status = writer.WriteStream(stream);
+    const bool finished = !dense || leaders.finish();
     if (buffer->limit_reached()) {
       if (!compact)
         continue;
       throw CadFailure{document_too_large, "Le document STEP exporté dépasse 128 Mio."};
     }
-    if (status != IFSelect_RetDone || !stream.good() || buffer->size() == 0)
+    if (!finished || status != IFSelect_RetDone || !stream.good() || buffer->size() == 0)
       throw CadFailure{write_failed, "Impossible de sérialiser le document STEP."};
     return buffer;
   }

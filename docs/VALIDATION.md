@@ -2505,3 +2505,9 @@ Sur le STL privé et le maillage de V-1242 (82 602 triangles), l’ancienne re
 La construction d’une BRep par triangle pour contrôler le STL privé a atteint 7 538 334 848 octets d’empreinte physique et a été interrompue. Après la validation de la coque par le core, la preuve spatiale bornée examine 24 466 574 paires de boîtes et 4 812 829 paires de triangles en 0,4 à 0,57 s. L’empreinte maximale mesurée sur l’analyse et le certificat vaut 344 998 608 octets. Les deux méthodes concordent sur trois STL publics, un octaèdre sain et un octaèdre auto-intersectant.
 
 Dix-sept tests réussissent avec `FABSTEP_LARGE_SOURCE_STL=chemin cargo test --offline -p fabstep-verify --features large-stl -- --include-ignored --nocapture`. Ils couvrent les intersections coplanaires et transverses, le contact entre triangles non incidents, les voisinages à un sommet ou une arête et l’épuisement du budget. Contrat dans [ADR-0045](adr/0045-large-source-embedding.md).
+
+## V-1247 — Construction CAO des domaines toriques et de leurs voisins
+
+Le constructeur prend des domaines déduits du maillage soudé et une partition exhaustive. Les triangles voisins reprennent les mêmes arêtes circulaires. Chaque face doit conserver son identifiant à la couture et au transfert dans le STEP. Le réimport vérifie la géométrie, les raccords et le volume. L’écriture garde ses p-courbes et retire uniquement des blancs syntaxiques aux débuts d’entités avant le comptage des octets.
+
+La rampe publique indépendante à 8 232 triangles se réimporte avec 4 363 faces, un volume de 93,454200 mm³, un fichier de 10 211 998 octets et une borne continue de 0,013721 mm. Les trois tests natifs de `cargo test --offline -p fabstep-cad --test torus_atlas` contrôlent aussi les jetons sur deux corps séparés et les refus de partitions ou contours falsifiés. Les quatre contrôles négatifs de V-1237 passent encore avec le code partagé par le laboratoire et le constructeur.

@@ -1,4 +1,13 @@
 #include "trim_edge_cache.hxx"
+#include "trimmed_torus_mesh.hxx"
+#include "trim_native_fan_mesh.hxx"
+#include "torus_atlas_abi.hxx"
+#include <GeomConvert.hxx>
+#include <BRepOffsetAPI_ThruSections.hxx>
+#include <BRepBuilderAPI_MakeVertex.hxx>
+#include <Geom_BezierSurface.hxx>
+#include <Geom_ToroidalSurface.hxx>
+#include <ElCLib.hxx>
 #include <BRepAdaptor_Curve.hxx>
 #include <BRepAdaptor_Curve2d.hxx>
 #include <BRepAdaptor_Surface.hxx>
@@ -307,6 +316,10 @@ constexpr size_t source_triangle_limit = 600'000;
 constexpr size_t source_triangle_limit = 100'000;
 #endif
 constexpr size_t source_vertex_limit = 3 * source_triangle_limit;
+
+constexpr double mesh_angle = 0.35;
+#include "torus_atlas_edges.hxx"
+#include "torus_atlas_domain.hxx"
 
 struct SurfaceCounts {
   size_t planar;
@@ -1433,7 +1446,7 @@ std::optional<gp_Pnt> surface_pole(const TopoDS_Face& face, const TopoDS_Edge& e
 }
 
 void check_edge_incidence(const TopoDS_Shape& shape, const TopTools_IndexedMapOfShape& faces,
-                          Status status) {
+                          Status status, bool atlas = false) {
   struct EdgeUse {
     int count = 0;
     int face = 0;
@@ -1455,7 +1468,7 @@ void check_edge_incidence(const TopoDS_Shape& shape, const TopTools_IndexedMapOf
       }
       EdgeUse& use = incidence[edge_index];
       if (BRep_Tool::Degenerated(edge)) {
-        if (use.count != 0 || !surface_pole(face, edge)) {
+        if (use.count != 0 || (!surface_pole(face, edge) && (!atlas || !atlas_domain::pole(face,edge)))) {
           throw invalid;
         }
         use = {1, i, orientation, true};
@@ -1502,6 +1515,7 @@ struct SolidMeasurement {
   std::optional<pocket::Domain> pocket;
   std::optional<UnequalPocketData> unequal;
   std::optional<HeightPatchData> height;
+  bool atlas=false;
 };
 
 bool quarter_turn(double span) {
@@ -2055,6 +2069,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   }
   SurfaceCounts found{};
   size_t quarter_cylinders = 0;
+  const bool atlas=atlas_domain::matches(faces);
   bool partial_torus = false;
   // An unlabelled reimport must have the complete network signature before
   // checking the incident pocket walls on a 14- or 15-face solid.
@@ -2085,6 +2100,9 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     const BRepAdaptor_Surface surface(TopoDS::Face(faces(i)));
     switch (surface.GetType()) {
       case GeomAbs_Plane: ++found.planar; break;
+      case GeomAbs_BezierSurface:
+        if(!atlas) throw CadFailure{status,"Surface de Bézier hors du domaine certifié."};
+        [[fallthrough]];
       case GeomAbs_BSplineSurface: ++found.height_patches; break;
       case GeomAbs_SurfaceOfRevolution: ++found.revolutions; break;
       case GeomAbs_Cylinder:
@@ -2176,12 +2194,12 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   std::optional<SmoothRevolutionData> revolution;
   if (found.revolutions) revolution = verify_revolution(shape,expected_revolution,status).domain;
   std::optional<TorusSectorSolidData> sector;
-  if (partial_torus || expected_sector)
+  if ((partial_torus && !atlas) || expected_sector)
     sector = torus_sector::verify(shape,expected_sector,status).domain;
   std::optional<pocket::Domain> pocket_geometry;
   if (found.elliptic_cylinders || expected_pocket)
     pocket_geometry = pocket::verify(shape, faces, found.elliptic_cylinders, expected_pocket, status);
-  check_edge_incidence(shape, faces, status);
+  check_edge_incidence(shape, faces, status, atlas);
   if (!BRepCheck_Analyzer(shape, true, false, true).IsValid()) {
     throw CadFailure{status, "Le contrôle géométrique du solide a échoué."};
   }
@@ -2192,7 +2210,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
 
   GProp_GProps properties;
   std::optional<HeightPatchData> height;
-  if (found.height_patches) {
+  if (found.height_patches && !atlas) {
     const auto patch=height_patch::verify(shape,status);
     height=patch;
     const double ideal=height_patch::volume(patch);
@@ -2212,6 +2230,8 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
       std::abs(expected_volume-properties.Mass()) < expected_volume*1e-8,status);
   } else if (found.linear_blends || found.cross_drills || found.elliptic_cylinders || unequal)
     BRepGProp::VolumeProperties(shape, properties, 1.e-11, true);
+  else if (atlas)
+    BRepGProp::VolumeProperties(shape, properties, 1.e-10, true);
   else
     BRepGProp::VolumeProperties(shape, properties, true);
   CadMetrics result{1, static_cast<size_t>(faces.Extent()), found.planar, found.cylindrical,
@@ -2249,7 +2269,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     check_rounded_box_geometry(shape, faces, result, *rounded_box, status);
   }
   if (unequal) unequal_pocket::volume(expected_unequal ? *expected_unequal : *unequal,result.volume,status);
-  return {result, found, rounded_box, drill, revolution, sector, pocket_geometry, unequal, height};
+  return {result, found, rounded_box, drill, revolution, sector, pocket_geometry, unequal, height, atlas};
 }
 
 CadMetrics measure(const TopoDS_Shape& shape, SurfaceCounts expected, Status status,
@@ -2540,9 +2560,11 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
   check_bodies_separated(before, parts);
 
   stage = write_failed;
+  const bool includes_atlas=std::any_of(before.begin(),before.end(),[](const auto& b){return b.report.atlas;});
   auto output_buffer = write_bounded_step([&](STEPControl_Writer& writer, bool compact) {
     DESTEP_Parameters parameters;
     parameters.WriteSurfaceCurMode = !compact;
+    if(includes_atlas) writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
     parameters.WriteAssembly = DESTEP_Parameters::WriteMode_Assembly_Off;
     parameters.WriteUnit = UnitsMethods_LengthUnit_Millimeter;
     parameters.WriteTessellated = DESTEP_Parameters::RWMode_Tessellated_Off;
@@ -2552,8 +2574,9 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
         throw CadFailure{stage, "Impossible d'écrire un corps dans le document STEP."};
       }
     }
-    if (complete_labels) write_face_labels(writer, labels);
-  });
+    if (complete_labels && !write_face_labels(writer,labels) && includes_atlas)
+      throw CadFailure{write_failed,"Perte des identités au transfert du document torique."};
+  },step_document_limit,includes_atlas);
 
   stage = read_failed;
   StepInputBuffer read_buffer(output_buffer->data(), output_buffer->size());
@@ -2616,7 +2639,7 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
 }
 
 constexpr size_t mesh_triangle_limit = 100'000;
-constexpr double mesh_angle = 0.35;
+
 
 double mesh_angular_step(double radius, double deflection) {
   const double step = 4.0 * std::asin(std::sqrt(std::min(0.5 * deflection / radius, 1.0)));
@@ -3016,7 +3039,7 @@ void extract_face_meshes(const TopoDS_Shape& shape, MeshOutput* output,
              triangle_data.release(), triangles.size() / 3};
 }
 
-void tessellate(const TopoDS_Shape& shape, double deflection, MeshOutput* output,
+void tessellate_ordinary(const TopoDS_Shape& shape, double deflection, MeshOutput* output,
                 std::vector<ResultFaceData>* faces = nullptr) {
   const auto grids = check_meshing_resolution(shape, deflection);
   TopTools_IndexedMapOfShape grid_faces;
@@ -3121,6 +3144,66 @@ void tessellate_certified_trim_faces(const TopoDS_Shape &shape, double deflectio
   }
 }
 
+// Select the hybrid route from a verified BRep signature on each root, also
+// when a new desktop/worker process reopens an already generated document.
+void tessellate(const TopoDS_Shape &shape, double deflection, MeshOutput *output,
+                std::vector<ResultFaceData> *faces = nullptr) {
+  struct Part {
+    TopoDS_Shape shape;
+    size_t faces;
+    bool atlas;
+  };
+  std::vector<Part> parts;
+  bool any = false;
+  for (TopExp_Explorer it(shape, TopAbs_SOLID); it.More(); it.Next()) {
+    TopTools_IndexedMapOfShape map;
+    TopExp::MapShapes(it.Current(), TopAbs_FACE, map);
+    const bool atlas = atlas_domain::matches(map);
+    parts.push_back({it.Current(), size_t(map.Extent()), atlas});
+    any = any || atlas;
+  }
+  if (!any) {
+    tessellate_ordinary(shape, deflection, output, faces);
+    return;
+  }
+  if (parts.size() == 1) {
+    tessellate_certified_trim_faces(shape, deflection, output, faces, atlas_domain::Policy{deflection});
+    return;
+  }
+  std::vector<double> vertices;
+  std::vector<size_t> triangles;
+  size_t face_offset = 0;
+  for (const auto &part : parts) {
+    MeshOutput raw{};
+    std::vector<ResultFaceData> local;
+    if (faces)
+      local.assign(faces->begin() + face_offset, faces->begin() + face_offset + part.faces);
+    if (part.atlas)
+      tessellate_certified_trim_faces(part.shape, deflection, &raw, faces ? &local : nullptr,
+                                      atlas_domain::Policy{deflection});
+    else
+      tessellate_ordinary(part.shape, deflection, &raw, faces ? &local : nullptr);
+    std::unique_ptr<double[]> points(raw.points);
+    std::unique_ptr<size_t[]> indices(raw.triangles);
+    const size_t base = vertices.size() / 3, start = triangles.size() / 3;
+    if (raw.triangle_count > mesh_triangle_limit - start || raw.point_count > 3 * mesh_triangle_limit - base)
+      throw CadFailure{mesh_too_complex, "La tessellation du document dépasse sa limite."};
+    vertices.insert(vertices.end(), raw.points, raw.points + 3 * raw.point_count);
+    for (size_t k = 0; k < 3 * raw.triangle_count; ++k)
+      triangles.push_back(raw.triangles[k] + base);
+    if (faces)
+      for (auto &f : local) {
+        f.triangle_start += start;
+        faces->at(face_offset++) = f;
+      }
+  }
+  auto p = std::make_unique<double[]>(vertices.size());
+  auto t = std::make_unique<size_t[]>(triangles.size());
+  std::copy(vertices.begin(), vertices.end(), p.get());
+  std::copy(triangles.begin(), triangles.end(), t.get());
+  *output = {p.release(), vertices.size() / 3, t.release(), triangles.size() / 3};
+}
+
 // Shared traversal is the identity contract for display and exact profiles.
 void read_result_topology(STEPControl_Reader& reader, TopoDS_Compound& document,
                           TopTools_IndexedMapOfShape& face_map,
@@ -3138,6 +3221,8 @@ void read_result_topology(STEPControl_Reader& reader, TopoDS_Compound& document,
     }
     const auto solid = single_solid(reader.Shape(root), read_failed);
     builder.Add(document, solid);
+    TopTools_IndexedMapOfShape body_faces;TopExp::MapShapes(solid,TopAbs_FACE,body_faces);
+    const bool atlas=atlas_domain::matches(body_faces);
     for (TopExp_Explorer it(solid, TopAbs_FACE); it.More(); it.Next()) {
       if (faces.size() >= mesh_triangle_limit) {
         throw CadFailure{mesh_too_complex, "L'inspection dépasse 100 000 faces STEP."};
@@ -3157,8 +3242,10 @@ void read_result_topology(STEPControl_Reader& reader, TopoDS_Compound& document,
         case GeomAbs_Torus: family = 4; break;
         case GeomAbs_SurfaceOfRevolution: family = 6; break;
         case GeomAbs_BSplineSurface:
-          height_patch::verify(solid, read_failed);
-          family = 7;
+          if(!atlas) {
+            height_patch::verify(solid, read_failed);
+            family=7;
+          }
           break;
         default: break;
       }
@@ -3886,6 +3973,9 @@ void extract_section_profile(const unsigned char* bytes, size_t size, const doub
   output->segment_count = segments.size();
 }
 
+#include "torus_atlas_transfer.hxx"
+#include "torus_atlas_build.hxx"
+
 template <typename BuildSolid>
 int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
                    char* error, size_t error_capacity,
@@ -3941,6 +4031,85 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     *output = {output_buffer->release(), output_buffer->size(), after};
   });
 }
+}
+
+extern "C" int fabstep_build_torus_atlas(const double *points, size_t nv, const size_t *triangles, size_t nt,
+                                         const double *axis, const double *radial, const AtlasChartData *charts,
+                                         size_t nc, const size_t *tokens, size_t token_count, double limit,
+                                         double *deviation, StepOutput *output, char *error,
+                                         size_t capacity) noexcept {
+  return with_occt(invalid_model, error, capacity, [&](Status &stage) {
+    constexpr double native_reserve = 8e-6;
+    atlas_native::verify(output && deviation && tokens && token_count && token_count <= face_token_limit &&
+                             std::isfinite(limit) && limit > native_reserve,
+                         "Sortie de l’atlas invalide.");
+    std::set<size_t> unique;
+    for (size_t i = 0; i < token_count; ++i)
+      atlas_native::verify(tokens[i] && tokens[i] <= face_token_limit && unique.insert(tokens[i]).second,
+                           "Jeton de face invalide.");
+    auto witness = atlas_native::prepare(points, nv, triangles, nt, axis, radial, charts, nc, token_count,
+                                         limit - native_reserve);
+    auto patches = atlas_native::patch_faces(witness.model);
+    const double bound =
+        std::max({witness.bound, witness.model.patchBound, witness.model.vertexMotion}) + native_reserve;
+    atlas_native::verify(bound <= limit, "Écart de l’atlas supérieur à la tolérance.");
+    witness = {};
+    FaceLabels labels;
+    const auto solid = atlas_native::sew(patches, tokens, labels);
+    patches.clear();
+    patches.shrink_to_fit();
+    stage = invalid_solid;
+    const auto before = measure_solid(solid, stage);
+    if (before.metrics.toroidal_faces != nc || before.metrics.faces != token_count)
+      throw CadFailure{stage, "Les surfaces de l’atlas correspondent mal aux domaines source."};
+    stage = write_failed;
+    STEPControl_Writer writer;
+    DESTEP_Parameters p;
+    p.WriteSurfaceCurMode = true;
+    p.WriteProductName = "FabSTEP";
+    p.WriteUnit = UnitsMethods_LengthUnit_Millimeter;
+    p.WriteTessellated = DESTEP_Parameters::RWMode_Tessellated_Off;
+    writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
+    if (writer.Transfer(solid, STEPControl_ManifoldSolidBrep, p) != IFSelect_RetDone ||
+        !write_face_labels(writer, labels))
+      throw CadFailure{stage, "Les surfaces de l’atlas ne sont pas transférables avec leurs identités."};
+    auto bytes = std::make_unique<StepOutputBuffer>();
+    AtlasStepStream compact(*bytes);
+    std::ostream stream(&compact);
+    auto status = writer.WriteStream(stream);
+    const bool finished = compact.finish();
+    if (bytes->limit_reached())
+      throw CadFailure{document_too_large, "Le document STEP exporté dépasse 128 Mio."};
+    if (!finished || !stream.good() || status != IFSelect_RetDone || !bytes->size())
+      throw CadFailure{write_failed, "Impossible de sérialiser l’atlas torique."};
+    stage = read_failed;
+    StepInputBuffer input(bytes->data(), bytes->size());
+    std::istream in(&input);
+    STEPControl_Reader reader;
+    load_step(reader, in);
+    if (reader.NbRootsForTransfer() != 1 || reader.TransferRoots() != 1)
+      throw CadFailure{stage, "Le STEP de l’atlas requiert une racine solide."};
+    const auto reread = single_solid(reader.OneShape(), stage);
+    const auto after = measure_solid(reread, stage);
+    if (!same_measurement(before.metrics, after.metrics) || before.metrics.faces != after.metrics.faces ||
+        before.metrics.toroidal_faces != after.metrics.toroidal_faces ||
+        before.metrics.planar_faces != after.metrics.planar_faces)
+      throw CadFailure{mismatch, "Dimensions, volume ou surfaces de l’atlas modifiés après réimport."};
+    const auto mapped = read_face_labels(reader, reread);
+    if (mapped.size() != labels.size())
+      throw CadFailure{mismatch, "Perte des identités source au réimport de l’atlas."};
+    std::map<size_t, TopoDS_Face> sources;
+    for (const auto &pair : labels)
+      sources.emplace(pair.second, TopoDS::Face(pair.first));
+    for (const auto &pair : mapped) {
+      auto it = sources.find(pair.second);
+      if (it == sources.end())
+        throw CadFailure{mismatch, "Identité réimportée absente de l’atlas source."};
+      atlas_transfer::verify(it->second, TopoDS::Face(pair.first));
+    }
+    *deviation = bound;
+    *output = {bytes->release(), bytes->size(), after.metrics};
+  });
 }
 
 extern "C" int fabstep_build_step(
