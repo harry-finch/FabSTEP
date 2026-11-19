@@ -215,6 +215,7 @@ TopoDS_Solid sew(const std::vector<TopoDS_Face> &originals, const size_t *tokens
       label.first = *candidate;
       changed = true;
     }
+    atlas_arc_law::align(TopoDS::Face(label.first));
   }
   if (changed) {
     solid = TopoDS::Solid(replacements.Apply(solid));
