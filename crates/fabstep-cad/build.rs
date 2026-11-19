@@ -17,6 +17,7 @@ fn main() {
         "trimmed_torus_mesh.hxx",
         "torus_atlas_abi.hxx",
         "torus_atlas_faces.hxx",
+        "torus_atlas_interference.hxx",
         "torus_atlas_build.hxx",
         "torus_atlas_domain.hxx",
         "torus_atlas_edges.hxx",

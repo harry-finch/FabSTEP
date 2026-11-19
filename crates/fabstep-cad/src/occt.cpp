@@ -2,6 +2,7 @@
 #include "trimmed_torus_mesh.hxx"
 #include "trim_native_fan_mesh.hxx"
 #include "torus_atlas_abi.hxx"
+#include "torus_atlas_interference.hxx"
 #include <GeomConvert.hxx>
 #include <BRepOffsetAPI_ThruSections.hxx>
 #include <BRepBuilderAPI_MakeVertex.hxx>
@@ -2204,9 +2205,16 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   if (!BRepCheck_Analyzer(shape, true, false, true).IsValid()) {
     throw CadFailure{status, "Le contrôle géométrique du solide a échoué."};
   }
-  BRepAlgoAPI_Check interference(shape, false, true);
-  if (interference.HasErrors() || !interference.IsValid()) {
-    throw CadFailure{status, "Le contrôle des auto-intersections du solide a échoué."};
+  if (atlas && faces.Extent() > 256) {
+    try {
+      atlas_interference::Checker{}.run(faces);
+    } catch (const atlas_interference::Failure &failure) {
+      throw CadFailure{status, failure.what()};
+    }
+  } else {
+    BRepAlgoAPI_Check interference(shape, false, true);
+    if (interference.HasErrors() || !interference.IsValid())
+      throw CadFailure{status, "Le contrôle des auto-intersections du solide a échoué."};
   }
 
   GProp_GProps properties;
@@ -4068,39 +4076,43 @@ extern "C" int fabstep_build_torus_atlas(const double *points, size_t nv, const 
     if (before.metrics.toroidal_faces != nc || before.metrics.faces != token_count)
       throw CadFailure{stage, "Les surfaces de l’atlas correspondent mal aux domaines source."};
     stage = write_failed;
-    STEPControl_Writer writer;
-    DESTEP_Parameters p;
-    p.WriteSurfaceCurMode = true;
-    p.WriteProductName = "FabSTEP";
-    p.WriteUnit = UnitsMethods_LengthUnit_Millimeter;
-    p.WriteTessellated = DESTEP_Parameters::RWMode_Tessellated_Off;
-    writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
-    if (writer.Transfer(solid, STEPControl_ManifoldSolidBrep, p) != IFSelect_RetDone ||
-        !write_face_labels(writer, labels))
-      throw CadFailure{stage, "Les surfaces de l’atlas ne sont pas transférables avec leurs identités."};
     auto bytes = std::make_unique<StepOutputBuffer>();
-    AtlasStepStream compact(*bytes);
-    std::ostream stream(&compact);
-    auto status = writer.WriteStream(stream);
-    const bool finished = compact.finish();
-    if (bytes->limit_reached())
-      throw CadFailure{document_too_large, "Le document STEP exporté dépasse 128 Mio."};
-    if (!finished || !stream.good() || status != IFSelect_RetDone || !bytes->size())
-      throw CadFailure{write_failed, "Impossible de sérialiser l’atlas torique."};
+    {
+      STEPControl_Writer writer;
+      DESTEP_Parameters p;
+      p.WriteSurfaceCurMode = true;
+      p.WriteProductName = "FabSTEP";
+      p.WriteUnit = UnitsMethods_LengthUnit_Millimeter;
+      p.WriteTessellated = DESTEP_Parameters::RWMode_Tessellated_Off;
+      writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
+      if (writer.Transfer(solid, STEPControl_ManifoldSolidBrep, p) != IFSelect_RetDone ||
+          !write_face_labels(writer, labels))
+        throw CadFailure{stage, "Les surfaces de l’atlas ne sont pas transférables avec leurs identités."};
+      AtlasStepStream compact(*bytes);
+      std::ostream stream(&compact);
+      auto status = writer.WriteStream(stream);
+      const bool finished = compact.finish();
+      if (bytes->limit_reached())
+        throw CadFailure{document_too_large, "Le document STEP exporté dépasse 128 Mio."};
+      if (!finished || !stream.good() || status != IFSelect_RetDone || !bytes->size())
+        throw CadFailure{write_failed, "Impossible de sérialiser l’atlas torique."};
+    }
     stage = read_failed;
-    StepInputBuffer input(bytes->data(), bytes->size());
-    std::istream in(&input);
-    STEPControl_Reader reader;
-    load_step(reader, in);
-    if (reader.NbRootsForTransfer() != 1 || reader.TransferRoots() != 1)
-      throw CadFailure{stage, "Le STEP de l’atlas requiert une racine solide."};
-    const auto reread = single_solid(reader.OneShape(), stage);
+    auto [reread, mapped] = [&] {
+      StepInputBuffer input(bytes->data(), bytes->size());
+      std::istream in(&input);
+      STEPControl_Reader reader;
+      load_step(reader, in);
+      if (reader.NbRootsForTransfer() != 1 || reader.TransferRoots() != 1)
+        throw CadFailure{stage, "Le STEP de l’atlas requiert une racine solide."};
+      const auto reread = single_solid(reader.OneShape(), stage);
+      return std::make_pair(reread, read_face_labels(reader, reread));
+    }();
     const auto after = measure_solid(reread, stage);
     if (!same_measurement(before.metrics, after.metrics) || before.metrics.faces != after.metrics.faces ||
         before.metrics.toroidal_faces != after.metrics.toroidal_faces ||
         before.metrics.planar_faces != after.metrics.planar_faces)
       throw CadFailure{mismatch, "Dimensions, volume ou surfaces de l’atlas modifiés après réimport."};
-    const auto mapped = read_face_labels(reader, reread);
     if (mapped.size() != labels.size())
       throw CadFailure{mismatch, "Perte des identités source au réimport de l’atlas."};
     std::map<size_t, TopoDS_Face> sources;

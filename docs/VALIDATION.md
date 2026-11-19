@@ -2523,3 +2523,7 @@ La borne de courbure dépend de l’intervalle angulaire réellement couvert par
 ## V-1250 — Conversion Auto d’une rampe torique dense dans le helper
 
 Le témoin public contient 194 694 triangles. Avec les options ordinaires du helper, le STEP relu contient 659 faces, un solide de 93,536793 mm³ et une face torique. Le fichier pèse 1 784 117 octets. Les écarts source vers résultat et retour valent 0,004717 et 0,004703 mm, avec une tessellation à 0,005 mm. Le rejeu optimisé a duré 28,46 s et atteint une empreinte physique de 1 038 960 248 octets. Le contrôle du résultat, du volume et des deux distances est reproductible avec `python scripts/qualify-large-torus-worker.py chemin/vers/fabstep-worker` (NumPy pour générer le témoin).
+
+## V-1251 — Budget mémoire de la recherche d’interférences CAO
+
+Sur la rampe de 4 363 faces, le même contrôle OCCT a mesuré 1 114 734 592 octets de RSS et 19,17 s en une passe, puis 214 482 944 octets et 41,51 s par groupes spatiaux. Les boîtes conservatrices englobent la tolérance des sous-formes. Toute paire de faces susceptible de se rencontrer entre dans un contrôle OCCT avec leurs identités topologiques d’origine. Les plafonds de comparaisons et de groupes provoquent un refus explicite. Le banc `scripts/qualify-atlas-interference.sh` compare les décisions sur des voisinages valides et des intersections internes ou entre groupes.
