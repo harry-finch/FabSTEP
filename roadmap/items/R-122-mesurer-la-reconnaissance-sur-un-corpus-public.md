@@ -2,7 +2,7 @@
 id: R-122
 titre: "Mesurer la reconnaissance sur un corpus public reproductible"
 resume: "G7 · Établir une référence sur une douzaine de pièces de plusieurs familles, puis la réutiliser à chaque extension."
-statut: en-cours
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-20
 maj: 2026-11-20
@@ -35,3 +35,7 @@ Aucune. Les deux premiers témoins suffisent pour démarrer R-123.
 ## Vérifications de l'utilisateur
 
 Aucune.
+
+## Qualification
+
+V-1277. Les 24 maillages des 12 pièces ont été générés depuis deux caches indépendants et convertis quatre fois chacun en Auto. Les mesures géométriques et les attributions sont identiques. Les deux négatifs passent. Commande, licences, empreintes et valeurs par pièce figurent dans [le corpus public](../../fixtures/recognition_corpus/README.md).

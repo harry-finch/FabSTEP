@@ -1,0 +1,138 @@
+{
+  "unit": "mm",
+  "source": "FreeCAD community parts library",
+  "license": "CC-BY-3.0",
+  "terms": "https://github.com/FreeCAD/FreeCAD-library/blob/f5ca01cdcaa2f69b9295a6382719c2d90628780c/README.md#license",
+  "parts": [
+    {
+      "id": "flange",
+      "split": "development",
+      "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Pipes%20and%20tubes/DN15_Stamped_Flange.step",
+      "sha256": "f19ee0e81d9dfac1e491cae243c698e7f74932d8a5521d83e4e62f8baf35f5e5",
+      "history": "https://github.com/FreeCAD/FreeCAD-library/commits/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Pipes%20and%20tubes/DN15_Stamped_Flange.step",
+      "contributors": [
+        "BERSERK"
+      ]
+    },
+    {
+      "id": "plate",
+      "split": "development",
+      "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Mountings/Joining_plate/L_shaped_5_holes-Plate.step",
+      "sha256": "c38dd6fc5132cee0d660daad78eda3a7928cc4ea2c5b04bbd97443312de6a90b",
+      "history": "https://github.com/FreeCAD/FreeCAD-library/commits/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Mountings/Joining_plate/L_shaped_5_holes-Plate.step",
+      "contributors": [
+        "hasecilu"
+      ]
+    },
+    {
+      "id": "nut",
+      "split": "development",
+      "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Fasteners/Nuts/Metric/ISO4032_Hex_Nut_M10.step",
+      "sha256": "d94eaac1212d339200e308751a2e11f6967be694dfb8569ce906c78464950a84",
+      "history": "https://github.com/FreeCAD/FreeCAD-library/commits/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Fasteners/Nuts/Metric/ISO4032_Hex_Nut_M10.step",
+      "contributors": [
+        "WladIMirG",
+        "obijuan"
+      ]
+    },
+    {
+      "id": "pin",
+      "split": "development",
+      "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Fasteners/Shaft%20Couplers%20%26%20Dowel%20Pins/DowelPin_4mm_L4mm_setscrew_M3.step",
+      "sha256": "c17e4a9984badea304ea692fba0e15970c958addc27a78c92df62f3abd5677ce",
+      "history": "https://github.com/FreeCAD/FreeCAD-library/commits/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Fasteners/Shaft%20Couplers%20%26%20Dowel%20Pins/DowelPin_4mm_L4mm_setscrew_M3.step",
+      "contributors": [
+        "18turbo",
+        "WladIMirG"
+      ]
+    },
+    {
+      "id": "heatsink",
+      "split": "development",
+      "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Electronics%20Parts/Heatsinks/heat-sink-8x6x5.step",
+      "sha256": "505f80e8b48b64a4aca728da6ede876083a68ca8982100f735d722968140115b",
+      "history": "https://github.com/FreeCAD/FreeCAD-library/commits/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Electronics%20Parts/Heatsinks/heat-sink-8x6x5.step",
+      "contributors": [
+        "berserkdesign",
+        "hasecilu"
+      ]
+    },
+    {
+      "id": "retaining-ring",
+      "split": "development",
+      "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Fasteners/RetainingRings/Metric/DIN471_CLASS_A_M10RetainingRings.step",
+      "sha256": "33cbdfc2e7884233c66b9d792b4e9a9dc4985966d7551c71d86f45d522ff3e8d",
+      "history": "https://github.com/FreeCAD/FreeCAD-library/commits/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Fasteners/RetainingRings/Metric/DIN471_CLASS_A_M10RetainingRings.step",
+      "contributors": [
+        "WladIMirG",
+        "nachotineo"
+      ]
+    },
+    {
+      "id": "beam",
+      "split": "holdout",
+      "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Profiles%20EN/DIN1025-5%20IPE-Profiles/IPE-Profile%20100%20DIN1025-5%20S235JR.step",
+      "sha256": "94f03ecfed57de40ffd151f20c805fdb74a20ec44fd7414775130b3349f9be92",
+      "history": "https://github.com/FreeCAD/FreeCAD-library/commits/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Profiles%20EN/DIN1025-5%20IPE-Profiles/IPE-Profile%20100%20DIN1025-5%20S235JR.step",
+      "contributors": [
+        "Peta-T",
+        "WladIMirG"
+      ]
+    },
+    {
+      "id": "bracket",
+      "split": "holdout",
+      "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Mountings/Corner/2020_corner_bracket-Corner.step",
+      "sha256": "25e3fbc171f13e1a96258ab084b2d8134a737ebd34098a312e297344481af348",
+      "history": "https://github.com/FreeCAD/FreeCAD-library/commits/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Mountings/Corner/2020_corner_bracket-Corner.step",
+      "contributors": [
+        "hasecilu"
+      ]
+    },
+    {
+      "id": "pulley",
+      "split": "holdout",
+      "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Pulleys/GT2Pulley-V3.stp",
+      "sha256": "9a7827cce2e6c1bad3154993864db49871dbd5938b4688bbd087beac5d27b473",
+      "history": "https://github.com/FreeCAD/FreeCAD-library/commits/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Pulleys/GT2Pulley-V3.stp",
+      "contributors": [
+        "Jose Vega",
+        "WladIMirG"
+      ]
+    },
+    {
+      "id": "coupler",
+      "split": "holdout",
+      "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Wheels/Wheel-RC-1%3A8-17mm-hex/hex_coupler/Hex_Coupler_6mm_12hex_18L.step",
+      "sha256": "eaf333f8ecdb9258e98d895f0d4eee72b9710c46fb1f9c19feb9ac1e5ccffa82",
+      "history": "https://github.com/FreeCAD/FreeCAD-library/commits/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Wheels/Wheel-RC-1%3A8-17mm-hex/hex_coupler/Hex_Coupler_6mm_12hex_18L.step",
+      "contributors": [
+        "Charles Fox"
+      ]
+    },
+    {
+      "id": "motor-mount",
+      "split": "holdout",
+      "url": "https://raw.githubusercontent.com/gumyr/build123d/55c8bbcd98924a953b0d510c927fe2d0c323fd6e/docs/how_to/assets/topology_selection/nema-17-bracket.step",
+      "sha256": "bc7b546d7062b56d93ad3a82fc90f25aa44e3930a9e98bdc93c5d409e4a84c2d",
+      "history": "https://github.com/gumyr/build123d/commits/55c8bbcd98924a953b0d510c927fe2d0c323fd6e/docs/how_to/assets/topology_selection/nema-17-bracket.step",
+      "source": "build123d documentation",
+      "license": "Apache-2.0",
+      "terms": "https://github.com/gumyr/build123d/blob/55c8bbcd98924a953b0d510c927fe2d0c323fd6e/LICENSE",
+      "contributors": [
+        "Roger Maitland"
+      ]
+    },
+    {
+      "id": "washer",
+      "split": "holdout",
+      "url": "https://raw.githubusercontent.com/FreeCAD/FreeCAD-library/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Fasteners/Washers/Metric/DIN%20125%20class%204%20M10%20Flat%20Washer.step",
+      "sha256": "87c116f0b9ce16a143182f3b8a045dd1c3faf521a113db2d9a4a4994188591e2",
+      "history": "https://github.com/FreeCAD/FreeCAD-library/commits/f5ca01cdcaa2f69b9295a6382719c2d90628780c/Mechanical%20Parts/Fasteners/Washers/Metric/DIN%20125%20class%204%20M10%20Flat%20Washer.step",
+      "contributors": [
+        "WladIMirG",
+        "obijuan"
+      ]
+    }
+  ]
+}

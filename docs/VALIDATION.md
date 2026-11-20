@@ -2954,3 +2954,7 @@ Le build local `artifacts/FabSTEP.app` a été reconstruit par `sh scripts/build
 | Outillage | 31 tests Python, 4 tests de détection SDK, formatage et Clippy strict sur les trois graphes Cargo, lint FabBoard réussis |
 
 Le banc d’interférences a été rejoué séparément. Cette recette ne comprend pas un nouveau calcul sur Flansch, un essai dans Fusion ou une distribution Windows/Linux.
+
+## V-1277 — Corpus public de reconnaissance R-122
+
+Douze pièces mécaniques amont, six pour la mise au point et six réservées à la vérification. Sur Apple M4 avec FreeCAD 1.1.1, les deux densités donnent 24 STL binaires dans le budget ordinaire. Deux générations indépendantes reproduisent les 24 empreintes. Chaque STL est converti deux fois par génération via Auto avec réimport et correspondance source exacte. Les 96 mesures géométriques sont identiques à entrée identique. La bride passe de 7 890 à 16 830 triangles suivant la densité et le STEP de FabSTEP de 6 488 à 14 281 faces, pour 19 faces de référence. Le tore déformé conserve ses facettes et le tore ouvert produit le refus `mesh.open`. Les deux refus et replis se vérifient indépendamment des pièces amont. Mesures d’aire par famille, fidélité, temps et RSS dans [la référence chiffrée](../fixtures/recognition_corpus/baseline.json). Procédure et droits dans [le corpus](../fixtures/recognition_corpus/README.md).

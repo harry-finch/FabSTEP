@@ -1,0 +1,1981 @@
+{
+  "environment": {
+    "freecad": [
+      "1",
+      "1",
+      "1"
+    ],
+    "occ": "7.8.1",
+    "machine": "arm64",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "densities": {
+      "coarse": [
+        0.08,
+        0.44
+      ],
+      "fine": [
+        0.035,
+        0.3
+      ]
+    },
+    "unit": "mm",
+    "timeout_s": 120,
+    "probe_sha256": "9e9ee6738905bc15a78a69ae85c94541af5bd1c716b89501bd375193efe65359",
+    "project_geometry_revision": "4c4ed0f",
+    "cpu": "Apple M4"
+  },
+  "parts": {
+    "flange-coarse": {
+      "input_sha256": "89b800a2d0031d0ec0ff4797e9edec9e809a1fabc681026665c15a5a3477de53",
+      "triangles": 7890,
+      "split": "development",
+      "resources": [
+        {
+          "seconds": 19.443496041931212,
+          "rss_bytes": 857030656
+        },
+        {
+          "seconds": 29.95313983410597,
+          "rss_bytes": 768229376
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -47.46047210693,
+            0.0,
+            -47.490116119383764
+          ],
+          [
+            47.50000000000037,
+            11.500000000000197,
+            47.490116119385
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 4,
+        "faces": 6488,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 6484,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 28529.032732952568
+      },
+      "fidelity": {
+        "result_samples": 59360,
+        "result_to_source_mm": 0.039569712461483775,
+        "source_samples": 35497,
+        "source_to_result_mm": 0.039555186055367716,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "torus": {
+          "plane": 1331.5846375562235
+        },
+        "cylinder": {
+          "cylinder": 507.94315627933884,
+          "plane": 7138.55936896427
+        },
+        "plane": {
+          "plane": 11113.589359682297
+        },
+        "cone": {
+          "plane": 256.79226872109456
+        }
+      },
+      "families": {
+        "cone": {
+          "coverage": 0.0,
+          "missed_mm2": 256.79226872109456,
+          "false_positive_mm2": 0
+        },
+        "cylinder": {
+          "coverage": 0.06642816825109939,
+          "missed_mm2": 7138.55936896427,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 8726.936275241587
+        },
+        "torus": {
+          "coverage": 0.0,
+          "missed_mm2": 1331.5846375562235,
+          "false_positive_mm2": 0
+        }
+      }
+    },
+    "flange-fine": {
+      "input_sha256": "c56e8ef81e9d2bc1482bfab8fda7ad7149e70fbaf425b2157ee6dd25a5055084",
+      "triangles": 16830,
+      "split": "development",
+      "resources": [
+        {
+          "seconds": 43.85492000030354,
+          "rss_bytes": 1574797312
+        },
+        {
+          "seconds": 46.54830937506631,
+          "rss_bytes": 1585610752
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -47.5,
+            0.0,
+            -47.5
+          ],
+          [
+            47.5,
+            11.500000000000753,
+            47.50000000000036
+          ]
+        ],
+        "conical_faces": 1,
+        "cylindrical_faces": 4,
+        "faces": 14281,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 14276,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 28546.59202784779
+      },
+      "fidelity": {
+        "result_samples": 122096,
+        "result_to_source_mm": 0.03130860870730978,
+        "source_samples": 75727,
+        "source_to_result_mm": 0.03069258291116647,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "torus": {
+          "plane": 1341.2235311689358
+        },
+        "cylinder": {
+          "plane": 7140.050574589946,
+          "cylinder": 508.50570674095394
+        },
+        "plane": {
+          "plane": 11114.648113506239
+        },
+        "cone": {
+          "cone": 256.9355685124777
+        }
+      },
+      "families": {
+        "cone": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "cylinder": {
+          "coverage": 0.0664838811452755,
+          "missed_mm2": 7140.050574589946,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 8481.274105758883
+        },
+        "torus": {
+          "coverage": 0.0,
+          "missed_mm2": 1341.2235311689358,
+          "false_positive_mm2": 0
+        }
+      }
+    },
+    "plate-coarse": {
+      "input_sha256": "f09ff886bce6d1a94bb634539b7f17af62adbcf0aee2f8de9aef5adfd3a8767d",
+      "triangles": 1206,
+      "split": "development",
+      "resources": [
+        {
+          "seconds": 0.9279697919264436,
+          "rss_bytes": 88080384
+        },
+        {
+          "seconds": 0.9370566252619028,
+          "rss_bytes": 91963392
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -50.00000000000001,
+            -4.0,
+            0.0
+          ],
+          [
+            10.0,
+            1.0519192049060671e-13,
+            60.0
+          ]
+        ],
+        "conical_faces": 10,
+        "cylindrical_faces": 5,
+        "faces": 28,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 13,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 10675.015111609375
+      },
+      "fidelity": {
+        "result_samples": 20906,
+        "result_to_source_mm": 0.016117862011507,
+        "source_samples": 5419,
+        "source_to_result_mm": 0.01593935204232544,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "plane": {
+          "plane": 6073.205587747267
+        },
+        "cylinder": {
+          "cylinder": 258.6747504322424
+        },
+        "cone": {
+          "cone": 132.63662259813472
+        }
+      },
+      "families": {
+        "cone": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "cylinder": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        }
+      }
+    },
+    "plate-fine": {
+      "input_sha256": "8820d8c46f312b8bfd4b86c3cfab5afac6dcb27e5d4df6cfc1196ef238f0e191",
+      "triangles": 1726,
+      "split": "development",
+      "resources": [
+        {
+          "seconds": 1.2001199587248266,
+          "rss_bytes": 117522432
+        },
+        {
+          "seconds": 1.2430993327870965,
+          "rss_bytes": 116523008
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -50.00000000000001,
+            -4.0,
+            0.0
+          ],
+          [
+            10.0,
+            5.469271274726389e-13,
+            60.0
+          ]
+        ],
+        "conical_faces": 10,
+        "cylindrical_faces": 5,
+        "faces": 28,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 13,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 10675.015130606995
+      },
+      "fidelity": {
+        "result_samples": 20906,
+        "result_to_source_mm": 0.007690339810501712,
+        "source_samples": 7759,
+        "source_to_result_mm": 0.007683410554434965,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "plane": {
+          "plane": 6071.851892278048
+        },
+        "cylinder": {
+          "cylinder": 258.9397684689925
+        },
+        "cone": {
+          "cone": 132.9761908962869
+        }
+      },
+      "families": {
+        "cone": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "cylinder": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        }
+      }
+    },
+    "nut-coarse": {
+      "input_sha256": "024bd729523c1c004b4d26395411a148d18554140551925e0aea2d9d76ac208f",
+      "triangles": 552,
+      "split": "development",
+      "resources": [
+        {
+          "seconds": 0.9535225839354098,
+          "rss_bytes": 70221824
+        },
+        {
+          "seconds": 0.970539125148207,
+          "rss_bytes": 73039872
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -8.00000000000218,
+            -9.237604141235852,
+            -8.373219332566323e-13
+          ],
+          [
+            8.00000000000218,
+            9.237604141235773,
+            8.39999961853
+          ]
+        ],
+        "conical_faces": 2,
+        "cylindrical_faces": 1,
+        "faces": 231,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 228,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 1182.3887688163913
+      },
+      "fidelity": {
+        "result_samples": 7492,
+        "result_to_source_mm": 0.029310297960812193,
+        "source_samples": 2484,
+        "source_to_result_mm": 0.029295834424659748,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cone": {
+          "plane": 61.75932625512321,
+          "cone": 46.42280172934282
+        },
+        "cylinder": {
+          "cylinder": 232.02341758654535
+        },
+        "plane": {
+          "plane": 632.256802240399
+        }
+      },
+      "families": {
+        "cone": {
+          "coverage": 0.429117106441174,
+          "missed_mm2": 61.75932625512321,
+          "false_positive_mm2": 0
+        },
+        "cylinder": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 61.75932625512321
+        }
+      }
+    },
+    "nut-fine": {
+      "input_sha256": "5f45de4398a8774c3f0e9b8a69bb24eb258633c0367b62e34eeb720755156990",
+      "triangles": 856,
+      "split": "development",
+      "resources": [
+        {
+          "seconds": 1.754758832976222,
+          "rss_bytes": 97976320
+        },
+        {
+          "seconds": 1.8240787917748094,
+          "rss_bytes": 93372416
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -8.000000000000417,
+            -9.237604141235833,
+            -6.937505300382933e-13
+          ],
+          [
+            8.000000000000416,
+            9.237604141235742,
+            8.39999961853
+          ]
+        ],
+        "conical_faces": 2,
+        "cylindrical_faces": 1,
+        "faces": 379,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 376,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 1182.6613856050546
+      },
+      "fidelity": {
+        "result_samples": 8788,
+        "result_to_source_mm": 0.013981239860664907,
+        "source_samples": 3852,
+        "source_to_result_mm": 0.013974340948295158,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cone": {
+          "plane": 60.30032777043099,
+          "cone": 46.54165305848124
+        },
+        "cylinder": {
+          "cylinder": 232.2611341567859
+        },
+        "plane": {
+          "plane": 633.3902054016279
+        }
+      },
+      "families": {
+        "cone": {
+          "coverage": 0.43561203842719026,
+          "missed_mm2": 60.30032777043099,
+          "false_positive_mm2": 0
+        },
+        "cylinder": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 60.30032777043099
+        }
+      }
+    },
+    "pin-coarse": {
+      "input_sha256": "ccb930343b2ffc00e5e3198b7aa5ab82e38fb6fa56b4375c7637e3ea40cb3dd0",
+      "triangles": 400,
+      "split": "development",
+      "resources": [
+        {
+          "seconds": 1.0762433330528438,
+          "rss_bytes": 67125248
+        },
+        {
+          "seconds": 1.0028084591031075,
+          "rss_bytes": 73646080
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -3.0,
+            -2.995600223541336,
+            -3.5712451152285607e-13
+          ],
+          [
+            3.0,
+            2.99560022354175,
+            4.00000000000036
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 0,
+        "faces": 246,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 246,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 54.97563740111713
+      },
+      "fidelity": {
+        "result_samples": 2488,
+        "result_to_source_mm": 6.629885643206105e-13,
+        "source_samples": 1798,
+        "source_to_result_mm": 6.180056466575934e-13,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "plane": 121.0626917243824
+        },
+        "plane": {
+          "plane": 31.17071330301745
+        }
+      },
+      "families": {
+        "cylinder": {
+          "coverage": 0.0,
+          "missed_mm2": 121.0626917243824,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 121.0626917243824
+        }
+      }
+    },
+    "pin-fine": {
+      "input_sha256": "7c125df3e8acb8a09540c0d66e2a51e63b5264ecd6ac74c2e3dbb27c8dcbb05b",
+      "triangles": 588,
+      "split": "development",
+      "resources": [
+        {
+          "seconds": 1.4421594170853496,
+          "rss_bytes": 92291072
+        },
+        {
+          "seconds": 1.4022191250696778,
+          "rss_bytes": 97353728
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -3.0000000000004876,
+            -2.9916114807130363,
+            -2.518409334370102e-13
+          ],
+          [
+            3.0,
+            2.9916114807130363,
+            4.000000000000204
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 0,
+        "faces": 362,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 362,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 55.14420235359302
+      },
+      "fidelity": {
+        "result_samples": 3660,
+        "result_to_source_mm": 6.345980962217022e-13,
+        "source_samples": 2644,
+        "source_to_result_mm": 7.120342129173049e-13,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "plane": 121.14430927921491
+        },
+        "plane": {
+          "plane": 31.29887625183953
+        }
+      },
+      "families": {
+        "cylinder": {
+          "coverage": 0.0,
+          "missed_mm2": 121.14430927921491,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 121.14430927921491
+        }
+      }
+    },
+    "heatsink-coarse": {
+      "input_sha256": "ea3a49f6a5602008f536886b18b0c0278417d950650a7cbed2f2d033535b86f0",
+      "triangles": 412,
+      "split": "development",
+      "resources": [
+        {
+          "seconds": 0.4615737502463162,
+          "rss_bytes": 53755904
+        },
+        {
+          "seconds": 0.4555712090805173,
+          "rss_bytes": 56262656
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -4.0,
+            -3.19000005722026,
+            -4.440892098501e-16
+          ],
+          [
+            4.0,
+            3.19000005722026,
+            4.82999992370626
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 9,
+        "faces": 22,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 13,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 152.92689264099437
+      },
+      "fidelity": {
+        "result_samples": 2564,
+        "result_to_source_mm": 0.0022202186131254995,
+        "source_samples": 1856,
+        "source_to_result_mm": 0.002125004247674158,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "cylinder": 35.02978819255762
+        },
+        "plane": {
+          "plane": 324.71765808756123
+        }
+      },
+      "families": {
+        "cylinder": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        }
+      }
+    },
+    "heatsink-fine": {
+      "input_sha256": "9aa6755d2f2c3a220a8a98a79a1d871a2333e42e94f6250b6995f7df44c8991f",
+      "triangles": 580,
+      "split": "development",
+      "resources": [
+        {
+          "seconds": 0.5817065420560539,
+          "rss_bytes": 67960832
+        },
+        {
+          "seconds": 0.5887805828824639,
+          "rss_bytes": 62783488
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -4.0,
+            -3.19000005722041,
+            -4.440892098501e-16
+          ],
+          [
+            4.0,
+            3.19000005722041,
+            4.82999992370741
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 9,
+        "faces": 22,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 13,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 152.92689314529034
+      },
+      "fidelity": {
+        "result_samples": 2564,
+        "result_to_source_mm": 0.0012843114715681617,
+        "source_samples": 2612,
+        "source_to_result_mm": 0.001404591559932918,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "cylinder": 35.06514855160141
+        },
+        "plane": {
+          "plane": 324.71320024781244
+        }
+      },
+      "families": {
+        "cylinder": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        }
+      }
+    },
+    "retaining-ring-coarse": {
+      "input_sha256": "45ce7af653dbd7b6de6dbcddd1978f0c2e44d3a6900bd47203f19d36b06e52e9",
+      "triangles": 520,
+      "split": "development",
+      "resources": [
+        {
+          "seconds": 1.2965783751569688,
+          "rss_bytes": 82968576
+        },
+        {
+          "seconds": 1.3399103344418108,
+          "rss_bytes": 89767936
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -6.164866924286,
+            -0.07372853159904315,
+            -7.969235897064
+          ],
+          [
+            6.132779121399,
+            1.0725386142733158,
+            6.579755306244
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 0,
+        "faces": 284,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 284,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 61.27561820736854
+      },
+      "fidelity": {
+        "result_samples": 3164,
+        "result_to_source_mm": 2.4425121647464465e-08,
+        "source_samples": 2338,
+        "source_to_result_mm": 2.4425119815596474e-08,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "plane": {
+          "plane": 132.9576240271636
+        },
+        "cylinder": {
+          "plane": 74.90794427971002
+        }
+      },
+      "families": {
+        "cylinder": {
+          "coverage": 0.0,
+          "missed_mm2": 74.90794427971002,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 74.90794427971002
+        }
+      }
+    },
+    "retaining-ring-fine": {
+      "input_sha256": "4056ff9a3d6f9dccddbd6cda9326ee538ba37a32a288afa0fcce131417e2e544",
+      "triangles": 736,
+      "split": "development",
+      "resources": [
+        {
+          "seconds": 1.9913474996574223,
+          "rss_bytes": 100696064
+        },
+        {
+          "seconds": 1.7103281249292195,
+          "rss_bytes": 102367232
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -6.164866924286353,
+            -0.07372853159904225,
+            -7.969235897064272
+          ],
+          [
+            6.132779121399,
+            1.0727293491360506,
+            6.570087909698488
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 0,
+        "faces": 407,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 407,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 61.389616087976606
+      },
+      "fidelity": {
+        "result_samples": 4490,
+        "result_to_source_mm": 2.481482631010168e-08,
+        "source_samples": 3310,
+        "source_to_result_mm": 2.481482679408953e-08,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "plane": {
+          "plane": 133.18562031053384
+        },
+        "cylinder": {
+          "plane": 74.98269225433795
+        }
+      },
+      "families": {
+        "cylinder": {
+          "coverage": 0.0,
+          "missed_mm2": 74.98269225433795,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 74.98269225433795
+        }
+      }
+    },
+    "beam-coarse": {
+      "input_sha256": "f17a8262b187648d14e932ff02be20b9e5cfdafec4ed5c93bb6f1dba58444814",
+      "triangles": 172,
+      "split": "holdout",
+      "resources": [
+        {
+          "seconds": 0.2414831668138504,
+          "rss_bytes": 41009152
+        },
+        {
+          "seconds": 0.25255079194903374,
+          "rss_bytes": 41271296
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -27.5,
+            -50.0,
+            0.0
+          ],
+          [
+            27.5,
+            50.0,
+            50.0
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 4,
+        "faces": 18,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 14,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 51616.09971252883
+      },
+      "fidelity": {
+        "result_samples": 2656,
+        "result_to_source_mm": 0.03355756295347351,
+        "source_samples": 776,
+        "source_to_result_mm": 0.03265155555545108,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "cylinder": 2195.5842400558818
+        },
+        "plane": {
+          "plane": 19856.618406050024
+        }
+      },
+      "families": {
+        "cylinder": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        }
+      }
+    },
+    "beam-fine": {
+      "input_sha256": "ce50470401464d7e5c5fd093efb05fd7101d4185e6157b6a9c4ab08fbb238297",
+      "triangles": 236,
+      "split": "holdout",
+      "resources": [
+        {
+          "seconds": 0.2629842911846936,
+          "rss_bytes": 42074112
+        },
+        {
+          "seconds": 0.28882970893755555,
+          "rss_bytes": 43941888
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -27.5,
+            -50.0,
+            0.0
+          ],
+          [
+            27.5,
+            50.0,
+            50.0
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 4,
+        "faces": 18,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 14,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 51616.10035792474
+      },
+      "fidelity": {
+        "result_samples": 2656,
+        "result_to_source_mm": 0.014388627339831483,
+        "source_samples": 1064,
+        "source_to_result_mm": 0.013188077475525327,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "cylinder": 2197.545337865073
+        },
+        "plane": {
+          "plane": 19855.522454850943
+        }
+      },
+      "families": {
+        "cylinder": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        }
+      }
+    },
+    "bracket-coarse": {
+      "input_sha256": "ab87237ddcdd5e645338377af9654eedc4f97973a7066d4205dbbf7b8d1bb617",
+      "triangles": 804,
+      "split": "holdout",
+      "resources": [
+        {
+          "seconds": 0.7405096660368145,
+          "rss_bytes": 76988416
+        },
+        {
+          "seconds": 0.7356590828858316,
+          "rss_bytes": 74416128
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -4.500000090439481e-14,
+            -20.000000000000004,
+            -1.0000000000000002
+          ],
+          [
+            17.0,
+            1.0000000000000044,
+            20.0
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 12,
+        "faces": 40,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 28,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 2215.92037223012
+      },
+      "fidelity": {
+        "result_samples": 7284,
+        "result_to_source_mm": 0.016337099336185726,
+        "source_samples": 3616,
+        "source_to_result_mm": 0.01555011394332307,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "cylinder": 137.9775716667661
+        },
+        "plane": {
+          "plane": 1987.8942095555892
+        }
+      },
+      "families": {
+        "cylinder": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        }
+      }
+    },
+    "bracket-fine": {
+      "input_sha256": "53b9d29d754a788cad61f57e296f2045ad7badad3737c55b93886437efb992aa",
+      "triangles": 1092,
+      "split": "holdout",
+      "resources": [
+        {
+          "seconds": 0.9548817495815456,
+          "rss_bytes": 97533952
+        },
+        {
+          "seconds": 0.9505381248891354,
+          "rss_bytes": 94453760
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -4.500000090439481e-14,
+            -20.000000000000004,
+            -1.0000000000000004
+          ],
+          [
+            17.0,
+            1.0000000000000042,
+            20.0
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 12,
+        "faces": 40,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 28,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 2215.920367673675
+      },
+      "fidelity": {
+        "result_samples": 7284,
+        "result_to_source_mm": 0.008339223020462264,
+        "source_samples": 4912,
+        "source_to_result_mm": 0.007738455907966804,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "cylinder": 138.10121026441792
+        },
+        "plane": {
+          "plane": 1987.490569797395
+        }
+      },
+      "families": {
+        "cylinder": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        }
+      }
+    },
+    "pulley-coarse": {
+      "input_sha256": "08aeeb7bb72e4e24a8f8adf47479c90640ed249687ae9479823708c23f209cbd",
+      "triangles": 1880,
+      "split": "holdout",
+      "resources": [
+        {
+          "seconds": 3.902062375098467,
+          "rss_bytes": 114409472
+        },
+        {
+          "seconds": 3.702326000202447,
+          "rss_bytes": 129105920
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -9.00000011940784,
+            -9.000000086389,
+            0.0
+          ],
+          [
+            9.000000053370162,
+            9.000000086389,
+            9.0
+          ]
+        ],
+        "conical_faces": 2,
+        "cylindrical_faces": 23,
+        "faces": 89,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 64,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 1164.6194968295476
+      },
+      "fidelity": {
+        "result_samples": 17990,
+        "result_to_source_mm": 0.03838397862301407,
+        "source_samples": 8460,
+        "source_to_result_mm": 0.038100780281400314,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "cylinder": 475.35606677110627,
+          "plane": 137.46717801947773
+        },
+        "cone": {
+          "cone": 31.72094329428539
+        },
+        "plane": {
+          "plane": 690.7227230467086
+        }
+      },
+      "families": {
+        "cone": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "cylinder": {
+          "coverage": 0.7756821739579192,
+          "missed_mm2": 137.46717801947773,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 137.46717801947773
+        }
+      }
+    },
+    "pulley-fine": {
+      "input_sha256": "3155f520ec855c871eab17924d455760a61b349186b650e8b3cf1c6ede67c54e",
+      "triangles": 2696,
+      "split": "holdout",
+      "resources": [
+        {
+          "seconds": 4.818225417286158,
+          "rss_bytes": 162971648
+        },
+        {
+          "seconds": 4.791945083066821,
+          "rss_bytes": 187760640
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -9.00000000729,
+            -9.00000000729,
+            0.0
+          ],
+          [
+            9.000000007290016,
+            9.00000000729,
+            9.0
+          ]
+        ],
+        "conical_faces": 2,
+        "cylindrical_faces": 23,
+        "faces": 89,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 64,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 1164.619492562183
+      },
+      "fidelity": {
+        "result_samples": 17990,
+        "result_to_source_mm": 0.017069823879355184,
+        "source_samples": 12132,
+        "source_to_result_mm": 0.01706513283758006,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "cylinder": 475.85124204139,
+          "plane": 137.46717801947773
+        },
+        "cone": {
+          "cone": 31.633868295595192
+        },
+        "plane": {
+          "plane": 693.9191741259502
+        }
+      },
+      "families": {
+        "cone": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "cylinder": {
+          "coverage": 0.7758632815791916,
+          "missed_mm2": 137.46717801947779,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 137.46717801947773
+        }
+      }
+    },
+    "coupler-coarse": {
+      "input_sha256": "5bfbebc923deae8e7edd085302c89fab018831d1df78154901ea487eb87584bf",
+      "triangles": 712,
+      "split": "holdout",
+      "resources": [
+        {
+          "seconds": 2.8614803343079984,
+          "rss_bytes": 91389952
+        },
+        {
+          "seconds": 2.6406649579294026,
+          "rss_bytes": 91308032
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -6.928203105927,
+            -6.000000000003227,
+            -3.132486458228864e-12
+          ],
+          [
+            6.928203105927,
+            6.000000000003227,
+            18.000000000000156
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 1,
+        "faces": 376,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 375,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 1634.2536505407472
+      },
+      "fidelity": {
+        "result_samples": 4884,
+        "result_to_source_mm": 0.009672405644545412,
+        "source_samples": 3202,
+        "source_to_result_mm": 0.009658220228400743,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "plane": 569.028644347795,
+          "cylinder": 72.42893052459345
+        },
+        "cone": {
+          "plane": 18.934247461626967
+        },
+        "plane": {
+          "plane": 548.3190719692016
+        }
+      },
+      "families": {
+        "cone": {
+          "coverage": 0.0,
+          "missed_mm2": 18.934247461626967,
+          "false_positive_mm2": 0
+        },
+        "cylinder": {
+          "coverage": 0.11291304890896714,
+          "missed_mm2": 569.0286443477951,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 587.962891809422
+        }
+      }
+    },
+    "coupler-fine": {
+      "input_sha256": "0c3a9fd33f16a8a66c80bfa25805f07bed0dc97c9b33797b27a53fc1b3ccd6ea",
+      "triangles": 974,
+      "split": "holdout",
+      "resources": [
+        {
+          "seconds": 4.19349183421582,
+          "rss_bytes": 110100480
+        },
+        {
+          "seconds": 4.170847415924072,
+          "rss_bytes": 126844928
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -6.928203105927,
+            -6.000000000003227,
+            -3.132486458228864e-12
+          ],
+          [
+            6.928203105927,
+            6.000000000003227,
+            18.000000000000135
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 1,
+        "faces": 509,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 508,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 1636.8065134001495
+      },
+      "fidelity": {
+        "result_samples": 6200,
+        "result_to_source_mm": 0.004608236379884285,
+        "source_samples": 4381,
+        "source_to_result_mm": 0.004382662723802579,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "plane": 569.5343568442759,
+          "cylinder": 72.50313620682788
+        },
+        "cone": {
+          "plane": 18.97228008991226
+        },
+        "plane": {
+          "plane": 548.2062253437722
+        }
+      },
+      "families": {
+        "cone": {
+          "coverage": 0.0,
+          "missed_mm2": 18.97228008991226,
+          "false_positive_mm2": 0
+        },
+        "cylinder": {
+          "coverage": 0.1129266390071349,
+          "missed_mm2": 569.5343568442759,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 588.5066369341881
+        }
+      }
+    },
+    "motor-mount-coarse": {
+      "input_sha256": "5c4af3f2e24b7180dc8bd7c7c1b22fc72d0140f1ea610d08200f220d6254ec3e",
+      "triangles": 1524,
+      "split": "holdout",
+      "resources": [
+        {
+          "seconds": 2.539238791912794,
+          "rss_bytes": 120881152
+        },
+        {
+          "seconds": 2.604991582687944,
+          "rss_bytes": 123486208
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -4.440892098500626e-16,
+            -20.5,
+            -4.440892098500626e-16
+          ],
+          [
+            35.0,
+            20.5,
+            51.0
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 18,
+        "faces": 42,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 24,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 7061.155302868043
+      },
+      "fidelity": {
+        "result_samples": 17440,
+        "result_to_source_mm": 0.03897482328376256,
+        "source_samples": 6838,
+        "source_to_result_mm": 0.03896874983307597,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "cylinder": 872.4137545776177
+        },
+        "plane": {
+          "plane": 5355.364162809468
+        }
+      },
+      "families": {
+        "cylinder": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        }
+      }
+    },
+    "motor-mount-fine": {
+      "input_sha256": "9e14de80a09a3a342302093c4d37131cf321fde1b3175603f04fa30a15d792d4",
+      "triangles": 2124,
+      "split": "holdout",
+      "resources": [
+        {
+          "seconds": 3.5223449170589447,
+          "rss_bytes": 175833088
+        },
+        {
+          "seconds": 4.485867000184953,
+          "rss_bytes": 170459136
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -4.440892098501e-16,
+            -20.5,
+            -4.440892098501e-16
+          ],
+          [
+            35.0,
+            20.5,
+            51.0
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 18,
+        "faces": 42,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 24,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 7061.155333396764
+      },
+      "fidelity": {
+        "result_samples": 17440,
+        "result_to_source_mm": 0.017070385730687865,
+        "source_samples": 9538,
+        "source_to_result_mm": 0.01692561064740311,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "cylinder": 873.0523082941693
+        },
+        "plane": {
+          "plane": 5351.513091953237
+        }
+      },
+      "families": {
+        "cylinder": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        }
+      }
+    },
+    "washer-coarse": {
+      "input_sha256": "29b80a6723f8292c3fcfecab6de191b5e24a5155aefa6efe6e84f872947f5dd4",
+      "triangles": 260,
+      "split": "holdout",
+      "resources": [
+        {
+          "seconds": 0.22568725002929568,
+          "rss_bytes": 42729472
+        },
+        {
+          "seconds": 0.26811450021341443,
+          "rss_bytes": 43483136
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -10.000000044165,
+            -10.000000044165,
+            0.0
+          ],
+          [
+            10.000000044165,
+            10.000000044165,
+            2.200000047684
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 2,
+        "faces": 4,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 2,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 500.65207495908504
+      },
+      "fidelity": {
+        "result_samples": 4864,
+        "result_to_source_mm": 0.03803575074976896,
+        "source_samples": 1170,
+        "source_to_result_mm": 0.03764861564295884,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "cylinder": 210.48363236488683
+        },
+        "plane": {
+          "plane": 453.30488399957716
+        }
+      },
+      "families": {
+        "cylinder": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        }
+      }
+    },
+    "washer-fine": {
+      "input_sha256": "194c34b4e7eaf9c0ed98899fc4b583811f57d3d95962ab007eb5ca2717b63620",
+      "triangles": 384,
+      "split": "holdout",
+      "resources": [
+        {
+          "seconds": 0.4464153749868274,
+          "rss_bytes": 52412416
+        },
+        {
+          "seconds": 0.35213179094716907,
+          "rss_bytes": 50741248
+        }
+      ],
+      "status": "converted",
+      "cad": {
+        "bounds_mm": [
+          [
+            -10.000000013848,
+            -10.000000013848,
+            0.0
+          ],
+          [
+            10.000000013848,
+            10.000000013848,
+            2.200000047684
+          ]
+        ],
+        "conical_faces": 0,
+        "cylindrical_faces": 2,
+        "faces": 4,
+        "kernel": "Open CASCADE 7.9.3",
+        "planar_faces": 2,
+        "revolution_faces": 0,
+        "solids": 1,
+        "spherical_faces": 0,
+        "toroidal_faces": 0,
+        "volume_mm3": 500.65207189321086
+      },
+      "fidelity": {
+        "result_samples": 4864,
+        "result_to_source_mm": 0.016910885075647197,
+        "source_samples": 1728,
+        "source_to_result_mm": 0.016646689131742234,
+        "tessellation_deflection_mm": 0.005000000000000001
+      },
+      "settings": {
+        "cylinder_fit_tolerance_mm": 1e-05,
+        "max_deviation_mm": 0.05,
+        "plane_tolerance_mm": 1e-06,
+        "reconstruction": "auto",
+        "weld_tolerance_mm": 1e-06
+      },
+      "provenance": "exact",
+      "collars": 0,
+      "source_area_mm2_by_reference_and_prediction": {
+        "cylinder": {
+          "cylinder": 210.65525507074722
+        },
+        "plane": {
+          "plane": 454.36668451243526
+        }
+      },
+      "families": {
+        "cylinder": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        },
+        "plane": {
+          "coverage": 1.0,
+          "missed_mm2": 0.0,
+          "false_positive_mm2": 0
+        }
+      }
+    },
+    "m5d_torus_dent": {
+      "expected_absent": "torus",
+      "refusal": null,
+      "pass": true,
+      "source_sha256": "20ee38c629effa5d9c455e7d81a3eeaaaf279fdca0fd3b3b89d5ba27e6af2d87",
+      "resources": [
+        {
+          "seconds": 26.009876917116344,
+          "rss_bytes": 457818112
+        }
+      ]
+    },
+    "m5d_open_torus": {
+      "expected_absent": "solid",
+      "refusal": "mesh.open",
+      "pass": true,
+      "source_sha256": "ca66507a6cc30fad1b96aa2b187f283c4881a3d40b0d2ae3f6bd8120e6f856d3",
+      "resources": [
+        {
+          "seconds": 0.05812220787629485,
+          "rss_bytes": 21905408
+        }
+      ]
+    }
+  }
+}

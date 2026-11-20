@@ -40,7 +40,7 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
    Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto.
 14. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon v1.0
    Les 46 671 faces passent le contrôle géométrique en laboratoire. Le rejeu de Flansch est reporté après les développements de reconnaissance pour limiter la RAM.
-15. **[R-122 Mesurer la reconnaissance sur un corpus public reproductible](roadmap/items/R-122-mesurer-la-reconnaissance-sur-un-corpus-public.md)** · En cours · jalon post-v1
+15. **[R-122 Mesurer la reconnaissance sur un corpus public reproductible](roadmap/items/R-122-mesurer-la-reconnaissance-sur-un-corpus-public.md)** · À tester · jalon post-v1
    G7 · Établir une référence sur une douzaine de pièces de plusieurs familles, puis la réutiliser à chaque extension.
 16. **[R-123 Fusionner les faces planes voisines des raccords toriques](roadmap/items/R-123-fusionner-les-faces-planes-voisines-des-raccords.md)** · En cours · jalon post-v1
    F1 · Mesurer puis réduire les faces résiduelles et les chaînes de petits raccords sur deux pièces publiques.
@@ -52,12 +52,12 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
    G5 · Qualifier d’abord le congé de rayon constant sur arête courbe, puis le raccord entre trois congés inégaux.
 20. **[R-127 Reconstruire une extrusion droite à profil libre](roadmap/items/R-127-reconstruire-une-extrusion-droite-a-profil-libre.md)** · En cours · jalon post-v1
    G3 · Reconnaître un contour extrudé composé de segments, d’arcs et de portions cubiques.
-21. **[R-124 Composer des régions qui partagent un bord vérifié](roadmap/items/R-124-composer-des-regions-qui-partagent-un-bord.md)** · Spécifiée · jalon post-v1
-   G1 · Décrire les voisinages et les triangles de chaque région afin de combiner plusieurs reconnaissances sur un même corps.
-22. **[R-125 Étendre l’atlas aux parois analytiques interrompues](roadmap/items/R-125-etendre-l-atlas-aux-parois-analytiques.md)** · Spécifiée · jalon post-v1
-   G2 et suite de F1 · Partager des contours vérifiés entre tores, plans et parois cylindriques, puis étendre famille par famille.
-23. **[R-130 Qualifier deux contrôles d’interférence simultanés](roadmap/items/R-130-qualifier-deux-controles-d-interference.md)** · Spécifiée · jalon audit
+21. **[R-130 Qualifier deux contrôles d’interférence simultanés](roadmap/items/R-130-qualifier-deux-controles-d-interference.md)** · En cours · jalon audit
    F2 · Mesurer le temps et la mémoire cumulée du helper avant d’adopter la concurrence entre groupes.
+22. **[R-124 Composer des régions qui partagent un bord vérifié](roadmap/items/R-124-composer-des-regions-qui-partagent-un-bord.md)** · Spécifiée · jalon post-v1
+   G1 · Décrire les voisinages et les triangles de chaque région afin de combiner plusieurs reconnaissances sur un même corps.
+23. **[R-125 Étendre l’atlas aux parois analytiques interrompues](roadmap/items/R-125-etendre-l-atlas-aux-parois-analytiques.md)** · Spécifiée · jalon post-v1
+   G2 et suite de F1 · Partager des contours vérifiés entre tores, plans et parois cylindriques, puis étendre famille par famille.
 24. **[R-131 Réévaluer sur preuve le découpage et le filtrage des groupes OCCT](roadmap/items/R-131-reevaluer-sur-preuve-le-decoupage-et-le-filtrage.md)** · Spécifiée · jalon audit
    F3 et F4 · Rouvrir séparément les deux essais de V-1276 si un groupe chaud représentatif permet de démontrer un gain.
 25. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
