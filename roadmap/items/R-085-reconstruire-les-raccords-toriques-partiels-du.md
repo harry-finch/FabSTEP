@@ -59,3 +59,5 @@ Les travaux de reconnaissance ont été qualifiés sur les petits témoins indé
 ## Dernier rejeu du helper de développement
 
 Le contrôle borné à deux threads améliore les conversions des deux STL publics (V-1275). Sur Flansch, le processus atteint encore 30 minutes pendant le contrôle des interférences, avant écriture du STEP. Pic observé de 2,63 Gio sur 4 Gio. R-085 reste ouvert pour ce cas. La suite porte sur le coût du contrôle ou, après arbitrage, sur la qualification d’un calcul prolongé.
+
+La qualification AUD-202 sur la rampe et le secteur publics reporte la subdivision par composantes. Sur le secteur, même un filtre idéal des 15 paires de colliers candidates en contact de boîtes laisserait les mêmes faces dans chaque groupe soumis à OCCT. Avant tout nouvel essai privé, identifier un témoin public où le filtre retire effectivement des faces et démontrer l’inclusion des bords avec leurs tolérances après transfert. Voir le [registre de la revue](../../docs/INT_AUDIT_01.md).

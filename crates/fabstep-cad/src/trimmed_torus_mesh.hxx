@@ -259,7 +259,7 @@ inline bool iso_curve(const BRepAdaptor_Curve2d &curve, const gp_Torus &torus) {
 inline bool supports(const TopoDS_Face &face) {
   if (face.Orientation() != TopAbs_FORWARD)
     return false;
-  BRepAdaptor_Surface surface(face);
+  BRepAdaptor_Surface surface(face, false);
   if (surface.GetType() != GeomAbs_Torus ||
       surface.Torus().MajorRadius() <= surface.Torus().MinorRadius())
     return false;
@@ -312,7 +312,7 @@ template <class Samples>
 Handle(Poly_Triangulation) mesh(const TopoDS_Face &face, double deflection, double angle,
                                 size_t limit, const Samples &samples) {
   require(supports(face), "unsupported torus trim");
-  BRepAdaptor_Surface surface(face);
+  BRepAdaptor_Surface surface(face, false);
   std::vector<UV> chart;
   std::vector<gp_Pnt> prescribed;
   struct Span { size_t first; UV end; };

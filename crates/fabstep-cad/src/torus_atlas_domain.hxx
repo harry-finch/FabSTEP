@@ -157,8 +157,11 @@ bool matches(const TopTools_IndexedMapOfShape &faces) {
 struct Policy {
   double deflection;
   bool candidate(const TopoDS_Face &f) const {
-    return trimmed_torus_mesh::supports(f) || atlas_triangle::matches(f) ||
-           bool(trimfan::profile(f, deflection, mesh_angle));
+    const auto type = BRepAdaptor_Surface(f, false).GetType();
+    if (type == GeomAbs_Torus)
+      return trimmed_torus_mesh::supports(f);
+    return type == GeomAbs_BSplineSurface &&
+           (atlas_triangle::matches(f) || bool(trimfan::profile(f, deflection, mesh_angle)));
   }
   template <class Samples>
   Handle(Poly_Triangulation) mesh(const TopoDS_Face &f, size_t remaining, const Samples &samples) const {
