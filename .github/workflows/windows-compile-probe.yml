@@ -1,0 +1,23 @@
+name: Probe Windows C++ ABI compilation
+on:
+  push:
+    branches: [ci/windows-sdk-probe]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check native translation units with MSVC
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP occt.zip
+          curl.exe -fsSL --retry 3 -o $archive https://github.com/Open-Cascade-SAS/OCCT/releases/download/V7_9_3/opencascade-7.9.3-vc14-64.zip
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if ((Get-FileHash $archive).Hash -ne "2a4f5e187992427674869e89477882d1ace4d67695d4b27173830d93f8cf11be") { throw "SDK digest" }
+          7z x -y "-o$env:RUNNER_TEMP" $archive | Out-Null
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $env:OCCT_ROOT = Join-Path $env:RUNNER_TEMP opencascade-7.9.3-vc14-64
+          cargo check --release --locked -p fabstep-cad
