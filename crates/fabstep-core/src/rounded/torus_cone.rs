@@ -2,6 +2,7 @@
 //! cylindrical land. Every proposed change of surface is a measured circle.
 use super::*;
 
+mod groove;
 mod terminal;
 
 #[derive(Clone, Copy)]
@@ -188,6 +189,8 @@ pub(super) fn classify(
     let layout = if let Some(candidate) = search(nodes, o, work)? {
         candidate.layout(nodes)
     } else if let Some(layout) = terminal::search(nodes, o, work)? {
+        layout
+    } else if let Some(layout) = groove::search(nodes, o, work)? {
         layout
     } else {
         return Ok(None);
