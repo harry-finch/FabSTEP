@@ -48,10 +48,10 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
    G6 · Accélérer la recherche des familles et le guidage en utilisant les normales et la répétition des formes.
 18. **[R-126 Reconstruire une révolution à méridienne mixte](roadmap/items/R-126-reconstruire-une-revolution-a-meridienne-mixte.md)** · À tester · jalon post-v1
    G4 · Reconstituer sur un axe commun des portées, des gorges circulaires et des portions de profil cubiques.
-19. **[R-129 Reconstruire des congés sur arête courbe et des coins à trois rayons](roadmap/items/R-129-reconstruire-des-conges-sur-arete-courbe-et-des.md)** · En cours · jalon post-v1
-   G5 · Qualifier d’abord le congé de rayon constant sur arête courbe, puis le raccord entre trois congés inégaux.
-20. **[R-127 Reconstruire une extrusion droite à profil libre](roadmap/items/R-127-reconstruire-une-extrusion-droite-a-profil-libre.md)** · À tester · jalon post-v1
+19. **[R-127 Reconstruire une extrusion droite à profil libre](roadmap/items/R-127-reconstruire-une-extrusion-droite-a-profil-libre.md)** · À tester · jalon post-v1
    G3 · Reconnaître un contour extrudé composé de segments, d’arcs et de portions cubiques.
+20. **[R-129 Reconstruire des congés sur arête courbe et des coins à trois rayons](roadmap/items/R-129-reconstruire-des-conges-sur-arete-courbe-et-des.md)** · En cours · jalon post-v1
+   G5 · Qualifier d’abord le congé de rayon constant sur arête courbe, puis le raccord entre trois congés inégaux.
 21. **[R-130 Qualifier deux contrôles d’interférence simultanés](roadmap/items/R-130-qualifier-deux-controles-d-interference.md)** · En cours · jalon audit
    F2 · Mesurer le temps et la mémoire cumulée du helper avant d’adopter la concurrence entre groupes.
 22. **[R-125 Étendre l’atlas aux parois analytiques interrompues](roadmap/items/R-125-etendre-l-atlas-aux-parois-analytiques.md)** · En cours · jalon post-v1
