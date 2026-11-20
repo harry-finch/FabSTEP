@@ -1,0 +1,3 @@
+# Preserve the exact upstream bytes verified by the package license inventories.
+packaging/macos/rust-notices/** -text
+packaging/macos/freetype-2.14.3-FTL.txt -text
