@@ -64,6 +64,7 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
 - [ ] [A-133](roadmap/actions/A-133-verifier-les-deux-parois-de-l-arbre-perce.md) Vérifier les deux parois de l’arbre percé (tester, R-113)
 - [ ] [A-134](roadmap/actions/A-134-verifier-le-conge-et-les-percages-sur-le-meme.md) Vérifier le congé et les perçages sur le même bloc (tester, R-114)
 - [ ] [A-135](roadmap/actions/A-135-verifier-l-octant-spherique-et-le-secteur.md) Vérifier l’octant sphérique et le secteur conique (tester, R-117)
+- [ ] [A-136](roadmap/actions/A-136-arbitrer-la-duree-de-calcul-de-flansch.md) Arbitrer la durée de calcul de Flansch (decider, R-085)
 
 ## Livré
 

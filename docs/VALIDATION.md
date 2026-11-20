@@ -2892,3 +2892,15 @@ Le helper réserve au démarrage un pool OCCT à deux threads pour le contrôle 
 | Secteur, 166 848 triangles, 962 faces STEP | 85,33 s | 59,18 s | 300 859 392 → 443 809 792 octets |
 
 Les durées sont monotones. Les deux chemins donnent les mêmes volumes, distances échantillonnées, nombres de faces, et tailles du STEP et du rapport. Sur le banc du secteur, quatre threads accélèrent la phase isolée mais élèvent le pic RSS à 485 Mo. La subdivision en groupes de douze porte le coût de 39,27 à 43,79 secondes CPU sur ce même banc ; la seconde boîte projetée n’apporte pas de gain stable sur les deux pièces. Le produit utilise deux threads et les boîtes existantes.
+
+### Rejeu borné du STL Flansch après intégration des domaines de reconnaissance
+
+Le helper release de `artifacts/FabSTEP.app` a reçu le fichier original de 540 170 triangles en Auto, protocole v2, écart demandé de 0,05 mm. Un unique processus de conversion a tourné sous une surveillance locale échantillonnant RSS et empreinte physique toutes les 50 ms, avec les mêmes limites que le superviseur du bureau.
+
+| Durée monotone | Pic observé | Dernière phase | STEP produit |
+|---:|---:|---|---:|
+| 1 800,06 s | 2 819 591 216 octets (2,63 Gio) | Construction, contrôle OCCT des interférences | 0 octet |
+
+L’échéance a arrêté le processus. Les échantillons de pile à la 25ᵉ minute et dans la dernière minute placent le calcul dans le premier appel à `measure_solid` du constructeur d’atlas, avant l’écriture du STEP. Le second contrôle après relecture restait à faire. Le banc à deux threads accélère les deux pièces publiques mais ne qualifie pas la conversion de Flansch dans le délai du bureau.
+
+**Piste de reprise.** Sur 24 raccords rationnels d’un secteur public, 56 paires ont des boîtes qui se recouvrent et 45 de ces paires partagent un sommet. Pour les 11 autres, une enveloppe du domaine triangulaire pourrait établir une séparation supérieure à 0,00001 mm. Pour qualifier ce filtre, vérifier l’inclusion des bords physiques et de leurs tolérances après transfert, puis mesurer les groupes effectivement évités sur le témoin public. Aucun gain de temps n’a été établi sur Flansch. Le détail des essais de subdivision et de parallélisme figure ci-dessus.

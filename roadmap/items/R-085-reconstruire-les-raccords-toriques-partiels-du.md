@@ -54,4 +54,8 @@ Les contrôles indépendants couvrent les 6 793 groupes natifs et les 6 763 
 
 ### Calendrier de reprise
 
-À la demande de l’utilisateur, reporter tout nouvel essai du STL Flansch et de ses captures jusqu’à la fin des développements de reconnaissance géométrique. Pendant ces développements, utiliser les petits témoins indépendants.
+Les travaux de reconnaissance ont été qualifiés sur les petits témoins indépendants avant le rejeu du fichier privé.
+
+## Dernier rejeu du helper de développement
+
+Le contrôle borné à deux threads améliore les conversions des deux STL publics (V-1275). Sur Flansch, le processus atteint encore 30 minutes pendant le contrôle des interférences, avant écriture du STEP. Pic observé de 2,63 Gio sur 4 Gio. R-085 reste ouvert pour ce cas. La suite porte sur le coût du contrôle ou, après arbitrage, sur la qualification d’un calcul prolongé.
