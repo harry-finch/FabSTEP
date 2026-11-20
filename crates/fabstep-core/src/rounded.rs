@@ -274,22 +274,16 @@ fn retained_proof(proof: SurfaceProof, work: &mut Work) -> Result<SurfaceProof, 
 }
 
 pub fn recognize_rounded(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
-    recognize_policy(a, o, false, None)
+    recognize_policy_with_proofs(a, o, false, None, AutoProofMode::Retain)
 }
+// Auto has already checked the analysis, options and topology for this body.
 pub(crate) fn recognize_auto_patches(
     a: &Analysis,
     o: &Options,
     scope: Option<&BTreeSet<usize>>,
+    adjacency: &[Vec<usize>],
 ) -> Result<RoundedRecognition, FabError> {
-    recognize_policy(a, o, true, scope)
-}
-fn recognize_policy(
-    a: &Analysis,
-    o: &Options,
-    automatic: bool,
-    scope: Option<&BTreeSet<usize>>,
-) -> Result<RoundedRecognition, FabError> {
-    recognize_policy_with_proofs(a, o, automatic, scope, AutoProofMode::Retain)
+    recognize_validated(a, o, true, scope, AutoProofMode::Retain, adjacency)
 }
 
 fn segmented_rims(
@@ -355,14 +349,25 @@ fn recognize_policy_with_proofs(
         }
     }
     validate_analysis(a)?;
-    let tol = o.plane_tolerance_mm.max(o.cylinder_fit_tolerance_mm);
     let adjacency = crate::pipeline::validate_topology(&a.mesh)?;
+    recognize_validated(a, o, automatic, scope, proof_mode, &adjacency)
+}
+
+fn recognize_validated(
+    a: &Analysis,
+    o: &Options,
+    automatic: bool,
+    scope: Option<&BTreeSet<usize>>,
+    proof_mode: AutoProofMode,
+    adjacency: &[Vec<usize>],
+) -> Result<RoundedRecognition, FabError> {
+    let tol = o.plane_tolerance_mm.max(o.cylinder_fit_tolerance_mm);
     // A relaxed fit can join thin bore-wall triangles at just one vertex.
     // Only retry the original, tighter plane tolerance when the relaxed
     // contour itself is invalid. Every downstream surface proof still runs.
-    let segmentation = match crate::planar::build_with_provenance(&a.mesh, &adjacency, tol) {
+    let segmentation = match crate::planar::build_with_provenance(&a.mesh, adjacency, tol) {
         Err(e) if e.code == "planar.invalid_contour" && tol > o.plane_tolerance_mm => {
-            crate::planar::build_with_provenance(&a.mesh, &adjacency, o.plane_tolerance_mm)?
+            crate::planar::build_with_provenance(&a.mesh, adjacency, o.plane_tolerance_mm)?
         }
         result => result?,
     };
@@ -382,7 +387,7 @@ fn recognize_policy_with_proofs(
             let loops = &segmentation.model.faces[rim.region].loops;
             loops.len() == 2 && loops[1] == rim.vertices
         }) {
-        crate::planar::retry_perforations(&segmentation, &a.mesh, &adjacency, tol)?
+        crate::planar::retry_perforations(&segmentation, &a.mesh, adjacency, tol)?
     } else {
         None
     };
@@ -420,7 +425,7 @@ fn recognize_policy_with_proofs(
             a,
             bore_partition,
             bore_rims,
-            &adjacency,
+            adjacency,
             &edges,
             o,
             &mut work,
@@ -443,7 +448,7 @@ fn recognize_policy_with_proofs(
         }
     }
     if rims.is_empty() {
-        match block::candidate(a, &segmentation, &adjacency, &edges, o, &mut work) {
+        match block::candidate(a, &segmentation, adjacency, &edges, o, &mut work) {
             Ok(Some(_)) if scope.is_some() => {
                 return Err(FabError::new(
                     "guidance.family_unproven",
@@ -463,7 +468,7 @@ fn recognize_policy_with_proofs(
     }
     if rims.is_empty() {
         if let Some(result) =
-            torus_sector::candidate(a, &segmentation, &adjacency, &edges, o, &mut work)?
+            torus_sector::candidate(a, &segmentation, adjacency, &edges, o, &mut work)?
         {
             if scope.is_some() {
                 return Err(FabError::new(
@@ -485,7 +490,7 @@ fn recognize_policy_with_proofs(
             a,
             &segmentation.model,
             o,
-            &adjacency,
+            adjacency,
             &mut work,
             automatic,
         )? {
@@ -500,7 +505,7 @@ fn recognize_policy_with_proofs(
     }
     if rims.is_empty() {
         if let Some(result) =
-            cut_octant::candidate(a, &segmentation, &adjacency, &edges, o, &mut work)?
+            cut_octant::candidate(a, &segmentation, adjacency, &edges, o, &mut work)?
         {
             if scope.is_some() {
                 return Err(FabError::new(
@@ -1009,7 +1014,7 @@ fn recognize_policy_with_proofs(
         // Extremely thin triangles may fragment both mouths. Only spend the
         // remaining budget on another partition after ordinary families decline.
         let retry = if rims.is_empty() && bored_prism::split_caps(&segmentation) {
-            crate::planar::retry_perforations(&segmentation, &a.mesh, &adjacency, tol)?
+            crate::planar::retry_perforations(&segmentation, &a.mesh, adjacency, tol)?
         } else {
             None
         };

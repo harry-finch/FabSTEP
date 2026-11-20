@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 type Point = [f64; 3];
 const MAX_TRIANGLES: usize = 100_000;
 const MAX_VERTICES: usize = 300_000;
+const SPATIAL_BATCH: usize = 16_384;
 const MAX_WORK: usize = 50_000_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,20 +75,42 @@ fn measure_vertices(
     work: &mut Work,
     check_current: &mut impl FnMut() -> Result<(), FabError>,
 ) -> Result<Vec<f64>, FabError> {
-    let mut distances = Vec::with_capacity(vertices.len());
+    let mut distances = vec![0.; vertices.len()];
+    let mut order = Vec::with_capacity(vertices.len().min(SPATIAL_BATCH));
     let mut stack = Vec::with_capacity(32);
     let mut last = None;
-    let mut next_check = 0;
-    for &point in vertices {
-        if work.0 >= next_check {
-            check_current()?;
-            next_check = work.0 + 4096;
-        }
-        // Only a zero distance can end this individual nearest-point search early.
-        distances.push(
-            tree.maximum_squared(point, 0., &mut last, work, &mut stack)?
-                .sqrt(),
+    let mut previous = None;
+    for (points, output) in vertices
+        .chunks(SPATIAL_BATCH)
+        .zip(distances.chunks_mut(SPATIAL_BATCH))
+    {
+        check_current()?;
+        let mut next_check = work.0 + 4096;
+        order.extend(
+            points
+                .iter()
+                .enumerate()
+                .map(|(index, &point)| (spatial_key(point, tree.nodes[0].bounds), index as u32)),
         );
+        order.sort_unstable();
+        for (_, index) in order.drain(..) {
+            if work.0 >= next_check {
+                check_current()?;
+                next_check = work.0 + 4096;
+            }
+            let index = index as usize;
+            let point = points[index];
+            let bits = point.map(f64::to_bits);
+            // Equal Morton keys improve locality but never establish equality.
+            let distance = match previous {
+                Some((prev, value)) if bits == prev => value,
+                _ => tree
+                    .maximum_squared(point, 0., &mut last, work, &mut stack)?
+                    .sqrt(),
+            };
+            output[index] = distance;
+            previous = Some((bits, distance));
+        }
     }
     check_current()?;
     Ok(distances)
@@ -414,7 +437,7 @@ fn visit_spatial_samples(
 ) -> Result<(), FabError> {
     // Nearby samples can reuse a witness triangle. Spatial ordering changes
     // only the visitation order; every bit-distinct sample is still tested.
-    let mut samples = Vec::with_capacity(16_384);
+    let mut samples = Vec::with_capacity(SPATIAL_BATCH);
     let mut flush = |samples: &mut Vec<(u32, Point)>| -> Result<(), FabError> {
         samples.sort_unstable_by_key(|&(key, _)| key);
         for (_, point) in samples.drain(..) {
@@ -424,7 +447,7 @@ fn visit_spatial_samples(
     };
     visit_samples(mesh, |point| {
         samples.push((spatial_key(point, bounds), point));
-        if samples.len() == 16_384 {
+        if samples.len() == SPATIAL_BATCH {
             flush(&mut samples)?;
         }
         Ok(())
@@ -662,6 +685,39 @@ mod tests {
         })
         .unwrap_err();
         assert_eq!(err.code, "engine.stale");
+    }
+
+    #[test]
+    fn heatmap_restores_vertex_order_across_morton_collisions_and_batches() {
+        let tree = Tree::new(&square(0.)).unwrap();
+        let samples = [[1., 1., 0.01], [-1., 0.5, 1.], [1., 1., 2.], [-0., 0., 2.5]];
+        let points: Vec<_> = samples
+            .into_iter()
+            .cycle()
+            .take(SPATIAL_BATCH + 9)
+            .collect();
+        let distances = measure_vertices(&tree, &points, &mut Work(0), &mut || Ok(())).unwrap();
+        for (point, distance) in points.iter().zip(distances) {
+            assert_eq!(point[2].to_bits(), distance.to_bits());
+        }
+    }
+
+    #[test]
+    fn duplicate_only_heatmap_checks_cancellation_across_batches() {
+        let tree = Tree::new(&square(0.)).unwrap();
+        let points = vec![[0., 0., 1.]; SPATIAL_BATCH + 1];
+        let mut work = Work(0);
+        let mut checks = 0;
+        let refused = measure_vertices(&tree, &points, &mut work, &mut || {
+            checks += 1;
+            if checks == 2 {
+                Err(FabError::new("engine.stale", "Test."))
+            } else {
+                Ok(())
+            }
+        });
+        assert_eq!(refused.unwrap_err().code, "engine.stale");
+        assert!(work.0 < points.len());
     }
 
     #[test]

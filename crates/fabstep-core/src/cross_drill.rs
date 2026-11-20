@@ -496,7 +496,7 @@ fn topology(
         want.extend([0, 3, y, z].map(|i| (i, FILLET)));
     }
     if cuts.keys().copied().collect::<BTreeSet<_>>() != want {
-        return Err(fail("incidences des neuf domaines incompatibles"));
+        return Err(fail("incidences des domaines de perçage incompatibles"));
     }
     let mut visited = vec![false; own.len()];
     let mut seen = [false; 10];

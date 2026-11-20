@@ -34,7 +34,8 @@ fn recognize(
         reconstruction: ReconstructionMode::Surfaces,
         ..o.clone()
     };
-    let mut result = match crate::rounded::recognize_auto_patches(a, &active, scope) {
+    let adjacency = crate::pipeline::validate_topology(&a.mesh)?;
+    let mut result = match crate::rounded::recognize_auto_patches(a, &active, scope, &adjacency) {
         Ok(r) => r,
         Err(e) if e.code == "recognition.unsupported" => {
             let mut complete = None;
@@ -60,7 +61,7 @@ fn recognize(
             }
             match complete {
                 Some(r) => r,
-                None => planar(a, o)?,
+                None => planar(a, o, &adjacency)?,
             }
         }
         Err(e) => return Err(e),
@@ -121,22 +122,24 @@ fn recognize(
             + result.report.revolutions
             == 0
     {
-        if let Some(shaft) =
-            crate::drilled_shaft::candidate(a, o, &mut crate::recognition::Work::default())
-        {
+        if let Some(shaft) = crate::drilled_shaft::candidate(
+            a,
+            o,
+            &adjacency,
+            &mut crate::recognition::Work::default(),
+        ) {
             return Ok(shaft);
         }
     }
     safe_planes(a, &mut result)?;
     if scope.is_none() {
-        recover_planar_output(a, o, &mut result)?;
+        recover_planar_output(a, o, &adjacency, &mut result)?;
     }
     refresh(a, o, &mut result)?;
     Ok(result)
 }
-fn planar(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
-    let adj = crate::pipeline::validate_topology(&a.mesh)?;
-    let s = crate::planar::build_with_provenance(&a.mesh, &adj, o.plane_tolerance_mm)?;
+fn planar(a: &Analysis, o: &Options, adj: &[Vec<usize>]) -> Result<RoundedRecognition, FabError> {
+    let s = crate::planar::build_with_provenance(&a.mesh, adj, o.plane_tolerance_mm)?;
     Ok(RoundedRecognition {
         model: RoundedModel {
             torus_sectors: vec![],
@@ -206,6 +209,7 @@ fn mixed_planes(faces: Vec<PlanarFace>) -> Vec<MixedPlane> {
 fn recover_planar_output(
     a: &Analysis,
     o: &Options,
+    adj: &[Vec<usize>],
     r: &mut RoundedRecognition,
 ) -> Result<(), FabError> {
     if a.mesh.triangles.len() > crate::planar::OUTPUT_TRIANGLE_LIMIT
@@ -228,7 +232,6 @@ fn recover_planar_output(
     {
         return Ok(());
     }
-    let adj = crate::pipeline::validate_topology(&a.mesh)?;
     let owners: Vec<_> = r
         .triangle_faces
         .iter()
@@ -242,7 +245,7 @@ fn recover_planar_output(
     let mut checks = 0;
     let Some((partition, diagnostic)) = crate::planar::recover_quantized(
         &a.mesh,
-        &adj,
+        adj,
         &crate::planar::triangle_normals(&a.mesh),
         o.plane_tolerance_mm,
         &mut checks,
@@ -646,7 +649,7 @@ pub fn recognize_automatic_guided(
         }
     }
     let mut result = if scope.is_empty() && o.reconstruction != ReconstructionMode::Auto {
-        planar(a, o)?
+        planar(a, o, &crate::pipeline::validate_topology(&a.mesh)?)?
     } else {
         recognize(
             a,

@@ -248,15 +248,12 @@ fn single_cycle(edges: &[(usize, usize)]) -> Option<Vec<usize>> {
 /// Quantization can break both analytic rim seeds at a thin cap triangle.
 /// Nominate planar clusters by adjacent normals, then recheck the whole
 /// planar disk and its circle using the source coordinates and absolute fit.
-fn recovered_caps(mesh: &Mesh, adjacency: &[Vec<usize>], tol: f64) -> Option<[Rim; 2]> {
-    let areas: Vec<_> = mesh
-        .triangles
-        .iter()
-        .map(|t| {
-            let [a, b, c] = t.map(|v| mesh.vertices[v]);
-            cross(sub(b, a), sub(c, a))
-        })
-        .collect();
+fn recovered_caps(
+    mesh: &Mesh,
+    adjacency: &[Vec<usize>],
+    areas: &[V],
+    tol: f64,
+) -> Option<[Rim; 2]> {
     let normals = areas
         .iter()
         .copied()
@@ -329,7 +326,12 @@ fn recovered_caps(mesh: &Mesh, adjacency: &[Vec<usize>], tol: f64) -> Option<[Ri
     caps.try_into().ok()
 }
 
-pub(crate) fn candidate(a: &Analysis, o: &Options, work: &mut Work) -> Option<RoundedRecognition> {
+pub(crate) fn candidate(
+    a: &Analysis,
+    o: &Options,
+    adjacency: &[Vec<usize>],
+    work: &mut Work,
+) -> Option<RoundedRecognition> {
     let mesh = &a.mesh;
     let n = mesh.triangles.len();
     if !(48..=MAX_TRIANGLES).contains(&n) || mesh.vertices.len() > 3 * MAX_TRIANGLES {
@@ -354,16 +356,7 @@ pub(crate) fn candidate(a: &Analysis, o: &Options, work: &mut Work) -> Option<Ro
     }
     let tol = o.cylinder_fit_tolerance_mm.min(1e-5);
     let budget = o.max_deviation_mm.min(0.05);
-    let adjacency = crate::pipeline::validate_topology(mesh).ok()?;
-    let [bottom, top] = recovered_caps(mesh, &adjacency, tol)?;
-    let inward = scale(bottom.axis, -1.);
-    let axis = unit(sub(top.center, bottom.center))?;
-    let height = norm(sub(top.center, bottom.center));
-    let radius = (top.radius + bottom.radius) * 0.5;
-    if (top.radius - bottom.radius).abs() > tol || dot(inward, axis) < 1. - 1e-10 {
-        return None;
-    }
-    let normals: Vec<_> = mesh
+    let areas: Vec<_> = mesh
         .triangles
         .iter()
         .map(|t| {
@@ -371,6 +364,14 @@ pub(crate) fn candidate(a: &Analysis, o: &Options, work: &mut Work) -> Option<Ro
             cross(sub(b, a), sub(c, a))
         })
         .collect();
+    let [bottom, top] = recovered_caps(mesh, adjacency, &areas, tol)?;
+    let inward = scale(bottom.axis, -1.);
+    let axis = unit(sub(top.center, bottom.center))?;
+    let height = norm(sub(top.center, bottom.center));
+    let radius = (top.radius + bottom.radius) * 0.5;
+    if (top.radius - bottom.radius).abs() > tol || dot(inward, axis) < 1. - 1e-10 {
+        return None;
+    }
     let refdir = unit(radial(
         sub(mesh.vertices[bottom.vertices[0]], bottom.center),
         axis,
@@ -386,14 +387,14 @@ pub(crate) fn candidate(a: &Analysis, o: &Options, work: &mut Work) -> Option<Ro
             let p = sub(mesh.vertices[v], bottom.center);
             [dot(p, refdir), dot(p, side), dot(p, axis)]
         });
-        if wall(tri, radius, 1., tol, norm(normals[i])).is_none() {
+        if wall(tri, radius, 1., tol, norm(areas[i])).is_none() {
             unknown.push(i);
         }
     }
-    let n0 = unit(normals[*unknown.first()?])?;
+    let n0 = unit(areas[*unknown.first()?])?;
     let n1 = unknown
         .iter()
-        .filter_map(|&i| unit(normals[i]))
+        .filter_map(|&i| unit(areas[i]))
         .min_by(|&a, &b| dot(a, n0).abs().total_cmp(&dot(b, n0).abs()))?;
     if dot(n0, n1).abs() >= 0.5 {
         return None;
@@ -430,7 +431,7 @@ pub(crate) fn candidate(a: &Analysis, o: &Options, work: &mut Work) -> Option<Ro
     let mut curves: [Vec<(usize, usize)>; 4] = Default::default();
     for (i, t) in mesh.triangles.iter().enumerate() {
         let tri = t.map(|v| p[v]);
-        let a3 = norm(normals[i]);
+        let a3 = norm(areas[i]);
         let cap = |z: f64, sign: f64| {
             let err = tri.iter().map(|p| (p[2] - z).abs()).fold(0., f64::max);
             (err <= tol && sign * area(tri.map(|p| [p[0], p[1]])) > 1e-10_f64.max(a3 * 0.5))
@@ -615,11 +616,11 @@ mod tests {
         .unwrap();
         let mut work = Work::default();
         work.spend(9_999_999).unwrap();
-        assert!(candidate(&data, &o, &mut work).is_none());
+        assert!(candidate(&data, &o, &[], &mut work).is_none());
         assert_eq!(work.used_for_test(), 9_999_999);
         data.mesh.triangles.resize(MAX_TRIANGLES + 1, [0, 1, 2]);
         let mut available = Work::default();
-        assert!(candidate(&data, &o, &mut available).is_none());
+        assert!(candidate(&data, &o, &[], &mut available).is_none());
         assert_eq!(available.used_for_test(), 0);
     }
 }

@@ -153,6 +153,12 @@ pub(super) fn candidate(
     }
     // This is a terminal optional interpretation. Invalid contours simply leave
     // the previous recognizers' outcome available.
+    // Each cut edge incurs four insertions and at most eight boundary
+    // checks (two endpoints in each incident disk). The flood costs 7 per triangle.
+    let cut_edges: usize = cuts.values().map(Vec::len).sum();
+    if !work.can_afford(12 * cut_edges + 7 * n) {
+        return Ok(None);
+    }
     if let Err(e) = block::disks::<4>(a, &owners, adj, &cuts, work) {
         return if e.code == "recognition.too_complex" {
             Err(e)
