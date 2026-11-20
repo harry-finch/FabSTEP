@@ -25,7 +25,7 @@ for name, faces, planes, spheres in (("cube", 6, 6, 0), ("octant", 4, 3, 1)):
 PY
 useradd --create-home fabstep-smoke
 runuser -u fabstep-smoke -- xvfb-run -a -s "-screen 0 1600x1000x24" dbus-run-session -- bash -euo pipefail -c '
-    export LIBGL_ALWAYS_SOFTWARE=1
+    export LC_ALL=C.UTF-8 LIBGL_ALWAYS_SOFTWARE=1
     openbox >/tmp/fabstep-smoke-openbox.log 2>&1 &
     wm=$!
     fabstep-desktop &
@@ -33,10 +33,10 @@ runuser -u fabstep-smoke -- xvfb-run -a -s "-screen 0 1600x1000x24" dbus-run-ses
     trap "kill $desktop $wm 2>/dev/null || true" EXIT
     for attempt in $(seq 1 45); do
         kill -0 "$desktop"
-        window=$(xdotool search --all --onlyvisible --pid "$desktop" --name "^FabSTEP" | tail -1) || true
+        window=$(xdotool search --all --onlyvisible --pid "$desktop" --class "^fabstep-desktop$" | tail -1) || true
         if [ -n "$window" ]; then
-            import -window "$window" /tmp/fabstep-smoke.png
-            tesseract /tmp/fabstep-smoke.png /tmp/fabstep-smoke -l eng 2>/dev/null
+            import -window root -resize 150% /tmp/fabstep-smoke.png
+            tesseract /tmp/fabstep-smoke.png /tmp/fabstep-smoke -l eng --psm 11 2>/dev/null
             if grep -Eqi "Ouvrir STL|Open STL" /tmp/fabstep-smoke.txt; then
                 echo "FabSTEP window and WebKit open-file control displayed."
                 exit 0
