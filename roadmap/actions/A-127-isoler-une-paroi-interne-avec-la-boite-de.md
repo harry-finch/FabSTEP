@@ -10,3 +10,5 @@ fait:
 ---
 
 Ouvrir une pièce creuse dans FabSTEP. Activer Boîte de découpe sur la vue Source, déplacer une poignée et saisir une borne. Dans Résultat STEP, sélectionner ou peindre la paroi interne visible et vérifier que l’export reste disponible.
+
+À l’activation et après « Réinitialiser », vérifier que les faces planes restent uniformes. Placer ensuite une borne sur une paroi plane puis la déplacer à travers la paroi. Le témoin automatisé de ce rendu est décrit en V-1289.

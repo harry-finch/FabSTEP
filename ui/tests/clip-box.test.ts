@@ -1,17 +1,27 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Box3, DoubleSide, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Raycaster, Vector2, Vector3 } from 'three';
-import { clipExtent, clipPlanes, moveClipLimit, axes } from '../src/lib/clip-box.ts';
+import { bindClipBox, clipExtent, moveClipLimit, axes } from '../src/lib/clip-box.ts';
 import { pickVisibleSourceTriangle, pickVisibleStepFace } from '../src/lib/source-picking.ts';
 
-test('all six limits clip on the same side as CPU selection', () => {
-  const box = new Box3(new Vector3(-8, 2, 3), new Vector3(4, 10, 7));
-  const middle = box.getCenter(new Vector3());
-  const planes = clipPlanes(box);
-  for (const axis of axes) for (const value of [box.min[axis] - 0.01, box.min[axis], middle[axis], box.max[axis], box.max[axis] + 0.01]) {
-    const p = middle.clone();
-    p[axis] = value;
-    assert.equal(planes.every(plane => plane.distanceToPoint(p) >= 0), box.containsPoint(p));
+test('moving any of the six limits reuses the active shader for all materials', () => {
+  const materials = [new MeshBasicMaterial(), new MeshBasicMaterial()];
+  const apply = bindClipBox(materials);
+  const extent = new Box3(new Vector3(-8, 2, 3), new Vector3(4, 10, 7));
+  const off = materials[0].customProgramCacheKey();
+  apply(extent);
+  const active = materials[0].customProgramCacheKey();
+  assert.notEqual(active, off);
+  const versions = materials.map(material => material.version);
+  for (const axis of axes) for (const side of ['min', 'max'] as const) {
+    apply(moveClipLimit(extent, extent, axis, side, extent.getCenter(new Vector3())[axis]));
+    assert.deepEqual(materials.map(material => material.version), versions);
+    assert.ok(materials.every(material => material.customProgramCacheKey() === active));
+  }
+  apply(null);
+  for (const material of materials) {
+    assert.equal(material.customProgramCacheKey(), off);
+    material.dispose();
   }
 });
 

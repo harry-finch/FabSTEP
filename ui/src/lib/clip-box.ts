@@ -1,4 +1,4 @@
-import { Box3, Plane, Vector3 } from 'three';
+import { Box3, Vector3, type Material } from 'three';
 
 export const axes = ['x', 'y', 'z'] as const;
 export type Axis = typeof axes[number];
@@ -29,10 +29,42 @@ export function moveClipLimit(box: Box3, extent: Box3, axis: Axis, side: Limit, 
   return next;
 }
 
-export function clipPlanes(box: Box3): Plane[] {
-  return axes.flatMap(axis => {
-    const normal = new Vector3();
-    normal[axis] = 1;
-    return [new Plane(normal, -box.min[axis]), new Plane(normal.clone().negate(), box.max[axis])];
-  });
+/** Interpolate signed distances, so a face on a box limit stays exactly zero
+ * across the triangle even with a perspective camera. */
+export function bindClipBox(materials: Material[]): (box: Box3 | null) => void {
+  let enabled = false;
+  const lower = { value: new Vector3() };
+  const upper = { value: new Vector3() };
+  for (const material of materials) {
+    material.customProgramCacheKey = () => enabled ? 'fabstep-clip-box' : '';
+    material.onBeforeCompile = shader => {
+      if (!enabled) return;
+      shader.uniforms.boxLower = lower;
+      shader.uniforms.boxUpper = upper;
+      // Centroid sampling keeps antialiased silhouette pixels inside the primitive.
+      const varyings = 'centroid varying vec3 fromLower; centroid varying vec3 fromUpper;';
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <clipping_planes_pars_vertex>', `${varyings}
+          uniform vec3 boxLower;
+          uniform vec3 boxUpper;`)
+        .replace('#include <clipping_planes_vertex>', `
+          vec3 boxPoint = (modelMatrix * vec4(transformed, 1.0)).xyz;
+          fromLower = boxPoint - boxLower;
+          fromUpper = boxUpper - boxPoint;`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <clipping_planes_pars_fragment>', varyings)
+        .replace('#include <clipping_planes_fragment>', `
+          if (any(lessThan(min(fromLower, fromUpper), vec3(0.0)))) discard;`);
+    };
+  }
+  return box => {
+    if (box) {
+      lower.value.copy(box.min);
+      upper.value.copy(box.max);
+    }
+    if (enabled !== (box !== null)) {
+      enabled = box !== null;
+      for (const material of materials) material.needsUpdate = true;
+    }
+  };
 }

@@ -3050,3 +3050,11 @@ Le banc R-122 a été rejoué avec le binaire de cette passe et les douze STEP e
 Le 20 novembre, la recette complète `sh scripts/check.sh` sur `e6c2d6b` se termine avec le code 0. Le workspace passe 803 tests, avec 18 ignorés. Le bureau passe ses 58 tests ordinaires et, séparément, le transfert de bout en bout avec le véritable helper macOS. Le worker passe 11 tests. Le profil isolé `large-stl` en passe 186, avec cinq ignorés. Les quatre tests de version du SDK OCCT passent. Les scripts Python comptent 20 réussites et 11 tests ignorés. Le formatage et Clippy strict passent sur les trois graphes Cargo.
 
 Les 257 tests UI passent. Svelte relève zéro erreur et zéro avertissement. Vite termine en 471 ms et signale la taille du module 3D différé (621,98 kB minifié). Les exécutables bureau et worker du paquet local `artifacts/FabSTEP.app` correspondent octet pour octet à leurs binaires compilés. Le journal local complet est `artifacts/audit-03/check-reprise.log`. Les seize actions de recette manuelle restent ouvertes dans FabBoard.
+
+## V-1289 — Faces coplanaires de la boîte de découpe R-119
+
+La sonde `ui/tests/clip-box.browser.js` utilise deux copies du cube public, décalées de 2 mm sur X. Dans WKWebView sur ce Mac, elle relève les pixels du modèle avant le dessin du cadre et des poignées. Avec le rendu précédent, activer la boîte aux dimensions de la pièce changeait 26 734 pixels en vue Source. Déplacer la borne X minimale de 1,9 à 2 mm, exactement sur la paroi du second cube, en changeait 219 de plus alors que le même cube devait rester visible.
+
+Le rendu calcule désormais la distance aux six limites sur les sommets, avant projection, puis l’interpole à l’intérieur de la primitive pour tenir compte de l’anticrénelage. Dans les vues Source et STEP colorée, les images sont identiques pixel par pixel à l’activation, à la réinitialisation et à la désactivation. La paroi coplanaire à 2 mm reste entière. À 2,5 mm la découpe du cube est visible dans les deux vues. La sonde exerce la vue STEP avec la tessellation des deux cubes. Le parcours manuel de sélection et d’export sur une pièce creuse reste suivi dans A-127.
+
+Les 257 tests UI réussissent, Svelte relève zéro erreur et zéro avertissement et le paquet macOS de développement est reconstruit. Le build Vite conserve son avertissement de taille sur le module 3D différé.

@@ -2,7 +2,7 @@
   // Vue 3D à la demande : orbite, zoom, cadrage et contours des faces reconnues.
   import { onMount, untrack } from 'svelte';
   import ClipBoxTool from './ClipBoxTool.svelte';
-  import { clipExtent, clipPlanes, moveClipLimit, type Axis, type Limit } from '../lib/clip-box';
+  import { bindClipBox, clipExtent, moveClipLimit, type Axis, type Limit } from '../lib/clip-box';
   import { ClipBoxControls } from '../lib/clip-box-controls';
   import { writeDeviationColors } from '../lib/deviation-colors';
   import * as THREE from 'three';
@@ -36,7 +36,6 @@
     const camera = new THREE.PerspectiveCamera(38, 1, 0.001, 1e9);
     camera.up.set(0, 0, 1);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.localClippingEnabled = true;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); host.appendChild(renderer.domElement);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = false;
@@ -170,12 +169,9 @@
       polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1, toneMapped:false});
     const lineMaterial = new THREE.LineBasicMaterial();
     const stepLineMaterial = new THREE.LineBasicMaterial({depthTest:true,depthWrite:false});
+    const setClipBox = bindClipBox([material, stepMaterial, deviationMaterial, lineMaterial, stepLineMaterial, overlay.material]);
     applyClip = () => {
-      const planes = box ? clipPlanes(box) : null;
-      for (const target of [material, stepMaterial, deviationMaterial, lineMaterial, stepLineMaterial, overlay.material]) {
-        if ((target.clippingPlanes?.length ?? 0) !== (planes?.length ?? 0)) target.needsUpdate = true;
-        target.clippingPlanes = planes;
-      }
+      setClipBox(box);
       clipControl.show(box, !sectionMode);
       draw();
     };
