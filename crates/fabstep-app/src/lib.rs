@@ -254,12 +254,17 @@ fn convert_analysis_with_face_tokens(
     face_tokens: Option<&[usize]>,
     control: &mut ConversionControl<'_>,
     body_index: usize,
-    source_proofs: Option<&mut SourceProofCache>,
+    mut source_proofs: Option<&mut SourceProofCache>,
 ) -> Result<Conversion, FabError> {
     if face_tokens.is_none() {
-        if let Some(built) =
-            native_blends::try_build(&mut analysis, options, 1, body_index, control)?
-        {
+        if let Some(built) = native_blends::try_build(
+            &mut analysis,
+            options,
+            1,
+            body_index,
+            control,
+            source_proofs.as_deref_mut(),
+        )? {
             return Ok(built.finish(analysis, options));
         }
     }
@@ -410,6 +415,26 @@ fn audit_reimport(
     Ok(fidelity)
 }
 
+fn validate_mesh_source(
+    mesh: &Mesh,
+    body_index: usize,
+    control: &mut ConversionControl<'_>,
+    source_proofs: Option<&mut SourceProofCache>,
+) -> Result<(), FabError> {
+    // Contrôler les triangles exacts dans TOUS les modes avant la construction.
+    // Même le regroupement planaire peut effacer un relief auto-intersectant
+    // dont les écarts restent sous la tolérance de segmentation. La validité
+    // du seul modèle regroupé ne prouverait donc pas celle de la source.
+    // Aucun STEP source intermédiaire n'est sérialisé.
+    control.run(ConversionPhase::SourceValidation, Some(body_index), || {
+        let prove = || validate_source(&triangle_model(mesh)).map(|_| ());
+        match source_proofs {
+            Some(cache) => cache.validate_source(body_index, mesh, prove),
+            None => prove(),
+        }
+    })
+}
+
 fn convert_analysis_with_recognized(
     mut analysis: Analysis,
     options: &Options,
@@ -419,18 +444,7 @@ fn convert_analysis_with_recognized(
     body_index: usize,
     source_proofs: Option<&mut SourceProofCache>,
 ) -> Result<Conversion, FabError> {
-    // Contrôler les triangles exacts dans TOUS les modes avant la construction.
-    // Même le regroupement planaire peut effacer un relief auto-intersectant
-    // dont les écarts restent sous la tolérance de segmentation. La validité
-    // du seul modèle regroupé ne prouverait donc pas celle de la source.
-    // Aucun STEP source intermédiaire n'est sérialisé.
-    control.run(ConversionPhase::SourceValidation, Some(body_index), || {
-        let prove = || validate_source(&triangle_model(&analysis.mesh)).map(|_| ());
-        match source_proofs {
-            Some(cache) => cache.validate_source(body_index, &analysis.mesh, prove),
-            None => prove(),
-        }
-    })?;
+    validate_mesh_source(&analysis.mesh, body_index, control, source_proofs)?;
     let result = control.run(ConversionPhase::Build, Some(body_index), || {
         if let Some(recognized) = &recognized {
             match recognized {

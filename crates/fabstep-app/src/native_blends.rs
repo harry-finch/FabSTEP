@@ -1,6 +1,6 @@
 use super::{
-    audit_reimport, triangle_model, validate_source, Analysis, Conversion, ConversionControl,
-    ConversionPhase, ConversionReport, FabError, Options, ProcessingSettings, ReconstructionMode,
+    audit_reimport, validate_mesh_source, Analysis, Conversion, ConversionControl, ConversionPhase,
+    ConversionReport, FabError, Options, ProcessingSettings, ReconstructionMode, SourceProofCache,
 };
 use fabstep_cad::ValidatedStep;
 use fabstep_core::{rolling_bore, unequal_corner::unequal_corner_candidate};
@@ -64,6 +64,7 @@ pub(crate) fn try_build(
     first: usize,
     body: usize,
     control: &mut ConversionControl<'_>,
+    source_proofs: Option<&mut SourceProofCache>,
 ) -> Result<Option<Built>, FabError> {
     if options.reconstruction != ReconstructionMode::Auto {
         return Ok(None);
@@ -80,9 +81,7 @@ pub(crate) fn try_build(
     if remaining <= options.cylinder_fit_tolerance_mm {
         return Ok(None);
     }
-    control.run(ConversionPhase::SourceValidation, Some(body), || {
-        validate_source(&triangle_model(&analysis.mesh)).map(|_| ())
-    })?;
+    validate_mesh_source(&analysis.mesh, body, control, source_proofs)?;
     let fit = options.cylinder_fit_tolerance_mm;
     let kind = match &candidate {
         Blend::Corner(_) => Kind::Corner,
@@ -92,10 +91,14 @@ pub(crate) fn try_build(
         Blend::Corner(c) => {
             fabstep_cad::build_unequal_corner(&analysis.mesh, &c, first, fit, remaining)
         }
-        Blend::Bore(b) => {
-            fabstep_cad::build_rolling_bore(&analysis.mesh, &b, first, fit.min(1e-5), remaining)
-                .map(|step| (step, b.owners, remaining))
-        }
+        Blend::Bore(b) => fabstep_cad::build_rolling_bore_with_patch_bound(
+            &analysis.mesh,
+            &b,
+            first,
+            fit.min(1e-5),
+            remaining,
+        )
+        .map(|(step, patch_bound)| (step, b.owners, b.support_bound_mm.max(patch_bound))),
     });
     match result {
         Ok((step, owners, bound))
@@ -206,6 +209,36 @@ impl Built {
 #[cfg(test)]
 mod tests {
     use super::Kind;
+
+    #[test]
+    fn parameter_trials_reuse_the_exact_source_proof_for_native_blends() {
+        let options = crate::Options {
+            reconstruction: crate::ReconstructionMode::Auto,
+            ..Default::default()
+        };
+        let bytes = include_bytes!("../../../fixtures/unequal_corner/corner-0-coarse.stl");
+        let mut cache = crate::SourceProofCache::default();
+        for _ in 0..2 {
+            let result = crate::document::convert_document_with_source_proofs(
+                bytes,
+                crate::InputFormat::Stl,
+                &options,
+                &mut |_| Ok(()),
+                Some(&mut cache),
+            )
+            .unwrap();
+            assert_eq!(result.report.cad.faces, 10);
+            let report = &result.report.bodies[0].conversion;
+            assert!(report.fidelity.is_some());
+            assert!(report
+                .analysis
+                .report
+                .diagnostics
+                .iter()
+                .any(|d| d.code == "recognition.unequal_corner_fitted"));
+            assert_eq!(cache.source_calls, 1);
+        }
+    }
 
     #[test]
     fn resource_and_operational_errors_propagate_for_both_domains() {

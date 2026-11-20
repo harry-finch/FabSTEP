@@ -104,7 +104,7 @@ fn summarize(fit: f64, result: Result<DocumentReport, FabError>) -> ParameterTri
                 outcome: "validated",
                 faces: Some(report.cad.faces),
                 // Include audited spline patches and extruded curves as well as named primitives.
-                curved_faces: Some(report.cad.faces - report.cad.planar_faces),
+                curved_faces: Some(report.cad.faces.saturating_sub(report.cad.planar_faces)),
                 max_deviation_bound_mm: bounds,
                 max_sampled_distance_mm: sampled,
                 error: None,

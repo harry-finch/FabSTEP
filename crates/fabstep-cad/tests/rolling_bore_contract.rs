@@ -1,5 +1,6 @@
 use fabstep_cad::{
-    build_rolling_bore, combine_steps_with_provenance, result_faces, tessellate_step, StepPart,
+    build_rolling_bore_with_patch_bound, combine_steps_with_provenance, result_faces,
+    tessellate_step, StepPart,
 };
 use fabstep_core::{analyze_stl, rolling_bore::candidate, Options};
 
@@ -22,7 +23,7 @@ fn substituted_periodic_surface_or_sharp_mouth_control_is_rejected() {
     )
     .unwrap();
     let model = candidate(&analysis, &options).unwrap();
-    let native = build_rolling_bore(
+    let (native, patch_bound) = build_rolling_bore_with_patch_bound(
         &analysis.mesh,
         &model,
         1,
@@ -30,6 +31,14 @@ fn substituted_periodic_surface_or_sharp_mouth_control_is_rejected() {
         options.max_deviation_mm - options.weld_tolerance_mm,
     )
     .unwrap();
+    // These broad support triangles and fine patch spans have different
+    // certificates. Using only the four supports would omit the larger one.
+    assert!(
+        patch_bound > model.support_bound_mm
+            && patch_bound < options.max_deviation_mm - options.weld_tolerance_mm,
+        "patch={patch_bound}, supports={}",
+        model.support_bound_mm
+    );
     assert_eq!(native.report.faces, 5);
     let combined = combine_steps_with_provenance(&[StepPart {
         bytes: &native.bytes,

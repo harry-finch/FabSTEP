@@ -1641,7 +1641,7 @@ pub fn build_rounded_step_with_token_groups(
 mod adjacent_pocket;
 mod cubic_prism;
 mod rolling_bore;
-pub use rolling_bore::build_rolling_bore;
+pub use rolling_bore::{build_rolling_bore, build_rolling_bore_with_patch_bound};
 mod unequal_corner;
 pub use unequal_corner::build_unequal_corner;
 mod cut_octant;

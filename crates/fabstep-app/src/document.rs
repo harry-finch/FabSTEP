@@ -1037,25 +1037,30 @@ fn convert_analyzed_document(
             .iter_mut()
             .filter(|hint| hint.analysis_body_id == body.id)
             .collect::<Vec<_>>();
-        let partitioned = if hints.is_empty() && options.reconstruction == ReconstructionMode::Auto
-        {
-            control
-                .run(ConversionPhase::Recognition, Some(body_index), || {
-                    crate::recognize_partitioned_body(&body.analysis, options)
-                })
-                .map_err(|e| body_error(e, &body.id, &body.name))?
-        } else {
-            None
-        };
-        let blend = if hints.is_empty() && partitioned.is_none() {
+        // Match the single-STL entry point: a certified native blend gets the
+        // first opportunity, then ordinary partitioned and analytic surfaces.
+        let blend = if hints.is_empty() {
             crate::native_blends::try_build(
                 &mut body.analysis,
                 options,
                 source_faces.len() + 1,
                 body_index,
                 control,
+                source_proofs.as_deref_mut(),
             )
             .map_err(|e| body_error(e, &body.id, &body.name))?
+        } else {
+            None
+        };
+        let partitioned = if blend.is_none()
+            && hints.is_empty()
+            && options.reconstruction == ReconstructionMode::Auto
+        {
+            control
+                .run(ConversionPhase::Recognition, Some(body_index), || {
+                    crate::recognize_partitioned_body(&body.analysis, options)
+                })
+                .map_err(|e| body_error(e, &body.id, &body.name))?
         } else {
             None
         };
@@ -1085,20 +1090,7 @@ fn convert_analyzed_document(
                 _ => unreachable!(),
             };
             let first = source_faces.len() + 1;
-            let mut faces: Vec<_> = (0..count).map(|_| ResultFaceSource {
-                face_id:0, preview_body_id:source.preview_body_id.clone(),
-                analysis_body_id:body.id.clone(), source_triangle_ids:Vec::new()
-            }).collect();
-            if owners.len()!=source.analysis_to_source_triangles.len() {
-                return Err(FabError::new("step.invalid_source_provenance", "Attribution incomplète des triangles du profil."));
-            }
-            for (&owner, &triangle) in owners.iter().zip(&source.analysis_to_source_triangles) {
-                faces.get_mut(owner).ok_or_else(|| FabError::new("step.invalid_source_provenance", "Face du profil inconnue."))?.source_triangle_ids.push(triangle);
-            }
-            if faces.iter().any(|f| f.source_triangle_ids.is_empty()) {
-                return Err(FabError::new("step.invalid_source_provenance", "Face du profil sans triangle source."));
-            }
-            source_faces.extend(faces);
+            partitioned_source_faces(&body.id, &source, owners, count, keep_auto_faces.then_some(&mut source_faces))?;
             let tokens: Vec<_> = (first..first+count).collect();
             convert_analysis_with_recognized(body.analysis, options, Some(&tokens),
                 Some(recognized), control,body_index,source_proofs.as_deref_mut())
@@ -1367,6 +1359,48 @@ fn mixed_source_faces(
     Ok(faces)
 }
 
+fn partitioned_source_faces(
+    body_id: &str,
+    source: &BodySourceTriangles,
+    owners: &[usize],
+    count: usize,
+    destination: Option<&mut Vec<ResultFaceSource>>,
+) -> Result<(), FabError> {
+    if owners.len() != source.analysis_to_source_triangles.len() {
+        return Err(FabError::new(
+            "step.invalid_source_provenance",
+            "Attribution incomplète des triangles du profil.",
+        ));
+    }
+    let mut faces = destination.map(|out| {
+        let first = out.len();
+        out.extend((0..count).map(|_| ResultFaceSource {
+            face_id: 0,
+            preview_body_id: source.preview_body_id.clone(),
+            analysis_body_id: body_id.into(),
+            source_triangle_ids: Vec::new(),
+        }));
+        &mut out[first..]
+    });
+    let mut seen = vec![false; count];
+    for (&owner, &triangle) in owners.iter().zip(&source.analysis_to_source_triangles) {
+        let used = seen.get_mut(owner).ok_or_else(|| {
+            FabError::new("step.invalid_source_provenance", "Face du profil inconnue.")
+        })?;
+        *used = true;
+        if let Some(faces) = faces.as_deref_mut() {
+            faces[owner].source_triangle_ids.push(triangle);
+        }
+    }
+    if seen.contains(&false) {
+        return Err(FabError::new(
+            "step.invalid_source_provenance",
+            "Face du profil sans triangle source.",
+        ));
+    }
+    Ok(())
+}
+
 fn rounded_source_faces(
     body_id: &str,
     source: &BodySourceTriangles,
@@ -1544,6 +1578,28 @@ fn body_error(e: FabError, id: &str, name: &str) -> FabError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn export_only_validates_the_same_partition_as_inspection() {
+        let source = BodySourceTriangles {
+            preview_body_id: "stl".into(),
+            analysis_to_source_triangles: vec![3, 7, 9],
+            planar_triangle_faces: Vec::new(),
+        };
+        let mut faces = Vec::new();
+        let owners = [1, 0, 1];
+        partitioned_source_faces("body", &source, &owners, 2, Some(&mut faces)).unwrap();
+        partitioned_source_faces("body", &source, &owners, 2, None).unwrap();
+        assert_eq!(faces[0].source_triangle_ids, [7]);
+        assert_eq!(faces[1].source_triangle_ids, [3, 9]);
+        for bad in [&[0, 1][..], &[0, 2, 1], &[1, 1, 1]] {
+            for destination in [None, Some(&mut Vec::new())] {
+                let error =
+                    partitioned_source_faces("body", &source, bad, 2, destination).unwrap_err();
+                assert_eq!(error.code, "step.invalid_source_provenance");
+            }
+        }
+    }
 
     #[test]
     fn rounded_face_limit_reports_the_count_separately_from_invalid_attribution() {

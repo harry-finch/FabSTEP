@@ -368,6 +368,7 @@ inline bool certify(const TopoDS_Face &face, const std::vector<Point> &points,
           unequal_corner::point(points[edge.second]), rim_limit);
       if (!(dis <= rim_limit))
         return certificate.reject("rim chord outside budget");
+      certificate.maximum = std::max(certificate.maximum, dis);
       winding[a[0] == 1.] += dv;
     }
   return std::abs(winding[0] + sign) < 1e-8 &&
@@ -377,9 +378,13 @@ struct SourceProof {
   std::vector<Point> vertices;
   std::vector<Tri> triangles;
   double fit, limit;
+  double &maximum;
   bool accepts(const TopoDS_Face &face) const {
     unequal_corner::Certificate proof;
-    return certify(face, vertices, triangles, proof, fit, limit);
+    if (!certify(face, vertices, triangles, proof, fit, limit))
+      return false;
+    maximum = std::max(maximum, proof.maximum);
+    return true;
   }
 };
 } // namespace rolling_bore

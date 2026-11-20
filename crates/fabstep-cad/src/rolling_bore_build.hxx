@@ -1,18 +1,21 @@
 // Only called after the mesh identified both plates, both cylinders and
 // their five disjoint interface cycles. Recheck the fit on the native result.
-extern "C" int fabstep_build_rolling_bore(
+extern "C" int fabstep_build_rolling_bore_with_patch_bound(
     const double *data, const double *xyz, size_t nv, const size_t *ids,
     const size_t *owners, size_t nt, size_t first, double fit, double limit,
-    StepOutput *output, char *error, size_t capacity) noexcept {
-  if (!output || !data || !xyz || !ids || !owners || !nv || nv > 24576 ||
+    double *bound, StepOutput *output, char *error, size_t capacity) noexcept {
+  if (bound)
+    *bound = 0.;
+  if (!bound || !output || !data || !xyz || !ids || !owners || !nv || nv > 24576 ||
       nt < 80 || nt > 8192 || !first || first > face_token_limit - 4 ||
       !(fit > 0. && fit <= 1.e-5 && limit > fit && std::isfinite(limit)))
     return missing_step_argument(output, error, capacity);
   SurfaceCounts expected{2, 2};
   expected.height_patches = 1;
   FaceLabels labels;
-  rolling_bore::SourceProof witness{{}, {}, fit, limit};
-  return validated_step(
+  double maximum = 0.;
+  rolling_bore::SourceProof witness{{}, {}, fit, limit, maximum};
+  const int status = validated_step(
       [&] {
         const auto reject = [](const char *message) {
           throw CadFailure{rolling_bore_unproven, message};
@@ -169,10 +172,23 @@ extern "C" int fabstep_build_rolling_bore(
                   (cert.reason ? cert.reason : "paramétrage de la paroi") +
                   ", triangle " + std::to_string(cert.triangles) + ", rayon " +
                   std::to_string(grid(best)) + ")."};
+        maximum = cert.maximum;
         for (size_t i = 0; i < 5; ++i)
           labels.emplace_back(faces[i], first + i);
         return solid;
       },
       expected, output, error, capacity, nullptr, &labels, nullptr, nullptr,
       nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &witness);
+  if (status == 0)
+    *bound = maximum;
+  return status;
+}
+
+extern "C" int fabstep_build_rolling_bore(
+    const double *data, const double *xyz, size_t nv, const size_t *ids,
+    const size_t *owners, size_t nt, size_t first, double fit, double limit,
+    StepOutput *output, char *error, size_t capacity) noexcept {
+  double bound;
+  return fabstep_build_rolling_bore_with_patch_bound(data, xyz, nv, ids, owners,
+      nt, first, fit, limit, &bound, output, error, capacity);
 }
