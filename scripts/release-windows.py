@@ -81,16 +81,17 @@ def bundle_dlls(folder):
 
 
 def smoke(folder, work):
-    for fixture, expected_solids, expected_faces in [
-        ("cube.stl", 1, 6), ("r117-cut-sphere.stl", 1, 4), ("m5c_sphere_instances.3mf", 2, 2),
+    for fixture, solids, planes, spheres in [
+        ("cube.stl", 1, 6, 0), ("r117-cut-sphere.stl", 1, 3, 1), ("m5c_sphere_instances.3mf", 2, 0, 2),
     ]:
         output = work / (fixture + ".step")
         report = json.loads(subprocess.check_output([
             folder / "fabstep-cli.exe", "convert", ROOT / "fixtures" / fixture,
-            "--mode", "surfaces", "--json", "-o", output], cwd=work, timeout=90))
+            "--mode", "auto", "--json", "-o", output], cwd=work, timeout=90))
         cad = report["cad"]
-        if not (report["native_validated"] and cad["solids"] == expected_solids and
-                cad["faces"] == expected_faces and cad["volume_mm3"] > 0 and
+        if not (report["native_validated"] and cad["solids"] == solids and
+                (cad["faces"], cad["planar_faces"], cad["spherical_faces"]) == (planes+spheres, planes, spheres) and
+                cad["volume_mm3"] > 0 and
                 b"END-ISO-10303-21;" in output.read_bytes()):
             raise ValueError(f"Unexpected STEP reimport on {fixture}")
     app = subprocess.Popen([folder / "FabSTEP.exe"], cwd=work)
