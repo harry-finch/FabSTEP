@@ -1,5 +1,5 @@
 use super::*;
-use fabstep_core::torus_atlas::TorusAtlas;
+use fabstep_core::torus_atlas::{ResidualPlane, TorusAtlas};
 
 #[repr(C)]
 struct Corner {
@@ -24,8 +24,16 @@ struct Chart {
     loops: *const Boundary,
     loop_count: usize,
 }
+#[repr(C)]
+struct Plane {
+    normal: [f64; 3],
+    boundary: *const usize,
+    boundary_count: usize,
+    owners: *const usize,
+    owner_count: usize,
+}
 unsafe extern "C" {
-    fn fabstep_build_torus_atlas(
+    fn fabstep_build_torus_atlas_regions(
         vertices: *const f64,
         vertex_count: usize,
         triangles: *const usize,
@@ -34,6 +42,8 @@ unsafe extern "C" {
         radial: *const f64,
         charts: *const Chart,
         chart_count: usize,
+        planes: *const Plane,
+        plane_count: usize,
         tokens: *const usize,
         token_count: usize,
         deviation: f64,
@@ -50,6 +60,18 @@ unsafe extern "C" {
 pub fn build_torus_atlas_step_with_provenance(
     mesh: &Mesh,
     atlas: &TorusAtlas,
+    tokens: &[usize],
+    max_deviation_mm: f64,
+) -> Result<(ValidatedStep, f64), FabError> {
+    build_torus_atlas_regions(mesh, atlas, &[], tokens, max_deviation_mm)
+}
+
+/// Face tokens follow chart order, residual-plane order, then the remaining
+/// source triangles in mesh order. The native builder rechecks the partition.
+pub fn build_torus_atlas_regions(
+    mesh: &Mesh,
+    atlas: &TorusAtlas,
+    planes: &[ResidualPlane<'_>],
     tokens: &[usize],
     max_deviation_mm: f64,
 ) -> Result<(ValidatedStep, f64), FabError> {
@@ -99,7 +121,34 @@ pub fn build_torus_atlas_step_with_provenance(
             }
         }
     }
-    if atlas.charts.len() + claimed.iter().filter(|&&v| !v).count() != tokens.len() {
+    let mut native_planes = Vec::new();
+    if planes.len() > tokens.len() {
+        return Err(invalid());
+    }
+    for plane in planes {
+        let [ring] = plane.face.loops.as_slice() else {
+            return Err(invalid());
+        };
+        if !unit_direction(&plane.face.normal)
+            || !(3..=4096).contains(&ring.len())
+            || plane.triangles.len() < 2
+        {
+            return Err(invalid());
+        }
+        for &i in &plane.triangles {
+            if std::mem::replace(claimed.get_mut(i).ok_or_else(invalid)?, true) {
+                return Err(invalid());
+            }
+        }
+        native_planes.push(Plane {
+            normal: plane.face.normal,
+            boundary: ring.as_ptr(),
+            boundary_count: ring.len(),
+            owners: plane.triangles.as_ptr(),
+            owner_count: plane.triangles.len(),
+        });
+    }
+    if atlas.charts.len() + planes.len() + claimed.iter().filter(|&&v| !v).count() != tokens.len() {
         return Err(invalid());
     }
     let mut seen = vec![false; 100_001];
@@ -155,7 +204,7 @@ pub fn build_torus_atlas_step_with_provenance(
         .collect();
     let mut bound = 0.;
     let step = native_step(|out, error, capacity| unsafe {
-        fabstep_build_torus_atlas(
+        fabstep_build_torus_atlas_regions(
             mesh.vertices.as_ptr().cast(),
             mesh.vertices.len(),
             mesh.triangles.as_ptr().cast(),
@@ -164,6 +213,8 @@ pub fn build_torus_atlas_step_with_provenance(
             atlas.radial.as_ptr(),
             charts.as_ptr(),
             charts.len(),
+            native_planes.as_ptr(),
+            native_planes.len(),
             tokens.as_ptr(),
             tokens.len(),
             max_deviation_mm,
@@ -198,13 +249,15 @@ mod tests {
         let mut bound = 1.;
         // Empty tokens reject the request before any geometry input is read.
         let status = unsafe {
-            fabstep_build_torus_atlas(
+            fabstep_build_torus_atlas_regions(
                 ptr::null(),
                 0,
                 ptr::null(),
                 0,
                 ptr::null(),
                 ptr::null(),
+                ptr::null(),
+                0,
                 ptr::null(),
                 0,
                 ptr::null(),

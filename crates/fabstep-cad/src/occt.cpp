@@ -318,7 +318,7 @@ enum Status {
   mesh_failed, mesh_too_complex, bodies_not_separated, document_too_large, separation_budget,
   profile_face_not_found, profile_not_planar,
   profile_unsupported_curve, profile_invalid, profile_too_complex,
-  section_coplanar, section_tangent, section_open, section_invalid_plane
+  section_coplanar, section_tangent, section_open, section_invalid_plane, atlas_plane_unproven
 };
 
 struct CadFailure {
@@ -4114,9 +4114,10 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
 }
 }
 
-extern "C" int fabstep_build_torus_atlas(const double *points, size_t nv, const size_t *triangles, size_t nt,
+extern "C" int fabstep_build_torus_atlas_regions(const double *points, size_t nv, const size_t *triangles, size_t nt,
                                          const double *axis, const double *radial, const AtlasChartData *charts,
-                                         size_t nc, const size_t *tokens, size_t token_count, double limit,
+                                         size_t nc, const AtlasPlaneData *planes, size_t plane_count,
+                                         const size_t *tokens, size_t token_count, double limit,
                                          double *deviation, StepOutput *output, char *error,
                                          size_t capacity) noexcept {
   if (output) *output = {};
@@ -4131,7 +4132,10 @@ extern "C" int fabstep_build_torus_atlas(const double *points, size_t nv, const 
       atlas_native::verify(tokens[i] && tokens[i] <= face_token_limit && unique.insert(tokens[i]).second,
                            "Jeton de face invalide.");
     auto witness = atlas_native::prepare(points, nv, triangles, nt, axis, radial, charts, nc, token_count,
-                                         limit - native_reserve);
+                                         limit - native_reserve, planes, plane_count);
+    std::optional<atlas_native::Interfaces> interfaces;
+    if (plane_count)
+      interfaces = atlas_native::source_interfaces(witness.model, tokens, token_count);
     auto patches = atlas_native::patch_faces(witness.model);
     const double bound =
         std::max({witness.bound, witness.model.patchBound, witness.model.vertexMotion}) + native_reserve;
@@ -4139,6 +4143,7 @@ extern "C" int fabstep_build_torus_atlas(const double *points, size_t nv, const 
     witness = {};
     FaceLabels labels;
     const auto solid = atlas_native::sew(patches, tokens, labels);
+    if (interfaces) atlas_native::verify_interfaces(*interfaces, labels);
     patches.clear();
     patches.shrink_to_fit();
     stage = invalid_solid;
@@ -4186,6 +4191,7 @@ extern "C" int fabstep_build_torus_atlas(const double *points, size_t nv, const 
       throw CadFailure{mismatch, "Dimensions, volume ou surfaces de l’atlas modifiés après réimport."};
     if (mapped.size() != labels.size())
       throw CadFailure{mismatch, "Perte des identités source au réimport de l’atlas."};
+    if (interfaces) atlas_native::verify_interfaces(*interfaces, mapped);
     std::map<size_t, TopoDS_Face> sources;
     for (const auto &pair : labels)
       sources.emplace(pair.second, TopoDS::Face(pair.first));
@@ -4198,6 +4204,15 @@ extern "C" int fabstep_build_torus_atlas(const double *points, size_t nv, const 
     *deviation = bound;
     *output = {bytes->release(), bytes->size(), after.metrics};
   });
+}
+
+extern "C" int fabstep_build_torus_atlas(const double *points, size_t nv, const size_t *triangles, size_t nt,
+                                         const double *axis, const double *radial, const AtlasChartData *charts,
+                                         size_t nc, const size_t *tokens, size_t token_count, double limit,
+                                         double *deviation, StepOutput *output, char *error,
+                                         size_t capacity) noexcept {
+  return fabstep_build_torus_atlas_regions(points, nv, triangles, nt, axis, radial, charts, nc, nullptr, 0,
+                                         tokens, token_count, limit, deviation, output, error, capacity);
 }
 
 extern "C" int fabstep_build_step(

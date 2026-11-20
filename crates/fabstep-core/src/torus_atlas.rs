@@ -7,6 +7,8 @@ use std::collections::BTreeMap;
 mod charts;
 mod collars;
 mod fit;
+mod planes;
+pub use planes::{residual_planes, ResidualPlane};
 
 type V = [f64; 3];
 type P = [f64; 2];

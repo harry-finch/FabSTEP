@@ -5,10 +5,17 @@ void verify(bool value, const char *message) {
   if (!value)
     throw CadFailure{invalid_model, message};
 }
+// Only a local geometric proposal may decline. Source ownership, sewing,
+// native validation, transfer and kernel errors keep their original verdict.
+void plane_proof(bool value, const char *message) {
+  if (!value) throw CadFailure{atlas_plane_unproven, message};
+}
 using Key = std::pair<int, int>;
 Key key(int a, int b) { return std::minmax(a, b); }
 constexpr double weld = 1.e-7;
 #include "torus_atlas_faces.hxx"
+#include "torus_atlas_planes.hxx"
+#include "torus_atlas_interfaces.hxx"
 
 struct Measured {
   Model model;
@@ -17,7 +24,8 @@ struct Measured {
 
 Measured prepare(const double *points, size_t nv, const size_t *triangles, size_t nt, const double *direction,
                  const double *radial, const AtlasChartData *data, size_t nc, size_t result_count,
-                 double tolerance) {
+                 double tolerance, const AtlasPlaneData *planes = nullptr, size_t plane_count = 0) {
+  verify(plane_count <= result_count && (!plane_count || planes), "Plages planes hors limites.");
   verify(points && triangles && direction && radial && data && nc && nc <= 1024 && nv >= 4 &&
              nv <= source_vertex_limit && nt >= 4 && nt <= source_triangle_limit && result_count >= nc &&
              result_count <= result_face_limit && std::isfinite(tolerance) && tolerance > 0.,
@@ -169,7 +177,9 @@ Measured prepare(const double *points, size_t nv, const size_t *triangles, size_
     }
     m.charts.push_back(std::move(chart));
   }
-  verify(result_count == nc + nt - claimed_count, "Nombre de faces de l’atlas différent du partage source.");
+  for (size_t i = 0; i < plane_count; ++i)
+    claimed_count += add_plane(m, planes[i], nt - claimed_count);
+  verify(result_count == nc + plane_count + nt - claimed_count, "Nombre de faces de l’atlas différent du partage source.");
   return result;
 }
 

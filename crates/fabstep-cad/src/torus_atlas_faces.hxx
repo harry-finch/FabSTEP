@@ -20,6 +20,7 @@ struct Model {
   std::map<Key, Arc> arcs;
   std::vector<bool> claimed;
   std::vector<TorusChart> charts;
+  std::vector<std::pair<gp_Pln, std::vector<int>>> planes;
   std::set<Key> boundary;
   std::array<gp_Pnt, 2> bounds;
   double tolerance{.05};
@@ -260,9 +261,40 @@ std::vector<TopoDS_Face> patch_faces(Model &m) {
       for (int id : m.triangles[owner])
         prepare_vertex(id);
   std::map<Key, TopoDS_Edge> edges;
+  const auto boundary_edge = [&](int a, int b) {
+    prepare_vertex(a);
+    prepare_vertex(b);
+    const auto k = key(a, b);
+    auto &edge = edges[k];
+    if (edge.IsNull()) {
+      auto arc = m.arcs.find(k);
+      if (arc == m.arcs.end())
+        edge = BRepBuilderAPI_MakeEdge(vertices[k.first], vertices[k.second]).Edge();
+      else {
+        const auto &s = arc->second;
+        const int lo = s.a < s.b ? s.start : (s.start == a ? b : a), hi = lo == a ? b : a;
+        edge = BRepBuilderAPI_MakeEdge(new Geom_Circle(s.circle), vertices[lo], vertices[hi],
+                                       std::min(s.a, s.b), std::max(s.a, s.b)).Edge();
+        if (lo != k.first)
+          edge.Reverse();
+      }
+    }
+    return a == k.first ? edge : TopoDS::Edge(edge.Reversed());
+  };
   std::vector<TopoDS_Face> faces;
   for (auto &chart : m.charts)
     faces.push_back(torusFace(chart, vertices));
+  for (const auto &[plane, ring] : m.planes) {
+    BRepBuilderAPI_MakeWire wire;
+    for (size_t j = 0; j < ring.size(); ++j) {
+      const int a = ring[j], b = ring[(j + 1) % ring.size()];
+      wire.Add(boundary_edge(a, b));
+    }
+    plane_proof(wire.IsDone() && wire.Wire().Closed(), "Contour de plage plane ouvert.");
+    BRepBuilderAPI_MakeFace make(plane, wire.Wire(), true);
+    plane_proof(make.IsDone() && BRepCheck_Analyzer(make.Face(), true).IsValid(), "Plage plane invalide.");
+    faces.push_back(make.Face());
+  }
   for (size_t owner = 0; owner < m.triangles.size(); ++owner) {
     if (!m.claimed.empty() && m.claimed[owner])
       continue;
@@ -272,26 +304,11 @@ std::vector<TopoDS_Face> patch_faces(Model &m) {
     for (int j = 0; j < 3; ++j) {
       int a = tri[j], b = tri[(j + 1) % 3];
       Key k = key(a, b);
-      auto &edge = edges[k];
-      auto arc = m.arcs.find(k);
-      if (arc != m.arcs.end()) {
+      if (m.arcs.count(k)) {
         ++arcCount;
         curved = j;
       }
-      if (edge.IsNull()) {
-        if (arc == m.arcs.end())
-          edge = BRepBuilderAPI_MakeEdge(vertices[k.first], vertices[k.second]).Edge();
-        else {
-          auto s = arc->second;
-          int lo = s.a < s.b ? s.start : (s.start == a ? b : a), hi = lo == a ? b : a;
-          edge = BRepBuilderAPI_MakeEdge(new Geom_Circle(s.circle), vertices[lo], vertices[hi],
-                                         std::min(s.a, s.b), std::max(s.a, s.b))
-                     .Edge();
-          if (lo != k.first)
-            edge.Reverse();
-        }
-      }
-      rim[j] = a == k.first ? edge : TopoDS::Edge(edge.Reversed());
+      rim[j] = boundary_edge(a, b);
     }
     if (arcCount > 1) {
       verify(arcCount == 2, "three circular rims on one triangle");

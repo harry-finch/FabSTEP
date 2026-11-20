@@ -2,7 +2,7 @@
 id: R-124
 titre: "Composer des régions qui partagent un bord vérifié"
 resume: "G1 · Décrire les voisinages et les triangles de chaque région afin de combiner plusieurs reconnaissances sur un même corps."
-statut: specifiee
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-20
 maj: 2026-11-20
@@ -34,3 +34,7 @@ R-123 et les témoins de composition de R-114.
 ## Vérifications de l'utilisateur
 
 Aucune.
+
+## Qualification
+
+V-1279. Le graphe associe les jetons source des deux voisins au nombre d’arêtes physiques communes. La relecture vérifie ces mêmes incidences. Le flanc torique et le bloc à perçages–congé couvrent deux compositions indépendantes.

@@ -2,7 +2,7 @@
 id: R-123
 titre: "Fusionner les faces planes voisines des raccords toriques"
 resume: "F1 · Mesurer puis réduire les faces résiduelles et les chaînes de petits raccords sur deux pièces publiques."
-statut: en-cours
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-20
 maj: 2026-11-20
@@ -35,3 +35,7 @@ Les deux témoins publics initiaux de R-122 et le constructeur torique de R-085.
 ## Vérifications de l'utilisateur
 
 Ouvrir la pièce publique dans Fusion et sélectionner d’un clic la plage plane voisine du congé.
+
+## Qualification
+
+V-1279. La rampe passe de 659 à 442 faces et le secteur de 962 à 583 sur le parcours Auto du helper. Le flanc de référence partage six arcs réels avec le tore après réimport. Les plages à plusieurs boucles restent dans le repli certifié.

@@ -17,3 +17,10 @@ struct AtlasChartData {
   const AtlasLoopData *loops;
   size_t loop_count;
 };
+struct AtlasPlaneData {
+  double normal[3];
+  const size_t *boundary;
+  size_t boundary_count;
+  const size_t *owners;
+  size_t owner_count;
+};

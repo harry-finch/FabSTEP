@@ -5,7 +5,8 @@ use crate::{
     audit_reimport, Conversion, ConversionControl, ConversionPhase, ConversionReport,
     ProcessingSettings,
 };
-use fabstep_core::{torus_atlas::TorusAtlas, Analysis, Diagnostic, FabError, Options, Severity};
+use fabstep_core::torus_atlas::{residual_planes, ResidualPlane, TorusAtlas};
+use fabstep_core::{Analysis, Diagnostic, FabError, Options, Severity};
 
 // Keep any ordinary reconstruction that fits the result limit. Work exhaustion
 // in that recognizer can start this independent, bounded proof. A failed
@@ -55,6 +56,7 @@ fn source_faces(
     body_id: &str,
     source: &BodySourceTriangles,
     atlas: &TorusAtlas,
+    planes: &[ResidualPlane<'_>],
     triangles: usize,
     remaining: usize,
     mut destination: Option<&mut Vec<ResultFaceSource>>,
@@ -78,18 +80,22 @@ fn source_faces(
         analysis_body_id: body_id.into(),
         source_triangle_ids,
     };
-    for chart in &atlas.charts {
-        if chart.triangles.is_empty() {
+    for owners in atlas
+        .charts
+        .iter()
+        .map(|chart| &chart.triangles)
+        .chain(planes.iter().map(|plane| &plane.triangles))
+    {
+        if owners.is_empty() {
             return Err(invalid());
         }
-        for &i in &chart.triangles {
+        for &i in owners {
             if std::mem::replace(used.get_mut(i).ok_or_else(invalid)?, true) {
                 return Err(invalid());
             }
         }
         if let Some(out) = &mut destination {
-            let mut ids: Vec<_> = chart
-                .triangles
+            let mut ids: Vec<_> = owners
                 .iter()
                 .map(|&i| source.analysis_to_source_triangles[i])
                 .collect();
@@ -97,7 +103,8 @@ fn source_faces(
             out.push(face(ids));
         }
     }
-    let count = atlas.charts.len() + used.iter().filter(|&&claimed| !claimed).count();
+    let count =
+        atlas.charts.len() + planes.len() + used.iter().filter(|&&claimed| !claimed).count();
     if count > remaining {
         return Err(invalid());
     }
@@ -116,33 +123,51 @@ pub(super) fn convert(
     source: (&str, &BodySourceTriangles),
     options: &Options,
     atlas: &TorusAtlas,
-    document_faces: Option<&mut Vec<ResultFaceSource>>,
+    mut document_faces: Option<&mut Vec<ResultFaceSource>>,
     control: &mut ConversionControl<'_>,
     body_index: usize,
 ) -> Result<Conversion, FabError> {
     let previous = document_faces.as_ref().map_or(0, |faces| faces.len());
     let first = previous + 1;
-    let count = source_faces(
-        source.0,
-        source.1,
-        atlas,
-        analysis.mesh.triangles.len(),
-        100_000usize.saturating_sub(previous),
-        document_faces,
-    )?;
-    let tokens = (first..first + count).collect::<Vec<_>>();
+    let mut planes = residual_planes(&analysis, &source.1.planar_triangle_faces, atlas);
     control.run(ConversionPhase::SourceValidation, Some(body_index), || {
         fabstep_verify::certify_source_embedding(&analysis.mesh)
     })?;
     let remaining = available_deviation(options)?;
-    let (step, native_bound) = control.run(ConversionPhase::Build, Some(body_index), || {
-        fabstep_cad::build_torus_atlas_step_with_provenance(
-            &analysis.mesh,
+    let (step, native_bound, count) = loop {
+        let count = source_faces(
+            source.0,
+            source.1,
             atlas,
-            &tokens,
-            remaining,
-        )
-    })?;
+            &planes,
+            analysis.mesh.triangles.len(),
+            100_000usize.saturating_sub(previous),
+            document_faces.as_deref_mut(),
+        )?;
+        let tokens = (first..first + count).collect::<Vec<_>>();
+        match control.run(ConversionPhase::Build, Some(body_index), || {
+            fabstep_cad::build_torus_atlas_regions(
+                &analysis.mesh,
+                atlas,
+                &planes,
+                &tokens,
+                remaining,
+            )
+        }) {
+            Ok((step, bound)) => break (step, bound, count),
+            Err(e) if !planes.is_empty() && e.code == "cad.atlas_plane_unproven" => {
+                // Only a declined plane certificate can retry. Roll back its
+                // source identities before issuing one token per residual triangle.
+                if let Some(faces) = &mut document_faces {
+                    faces.truncate(previous);
+                }
+                planes.clear();
+            }
+            Err(e) => return Err(e),
+        }
+    };
+    let merged = planes.len();
+    drop(planes);
     let bound = source_deviation(options, native_bound)?;
     if step.report.toroidal_faces != atlas.charts.len() || step.report.faces != count {
         return Err(FabError::new(
@@ -158,6 +183,14 @@ pub(super) fn convert(
         control,
         body_index,
     )?;
+    if merged > 0 {
+        analysis.report.diagnostics.push(Diagnostic {
+            code: "recognition.atlas_planes_merged".into(),
+            severity: Severity::Info,
+            message: "Les triangles coplanaires ont été réunis en faces planes avec leurs contours vérifiés.".into(),
+            count: merged,
+        });
+    }
     analysis.report.diagnostics.push(Diagnostic {
         code: "recognition.trimmed_tori_fitted".into(),
         severity: Severity::Info,
@@ -250,20 +283,35 @@ mod tests {
         };
         let mut faces = Vec::new();
         assert_eq!(
-            source_faces("body", &source, &atlas, 4, 3, Some(&mut faces)).unwrap(),
+            source_faces("body", &source, &atlas, &[], 4, 3, Some(&mut faces)).unwrap(),
             3
         );
         assert_eq!(
-            source_faces("body", &source, &atlas, 4, 3, None).unwrap(),
+            source_faces("body", &source, &atlas, &[], 4, 3, None).unwrap(),
             3
         );
         let owners: Vec<_> = faces.into_iter().map(|f| f.source_triangle_ids).collect();
         assert_eq!(owners, [vec![11, 31], vec![27], vec![33]]);
-        assert!(source_faces("body", &source, &atlas, 4, 2, None).is_err());
+        let face = fabstep_core::PlanarFace {
+            loops: Vec::new(),
+            normal: [0., 0., 1.],
+        };
+        let plane = ResidualPlane {
+            face: &face,
+            triangles: vec![3, 1],
+        };
+        let mut faces = Vec::new();
+        assert_eq!(
+            source_faces("body", &source, &atlas, &[plane], 4, 2, Some(&mut faces)).unwrap(),
+            2
+        );
+        assert_eq!(faces[1].source_triangle_ids, vec![27, 33]);
+        assert!(source_faces("body", &source, &atlas, &[], 4, 2, None).is_err());
         for owners in [vec![2, 0, 2], vec![4], vec![]] {
             atlas.charts[0].triangles = owners;
             for destination in [None, Some(&mut Vec::new())] {
-                let error = source_faces("body", &source, &atlas, 4, 3, destination).unwrap_err();
+                let error =
+                    source_faces("body", &source, &atlas, &[], 4, 3, destination).unwrap_err();
                 assert_eq!(error.code, "step.invalid_source_provenance");
             }
         }

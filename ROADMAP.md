@@ -42,7 +42,7 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
    Les 46 671 faces passent le contrôle géométrique en laboratoire. Le rejeu de Flansch est reporté après les développements de reconnaissance pour limiter la RAM.
 15. **[R-122 Mesurer la reconnaissance sur un corpus public reproductible](roadmap/items/R-122-mesurer-la-reconnaissance-sur-un-corpus-public.md)** · À tester · jalon post-v1
    G7 · Établir une référence sur une douzaine de pièces de plusieurs familles, puis la réutiliser à chaque extension.
-16. **[R-123 Fusionner les faces planes voisines des raccords toriques](roadmap/items/R-123-fusionner-les-faces-planes-voisines-des-raccords.md)** · En cours · jalon post-v1
+16. **[R-123 Fusionner les faces planes voisines des raccords toriques](roadmap/items/R-123-fusionner-les-faces-planes-voisines-des-raccords.md)** · À tester · jalon post-v1
    F1 · Mesurer puis réduire les faces résiduelles et les chaînes de petits raccords sur deux pièces publiques.
 17. **[R-126 Reconstruire une révolution à méridienne mixte](roadmap/items/R-126-reconstruire-une-revolution-a-meridienne-mixte.md)** · En cours · jalon post-v1
    G4 · Reconstituer sur un axe commun des portées, des gorges circulaires et des portions de profil cubiques.
@@ -54,11 +54,11 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
    G3 · Reconnaître un contour extrudé composé de segments, d’arcs et de portions cubiques.
 21. **[R-130 Qualifier deux contrôles d’interférence simultanés](roadmap/items/R-130-qualifier-deux-controles-d-interference.md)** · En cours · jalon audit
    F2 · Mesurer le temps et la mémoire cumulée du helper avant d’adopter la concurrence entre groupes.
-22. **[R-124 Composer des régions qui partagent un bord vérifié](roadmap/items/R-124-composer-des-regions-qui-partagent-un-bord.md)** · Spécifiée · jalon post-v1
+22. **[R-124 Composer des régions qui partagent un bord vérifié](roadmap/items/R-124-composer-des-regions-qui-partagent-un-bord.md)** · À tester · jalon post-v1
    G1 · Décrire les voisinages et les triangles de chaque région afin de combiner plusieurs reconnaissances sur un même corps.
-23. **[R-125 Étendre l’atlas aux parois analytiques interrompues](roadmap/items/R-125-etendre-l-atlas-aux-parois-analytiques.md)** · Spécifiée · jalon post-v1
+23. **[R-125 Étendre l’atlas aux parois analytiques interrompues](roadmap/items/R-125-etendre-l-atlas-aux-parois-analytiques.md)** · En cours · jalon post-v1
    G2 et suite de F1 · Partager des contours vérifiés entre tores, plans et parois cylindriques, puis étendre famille par famille.
-24. **[R-131 Réévaluer sur preuve le découpage et le filtrage des groupes OCCT](roadmap/items/R-131-reevaluer-sur-preuve-le-decoupage-et-le-filtrage.md)** · Spécifiée · jalon audit
+24. **[R-131 Réévaluer sur preuve le découpage et le filtrage des groupes OCCT](roadmap/items/R-131-reevaluer-sur-preuve-le-decoupage-et-le-filtrage.md)** · En cours · jalon audit
    F3 et F4 · Rouvrir séparément les deux essais de V-1276 si un groupe chaud représentatif permet de démontrer un gain.
 25. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
    Construire et qualifier la distribution sur Windows et Linux.
@@ -85,6 +85,7 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
 - [ ] [A-134](roadmap/actions/A-134-verifier-le-conge-et-les-percages-sur-le-meme.md) Vérifier le congé et les perçages sur le même bloc (tester, R-114)
 - [ ] [A-135](roadmap/actions/A-135-verifier-l-octant-spherique-et-le-secteur.md) Vérifier l’octant sphérique et le secteur conique (tester, R-117)
 - [ ] [A-137](roadmap/actions/A-137-verifier-le-groupe-circulaire-sur-la-bride.md) Vérifier le groupe circulaire sur la bride percée (tester, R-128)
+- [ ] [A-138](roadmap/actions/A-138-selectionner-le-plan-voisin-du-tore-dans-fusion.md) Sélectionner le plan voisin du tore dans Fusion (tester, R-123)
 
 ## Livré
 

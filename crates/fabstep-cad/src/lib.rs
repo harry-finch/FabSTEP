@@ -22,7 +22,7 @@ use fabstep_core::{
 
 const MAX_RESULT_FACES: usize = 100_000;
 mod torus_atlas;
-pub use torus_atlas::build_torus_atlas_step_with_provenance;
+pub use torus_atlas::{build_torus_atlas_regions, build_torus_atlas_step_with_provenance};
 
 const MAX_SOURCE_TRIANGLES: usize = fabstep_core::SOURCE_MAX_TRIANGLES;
 const MAX_SOURCE_VERTICES: usize = fabstep_core::SOURCE_MAX_VERTICES;
@@ -3144,6 +3144,7 @@ fn native_error(status: i32, error: &[c_char; 512]) -> FabError {
         18 => "dxf.section_tangent",
         19 => "dxf.section_open",
         20 => "dxf.section_invalid_plane",
+        21 => "cad.atlas_plane_unproven",
         _ => "cad.kernel_failure",
     };
     // C++ termine toujours le tampon d'erreur par un octet nul.

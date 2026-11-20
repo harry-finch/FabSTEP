@@ -264,3 +264,216 @@ fn convert_independent_stl_with_native_atlas() {
         std::fs::write(output, &step.bytes).unwrap();
     }
 }
+
+#[test]
+fn merged_floor_keeps_the_notches_tokens_and_source_witness() {
+    use fabstep_core::{torus_atlas::ResidualPlane, PlanarFace};
+    let (mesh, atlas) = ramp();
+    let chart = &atlas.charts[0];
+    let offset = mesh.vertices.len() / 2;
+    let skin = chart.triangles.len();
+    let floor = PlanarFace {
+        normal: [-1., 0., 0.],
+        loops: vec![chart.loops[0]
+            .iter()
+            .rev()
+            .map(|p| p.vertex + offset)
+            .collect()],
+    };
+    let mut region = ResidualPlane {
+        face: &floor,
+        triangles: (skin..2 * skin).collect(),
+    };
+    let old_count = mesh.triangles.len() - skin + 1;
+    let tokens: Vec<_> = (1..=old_count - skin + 1).collect();
+    let old = fabstep_cad::build_torus_atlas_step_with_provenance(
+        &mesh,
+        &atlas,
+        &(1..=old_count).collect::<Vec<_>>(),
+        0.05,
+    )
+    .unwrap()
+    .0;
+    let build = |m: &Mesh, r: &ResidualPlane<'_>| {
+        fabstep_cad::build_torus_atlas_regions(m, &atlas, std::slice::from_ref(r), &tokens, 0.05)
+    };
+    let new = build(&mesh, &region).unwrap().0;
+    assert_eq!(new.report.solids, 1);
+    assert_eq!(new.report.faces, tokens.len());
+    assert_eq!(new.report.toroidal_faces, old.report.toroidal_faces);
+    assert!((new.report.volume_mm3 - old.report.volume_mm3).abs() < 1e-8);
+    let inspection = fabstep_cad::result_faces(&new.bytes).unwrap();
+    assert_eq!(
+        inspection
+            .faces
+            .iter()
+            .find(|f| f.source_face_token == Some(2))
+            .unwrap()
+            .family,
+        fabstep_cad::ResultFaceFamily::Plane
+    );
+    let mut folded = mesh.clone();
+    folded.vertices[mesh.triangles[skin][0]][0] += 1e-5;
+    assert_eq!(
+        build(&folded, &region).unwrap_err().code,
+        "cad.atlas_plane_unproven"
+    );
+    region.triangles[0] = 0;
+    assert_eq!(build(&mesh, &region).unwrap_err().code, "cad.invalid_model");
+    region.triangles[0] = skin;
+    let mut ambiguous = floor.clone();
+    ambiguous.loops[0].remove(1);
+    region.face = &ambiguous;
+    assert_eq!(build(&mesh, &region).unwrap_err().code, "cad.invalid_model");
+}
+
+#[test]
+fn planar_side_reuses_the_entire_chain_of_measured_torus_arcs() {
+    use fabstep_core::{torus_atlas::residual_planes, Analysis, Options, PlanarFace, PlanarModel};
+    let (mesh, atlas) = ramp();
+    let (sin, cos) = 0.58_f64.sin_cos();
+    let skin = atlas.charts[0].triangles.len();
+    let mut region = Vec::new();
+    let mut edges = BTreeMap::new();
+    for (i, t) in mesh.triangles.iter().enumerate().skip(skin) {
+        if t.iter()
+            .all(|&v| (-sin * mesh.vertices[v][1] + cos * mesh.vertices[v][2]).abs() < 1e-10)
+        {
+            region.push(i);
+            for k in 0..3 {
+                let (a, b) = (t[k], t[(k + 1) % 3]);
+                if edges.remove(&(b, a)).is_none() {
+                    edges.insert((a, b), ());
+                }
+            }
+        }
+    }
+    assert_eq!(region.len(), 12);
+    let mut next: BTreeMap<_, _> = edges.keys().copied().collect();
+    let mut at = *next.first_key_value().unwrap().0;
+    let mut ring = Vec::new();
+    while let Some(b) = next.remove(&at) {
+        ring.push(at);
+        at = b;
+    }
+    assert_eq!(Some(&at), ring.first());
+    let face = PlanarFace {
+        normal: [0., sin, -cos],
+        loops: vec![ring],
+    };
+    // Region zero is deliberately marked ineligible because it includes the chart.
+    let mut memberships = vec![0; mesh.triangles.len()];
+    for &i in &region {
+        memberships[i] = 1;
+    }
+    memberships[skin..2 * skin].fill(2);
+    let offset = mesh.vertices.len() / 2;
+    let floor = PlanarFace {
+        normal: [-1., 0., 0.],
+        loops: vec![atlas.charts[0].loops[0]
+            .iter()
+            .rev()
+            .map(|p| p.vertex + offset)
+            .collect()],
+    };
+    let model = PlanarModel {
+        vertices: mesh.vertices.clone(),
+        faces: vec![face.clone(), face, floor],
+    };
+    let report = fabstep_core::analyze_mesh(&mesh, &Options::default())
+        .unwrap()
+        .report;
+    let analysis = Analysis {
+        mesh,
+        model,
+        report,
+    };
+    let mut planes = residual_planes(&analysis, &memberships, &atlas);
+    assert_eq!(planes.len(), 2);
+    assert_eq!(planes[0].triangles, region);
+    let tokens: Vec<_> =
+        (1..=3 + analysis.mesh.triangles.len() - 2 * skin - region.len()).collect();
+    let (step, bound) =
+        fabstep_cad::build_torus_atlas_regions(&analysis.mesh, &atlas, &planes, &tokens, 0.05)
+            .unwrap();
+    assert!(bound < 0.05);
+    let display = fabstep_cad::result_faces(&step.bytes).unwrap();
+    let torus = display
+        .faces
+        .iter()
+        .find(|f| f.source_face_token == Some(1))
+        .unwrap();
+    let wall = display
+        .faces
+        .iter()
+        .find(|f| f.source_face_token == Some(2))
+        .unwrap();
+    assert_eq!(wall.family, fabstep_cad::ResultFaceFamily::Plane);
+    assert!(wall.adjacent_face_ids.contains(&torus.id));
+    // All source rim segments must survive sewing and reimport (the builder
+    // matches their endpoints, midpoint and rational weight on both faces).
+    let boundary = &planes[0].face.loops[0];
+    let shared = boundary
+        .iter()
+        .zip(boundary.iter().cycle().skip(1))
+        .filter(|&(a, b)| {
+            let ring = &atlas.charts[0].loops[0];
+            ring.iter()
+                .zip(ring.iter().cycle().skip(1))
+                .any(|(x, y)| x.vertex == *b && y.vertex == *a)
+        })
+        .count();
+    assert_eq!(shared, 6);
+    // Keep the ownership tokens attached to the same two source regions
+    // while presenting them to the kernel in reverse order.
+    planes.reverse();
+    let mut permuted_tokens = tokens.clone();
+    permuted_tokens.swap(1, 2);
+    let reordered = fabstep_cad::build_torus_atlas_regions(
+        &analysis.mesh,
+        &atlas,
+        &planes,
+        &permuted_tokens,
+        0.05,
+    )
+    .unwrap()
+    .0;
+    assert!((step.report.volume_mm3 - reordered.report.volume_mm3).abs() < 1e-9);
+    let neighbors = |display: fabstep_cad::ResultFaces| -> BTreeMap<_, _> {
+        display
+            .faces
+            .iter()
+            .map(|f| {
+                let mut ids = f
+                    .adjacent_face_ids
+                    .iter()
+                    .map(|&i| display.faces[i].source_face_token.unwrap())
+                    .collect::<Vec<_>>();
+                ids.sort_unstable();
+                (f.source_face_token.unwrap(), (f.family, ids))
+            })
+            .collect()
+    };
+    assert_eq!(
+        neighbors(display),
+        neighbors(fabstep_cad::result_faces(&reordered.bytes).unwrap())
+    );
+    let mut bent = analysis.clone();
+    let point = bent.mesh.triangles[region[0]]
+        .into_iter()
+        .find(|&v| v >= offset)
+        .unwrap();
+    bent.mesh.vertices[point][1] += 1e-4;
+    let kept = residual_planes(&bent, &memberships, &atlas);
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].triangles, (skin..2 * skin).collect::<Vec<_>>());
+    let fallback_tokens = (1..=2 + bent.mesh.triangles.len() - 2 * skin).collect::<Vec<_>>();
+    assert_eq!(
+        fabstep_cad::build_torus_atlas_regions(&bent.mesh, &atlas, &kept, &fallback_tokens, 0.05)
+            .unwrap()
+            .0
+            .report
+            .solids,
+        1
+    );
+}

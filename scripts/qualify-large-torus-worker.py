@@ -12,15 +12,21 @@ import time
 def qualify(worker, version=2, fixture="ramp"):
     with tempfile.TemporaryDirectory(prefix="fabstep-atlas-") as scratch:
         job = Path(scratch)
-        if fixture == "staggered":
+        if fixture.startswith("staggered"):
             generator = Path(__file__).with_name("qualify-staggered-tori.py")
             args = [job / "source.stl", "--dense"]
-            triangles, faces, tori = 166_848, 962, 2
+            triangles, faces, tori = 166_848, 583, 2
+            if fixture == "staggered-mixed":
+                args.append("--mixed-density")
+                triangles = 111_552
             volume_range = (304.16, 304.19)
         else:
             generator = Path(__file__).with_name("qualify-flange-public.py")
-            args = ["ramp", job / "source.stl", "--u", "54", "--v", "32", "--sparse-floor", "--subdivisions", "3"]
-            triangles, faces, tori = 194_694, 659, 1
+            v = "28" if fixture == "ramp28" else "32"
+            args = ["ramp", job / "source.stl", "--u", "54", "--v", v, "--sparse-floor", "--subdivisions", "3"]
+            triangles, faces, tori = 194_694, 442, 1
+            if fixture == "ramp28":
+                triangles, faces = 170_114, 414
             volume_range = (93.52, 93.55)
         subprocess.run([sys.executable, generator, *args], check=True)
         with (job / "source.stl").open("rb") as stream:
@@ -69,7 +75,7 @@ def qualify(worker, version=2, fixture="ramp"):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("worker", type=Path)
-    parser.add_argument("--fixture", choices=["ramp", "staggered"], default="ramp")
+    parser.add_argument("--fixture", choices=["ramp", "ramp28", "staggered", "staggered-mixed"], default="ramp")
     parser.add_argument("--protocol", type=int, choices=[1, 2], default=2)
     args = parser.parse_args()
     qualify(args.worker, args.protocol, args.fixture)

@@ -144,10 +144,10 @@ bool matches(const TopTools_IndexedMapOfShape &faces) {
       int count = 0;
       for (TopExp_Explorer e(face, TopAbs_EDGE); e.More(); e.Next()) {
         const auto material = TopoDS::Edge(e.Current());
-        if (++count > 3 || BRep_Tool::Degenerated(material) || !atlas_edge::trace(material))
+        if (++count > 4096 || BRep_Tool::Degenerated(material) || !atlas_edge::trace(material))
           return false;
       }
-      if (count != 3)
+      if (count < 3)
         return false;
     } else if (!atlas_triangle::matches(face) && !fan_trim(face))
       return false;

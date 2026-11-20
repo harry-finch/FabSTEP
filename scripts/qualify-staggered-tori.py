@@ -11,7 +11,7 @@ def torus_point(minor, rim, height, u, v):
     return (height + minor * (math.sin(v) - 1), rho * math.cos(u), rho * math.sin(u))
 
 
-def generate(output, dense=False):
+def generate(output, dense=False, mixed_density=False):
     # Independent meridian radii. At their upper rims the shoulders are only
     # 0.008 mm apart radially and differ by 0.00006 mm axially. Staggering
     # angular stations makes the connecting triangle fans nearly tangent.
@@ -78,14 +78,17 @@ def generate(output, dense=False):
         # Keeping all edge stations preserves the exact same seam and base.
         triangles = triangles[len(top):]
         angles += [None] * n
-        for face in top:
+        for index, face in enumerate(top):
             row = min(face) // (steps + 1)
             if row == meridians:
                 triangles.append(face)
                 continue
             patch = patches[int(row > meridians)]
             refined = [face]
-            for _ in range(3):
+            # Barycentres stay strictly interior. Alternating the final level
+            # changes only density and leaves the shared source edges intact.
+            levels = 2 if mixed_density and index % 2 else 3
+            for _ in range(levels):
                 children = []
                 for a, b, c in refined:
                     u, v = (sum(angles[i][k] for i in (a, b, c)) / 3 for k in (0, 1))
@@ -108,5 +111,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
     parser.add_argument("--dense", action="store_true", help="exercise the large-STL worker on the same collar")
+    parser.add_argument("--mixed-density", action="store_true", help="alternate two and three interior refinement levels with --dense")
     args = parser.parse_args()
-    generate(args.output, args.dense)
+    if args.mixed_density and not args.dense:
+        parser.error("--mixed-density requires --dense")
+    generate(args.output, args.dense, args.mixed_density)

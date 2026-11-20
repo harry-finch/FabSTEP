@@ -1,5 +1,5 @@
 //! Protect measured neighbors from folds caused by a newly curved rim.
-use super::{unit, Source, Torus, TorusChart, V};
+use super::{unit, Source, Torus, TorusChart, TorusTrimVertex, V};
 use crate::math::{cross, dot, norm, sub};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -13,9 +13,9 @@ fn key(a: usize, b: usize) -> (usize, usize) {
     (a.min(b), a.max(b))
 }
 #[derive(Clone, Copy)]
-struct Arc {
-    pole: V,
-    weight: f64,
+pub(super) struct Arc {
+    pub(super) pole: V,
+    pub(super) weight: f64,
     center: V,
     radius: f64,
     sweep: f64,
@@ -29,11 +29,10 @@ fn circle_fan(arc: Arc, a: V, b: V, apex: V, n: V) -> bool {
     {
         return true;
     }
-    let h = [
-        sub(a, apex),
-        mul(sub(arc.pole, apex), arc.weight),
-        sub(b, apex),
-    ];
+    positive_fan(arc.pole, arc.weight, a, b, apex, n)
+}
+pub(super) fn positive_fan(pole: V, weight: f64, a: V, b: V, apex: V, n: V) -> bool {
+    let h = [sub(a, apex), mul(sub(pole, apex), weight), sub(b, apex)];
     let d = [mul(sub(h[1], h[0]), 2.), mul(sub(h[2], h[1]), 2.)];
     let mut coeff = [0.; 4];
     for i in 0..3 {
@@ -56,6 +55,40 @@ fn trace(t: f64, a: V, b: V, arc: Arc) -> (V, V) {
         mul(sub(mul(dn, den), mul(n, dw)), 1. / den.powi(2)),
     )
 }
+pub(super) fn arc(m: Torus, a: TorusTrimVertex, b: TorusTrimVertex) -> Arc {
+    let [u, v] = a.uv;
+    let (center, normal, radius, sweep) = if a.constant_u {
+        (
+            [
+                m.center[0],
+                m.center[1] + m.major * u.cos(),
+                m.center[2] + m.major * u.sin(),
+            ],
+            [0., -u.sin(), u.cos()],
+            m.minor,
+            b.uv[1] - v,
+        )
+    } else {
+        (
+            [m.center[0] + m.minor * v.sin(), m.center[1], m.center[2]],
+            [1., 0., 0.],
+            m.major + m.minor * v.cos(),
+            b.uv[0] - u,
+        )
+    };
+    let weight = (sweep / 2.).cos();
+    let mid = m.point([(u + b.uv[0]) / 2., (v + b.uv[1]) / 2.]);
+    let pole = add(center, mul(sub(mid, center), 1. / weight));
+    Arc {
+        pole,
+        weight,
+        center,
+        normal,
+        radius,
+        sweep,
+    }
+}
+
 pub(super) fn unsafe_vertices(src: &Source, charts: &[TorusChart]) -> BTreeSet<usize> {
     let mut dst = src.points.clone();
     let mut changed = vec![false; dst.len()];
@@ -72,42 +105,9 @@ pub(super) fn unsafe_vertices(src: &Source, charts: &[TorusChart]) -> BTreeSet<u
         }
         for path in &chart.loops {
             for (a, b) in path.iter().zip(path.iter().cycle().skip(1)) {
-                let [u, v] = a.uv;
                 dst[a.vertex] = m.point(a.uv);
                 changed[a.vertex] = true;
-                let (center, normal, radius, sweep) = if a.constant_u {
-                    (
-                        [
-                            m.center[0],
-                            m.center[1] + m.major * u.cos(),
-                            m.center[2] + m.major * u.sin(),
-                        ],
-                        [0., -u.sin(), u.cos()],
-                        m.minor,
-                        b.uv[1] - v,
-                    )
-                } else {
-                    (
-                        [m.center[0] + m.minor * v.sin(), m.center[1], m.center[2]],
-                        [1., 0., 0.],
-                        m.major + m.minor * v.cos(),
-                        b.uv[0] - u,
-                    )
-                };
-                let weight = (sweep / 2.).cos();
-                let mid = m.point([(u + b.uv[0]) / 2., (v + b.uv[1]) / 2.]);
-                let pole = add(center, mul(sub(mid, center), 1. / weight));
-                arcs.insert(
-                    key(a.vertex, b.vertex),
-                    Arc {
-                        pole,
-                        weight,
-                        center,
-                        normal,
-                        radius,
-                        sweep,
-                    },
-                );
+                arcs.insert(key(a.vertex, b.vertex), arc(m, *a, *b));
             }
         }
     }
