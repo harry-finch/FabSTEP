@@ -2,11 +2,12 @@
 id: R-132
 titre: "Qualifier un délai prolongé sur demande pour les gros STL"
 resume: "F5 · Option CLI conditionnée au choix A-136 si le budget ordinaire demeure insuffisant après les travaux géométriques."
-statut: specifiee
+statut: abandonnee
 jalon: audit
 cree: 2026-11-20
 maj: 2026-11-20
 livree:
+avant: specifiee
 ---
 ## But
 
@@ -35,3 +36,7 @@ Décision produit A-136 rattachée à R-085. Si le délai ordinaire convient apr
 ## Vérifications de l'utilisateur
 
 Si le mode est retenu, lancer une conversion prolongée sur une pièce publique et l’annuler depuis la CLI.
+
+## Décision
+
+A-136, 20 novembre 2026. L’utilisateur conserve le délai de 30 minutes dans tous les modes. La piste de prolongation est close.

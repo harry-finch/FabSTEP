@@ -64,4 +64,4 @@ La qualification AUD-202 sur la rampe et le secteur publics reporte la subdivisi
 
 ## Ordre du prochain essai privé
 
-Attendre la fin des développements de reconnaissance R-123 à R-129. Qualifier leurs gains sur le corpus public R-122 et examiner, si le coût résiduel le justifie, les essais bornés R-130 et R-131. Le prochain rejeu privé complet partira du STL original avec les contrôles avant et après transfert et la fidélité dans les deux sens. A-136 porte sur le délai éventuel de R-132.
+Attendre la fin des développements de reconnaissance R-123 à R-129. Qualifier leurs gains sur le corpus public R-122 et examiner, si le coût résiduel le justifie, les essais bornés R-130 et R-131. Le prochain rejeu privé complet partira du STL original avec les contrôles avant et après transfert et la fidélité dans les deux sens. A-136 confirme le plafond de 30 minutes pour tout essai.

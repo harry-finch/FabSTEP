@@ -2,7 +2,7 @@
 id: R-128
 titre: "Proposer des axes et des motifs de parois répétées"
 resume: "G6 · Accélérer la recherche des familles et le guidage en utilisant les normales et la répétition des formes."
-statut: specifiee
+statut: en-cours
 jalon: post-v1
 cree: 2026-11-20
 maj: 2026-11-20

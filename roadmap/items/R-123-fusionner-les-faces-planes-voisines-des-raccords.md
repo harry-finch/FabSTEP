@@ -2,7 +2,7 @@
 id: R-123
 titre: "Fusionner les faces planes voisines des raccords toriques"
 resume: "F1 · Mesurer puis réduire les faces résiduelles et les chaînes de petits raccords sur deux pièces publiques."
-statut: specifiee
+statut: en-cours
 jalon: post-v1
 cree: 2026-11-20
 maj: 2026-11-20
