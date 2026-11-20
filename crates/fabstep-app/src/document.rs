@@ -1035,31 +1035,64 @@ fn convert_analyzed_document(
             .iter_mut()
             .filter(|hint| hint.analysis_body_id == body.id)
             .collect::<Vec<_>>();
-        let conversion = if options.reconstruction == ReconstructionMode::HeightPatch {
+        let prism = if hints.is_empty() && options.reconstruction == ReconstructionMode::Auto {
+            control
+                .run(ConversionPhase::Recognition, Some(body_index), || {
+                    fabstep_core::recognize_cubic_prism(&body.analysis, options)
+                })
+                .map_err(|e| body_error(e, &body.id, &body.name))?
+        } else {
+            None
+        };
+        let corner = if hints.is_empty() && prism.is_none() {
+            crate::unequal_corner::try_build(
+                &body.analysis, options, source_faces.len() + 1, body_index, control,
+            )
+            .map_err(|e| body_error(e, &body.id, &body.name))?
+        } else {
+            None
+        };
+        let conversion = if let Some(built) = corner {
+            if keep_auto_faces {
+                built.append_sources(
+                    &source.preview_body_id, &body.id, &source.analysis_to_source_triangles, &mut source_faces,
+                )?;
+            }
+            built.finish(body.analysis, options, control, body_index)
+        } else if options.reconstruction == ReconstructionMode::HeightPatch || prism.is_some() {
             if !hints.is_empty() {
                 return Err(FabError::new("guidance.unsupported_family", "Cette approximation se calcule sur le corps entier."));
             }
-            let r = control.run(ConversionPhase::Recognition, Some(body_index), ||
-                fabstep_core::recognize_height_patch(&body.analysis, options))
-                .map_err(|e| body_error(e, &body.id, &body.name))?;
+            let recognized = if let Some(r) = prism {
+                Recognized::CubicPrism(r)
+            } else {
+                Recognized::HeightPatch(control.run(ConversionPhase::Recognition, Some(body_index), ||
+                    fabstep_core::recognize_height_patch(&body.analysis, options))
+                    .map_err(|e| body_error(e, &body.id, &body.name))?)
+            };
+            let (owners, count) = match &recognized {
+                Recognized::CubicPrism(r) => (&r.triangle_faces, 6 + usize::from(r.model.bore.is_some())),
+                Recognized::HeightPatch(r) => (&r.triangle_faces, 6),
+                _ => unreachable!(),
+            };
             let first = source_faces.len() + 1;
-            let mut faces: Vec<_> = (0..6).map(|_| ResultFaceSource {
+            let mut faces: Vec<_> = (0..count).map(|_| ResultFaceSource {
                 face_id:0, preview_body_id:source.preview_body_id.clone(),
                 analysis_body_id:body.id.clone(), source_triangle_ids:Vec::new()
             }).collect();
-            if r.triangle_faces.len()!=source.analysis_to_source_triangles.len() {
-                return Err(FabError::new("step.invalid_source_provenance", "Attribution incomplète de la surface bicubique."));
+            if owners.len()!=source.analysis_to_source_triangles.len() {
+                return Err(FabError::new("step.invalid_source_provenance", "Attribution incomplète des triangles du profil."));
             }
-            for (&owner, &triangle) in r.triangle_faces.iter().zip(&source.analysis_to_source_triangles) {
-                faces.get_mut(owner).ok_or_else(|| FabError::new("step.invalid_source_provenance", "Face bicubique inconnue."))?.source_triangle_ids.push(triangle);
+            for (&owner, &triangle) in owners.iter().zip(&source.analysis_to_source_triangles) {
+                faces.get_mut(owner).ok_or_else(|| FabError::new("step.invalid_source_provenance", "Face du profil inconnue."))?.source_triangle_ids.push(triangle);
             }
             if faces.iter().any(|f| f.source_triangle_ids.is_empty()) {
-                return Err(FabError::new("step.invalid_source_provenance", "Face bicubique sans triangle source."));
+                return Err(FabError::new("step.invalid_source_provenance", "Face du profil sans triangle source."));
             }
             source_faces.extend(faces);
-            let tokens: Vec<_> = (first..first+6).collect();
+            let tokens: Vec<_> = (first..first+count).collect();
             convert_analysis_with_recognized(body.analysis, options, Some(&tokens),
-                Some(Recognized::HeightPatch(r)), control,body_index,source_proofs.as_deref_mut())
+                Some(recognized), control,body_index,source_proofs.as_deref_mut())
         } else if options.reconstruction == ReconstructionMode::Auto || hints.iter().any(|hint| matches!(hint.family, "auto" | "torus" | "sphere")) {
             let requests = hints.iter().map(|hint| {
                 let family = match hint.family {

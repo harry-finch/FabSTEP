@@ -93,9 +93,15 @@ impl From<&BodyReport> for CompactBodyReport {
             },
             cad: data.cad.clone(),
             fidelity: data.fidelity.clone(),
-            recognition: data.recognition.as_ref().map(|r| CompactRecognition {
-                report: r.report.clone(),
-            }),
+            // V2 stores an extrusion's proof summary without its profile.
+            recognition: data
+                .recognition
+                .as_ref()
+                .map(|r| &r.report)
+                .or_else(|| data.cubic_prism_recognition.as_ref().map(|r| &r.report))
+                .map(|report| CompactRecognition {
+                    report: report.clone(),
+                }),
             mixed_recognition: data
                 .mixed_recognition
                 .as_ref()

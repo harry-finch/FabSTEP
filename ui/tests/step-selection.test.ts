@@ -186,3 +186,11 @@ test('a native bicubic roof is selectable as a distinct family', () => {
   assert.deepEqual(graph.pick(0,false).families,{height_patch:1});
   assert.deepEqual(graph.inspect().triangles,[0,1]);
 });
+
+test('a cubic extrusion is selectable as its native STEP surface', () => {
+  const result=structuredClone(document);
+  result.faces[0].family='extrusion';
+  const graph=new StepSelectionGraph();
+  graph.prepare(result);
+  assert.deepEqual(graph.pick(0,false).families,{extrusion:1});
+});

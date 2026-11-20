@@ -214,6 +214,7 @@ pub enum ResultFaceFamily {
     Other,
     Revolution,
     HeightPatch,
+    Extrusion,
 }
 
 /// IDs are zero-based and scoped to this read of the final STEP, not the source.
@@ -1638,11 +1639,15 @@ pub fn build_rounded_step_with_token_groups(
 }
 
 mod adjacent_pocket;
+mod cubic_prism;
+mod unequal_corner;
+pub use unequal_corner::build_unequal_corner;
 mod cut_octant;
 mod drilled_shaft;
 mod oblique_pocket;
 mod stock_fillet;
 mod torus_sector;
+pub use cubic_prism::build_cubic_prism;
 mod unequal_pocket;
 
 fn build_rounded_step_impl(
@@ -3172,6 +3177,7 @@ fn native_error(status: i32, error: &[c_char; 512]) -> FabError {
         19 => "dxf.section_open",
         20 => "dxf.section_invalid_plane",
         21 => "cad.atlas_plane_unproven",
+        22 => "cad.corner_unproven",
         _ => "cad.kernel_failure",
     };
     // C++ termine toujours le tampon d'erreur par un octet nul.
@@ -3432,6 +3438,7 @@ pub fn result_faces(bytes: &[u8]) -> Result<ResultFaces, FabError> {
             5 => ResultFaceFamily::Other,
             6 => ResultFaceFamily::Revolution,
             7 => ResultFaceFamily::HeightPatch,
+            8 => ResultFaceFamily::Extrusion,
             _ => return Err(invalid()),
         };
         faces.push(ResultFace {

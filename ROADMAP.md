@@ -50,7 +50,7 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
    G4 · Reconstituer sur un axe commun des portées, des gorges circulaires et des portions de profil cubiques.
 19. **[R-129 Reconstruire des congés sur arête courbe et des coins à trois rayons](roadmap/items/R-129-reconstruire-des-conges-sur-arete-courbe-et-des.md)** · En cours · jalon post-v1
    G5 · Qualifier d’abord le congé de rayon constant sur arête courbe, puis le raccord entre trois congés inégaux.
-20. **[R-127 Reconstruire une extrusion droite à profil libre](roadmap/items/R-127-reconstruire-une-extrusion-droite-a-profil-libre.md)** · En cours · jalon post-v1
+20. **[R-127 Reconstruire une extrusion droite à profil libre](roadmap/items/R-127-reconstruire-une-extrusion-droite-a-profil-libre.md)** · À tester · jalon post-v1
    G3 · Reconnaître un contour extrudé composé de segments, d’arcs et de portions cubiques.
 21. **[R-130 Qualifier deux contrôles d’interférence simultanés](roadmap/items/R-130-qualifier-deux-controles-d-interference.md)** · En cours · jalon audit
    F2 · Mesurer le temps et la mémoire cumulée du helper avant d’adopter la concurrence entre groupes.
@@ -86,6 +86,7 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
 - [ ] [A-137](roadmap/actions/A-137-verifier-le-groupe-circulaire-sur-la-bride.md) Vérifier le groupe circulaire sur la bride percée (tester, R-128)
 - [ ] [A-138](roadmap/actions/A-138-selectionner-le-plan-voisin-du-tore-dans-fusion.md) Sélectionner le plan voisin du tore dans Fusion (tester, R-123)
 - [ ] [A-139](roadmap/actions/A-139-inspecter-la-gorge-et-le-retour-axial-dans.md) Inspecter la gorge et le retour axial dans Fusion (tester, R-126)
+- [ ] [A-140](roadmap/actions/A-140-inspecter-le-flanc-de-la-came-et-le-trou-du.md) Inspecter le flanc de la came et le trou du profilé (tester, R-127)
 
 ## Livré
 

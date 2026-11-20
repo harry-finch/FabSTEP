@@ -16,7 +16,7 @@
   let { selection, document, deviation, revealContext, ongrow, onshrink, onclear, onshowsource, profile, profileEligible, canexportprofile, onexportprofile, errorText }: { selection:StepSelection|null; document:ResultFaces; deviation:DeviationReport|null; revealContext:ContextReveal; ongrow:()=>void; onshrink:()=>void; onclear:()=>void; onshowsource:()=>void; profile:FaceProfileState; profileEligible:boolean; canexportprofile:boolean; onexportprofile:()=>void; errorText:(error:unknown)=>string } = $props();
   const localMaximum = $derived(deviation && selection?.faces.length
     ? selection.faces.reduce((maximum, id) => Math.max(maximum, deviation!.face_maxima_mm[id]), 0) : null);
-  const labels:Record<StepFamily,Key> = { plane:'inspection.plane', cylinder:'inspection.cylinder', cone:'inspection.cone', sphere:'inspection.sphere', torus:'inspection.torus', revolution:'inspection.revolution', height_patch:'inspection.heightPatch', other:'stepInspection.other' };
+  const labels:Record<StepFamily,Key> = { plane:'inspection.plane', cylinder:'inspection.cylinder', cone:'inspection.cone', sphere:'inspection.sphere', torus:'inspection.torus', revolution:'inspection.revolution', extrusion:'inspection.extrusion', height_patch:'inspection.heightPatch', other:'stepInspection.other' };
 </script>
 <Section id="step-inspection" title={t('stepInspection.title')} {revealContext} revealKey={selection?.faces.length ? `${document.request_id}:${document.source_id}:${[...selection.faces].sort((a,b)=>a-b).join(',')}` : null}>
   {#if selection?.faces.length}

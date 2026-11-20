@@ -85,8 +85,12 @@ pub struct ConversionReport {
     pub rounded_box_recognition: Option<RoundedBoxRecognition>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub height_patch_recognition: Option<fabstep_core::HeightPatchRecognition>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cubic_prism_recognition: Option<fabstep_core::CubicPrismRecognition>,
     pub fidelity: Option<FidelityReport>,
 }
+
+mod unequal_corner;
 
 pub struct Conversion {
     pub report: ConversionReport,
@@ -104,6 +108,7 @@ pub enum Recognized {
     Rounded(RoundedRecognition),
     RoundedBox(RoundedBoxRecognition),
     HeightPatch(fabstep_core::HeightPatchRecognition),
+    CubicPrism(fabstep_core::CubicPrismRecognition),
 }
 impl Recognized {
     pub fn report(&self) -> &RecognitionReport {
@@ -114,6 +119,7 @@ impl Recognized {
             Self::Rounded(r) => &r.report,
             Self::RoundedBox(r) => &r.report,
             Self::HeightPatch(r) => &r.report,
+            Self::CubicPrism(r) => &r.report,
         }
     }
 }
@@ -127,6 +133,9 @@ pub fn recognize_surfaces(analysis: &Analysis, options: &Options) -> Result<Reco
             fabstep_core::recognize_height_patch(analysis, options).map(Recognized::HeightPatch)
         }
         ReconstructionMode::Auto => {
+            if let Some(prism) = fabstep_core::recognize_cubic_prism(analysis, options)? {
+                return Ok(Recognized::CubicPrism(prism));
+            }
             fabstep_core::recognize_automatic(analysis, options).map(Recognized::Rounded)
         }
         ReconstructionMode::Planar => Err(FabError::new(
@@ -225,6 +234,11 @@ fn convert_analysis_with_face_tokens(
     body_index: usize,
     source_proofs: Option<&mut SourceProofCache>,
 ) -> Result<Conversion, FabError> {
+    if face_tokens.is_none() {
+        if let Some(built)=unequal_corner::try_build(&analysis,options,1,body_index,control)? {
+            return built.finish(analysis,options,control,body_index);
+        }
+    }
     let recognized = match options.reconstruction {
         ReconstructionMode::Planar => None,
         ReconstructionMode::Auto
@@ -480,6 +494,7 @@ fn convert_analysis_with_recognized(
                     } else { build_rounded_step(&r.model) }
                 },
                 Recognized::HeightPatch(r) => fabstep_cad::build_height_patch(&r.model, face_tokens),
+                Recognized::CubicPrism(r) => fabstep_cad::build_cubic_prism(&r.model, face_tokens),
                 Recognized::RoundedBox(r) => build_rounded_box_step(&r.model),
             }
         } else if let Some(tokens) = face_tokens {
@@ -525,14 +540,16 @@ fn convert_analysis_with_recognized(
         rounded_recognition,
         rounded_box_recognition,
         height_patch_recognition,
+        cubic_prism_recognition,
     ) = match recognized {
-        Some(Recognized::Extrusion(r)) => (Some(r), None, None, None, None, None),
-        Some(Recognized::Mixed(r)) => (None, Some(r), None, None, None, None),
-        Some(Recognized::Revolved(r)) => (None, None, Some(r), None, None, None),
-        Some(Recognized::Rounded(r)) => (None, None, None, Some(r), None, None),
-        Some(Recognized::RoundedBox(r)) => (None, None, None, None, Some(r), None),
-        Some(Recognized::HeightPatch(r)) => (None, None, None, None, None, Some(r)),
-        None => (None, None, None, None, None, None),
+        Some(Recognized::Extrusion(r)) => (Some(r), None, None, None, None, None, None),
+        Some(Recognized::Mixed(r)) => (None, Some(r), None, None, None, None, None),
+        Some(Recognized::Revolved(r)) => (None, None, Some(r), None, None, None, None),
+        Some(Recognized::Rounded(r)) => (None, None, None, Some(r), None, None, None),
+        Some(Recognized::RoundedBox(r)) => (None, None, None, None, Some(r), None, None),
+        Some(Recognized::HeightPatch(r)) => (None, None, None, None, None, Some(r), None),
+        Some(Recognized::CubicPrism(r)) => (None, None, None, None, None, None, Some(r)),
+        None => (None, None, None, None, None, None, None),
     };
     Ok(Conversion {
         report: ConversionReport {
@@ -545,6 +562,7 @@ fn convert_analysis_with_recognized(
             rounded_recognition,
             rounded_box_recognition,
             height_patch_recognition,
+            cubic_prism_recognition,
             fidelity,
         },
         step_bytes: result.bytes,

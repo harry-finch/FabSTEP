@@ -190,29 +190,32 @@ fn run() -> Result<(), FabError> {
                         .map_err(|e| e.with_body(&body.id, &body.name))?,
                 ),
             };
-            let (extrusion, mixed, revolved, rounded, rounded_box, height_patch) =
+            let (extrusion, mixed, revolved, rounded, rounded_box, height_patch, cubic_prism) =
                 match &recognition {
                     Some(fabstep_app::Recognized::Extrusion(r)) => {
-                        (Some(r), None, None, None, None, None)
+                        (Some(r), None, None, None, None, None, None)
                     }
                     Some(fabstep_app::Recognized::Mixed(r)) => {
-                        (None, Some(r), None, None, None, None)
+                        (None, Some(r), None, None, None, None, None)
                     }
                     Some(fabstep_app::Recognized::Revolved(r)) => {
-                        (None, None, Some(r), None, None, None)
+                        (None, None, Some(r), None, None, None, None)
                     }
                     Some(fabstep_app::Recognized::Rounded(r)) => {
-                        (None, None, None, Some(r), None, None)
+                        (None, None, None, Some(r), None, None, None)
                     }
                     Some(fabstep_app::Recognized::RoundedBox(r)) => {
-                        (None, None, None, None, Some(r), None)
+                        (None, None, None, None, Some(r), None, None)
                     }
                     Some(fabstep_app::Recognized::HeightPatch(r)) => {
-                        (None, None, None, None, None, Some(r))
+                        (None, None, None, None, None, Some(r), None)
                     }
-                    None => (None, None, None, None, None, None),
+                    Some(fabstep_app::Recognized::CubicPrism(r)) => {
+                        (None, None, None, None, None, None, Some(r))
+                    }
+                    None => (None, None, None, None, None, None, None),
                 };
-            bodies.push(serde_json::json!({"id":body.id,"name":body.name,"provenance":body.provenance,"mesh":body.analysis.report,"recognition":extrusion,"mixed_recognition":mixed,"revolved_recognition":revolved,"rounded_recognition":rounded,"rounded_box_recognition":rounded_box,"height_patch_recognition":height_patch}));
+            bodies.push(serde_json::json!({"id":body.id,"name":body.name,"provenance":body.provenance,"mesh":body.analysis.report,"recognition":extrusion,"mixed_recognition":mixed,"revolved_recognition":revolved,"rounded_recognition":rounded,"rounded_box_recognition":rounded_box,"height_patch_recognition":height_patch,"cubic_prism_recognition":cubic_prism}));
         }
         if json {
             let mut report = serde_json::json!({"settings":document.settings,"source":document.source,"bodies":bodies,"diagnostics":document.diagnostics,"native_validated":false});
@@ -238,6 +241,7 @@ fn run() -> Result<(), FabError> {
                 report["revolved_recognition"] = bodies[0]["revolved_recognition"].clone();
                 report["rounded_recognition"] = bodies[0]["rounded_recognition"].clone();
                 report["height_patch_recognition"] = bodies[0]["height_patch_recognition"].clone();
+                report["cubic_prism_recognition"] = bodies[0]["cubic_prism_recognition"].clone();
                 report["rounded_box_recognition"] = bodies[0]["rounded_box_recognition"].clone();
             }
             print_json(&report)?;
@@ -274,7 +278,7 @@ fn run() -> Result<(), FabError> {
                 .map_err(|e| io_error(e.error))?;
         }
         if json {
-            let bodies: Vec<_> = result.report.bodies.iter().map(|b| serde_json::json!({"id":b.id,"name":b.name,"provenance":b.provenance,"mesh":b.conversion.analysis.report,"cad":b.conversion.cad,"recognition":b.conversion.recognition,"mixed_recognition":b.conversion.mixed_recognition,"revolved_recognition":b.conversion.revolved_recognition,"rounded_recognition":b.conversion.rounded_recognition,"rounded_box_recognition":b.conversion.rounded_box_recognition,"height_patch_recognition":b.conversion.height_patch_recognition,"fidelity":b.conversion.fidelity})).collect();
+            let bodies: Vec<_> = result.report.bodies.iter().map(|b| serde_json::json!({"id":b.id,"name":b.name,"provenance":b.provenance,"mesh":b.conversion.analysis.report,"cad":b.conversion.cad,"recognition":b.conversion.recognition,"mixed_recognition":b.conversion.mixed_recognition,"revolved_recognition":b.conversion.revolved_recognition,"rounded_recognition":b.conversion.rounded_recognition,"rounded_box_recognition":b.conversion.rounded_box_recognition,"height_patch_recognition":b.conversion.height_patch_recognition,"cubic_prism_recognition":b.conversion.cubic_prism_recognition,"fidelity":b.conversion.fidelity})).collect();
             let mut report = serde_json::json!({"output":path,"settings":result.report.settings,"source":result.report.source,"cad":result.report.cad,"bodies":bodies,"diagnostics":result.report.diagnostics,"native_validated":true});
             if bodies.len() == 1 {
                 for key in [
@@ -285,6 +289,7 @@ fn run() -> Result<(), FabError> {
                     "rounded_recognition",
                     "rounded_box_recognition",
                     "height_patch_recognition",
+                    "cubic_prism_recognition",
                     "fidelity",
                 ] {
                     report[key] = bodies[0][key].clone();
@@ -337,6 +342,12 @@ fn run() -> Result<(), FabError> {
                 let recognition_report = recognition_report.or_else(|| {
                     body.conversion
                         .height_patch_recognition
+                        .as_ref()
+                        .map(|r| &r.report)
+                });
+                let recognition_report = recognition_report.or_else(|| {
+                    body.conversion
+                        .cubic_prism_recognition
                         .as_ref()
                         .map(|r| &r.report)
                 });

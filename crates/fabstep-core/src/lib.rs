@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 mod height_patch;
 pub mod torus_atlas;
+pub mod unequal_corner;
 pub use height_patch::{recognize_height_patch, HeightPatch, HeightPatchRecognition};
 
 /// Source-only storage bounds. The larger profile is compiled only into the
@@ -679,7 +680,9 @@ pub use profile::{
     validate_section_profile, validate_section_request, PlanarFaceProfile, PlanarProfileLoop,
     ProfileFrame, ProfileSegment, SectionBodyProfile, SectionLoop, SectionProfile, SectionRequest,
 };
+mod cubic_prism;
 mod recognition;
+pub use cubic_prism::{recognize_cubic_prism, CubicPrism, CubicPrismRecognition};
 mod residual_supports;
 mod revolved;
 mod rounded;

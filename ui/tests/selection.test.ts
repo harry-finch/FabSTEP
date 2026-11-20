@@ -286,3 +286,13 @@ test('bicubic attribution requires the roof and all five supports', () => {
     assert.equal(attributions([report(owners)])[0].families,null);
   }
 });
+
+test('a cubic extrusion attributes the measured wall and the optional bore', () => {
+  const body={
+    id:'body', analysis:{mesh:{triangles:Array(7).fill([0,1,2])}},
+    cubic_prism_recognition:{model:{bore:[2,3,1]},triangle_faces:[2,1,3,4,5,0,6]},
+  } as unknown as BodyResult;
+  assert.deepEqual(attributions([body])[0].families,['extrusion','plane','plane','plane','plane','plane','cylinder']);
+  body.cubic_prism_recognition!.model.bore=null;
+  assert.equal(attributions([body])[0].families,null);
+});
