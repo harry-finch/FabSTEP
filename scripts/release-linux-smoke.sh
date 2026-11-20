@@ -37,8 +37,8 @@ runuser -u fabstep-smoke -- xvfb-run -a -s "-screen 0 1600x1000x24" dbus-run-ses
         if [ -n "$window" ]; then
             import -window root -resize 150% /tmp/fabstep-smoke.png
             tesseract /tmp/fabstep-smoke.png /tmp/fabstep-smoke -l eng --psm 11 2>/dev/null
-            if grep -Eqi "Ouvrir STL|Open STL" /tmp/fabstep-smoke.txt; then
-                echo "FabSTEP window and WebKit open-file control displayed."
+            if grep -Eqi "un fichier STL ou 3MF|Drop an STL or 3MF" /tmp/fabstep-smoke.txt; then
+                echo "FabSTEP window and WebKit mesh import prompt displayed."
                 exit 0
             fi
         fi
