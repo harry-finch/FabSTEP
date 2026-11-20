@@ -1,101 +1,159 @@
-# FabSTEP
+<p align="center">
+  <img src="ui/public/logo.svg" width="64" alt="FabSTEP logo" />
+</p>
 
-FabSTEP transforme des maillages STL et 3MF Core en solides STEP pour poursuivre le travail dans un logiciel de CAO. Il appartient à **FabApps** et reprend l'architecture modulaire et l'interface d'atelier de FabWeave. Licence **GPL-3.0-or-later**.
+<h1 align="center">FabSTEP</h1>
 
-**Version 1.0.0 — reconstruction mécanique locale.** Le mode **Plans** regroupe les triangles coplanaires en faces CAO. Le mode explicite **Cylindres** reconnaît les extrusions à section constante et les parois cylindriques locales, notamment celles des trous borgnes à fond plat, des bossages et des encoches ouvertes dont les contours et raccords sont démontrés. Le mode explicite **Cônes et cylindres** reconnaît également des parois coniques complètes et des chanfreins circulaires lorsque leurs bandes et raccords sont prouvés. Le mode explicite **Surfaces arrondies** reconnaît des corps sphériques complets, des calottes sphériques, petites ou grandes, avec anneau plan et pôle source, des tores entiers, des congés toriques quart de cercle entre cylindre et plan, ainsi que des boîtiers convexes dont les douze arêtes et huit coins ont le même rayon de congé. Les bandes et raccords sont contrôlés avant export. Le corpus indépendant, les exports natifs et les deux sources de la deuxième pièce réelle ont été réimportés dans FreeCAD ; les mesures et limites sont consignées dans [VALIDATION](docs/VALIDATION.md). FabSTEP contrôle le solide réimporté et fournit un audit échantillonné de la fidélité en modes analytiques. Le résultat est un STEP BRep sans historique d'esquisses. L’import 3MF est limité au format Core : les références multi-modèles de l’extension Production, courantes dans les fichiers de slicers, ne sont pas prises en charge. La compatibilité avec les 3MF en général n’est pas promise.
+<p align="center">
+  <strong>Convert STL and 3MF meshes into certified, editable BRep STEP solids — locally, deterministically, and without guesswork.</strong>
+</p>
 
-## Développement après la v1
+<p align="center">
+  <strong>English</strong> · <a href="README.fr.md">Français</a>
+</p>
 
-Le mode **Automatique** reconnaît aussi des poulies à gorge torique, des arbres à retour axial cubique et des extrusions à flanc courbe, dont un profilé percé. Une coupe oblique peut conserver les faces cylindriques, coniques, sphériques ou toriques comprises dans les domaines vérifiés. Les [témoins et limites de reconnaissance](docs/adr/0048-certified-surface-domains.md) décrivent les cas pris en charge.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg" alt="License: GPL-3.0-or-later" /></a>
+  <img src="https://img.shields.io/badge/engine-Rust%20%2B%20OpenCASCADE%207.9-orange.svg" alt="Rust + OpenCASCADE 7.9" />
+  <img src="https://img.shields.io/badge/desktop-Tauri%202%20%2B%20Svelte%205-purple.svg" alt="Tauri 2 + Svelte 5" />
+  <img src="https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-black.svg" alt="macOS Apple Silicon" />
+</p>
 
-Pour reconstruire une bosse ou une selle sur un socle rectangulaire aligné sur XY, ouvrir **Avancé**, choisir **Relief sur base rectangulaire** puis lancer la reconstruction. Le toit bicubique et ses quatre limites sont contrôlés à partir des triangles. Deux pièces d’essai et la commande de validation figurent dans [le corpus des reliefs](fixtures/height_patch/README.md).
+---
 
-En **Automatique**, FabSTEP peut retrouver le trou traversant d’une plaque inclinée lorsque les deux ouvertures, la paroi cylindrique et les six faces extérieures sont vérifiables. Un clic sur la paroi du STEP sélectionne le cylindre entier. Un [STL de démonstration](fixtures/inclined_plate_hole.stl) permet de tester un perçage de Ø6 mm.
+**FabSTEP** is a local desktop and CLI tool in the **FabApps** family that reconstructs **true analytical CAD geometry** (STEP BRep solids and 1:1 DXF profiles) from faceted **STL** and **3MF Core** meshes.
 
-La [roadmap détaillée](ROADMAP.md) et la [recherche technique](docs/POST_V1_RESEARCH.md) organisent les extensions de révolution, arrondis et géométries complexes. Le build de développement ajoute une première combinaison en **Surfaces arrondies** : un cône complet et un cylindre ouvert distincts, tous deux prouvés, même sans sphère ni tore. Le corpus associe une fraisure et une encoche latérale. Le développement ajoute aussi les zones sphériques comprises entre deux anneaux circulaires plans source, sans pôle, convexes ou concaves lorsque toutes les parois nécessaires sont présentes ; voir [ADR-0014](docs/adr/0014-spherical-zones.md). Les modes Cônes et cylindres et Surfaces arrondies ajoutent aussi les chaînes de trois à huit cônes de pentes alternées, séparés par des portées cylindriques résolues avec des anneaux source intérieurs. Voir [ADR-0013](docs/adr/0013-cone-open-cylinder-combinations.md), [ADR-0015](docs/adr/0015-resolved-conical-chains.md) et les résultats dans [VALIDATION](docs/VALIDATION.md). Le paquet 1.0.0 décrit ci-dessous reste celui déjà qualifié ; cette extension n’y est pas incorporée.
+Unlike typical mesh-to-STEP converters that either dump thousands of flat triangles or silently deform your part with heuristic smoothing, FabSTEP **proves every reconstructed surface mathematically**, **reimports every STEP file before letting you export it**, and **never invents geometry that is not in the mesh**.
 
-Le build de développement reconnaît aussi, en **Automatique** et **Surfaces arrondies**, un raccord sur un tour complet **plan–tore–cône–cylindre–plan**, ainsi que son reflet. Le tore est tangent au plan et au cône ; son arc méridien est inférieur à 90°. Les frontières doivent être des anneaux présents dans le maillage et leur interprétation doit être unique. Les bandes droites peuvent avoir seulement deux anneaux si leur couverture et leur écart sont prouvés. Cette première tranche est complétée par les profils décrits ci-dessous. Voir [ADR-0035](docs/adr/0035-torus-cone-cylinder-chain.md) et [R-075](roadmap/items/R-075-reconstruire-un-raccord-tore-cone-cylindre.md).
+> **Status:** v1.0 mechanical release accepted; v1 feature freeze completed on `audit/gel-v1` (with macOS Apple Silicon local bundle). See [STATUS.md](STATUS.md) and [ROADMAP.md](ROADMAP.md) for current verification status and upcoming distribution milestones (`R-018` notarization, `R-019` Windows/Linux).
 
-Le développement ajoute les chaînes de **deux à huit cônes adjacents ou mêlés à des portées cylindriques**, lorsque chaque portion possède des témoins source et que les ruptures sont uniques. Auto et Surfaces reconnaissent aussi un quart de tore suivi de deux portées et deux cônes opposés, ainsi qu’un **arc torique de plus de 90° suivi de son cône tangent**, sans retour axial. Les profils libres et le guidage Tore avec voisin conique restent distincts. Voir [ADR-0037](docs/adr/0037-measured-revolution-chains.md). Le corpus de bac ouvert est étendu à un perçage traversant le fond, avec conservation du vide et des parois arrondies. Auto reconnaît aussi un congé de fond de poche entre deux parois d’arrêt perpendiculaires à son axe, même si les arcs des deux extrémités sont découpés en nombres de segments différents. Une poche à un seul congé peut aussi finir sur une paroi inclinée. Dans ce cas, la butée exportée en DXF porte un arc elliptique. Deux congés adjacents de même rayon peuvent aussi se rejoindre dans un coin à 90°. Le STEP conserve alors deux faces cylindriques et leur arête elliptique commune. Pour deux rayons différents dans une poche rectangulaire à butées droites, il conserve leur jonction non plane et l’arc qui prolonge le grand congé sur la paroi voisine. Voir la [poche à deux rayons](fixtures/unequal_pocket/README.md). Deux congés opposés de rayons différents peuvent également partager le même fond plat. Le profil de chaque butée conserve alors deux arcs de cercle. Voir les [congés adjacents](fixtures/adjacent_pocket/README.md), le [témoin à deux congés opposés](fixtures/opposed_pocket/README.md), les [poches à butées droites](fixtures/pocket_fillet/README.md) et les [poches à une butée oblique](fixtures/oblique_pocket/README.md).
+---
 
-Une première reconstruction de **coin local à trois arrondis** relie trois quarts de cylindre et une portion sphérique de même rayon sur un bloc orthogonal, en Auto et Surfaces. Les six plans, tangences et limites doivent être présents et prouvés dans le STL ; aucune propagation d’arrondi n’est inventée. Cette reconnaissance locale est bornée à 32 000 triangles et 8 192 régions planes avec six supports dominants. Les corrections guidées de ce groupe couplé restent refusées. Voir [ADR-0036](docs/adr/0036-local-trimmed-blends.md) et [R-081](roadmap/items/R-081-d2-reconstruire-un-coin-local-a-trois-arrondis.md).
+## Why FabSTEP?
 
-Le premier **arrondi à rayon variable linéaire** est également reconnu en Auto et Surfaces : une arête convexe entre deux plans orthogonaux, avec deux plans terminaux présents. Le résultat est un cône incliné limité par deux arcs elliptiques exacts et deux génératrices tangentes. Les rayons croissants ou décroissants sont admis ; les lois non linéaires et les raccords multiples restent hors de ce domaine borné. Les faces terminales peuvent être exportées en DXF avec leurs ellipses. Voir [R-082](roadmap/items/R-082-g1-reconstruire-un-raccord-a-rayon-lineaire.md).
+3D-printed and shared CAD models (Printables, MakerWorld, Thingiverse, legacy exports) are almost always distributed as **STL or 3MF triangle meshes**. Opening a faceted mesh in Fusion, FreeCAD, SolidWorks, or Onshape makes even trivial edits—resizing a bolt hole, adding a chamfer, taking a clean cross-section—painful or impossible.
 
-Le développement reconnaît aussi **deux perçages traversants centrés et orthogonaux** dans un bloc, avec quatre entrées circulaires complètes. Le petit rayon peut atteindre près des deux tiers du grand si l’incertitude de mesure laisse une marge sous ce seuil. Un bloc incliné avant son maillage en STL binaire peut aussi être reconstruit aux réglages par défaut. Auto et Surfaces reconstruisent six plans et trois parois cylindriques ; leurs courbes communes sont contrôlées après réimport STEP. Les trous décentrés, obliques, tangents ou triples et la correction locale de ce groupe restent hors domaine. Voir [ADR-0038](docs/adr/0038-centered-cross-drill-domains.md) et le [corpus de perçages sécants](fixtures/cross_drill/README.md).
+FabSTEP bridges that gap with four core principles:
 
-Le développement ajoute une première **révolution à profil cubique ajusté** : un tour complet autour d’un axe, deux disques plans et un rayon positif variant avec la hauteur. Les anneaux source, la couverture de la paroi et son écart sont vérifiés ; l’ajustement est signalé et la face est nommée Révolution. Les formes historiques gardent la priorité. Les profils à plusieurs segments, les pôles et la correction locale de cette paroi restent hors périmètre. Voir [ADR-0039](docs/adr/0039-bounded-cubic-revolution.md) et [R-084](roadmap/items/R-084-c2b-reconstruire-une-revolution-a-profil-cubique.md).
+1. **Real analytical surfaces, not disguised facets.** Planes, cylinders, cones, spheres, tori, fillets, grooves, revolved curves, and curved extrusions are reconstructed as native CAD surfaces you can select, dimension, and edit in any CAD package.
+2. **Zero-trust certification.** Every generated STEP is written, **reimported from disk through OpenCASCADE 7.9**, and checked for watertightness, BRep validity, self-intersection, volume, bounding box, and bidirectional distance to the source mesh. An open shell or failed check is *never* presented as a valid export.
+3. **Nothing invented, nothing hidden.** FabSTEP never fabricates a missing hole bottom, never guesses an STL unit, and never silently relaxes tolerances. Uncertain zones stay cleanly faceted until you choose to guide them.
+4. **100% local, deterministic, open source.** No cloud upload, no subscription, no black-box AI guesses—identical inputs produce identical results, under `GPL-3.0-or-later`.
 
-Auto et Surfaces reconnaissent aussi le congé torique extérieur d’un secteur de couronne fermé par deux plans radiaux. Le résultat comprend quatre plans, deux cylindres et une face sélectionnable comme **Tore**. Un modèle de référence est disponible dans [le corpus des secteurs toriques](fixtures/torus_sectors/README.md).
+---
 
+## Key Features
 
-### Reconstruire et corriger dans le build de développement
+### Automatic Analytical Reconstruction
+In **Auto** mode, FabSTEP analyzes the mesh and reconstructs every provable surface family while keeping ambiguous regions safely faceted:
 
-Pour corriger un dôme, cliquer sur une de ses faces STEP, choisir **Sphère**, puis **Essayer**. FabSTEP recherche la surface jusqu’à ses limites planes et indique les triangles concernés. Cette action couvre également une sphère entière.
+- **Planes** — including recovery of planes fragmented by `f32` STL quantization, using large-area seeding and read-only Taubin normal stabilization without moving source vertices.
+- **Cylinders & Open Arcs** — through-holes, blind holes with flat bottoms, bosses, open notches, narrow cylindrical bands (`15°–30°`), inclined plate holes, and shafts with transversal bores.
+- **Cones & Conical Chains** — chamfers, countersinks, frustums, alternating or same-sign chains of 2 to 8 cones (with or without cylindrical lands), and open cylinder–chamfer transitions.
+- **Spheres & Tori** — full spheres, spherical caps, pole-less spherical zones, cut spherical octants, full tori, toroidal fillets (including arcs > 90°), pulley grooves, and oblique toroidal/conical/spherical cuts.
+- **Advanced Mechanical Features** — intersecting cross-drills (orthogonal, offset, or oblique), variable-radius linear fillets, pocket fillets (stops, corners, U-chains, closed loops, unequal radii), 3-radius unequal corners, curved-edge rolling-bore lips, cubic and returning-axis revolutions, freeform cubic extrusions, uniform rounded boxes, and explicit bicubic height patches.
 
-**Ouvrir STL / 3MF** affiche le maillage. **Reconstruire le STEP**, dans l’inspecteur, lance **Automatique** : le moteur recherche les familles compatibles, conserve les régions prouvées et garde les zones incertaines en facettes. Il ne modifie pas les tolérances en silence. Sur un STL quantifié, un second essai peut réunir les fragments d’un plan en conservant les plis et les sommets source. Le document entier doit passer les contrôles source, solide réimporté, dimensions, volume et fidélité avant export. Un défaut du maillage, des corps en contact ou une limite de calcul dépassée restent bloquants.
+### Interactive 3D Workshop
+When a complex part needs fine-grained control, the desktop workshop gives you direct metrological tools:
 
-La vue passe au **Résultat STEP** après conversion. **Double-cliquer sur une face** sélectionne sa paroi prouvée, sans propager la sélection à tout le corps ; **Maj-clic** ajoute ou retire une face. En mode sélection STEP, **maintenir le clic gauche et glisser** ajoute les faces visibles survolées à la sélection ; repasser dessus ne les retire pas. Le bouton droit tourne la pièce, le bouton du milieu déplace la vue et la molette zoome. Sans paroi prouvée, la sélection reste limitée à une face ou un refus est expliqué. Les commandes de voisinage Agrandir/Réduire sont dans Avancé de la sélection. Le calcul de sélection est une lecture : il ne retire pas un export valide. Une demande active et la dernière demande en attente bornent les double-clics successifs.
+- **Exact Source ↔ STEP Provenance** — switch between **Source** and **STEP Result** views; double-click any STEP face to highlight its exact wall and trace the exact source triangles that produced it.
+- **Guided Local Refinement** — select a region (click, Shift-click, or click-and-drag paint) and test **Auto, Plane, Cylinder, Cone, Torus, or Sphere** locally without losing already-recognized surfaces, with full **Undo / Redo** session history.
+- **Similar Walls & Pattern Propagation** — after accepting a guided correction (for example, one mounting hole), FabSTEP finds geometrically analogous walls across the part, detects **linear and circular patterns** (such as bolt circles on a flange), previews them, and applies only those that pass full solid proof.
+- **3D Visual Clipping Box (*Box View*)** — slice visually through the Source or STEP model with draggable handles to inspect and select internal cavities without altering the geometry or export.
+- **3D Deviation Heatmap** — color the reconstructed STEP by sampled distance to the source mesh with a millimeter legend and per-face local maxima.
+- **Assisted Radial Tolerance Search** — automatically compares up to 7 radial fit tolerances around the current setting, revalidating the entire document on each trial, so you can pick the cleanest proven fit on quantized real-world files.
 
-Dans la barre contextuelle, choisir **Auto, Plan, Cylindre, Cône ou Tore**, puis **Essayer**. En mode Automatique, la correction conserve les régions reconnues indépendantes, sans étape de retour général aux facettes. Les indications peuvent être retirées et recalculées ; toute mutation revalide le document entier. Un refus conserve la session acceptée mais ne republie pas l’ancien export. Les faces du résultat restent colorées et délimitées par leurs contours.
+### Exact 1:1 DXF Export
+- **Planar Face Profiles** — select any planar STEP face and export its exact 2D profile in millimeters at 1:1 scale (lines, arcs, circles, and exact ellipses—never polygonal approximations).
+- **3D STEP Cross-Sections** — position or tilt a section plane interactively in 3D and export exact 1:1 CAD sections (including oblique cylinder ellipses).
+- **Direct Source Mesh Sections** — slice validated source meshes directly to polygonal DXF even if analytical STEP reconstruction is not needed.
 
-Dans la liste des indications, choisir une autre famille dans le menu de la ligne pour la tester sur la même zone. **Annuler** et **Rétablir** recalculent le solide avec les indications de l’état choisi. Une propagation à plusieurs faces compte pour une seule étape. L’historique appartient au fichier et aux réglages de la session. Après un refus, l’export redevient disponible dès qu’un nouveau calcul a produit un solide vérifié.
+### Multi-Body 3MF Core & Dense STL Support
+- **Multi-Body Preservation** — up to **32 separate bodies** in STL or **3MF Core**, preserving declared units and 3D placements in multi-root STEP output. Contacts, overlaps, or nested bodies are explicitly refused (never silently merged or partially exported).
+- **Opt-In Dense STL Worker** — ordinary mode handles up to **100,000 triangles**; binary STLs from **100,001 to 600,000 triangles** can be processed on explicit consent via an isolated `fabstep-worker` subprocess with instant cancellation and strict resource caps (4 GiB sampled RAM / 30 min timeout).
 
-**Tore** couvre les raccords circulaires pris en charge et leur portée cylindrique nécessaire ; le double-clic sélectionne ce groupe. Les chaînes avec voisin conique ne sont pas admises dans ce premier guidage torique. Un tore entier est également reconnu. **Plan** fusionne une sélection polygonale contiguë sans déplacer les coordonnées source ; un faible relief peut être simplifié dans la tolérance et son résidu reste signalé. Les frontières courbes de la fusion plane sont refusées.
+---
 
-**Avancé** conserve les stratégies historiques (facettes, cylindres, cônes et surfaces arrondies), les tolérances et la recherche de paramètres. La première ouverture du nouveau parcours sélectionne Auto tout en conservant unité et tolérances enregistrées ; les choix explicites suivants restent mémorisés. Les anciens résultats sans provenance exacte proposent encore une préparation explicite vers les facettes. **Détails techniques** rassemble les diagnostics de routine, sans cacher les erreurs ni les avertissements géométriques.
+## Measured Precision & Real-World Benchmarks
 
-Limites : Auto ne reconnaît pas les surfaces libres arbitraires ; certains arcs ouverts partageant des contours ambigus restent facettisés par prudence. Le reconnaisseur spécifique des boîtiers arrondis reste dans la stratégie avancée Surfaces arrondies : son modèle dédié n’entre pas encore dans la correction locale. Voir [ADR-0029](docs/adr/0029-automatic-local-reconstruction.md), [R-057](roadmap/items/R-057-ux5-reconstruction-automatique-et-selection-des.md) et [VALIDATION](docs/VALIDATION.md).
+Every figure below is taken directly from automated runs and independent FreeCAD reimports recorded in [docs/VALIDATION.md](docs/VALIDATION.md):
 
-### Essayer un gros STL — build de développement
+| Benchmark Part | Source Mesh | Reconstructed STEP | Volume / Reference | Bidirectional Fidelity (Source ↔ STEP) |
+| :--- | ---: | :--- | :--- | :--- |
+| **Multi-family mechanical part** (cone + sphere + torus) | 8,211 faceted faces (STL) | **19 analytical faces** (12 planes, 4 cyl, 1 cone, 1 sphere, 1 torus) | `54,445.2780 mm³` vs `54,445.2780 mm³` ref CAD (`< 0.0001 mm³` diff) | Verified in FreeCAD, tangencies preserved |
+| **Cross-drilled block + longitudinal fillet** | 1,878 triangles | **10 faces** (6 planes, 4 cylinders) | `5,733.4661 mm³` | `0.0036 / 0.0037 mm` |
+| **Oblique toroidal lip (15° cut)** | 2,275 triangles | **5 faces** (3 planes, 1 cylinder, 1 torus) | `1,273.7067 mm³` | `≤ 0.0379 / 0.0397 mm` (budget `0.05 mm`) |
+| **Drilled shaft (Ø20 / Ø4.8 offset)** | 644 triangles | **4 faces** (2 planes, 2 cylinders) | `4,686.7712 mm³` | `0.0090 / 0.0090 mm` |
+| **Stepped shaft with returning cubic revolution** | 14,178 triangles | **5 faces** (2 planes, 2 cyl, 1 revolution) | `2,541.1558 mm³` | Within `0.05 mm` budget |
+| **3-radius unequal corner block** (2 / 2.5 / 3 mm) | 2 densities | **10 faces** (6 planes, 3 cyl, 1 blend patch) | `3,144.3793 mm³` | `≤ 0.0205 mm` |
+| **Rolling-bore shaft (filleted cross-hole lip)** | 1,770 triangles | **5 faces** (2 planes, 2 cyl, 1 B-spline lip) | `5,167.0289 mm³` | `0.0311 mm` |
+| **Dense toroidal ramp (isolated worker)** | 194,694 triangles | **442 faces** (1 torus + merged planes + collars) | `93.5368 mm³` | `0.0047 / 0.0047 mm` |
 
-Un STL binaire de 100 001 à 600 000 triangles affiche un avertissement et son compte exact. **Essayer quand même** lance un processus séparé ; **Annuler** l’arrête et conserve le fichier chargé. L’accord est remis à zéro à chaque nouveau fichier. La limite de 64 Mio demeure et aucune simplification automatique n’est effectuée. Le processus est également arrêté après 30 minutes ou dès que la mémoire résidente ou l’empreinte physique macOS observée atteint 4 Gio. Ces mesures sont lues chaque seconde : ce seuil échantillonné ne constitue pas une limite matérielle du pic mémoire.
+FabSTEP is also continuously regression-tested on a reproducible **24-mesh public mechanical corpus** ([fixtures/recognition_corpus/baseline.json](fixtures/recognition_corpus/baseline.json)) and **1,100+ automated tests** across Rust, C++/OCCT, Tauri, TypeScript/Three.js, and Python.
 
-L’essai ne garantit pas la conversion : la validité géométrique, les budgets de travail et les plafonds du résultat restent obligatoires. En Automatique, le suivi source du résultat reste limité à 100 000 faces : un maillage admis à l’entrée peut donc être refusé si trop de surfaces restent facettisées. Ce refus indique le nombre de faces reconstruites, distinct du nombre de triangles importés. Dans cette première tranche, correction guidée, recherche de paramètres et coupe source sont indisponibles pour ces nouveaux fichiers denses. Les fonctions habituelles restent disponibles sous le seuil. Voir [ADR-0034](docs/adr/0034-isolated-large-stl-worker.md) et [R-067](roadmap/items/R-067-g1-gros-maillages-sur-accord-et-calcul-annulable.md).
+---
 
-En mode **Automatique**, le helper peut reconstruire des surfaces toriques à contour découpé sur un STL dense à un seul corps. La rampe de référence de 194 694 triangles donne un solide de 659 faces. Le helper contrôle les dimensions, le volume et l’écart au maillage après relecture du STEP. La correspondance nécessaire à la correction guidée dans le bureau reste limitée aux fichiers du mode ordinaire.
+## How It Works (Under the Hood)
 
-Le script `scripts/build-macos-dev.sh` construit séparément le bureau de développement et son helper optimisé (profil release), puis copie les deux dans `artifacts/FabSTEP.app`. Ne pas activer `large-stl` sur le bureau ordinaire ni réunir leurs builds Cargo. Le paquet autonome v1 n’est pas modifié.
+FabSTEP separates pure geometry (`fabstep-core`, zero I/O, deterministic `f64` math) from the native C++ CAD kernel (`fabstep-cad`, OpenCASCADE 7.9) and the independent verification engine (`fabstep-verify`):
 
-### Exporter une face en DXF — build de développement
+```mermaid
+flowchart LR
+    A["STL / 3MF Core<br/>(Triangle Soup)"] --> B["1. Weld & Sanitize<br/>(Closed 2-Manifold)"]
+    B --> C["2. Planar Segmentation<br/>(Area Seeds + Taubin Normals)"]
+    C --> D["3. Analytical Recognition<br/>(Rings, Normals, Bounds)"]
+    D --> E["4. Region Composition<br/>(Shared Verified Edges)"]
+    E --> F["5. Native BRep Build<br/>(Isolated OpenCASCADE 7.9)"]
+    F --> G["6. Mandatory STEP Reimport<br/>(BRepCheck + BVH Fidelity)"]
+    G -->|"All Checks Pass"| H["Certified STEP & 1:1 DXF"]
+    G -->|"Any Defect"| I["Explicit Refusal<br/>(Stable Error Code)"]
+```
 
-Dans **Résultat STEP**, sélectionner une seule face plane : son profil 2D apparaît dans l’inspecteur. Vérifier les dimensions, les trous et le repère, puis choisir **Exporter DXF**. Les contours natifs sont exportés en millimètres à l’échelle 1:1, avec leurs lignes, arcs, cercles et ellipses exactes. Les faces courbes et les contours contenant d’autres types de courbes ne sont pas projetés ou approximés. Un changement de sélection ou de résultat invalide le profil en cours.
+### 1. Topological Welding & Strict Sanitization
+An STL file is just an unordered list of triangles with no connectivity and no declared unit. FabSTEP converts coordinates to `f64` millimeters using your explicit unit (or the unit declared in 3MF Core), welds matching vertices within `1e-6 mm` (counting every single displacement), splits disconnected bodies, checks that every body is a closed, orientable 2-manifold, and verifies that separate bodies never touch, overlap, or nest inside each other.
 
-Le DXF utilise le plan XY local affiché ; il ne conserve pas le placement 3D du solide. La coupe selon un plan du STEP est disponible dans le build de développement, comme décrit ci-dessous. Voir [ADR-0024](docs/adr/0024-planar-face-dxf.md) et les validations dans [VALIDATION](docs/VALIDATION.md).
+### 2. Noise-Resistant Planar Segmentation
+Real-world binary STLs store coordinates in 32-bit floating point (`f32`), which introduces tiny stair-stepping quantization noise that can shatter a single flat face into dozens of micro-triangles. FabSTEP grows planar regions starting from the largest-area triangles first and—when fragmentation is detected—computes **read-only Taubin-smoothed normals** on a temporary copy to stabilize region grouping *without ever moving a single source vertex*.
 
-### Couper le STEP par un plan — build de développement
+### 3. Multi-Family Analytical Recognition & Composed Error Bounds
+Instead of blindly fitting curves to point clouds, FabSTEP extracts **structural geometric witnesses** from the mesh:
+- **Boundary rings & cross-sections** reveal coaxial cylinders, cones, chains of chamfers, and revolved profiles (circular, toroidal, or cubic).
+- **Area-weighted normal fields** (Gaussian sphere analysis) discover narrow cylindrical/conical/spherical bands, extrusion directions, and linear/circular hole patterns even when complete rings are interrupted.
+- **Exact composed bounds** — for every candidate surface, FabSTEP computes an upper bound that adds weld displacement, radial fit residual, and **chord sagitta** (the geometric distance between a flat mesh triangle and the curved analytical surface it approximates). If the composed bound exceeds the document budget (default `0.05 mm`), the candidate is rejected.
 
-Dans **Résultat STEP**, ouvrir **Coupe du STEP**, choisir XY/XZ/YZ ou le plan d’une face plane sélectionnée, puis régler le décalage et les corps concernés. Dans la vue 3D, **Déplacer** affiche une flèche pour translater le plan selon sa normale ; **Tourner** affiche deux anneaux pour l’incliner autour du centre de la pièce projeté sur le plan. Le décalage numérique reste disponible pour un réglage précis. Le profil est recalculé au relâchement ; Échap annule le geste. Choisir XY/XZ/YZ ou une face réinitialise l’orientation. Le profil calculé se prévisualise en 2D et s’exporte en DXF, en mm à l’échelle 1:1. Le solide reste intact.
+### 4. Safe Composition & Local Ownership
+When multiple geometric features coexist on the same part (for example, intersecting drill holes alongside an external fillet, or toroidal fillets bordering merged planes), FabSTEP tracks **strict triangle ownership** and **verified shared edges** in a region adjacency structure. Conflicting claims are resolved deterministically—or fall back cleanly to facets—so two surfaces never double-claim or tear the solid.
 
-Un corps non traversé est indiqué vide. Une coupe entièrement vide ne s’exporte pas ; un refus sur un corps choisi bloque tout l’export. Les coupes coplanaires, tangentes ou ambiguës, les splines et les autres courbes non prises en charge sont refusées explicitement. Certains refus sont conservateurs, notamment aux raccords entre faces et aux niveaux critiques de surfaces support tronquées et pour les plans passant par le sommet support d’un cône. Voir [ADR-0025](docs/adr/0025-step-section-dxf.md). Les coupes inclinées de cylindres prennent en charge les ellipses complètes ou tronquées, sans approximation polygonale. Les coutures périodiques internes prouvées ne bloquent plus une coupe régulière. La coupe directe du maillage source est décrite ci-dessous.
+### 5. Isolated Native BRep Construction
+Only `fabstep-cad` talks to C++ and **OpenCASCADE 7.9**. Analytical parameters and verified boundary curves cross a strict C FFI boundary, where OCCT builds exact surfaces (`Plane`, `Cylinder`, `Cone`, `Sphere`, `Torus`, `SurfaceOfRevolution`, `SurfaceOfLinearExtrusion`, rational B-splines), sews them into a watertight BRep solid, and checks 3D curves against surface p-curves.
 
-### Couper le maillage source — build de développement
+### 6. Mandatory STEP Reimport & Bidirectional BVH Fidelity Audit
+FabSTEP never trusts a freshly constructed solid until it survives round-trip serialization:
+1. The solid is exported to STEP bytes.
+2. Those exact STEP bytes are **reimported from scratch** through OCCT.
+3. FabSTEP verifies topological closure, `BRepCheck`, self-intersections, exact face count, volume, bounding box, and face-to-source provenance.
+4. `fabstep-verify` tessellates the reimported STEP and measures **bidirectional sampled distances** (`Source → STEP` and `STEP → Source`) using a Morton-ordered Bounding Volume Hierarchy (BVH). Only if every check passes does **Export STEP** become available.
 
-Dans **Source**, ouvrir **Coupe du maillage**. L’outil prépare et valide les corps source, puis permet de déplacer ou tourner le plan, choisir les corps et exporter leur section polygonale en DXF 1:1, en millimètres. Il reste accessible après un échec de reconnaissance STEP, dès que le traitement est terminé. Les corps et les unités proviennent de la préparation native ; une source ouverte ou des corps en contact, imbriqués ou chevauchants sont refusés sans export partiel.
+---
 
-Les segments suivent les triangles du maillage préparé selon le soudage courant ; aucune courbe n’est reconstruite. **Prétraitement de la source** rassemble les nombres de sommets soudés et les diagnostics d’orientation. Le STEP existant reste intact. Les passages réguliers par un sommet ou une arête sont pris en charge ; les faces coplanaires, tangences et cas numériquement ambigus restent refusés. Le nom proposé se termine par `-mesh-section.dxf` pour distinguer cette sortie de la section STEP. Voir [ADR-0026](docs/adr/0026-source-mesh-section-dxf.md).
+## Honest Scope & Limitations
 
-## Essayer sur ce Mac
+- **BRep solid, not parametric history:** A STEP file contains exact mathematical surfaces and topology, not an editable CAD sketch/feature tree.
+- **Mechanical meshes, not noisy organic 3D scans:** FabSTEP targets closed CAD-origin meshes (STL / 3MF Core). Open shells, self-intersecting meshes, and noisy photogrammetry scans are refused explicitly rather than silently patched.
+- **3MF Core only:** Multi-model references from the 3MF Production extension (common in some slicer project files) are explicitly refused.
+- **Platform:** Native builds are currently qualified on **macOS Apple Silicon (macOS 26+, OCCT 7.9.x)** with ad-hoc signing. Developer ID notarization (`R-018`) and Windows/Linux packages (`R-019`) are tracked in [ROADMAP.md](ROADMAP.md).
 
-Ouvrir le paquet autonome qualifié indiqué ci-dessous, puis **Charger le cube exemple** ou **Ouvrir STL / 3MF**. Choisir l’unité STL, absente du fichier ; pour 3MF, l’unité déclarée ou celle par défaut du format est indiquée et verrouillée. Utiliser **Exporter STEP** lorsque le résultat est validé. Le cube exemple mesure 20 mm et produit six faces. **Charger le cylindre exemple** sélectionne le mode Cylindres et produit trois faces, dont une cylindrique. **Charger la pièce mixte** montre un bossage et un trou borgne, avec huit plans, deux cylindres et les distances échantillonnées dans les deux sens. **Charger le cylindre chanfreiné** sélectionne le nouveau mode avec un exemple synthétique. **Charger le congé torique** sélectionne le mode Surfaces arrondies sur un exemple synthétique. **Charger les deux cubes 3MF** illustre deux corps placés séparément.
+---
 
-Pendant le traitement, un indicateur animé affiche la phase réelle (attente, lecture, conversion) et le temps écoulé. La barre est indéterminée : aucun pourcentage ni délai restant n’est estimé. L’aperçu reste manipulable et l’indicateur disparaît lorsque la demande courante réussit ou échoue.
+## Getting Started
 
-Le paquet autonome est disponible dans `artifacts/release/1.0.0/FabSTEP.app` pour Apple Silicon sous macOS 26 ou ultérieur. Il embarque le noyau CAO et ses bibliothèques ; les conversions de contrôle ont été exécutées avec les lectures Homebrew bloquées. Le bundle `artifacts/FabSTEP.app` reste un build de développement distinct. Voir [construction et qualification du paquet](docs/RELEASE.md). `artifacts/` est généré et exclu de Git.
+### Prerequisites
+- **Rust** `1.88+`
+- **C++17** compiler (Xcode Command Line Tools on macOS)
+- **Node.js** compatible with Vite 8 (validated with Node 26)
+- **OpenCASCADE 7.9.x** SDK (`brew install opencascade` on macOS, or set `OCCT_ROOT` to a prefix containing `include/opencascade/` and `lib/`)
 
-Les quatre pièces du [corpus mécanique indépendant](fixtures/complex_v1/README.md) ont été converties puis réimportées dans FreeCAD : perçages sur trois axes, double chanfrein, carter mêlant cinq familles de surfaces et boîtier arrondi. Les extensions de développement incluent deux perçages orthogonaux décentrés dans le domaine de R-096. Les perçages obliques entre eux et les lois générales de rayon variable restent ouverts. L’aperçu et l’export du boîtier ont été confirmés par l’utilisateur sur la candidate ; la version finale conserve le même code. Les essais automatisés et manuels sont distingués dans la validation.
-
-## Ouvrir et reconstruire
-
-Dans le build de développement, ouvrir un STL ou 3MF affiche d’abord le maillage source. Vérifier l’unité du STL puis cliquer sur **Reconstruire le STEP** dans le panneau de droite. Le résultat validé s’affiche ensuite automatiquement. Chaque nouveau fichier attend son propre lancement ; après ce premier calcul, les modifications de réglages conservent leur recalcul habituel. Le suivi affiche les étapes réelles du moteur, le corps en cours et la durée écoulée. Les opérations natives sans mesure interne gardent un indicateur d’activité ; aucun pourcentage de temps restant n’est estimé.
-
-Dans **Résultat STEP**, choisir **Écart au maillage** pour colorer le solide selon la distance entre chaque sommet affiché et le maillage source. La légende indique en millimètres le minimum, le maximum et le seuil du document. Cliquer sur une face affiche son maximum local. La mesure est disponible sur les documents ordinaires. Pour examiner une paroi intérieure, activer **Boîte de découpe** et déplacer une poignée. Le STEP et les profils DXF s’exportent en entier.
-
-Un STL refusé pour dépassement du plafond affiche son nombre exact de triangles et la limite de 100 000 (binaire de longueur cohérente ou ASCII syntaxiquement valide). Ce plafond est une protection de l’application pour borner stockage et travail avant reconnaissance, construction CAO et contrôles ; ce n’est pas une limite du format STEP ni une garantie de durée pour tout modèle inférieur au plafond. La limite reste inchangée.
-
-## Construire
-
-Prérequis : Rust 1.88+, compilateur C++17, Node compatible avec Vite 8 et SDK OpenCASCADE 7.9. La construction contrôle les macros de version du SDK sélectionné et refuse les familles autres que 7.9.x, sans imposer un correctif exact. Le poste de validation utilise Rust 1.88, Node 26 et OCCT 7.9.3 sur macOS Apple Silicon.
+### Build & Run the Desktop App (macOS)
 
 ```sh
 brew install opencascade
@@ -103,87 +161,75 @@ npm --prefix ui ci
 sh scripts/build-macos-dev.sh
 ```
 
-Le script produit `artifacts/FabSTEP.app` en build de développement. Les bibliothèques Homebrew de ce poste ciblent macOS 26 ; aucune compatibilité avec des versions antérieures, Windows ou Linux n'est encore certifiée. Sur un autre emplacement de SDK, définir `OCCT_ROOT` vers un dossier contenant `include/opencascade/` et `lib/`.
+This builds both the desktop app and the isolated `fabstep-worker` release helper into `artifacts/FabSTEP.app`.
 
-Pour travailler sur l'interface et le bureau ensemble :
+To run the Svelte 5 frontend and Tauri desktop app together in development mode (port **5181**):
 
 ```sh
 npm --prefix ui run desktop:dev
 ```
 
-Le port de développement est **5181**, distinct de FabWeave et FabTrace. L’interface ouverte seule dans le navigateur peut prévisualiser un STL ; l’aperçu 3MF et la conversion nécessitent le moteur natif Tauri.
+> Note: Opening the UI alone in a browser only previews STL files; 3MF preview and native STEP/DXF reconstruction require the Tauri desktop runtime.
 
-## Ligne de commande
+### Command-Line Interface (`fabstep-cli`)
 
 ```sh
+# Inspect mesh topology and components (JSON report)
 cargo run -p fabstep-cli -- check fixtures/cube.stl --unit mm --json
-cargo run -p fabstep-cli -- convert fixtures/rectangular_hole.stl -o /tmp/fabstep-hole.step --unit mm
-cargo run -p fabstep-cli -- convert fixtures/m2_plate_hole.stl -o /tmp/fabstep-round-hole.step --mode cylinders --max-deviation 0.05
-cargo run -p fabstep-cli -- convert fixtures/m2b_boss_blind.stl -o /tmp/fabstep-mixed.step --mode cylinders --json
-cargo run -p fabstep-cli -- convert fixtures/m2c_open_arc.stl -o /tmp/fabstep-open-arc.step --mode cylinders --json
-cargo run -p fabstep-cli -- convert fixtures/m4_chamfered_cylinder.stl -o /tmp/fabstep-chamfer.step --mode primitives --json
-cargo run -p fabstep-cli -- convert fixtures/m5b_concave_cap.stl -o /tmp/fabstep-cavity.step --mode surfaces --json
-cargo run -p fabstep-cli -- convert fixtures/m5c_icosphere.stl -o /tmp/fabstep-sphere.step --mode surfaces --json
-cargo run -p fabstep-cli -- convert fixtures/m5d_ring_torus.stl -o /tmp/fabstep-torus.step --mode surfaces --json
-cargo run -p fabstep-cli -- convert fixtures/m6a_rounded_box.stl -o /tmp/fabstep-rounded-box.step --mode surfaces --json
-cargo run -p fabstep-cli -- convert fixtures/m3_instances.3mf -o /tmp/fabstep-bodies.step --json
+
+# Automatic analytical reconstruction (recommended)
+cargo run -p fabstep-cli -- convert fixtures/inclined_plate_hole.stl -o /tmp/plate.step --unit mm --mode auto --json
+
+# Explicit modes (planar, cylinders, primitives, surfaces)
+cargo run -p fabstep-cli -- convert fixtures/m2b_boss_blind.stl -o /tmp/boss.step --mode cylinders --max-deviation 0.05
+cargo run -p fabstep-cli -- convert fixtures/m5d_ring_torus.stl -o /tmp/torus.step --mode surfaces --json
+
+# Multi-body 3MF Core (uses declared unit automatically)
+cargo run -p fabstep-cli -- convert fixtures/m3_instances.3mf -o /tmp/bodies.step --mode auto --json
 ```
 
-`check` analyse les composantes sans valider les solides CAO ni leur séparation spatiale. `convert` effectue le pipeline complet. `--force` autorise explicitement le remplacement d'une sortie existante ; un échec de conversion ne remplace pas le fichier. Les écritures passent par un fichier temporaire. `--weld` et `--plane` sont exprimés en millimètres, avec une valeur initiale de `0.000001`. `--unit` ne s’applique qu’au STL et est refusé pour 3MF : le document donne son unité, ou millimètre par défaut.
+Key CLI flags: `--mode <planar|cylinders|primitives|surfaces|auto>` (default `planar`), `--unit <mm|cm|m|in>` (STL only), `--fit <mm>` (default `0.00001`), `--max-deviation <mm>` (default `0.05`), `--weld <mm>` (default `0.000001`), `--plane <mm>` (default `0.000001`), `--force` (allow overwriting an existing file), `--json`.
 
-La CLI conserve son défaut historique `--mode planar`. `--mode auto` active la reconstruction automatique locale du bureau ; les modes explicites restent stricts et ne changent pas de contrat. Le mode planaire conserve les facettes des courbes. `--mode cylinders` cherche une extrusion complète et des cylindres locaux ; il privilégie le modèle local lorsqu’un arc ouvert y est prouvé. `--mode primitives` essaie les cônes et cylindres prouvés, puis la reconnaissance cylindrique historique uniquement en l’absence de candidat conique ; un candidat non prouvé ou un budget dépassé reste bloquant. Si aucune reconstruction n'est prouvée, le refus est explicite. `--mode surfaces` reconnaît ces portions arrondies ; les reconnaissances de boîtier arrondi, tore entier puis sphère entière sont essayées dans cet ordre uniquement si le parcours historique Surfaces → Primitives → Cylindres conclut à `recognition.unsupported`. Le mode Surfaces peut aussi prouver deux chanfreins opposés séparés par une portée cylindrique suffisamment longue. Un succès historique, une preuve échouée ou un budget dépassé reste prioritaire. `--fit` fixe la tolérance d'ajustement radial (défaut `0.00001` mm) et `--max-deviation` le budget de la borne composée (défaut `0.05` mm). Les modes analytiques interprètent des profils suffisamment circulaires en cercles et, en mode primitives, des bandes admissibles en cônes : le maillage ne contient pas l'intention de conception.
-
-## Précision des fichiers réels
-
-Les seuils initiaux restent inchangés. Dans **Avancé**, la **Tolérance radiale** limite le résidu radial d’ajustement des surfaces reconnues ; le **Budget d’écart** limite la borne composée, qui inclut notamment la flèche des cordes. Les modifier est un choix explicite, sans garantie de reconnaissance. L’inspecteur distingue le résidu radial mesuré, la borne composée, les distances échantillonnées et les **Réglages appliqués**. Les rapports JSON `check` et `convert` conservent ces réglages dans `settings`, séparément de l’unité source ; `precision.custom_tolerances` signale les seuils actifs personnalisés.
-
-Dans le build de développement, **Rechercher un réglage** compare jusqu'à sept tolérances radiales autour de la valeur courante. Chaque essai valide le document entier ; le mode, l'unité, le soudage, la planéité et le budget d'écart restent fixes. La proposition privilégie le moins de faces, puis le seuil le plus strict à égalité, parmi ces seuls essais. Les essais et leurs refus restent consultables. **Appliquer** change explicitement le seuil et relance une conversion complète ; la recherche seule ne remplace pas le STEP courant. Cette action est disponible dans les modes analytiques, hors session d'indications manuelles. Une tolérance plus large peut reconnaître moins de surfaces. Voir [ADR-0023](docs/adr/0023-assisted-radial-search.md).
-
-Le 3MF du premier fichier réel, réexporté par FreeCAD à six chiffres significatifs, est refusé au seuil radial initial de 0,00001 mm. Avec **0,0001 mm choisi manuellement**, il produit 14 faces (11 planes et 3 cylindriques), réimportées et validées dans FreeCAD. Le budget reste à 0,05 mm ; ce réglage n’est pas une recommandation universelle pour tout fichier arrondi.
-
-La seconde pièce réelle contient un cône, une sphère et un tore : ses STL et 3MF produisent chacun 19 faces (12 plans, 4 cylindres, 1 cône, 1 sphère et 1 tore), réimportées dans FreeCAD. Les volumes sont respectivement 54 445,27801611677 et 54 445,278047030406 mm³, contre 54 445,27799128441 mm³ pour le STEP de référence. Les dimensions sont 60,5 × 59,5 × 28 mm et les plans sont situés à Z = 0, 14, 18 et 28 mm ; la sphère a un rayon de 10 mm et le tore un rayon mineur de 2 mm. Les tangences ont été vérifiées dans FreeCAD. Le mode **Plans**, avec une planéité explicitement resserrée à **0,0000001 mm**, produit un solide fermé facettisé (8 211 faces pour le STL, 8 360 pour le 3MF), validé dans FreeCAD. Un seuil plus strict conserve davantage de petites faces ; aucune projection des sommets n’est ajoutée. Les différences avec le volume du STEP d’origine viennent déjà de son maillage. Voir les mesures et les limites dans la [validation](docs/VALIDATION.md) et la [comparaison locale du STL](artifacts/m5/verified/body2-surfaces-stl-comparison.json).
-
-## Périmètre et limites
-
-- Jusqu’à 32 corps distincts, chacun fermé et orientable ; les défauts topologiques sont refusés, sans fermeture inventée. Une inversion globale est corrigée et signalée. Tout contact, chevauchement ou imbrication entre corps est refusé à la source et au résultat, sans fusion ni export partiel.
-- Jusqu’à 64 Mio en entrée et 100 000 triangles au total après placements, avec budgets supplémentaires d’import et de validation des contours. Ce plafond n'est pas une promesse de performance sur toute géométrie.
-- Les déplacements dus au soudage sont comptés ; les sommets ne sont pas projetés sur les plans.
-- OCCT exige une planéité native d'environ `0.0000001` mm sur les contours des plans reconstruits ou conservés. La version STL binaire f32 d'une pièce mixte tournée peut fragmenter un bouchon à la reconnaissance. Une tolérance de segmentation plus large peut rétablir la reconnaissance sans rendre ses plans acceptables par OCCT.
-- La vue **Source** montre les maillages importés placés et les frontières reconnues ; elle reste disponible après un échec de conversion. La vue **Résultat STEP**, propre au build de développement, montre une tessellation des faces natives du résultat validé courant. Son chargement ou son refus ne modifie pas le STEP exportable. La correspondance exacte avec les triangles source est disponible en mode **Conserver les facettes** et sur les résultats cylindriques guidés, lorsque le suivi complet à travers la construction et le transfert STEP est vérifié. Elle reste indisponible pour les autres reconstructions analytiques ; aucun surlignage approximatif n’est présenté comme exact. Voir [ADR-0018](docs/adr/0018-planar-step-source-provenance.md).
-- Préférences persistées et annuler/rétablir des options ; la reprise du fichier source après fermeture reste à développer.
-- Les cylindres locaux complets ou partiels doivent être non intersectants et délimités par deux contours plans source correspondants. La reconnaissance exige un échantillonnage cyclique compatible, au moins 12 points par cercle et un intervalle angulaire maximal de 45°. Un fond borgne doit être plan et présent dans le STL. Les régions sans candidat restent planes ou facettisées. La recherche historique des arcs ouverts exige au moins huit points, un balayage de 30° à 330°, un pas maximal de 45°, deux contours plans correspondants et des raccords latéraux démontrés. Un profil en D est distingué par une unique ouverture angulaire d’au moins 90° et des autres pas d’au plus 45° ; le STL ne prouve pas l’intention de conception. Des arcs bruités ou très denses peuvent être refusés par les contrôles conservateurs ou le budget de travail. Les intersections de perçages et les congés généraux restent hors du périmètre prouvé.
-- Les cônes complets exigent des anneaux coaxiaux et une variation radiale affine prouvée ; une pointe doit être présente dans la source. Les cônes partiels ne sont admis que dans les raccords ouverts spécifiques du build de développement (ADR-0030). La limite historique d’une portion conique par chaîne est étendue au cas Cône–Cylindre–Cône : pentes opposées, portée et changements de pente résolus par rapport aux tolérances. Le build de développement admet deux à huit cônes de signes libres avec portées résolues et témoins intérieurs (ADR-0031), ainsi que deux cônes directement adjacents à rupture source unique prouvée (ADR-0032). Les successions plus générales sans portée restent hors périmètre. Les contrats historiques sont conservés ; voir [ADR-0015](docs/adr/0015-resolved-conical-chains.md). En mode Cônes et cylindres, dans un corps comportant un cône reconnu, les arcs cylindriques ouverts ne sont pas reconstruits analytiquement ; en absence de candidat conique, le repli historique peut les reconnaître. Les chanfreins droits restent des plans. Les congés généraux restent hors périmètre. Voir [ADR-0010](docs/adr/0010-resolved-revolutions.md).
-- Un corps sphérique complet est reconnu sans anneau ni pôle imposé dans la source, après contrôle du maillage fermé entier. Les régions planes significatives sont exclues. Des petites facettes ou des quadrilatères cosphériques restent indiscernables d’une tessellation sphérique : le maillage ne révèle pas l’intention de conception. Voir [ADR-0009](docs/adr/0009-complete-spheres.md).
-- Un tore entier doit être un corps annulaire fermé, sans auto-intersection, avec couverture des deux directions périodiques démontrée. Un boîtier arrondi doit comporter six appuis plans rectangulaires, douze quarts de cylindre et huit octants sphériques à rayon commun ; la reconnaissance ne déduit pas la forme de sa seule boîte englobante. Ce contrat ne couvre pas encore les boîtiers creux, les arrondis partiels ou des perçages ajoutés au boîtier. Voir [ADR-0011](docs/adr/0011-uniform-rounded-box.md).
-- Les calottes sphériques exigent un anneau circulaire plan, un pôle source et une courbure intérieure suffisamment échantillonnée et distincte d’un cône. Le build de développement reconnaît aussi les zones sphériques entre deux anneaux sans pôle, sous le contrat annulaire de l’[ADR-0014](docs/adr/0014-spherical-zones.md). Les formes dont la hauteur, la couverture ou la courbure ne sont pas résolues ne sont pas promues en sphères. Le bord hors équateur fait l’objet d’une borne supplémentaire ; voir [ADR-0008](docs/adr/0008-spherical-caps.md).
-- Les modes analytiques contrôlent toute la paroi et valident les triangles source avant de construire le solide. La borne composée additionne notamment soudage, résidus de reconnaissance et flèche des cordes. L'audit de fidélité compare le maillage source à une tessellation du STEP réimporté dans les deux sens. Les maxima mesurés portent sur des échantillons, avec la déflexion demandée indiquée dans le rapport.
-- Le moteur vérifie pour chaque corps le volume, les dimensions et la validité BRep. Un document multi-corps est exporté en STEP à racines multiples, pas en assemblage XCAF : les placements sont conservés, mais pas une hiérarchie d’assemblage paramétrique. Les noms de produits adaptés pour le noyau sont signalés ; les noms source restent dans le rapport.
-- M3 est une première prise en charge 3MF Core, pas une compatibilité générale avec les projets de slicers. Les extensions requises non prises en charge, dont les références Production multi-modèles, sont refusées. Les propriétés ou métadonnées facultatives ignorées sont signalées. Les contrôles automatisés et réimports indépendants sont consignés dans la [validation](docs/VALIDATION.md).
-
-Un premier STL réel utilisateur, conservé localement, comprend une encoche circulaire ouverte. En mode Cylindres, la conversion mesurée produit 14 faces : 11 planes et 3 cylindriques, pour un volume de 52 480,08325658634 mm³. Le STEP d’origine fourni ensuite, le STL et le STEP reconstruit situent tous le plan principal à Z = 18 mm depuis la base. Une arête intermédiaire du petit trou, à Z ≈ 17,13256 mm dans l’original, pourrait expliquer la mesure de 17,13 mm rapportée ; c’est une hypothèse, et l’écart de hauteur n’a pas été reproduit. [Mesures locales](artifacts/body-test-height-validation.json).
-
-## Vérifier
+### Run the Verification Suite
 
 ```sh
 sh scripts/check.sh
 ```
 
-Le bureau est hors workspace. Les résultats et le réimport FreeCAD sont consignés dans [docs/VALIDATION.md](docs/VALIDATION.md).
+Individual checks:
+```sh
+cargo fmt --all -- --check
+cargo test --workspace --offline
+cargo clippy --workspace --all-targets --offline -- -D warnings
+cargo check --manifest-path crates/fabstep-desktop/Cargo.toml --offline
+npm --prefix ui run test && npm --prefix ui run check && npm --prefix ui run build
+```
 
-Lire [STATUS](STATUS.md), [ROADMAP](ROADMAP.md), [ARCHITECTURE](ARCHITECTURE.md), l'[audit du brainstorming](docs/REFERENCE_REVIEW.md) et le [rapport de délégation](docs/DELEGATION.md). Le document de brainstorming d'origine est conservé intact.
+---
 
-### Raccords de rainures chanfreinées (développement)
+## Repository Organization
 
-En mode Automatique, FabSTEP peut reconstruire ensemble les bandes cylindriques ouvertes et leurs chanfreins coniques partiels aux extrémités demi-circulaires de rainures. Sélectionner une bande puis essayer sa famille inclut les surfaces raccordées nécessaires ; elles ne sont pas détachées du reste du solide. Cette prise en charge reste limitée aux chaînes et contours prouvés, sans augmenter les tolérances. En cas de correction refusée, « Correction non appliquée » propose directement un recalcul des indications conservées, ou sans indication si aucune n’a été acceptée. Qualification : R-058 dans la [feuille de route](ROADMAP.md).
+| Path | Role |
+| :--- | :--- |
+| `crates/fabstep-core` | Pure, deterministic `f64` geometry & analytical recognition engine (no I/O, no OCCT) |
+| `crates/fabstep-import` | Bounded STL (ASCII/binary) & 3MF Core parsers with unit and placement handling |
+| `crates/fabstep-cad` | Isolated C++17 / OpenCASCADE 7.9 FFI bridge for BRep construction, STEP I/O, and 1:1 DXF |
+| `crates/fabstep-verify` | Independent bidirectional mesh ↔ STEP BVH fidelity & deviation heatmap engine |
+| `crates/fabstep-app` | Application orchestration, guided refinement, similar-wall/pattern discovery, parameter search |
+| `crates/fabstep-cli` | Command-line interface (`check`, `convert`) and recognition corpus benchmark runner |
+| `crates/fabstep-desktop` | Tauri 2 desktop backend, strict local permissions, worker supervision (out of workspace) |
+| `crates/fabstep-worker` | Isolated `large-stl` subprocess helper (100k–600k triangles, bounded RAM & timeout) |
+| `ui/` | Svelte 5 + TypeScript + Three.js interactive 3D workshop (French & English, dark/light themes) |
+| `fixtures/` | Reproducible STL/3MF test suites & 24-mesh public mechanical recognition corpus |
+| `docs/` | Architecture Decision Records (`adr/`), [VALIDATION.md](docs/VALIDATION.md), [RELEASE.md](docs/RELEASE.md), [POST_V1_RESEARCH.md](docs/POST_V1_RESEARCH.md) |
 
-### Chaînes de chanfreins de même sens (développement)
+---
 
-Les modes Automatique, Cônes et cylindres et Surfaces arrondies reconnaissent aussi deux à huit cônes complets dont les rayons évoluent dans le même sens, lorsqu’ils sont séparés par des portées cylindriques démontrées et suffisamment échantillonnés. Sans portée, seuls deux cônes à rupture unique et témoins intérieurs prouvés sont ajoutés par R-060 ; les autres profils ou cas ambigus restent refusés ou facettisés selon le mode. Les tolérances ne changent pas. Exemples indépendants et mesures attendues : `fixtures/same_sign_chains/manifest.json`.
+## Documentation & License
 
-### Révolutions et pièces creuses — développement
+- [STATUS.md](STATUS.md) — Current verified state and active branch status
+- [ROADMAP.md](ROADMAP.md) — Generated roadmap from `roadmap/` (managed via FabBoard)
+- [ARCHITECTURE.md](ARCHITECTURE.md) — System boundaries and data flow
+- [docs/VALIDATION.md](docs/VALIDATION.md) — Complete validation log, benchmarks, and FreeCAD reimport proofs
 
-Deux cônes directement raccordés sont reconstruits lorsqu’une unique rupture et les anneaux intérieurs des deux parois sont prouvés. Exemple : `fixtures/adjacent_cones/increasing.stl`. Les chaînes plus longues sans portée restent hors du premier lot.
-
-Automatique et Surfaces arrondies prennent en charge deux quarts de tore extérieurs reliés par une portée cylindrique résolue, avec des rayons d’arrondi éventuellement différents : `fixtures/double_torus/nominal.stl`. Ce contrat n’est pas une révolution à profil libre.
-
-Le corpus `fixtures/partial_fillets` qualifie aussi les arêtes droites arrondies disjointes et un bac ouvert à coins verticaux arrondis, en Automatique ou Cylindres. Le fond et la cavité sont conservés ; les congés du plancher/rebord, coins à trois branches et rayons variables restent distincts. Les paramètres et limites sont dans les README des corpus et V-1186 de [VALIDATION](docs/VALIDATION.md).
+Licensed under **[GPL-3.0-or-later](LICENSE)**. Part of the **FabApps** ecosystem.
