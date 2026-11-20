@@ -73,7 +73,6 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
 
 ## Actions à faire
 
-- [ ] [A-124](roadmap/actions/A-124-verifier-les-six-et-sept-faces-des-deux-stl.md) Vérifier les six et sept faces des deux STL tournés (tester, R-115)
 - [ ] [A-126](roadmap/actions/A-126-controler-le-toit-quantifie-a-six-faces-dans.md) Contrôler le toit quantifié à six faces dans Fusion (tester, R-116)
 - [ ] [A-127](roadmap/actions/A-127-isoler-une-paroi-interne-avec-la-boite-de.md) Isoler une paroi interne avec la boîte de découpe (tester, R-119)
 - [ ] [A-128](roadmap/actions/A-128-lire-les-ecarts-sur-le-bossage-borgne.md) Lire les écarts sur le bossage borgne (tester, R-121)
