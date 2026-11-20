@@ -4496,6 +4496,7 @@ extern "C" int fabstep_build_cubic_prism(const cubic_prism::Data* data, const si
 
 extern "C" int fabstep_build_height_patch(const HeightPatchData* data, const size_t* tokens,
     StepOutput* output, char* error, size_t capacity) noexcept {
+  if (!data) return missing_step_argument(output, error, capacity);
   FaceLabels labels;
   auto* tracked=tokens ? &labels : nullptr;
   SurfaceCounts counts{5,0}; counts.height_patches=1;
@@ -4505,6 +4506,7 @@ extern "C" int fabstep_build_height_patch(const HeightPatchData* data, const siz
 
 extern "C" int fabstep_build_torus_sector_step(const TorusSectorSolidData* domain, const size_t* tokens,
     StepOutput* output, char* error, size_t capacity) noexcept {
+  if (!domain) return missing_step_argument(output, error, capacity);
   FaceLabels labels;
   auto* tracked=tokens ? &labels : nullptr;
   return validated_step([&]{return torus_sector::build(*domain,tokens,tracked);},
@@ -4537,6 +4539,7 @@ extern "C" int fabstep_build_cross_drill_step(const CrossDrillData* domain,
 
 extern "C" int fabstep_build_unequal_pocket_step(const UnequalPocketData* domain,
     const size_t* plane_tokens,const size_t* wall_tokens,StepOutput* output,char* error,size_t capacity) noexcept {
+  if (!domain || (wall_tokens && !plane_tokens)) return missing_step_argument(output, error, capacity);
   FaceLabels labels;
   auto* tracked=wall_tokens ? &labels : nullptr;
   return validated_step([&]{return unequal_pocket::build(*domain,plane_tokens,wall_tokens,tracked);},

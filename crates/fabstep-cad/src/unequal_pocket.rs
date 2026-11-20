@@ -105,3 +105,28 @@ pub(super) fn build(
         )
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ptr::{null, null_mut};
+
+    #[test]
+    fn missing_pocket_domain_or_plane_tokens_clear_the_step_output() {
+        crate::tests::assert_missing_step_argument(|out| unsafe {
+            fabstep_build_unequal_pocket_step(null(), null(), null(), out, null_mut(), 0)
+        });
+        let domain = NativeUnequalPocket {
+            origin: [0.; 3],
+            axes: [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
+            radii: [2., 3.],
+            outer_min: [-7., -5., -3.],
+            outer_max: [23., 15., 9.],
+            pocket_spans: [16., 10.],
+        };
+        let tokens = [12, 13];
+        crate::tests::assert_missing_step_argument(|out| unsafe {
+            fabstep_build_unequal_pocket_step(&domain, null(), tokens.as_ptr(), out, null_mut(), 0)
+        });
+    }
+}

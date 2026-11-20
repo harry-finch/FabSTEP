@@ -27,11 +27,11 @@ size_t add_plane(Model &m, const AtlasPlaneData &input, size_t available) {
       if (auto it = m.arcs.find(key(a, b)); it != m.arcs.end()) {
         const auto &arc = it->second;
         const double sweep = arc.b - arc.a;
-        const auto center = arc.circle.Location(), mid = ElCLib::Value((arc.a + arc.b) / 2, arc.circle);
-        const auto pole = center.Translated(gp_Vec(center, mid) / std::cos(sweep / 2));
+        const double weight = std::cos(sweep / 2);
+        const auto pole = weightedArcPole(arc, support.Location(), weight);
         // Positive rational weights keep the complete arc in the slab of its
         // three poles. The fan orientation is checked over the whole ruling.
-        plane_proof(!curved && support.Distance(pole) <= 1.1e-10 &&
+        plane_proof(!curved && weight > 0. && std::abs(pole.Dot(gp_Vec(support.Axis().Direction()))) <= 1.1e-10 * weight &&
                    positiveArcFan(arc, p, m.adjusted[b], m.adjusted[t[(k + 2) % 3]], n),
                "Un arc partagé ne borde pas le plan source.");
         curved = true;

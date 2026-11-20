@@ -383,9 +383,42 @@ pub fn recognize_cubic_prism(
                 return Ok(None);
             }
             if let Some(hit) = certify(a, m, o) {
+                // A direct caller can supply coincident vertices with different
+                // indices. Their areas agree even when the source seam is open.
+                crate::pipeline::validate_topology(&a.mesh)?;
                 return Ok(Some(hit));
             }
         }
     }
     Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_geometrically_coincident_open_seam_cannot_certify_a_prism() {
+        let options = Options::default();
+        let mut analysis = crate::analyze_stl(
+            include_bytes!("../../../fixtures/cubic_extrusion/cam-coarse.stl"),
+            &options,
+        )
+        .unwrap();
+        assert!(recognize_cubic_prism(&analysis, &options)
+            .unwrap()
+            .is_some());
+
+        // Keep the fit, normals and projected areas identical, but detach one
+        // corner of a triangle from its neighbours.
+        let vertex = analysis.mesh.triangles[0][0];
+        let duplicate = analysis.mesh.vertices[vertex];
+        analysis.mesh.triangles[0][0] = analysis.mesh.vertices.len();
+        analysis.mesh.vertices.push(duplicate);
+        analysis.model.vertices.push(duplicate);
+        assert_eq!(
+            recognize_cubic_prism(&analysis, &options).unwrap_err().code,
+            "mesh.open"
+        );
+    }
 }

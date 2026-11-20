@@ -3507,6 +3507,33 @@ pub fn result_faces(bytes: &[u8]) -> Result<ResultFaces, FabError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    pub(super) fn assert_missing_step_argument(call: impl FnOnce(&mut NativeStep) -> i32) {
+        let mut byte = 0;
+        let mut output = NativeStep {
+            data: &mut byte,
+            size: 1,
+            metrics: Metrics {
+                faces: 1,
+                ..Metrics::default()
+            },
+        };
+        assert_eq!(call(&mut output), 1); // cad.invalid_model
+        assert!(output.data.is_null());
+        assert_eq!(output.size, 0);
+        assert_eq!(output.metrics.faces, 0);
+    }
+
+    #[test]
+    fn missing_patch_and_sector_domains_clear_the_step_output() {
+        use std::ptr::{null, null_mut};
+        assert_missing_step_argument(|out| unsafe {
+            fabstep_build_height_patch(null(), null(), out, null_mut(), 0)
+        });
+        assert_missing_step_argument(|out| unsafe {
+            fabstep_build_torus_sector_step(null(), null(), out, null_mut(), 0)
+        });
+    }
+
     #[test]
     fn missing_step_output_or_drill_domain_is_rejected() {
         use std::ptr::{null, null_mut};

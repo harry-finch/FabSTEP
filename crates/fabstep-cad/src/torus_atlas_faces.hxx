@@ -204,11 +204,17 @@ TopoDS_Face anchoredFan(const TopoDS_Edge &base, const TopoDS_Vertex &apex) {
   }
   throw std::runtime_error("ruled patch omits its circular base");
 }
+// Middle control point of the circular arc relative to origin, multiplied
+// by its rational weight. This stays finite as the sweep approaches pi.
+gp_Vec weightedArcPole(const Arc &arc, const gp_Pnt &origin, double weight) {
+  const auto center = arc.circle.Location(), mid = ElCLib::Value((arc.a + arc.b) / 2, arc.circle);
+  return gp_Vec(origin, center) * weight + gp_Vec(center, mid);
+}
 bool positiveArcFan(const Arc &s, gp_Pnt a, gp_Pnt b, gp_Pnt apex, const gp_Vec &normal) {
   double w = std::cos((s.b - s.a) / 2);
-  auto center = s.circle.Location(), mid = ElCLib::Value((s.b + s.a) / 2, s.circle);
-  gp_Pnt pole = center.Translated(gp_Vec(center, mid) / w);
-  std::array<gp_Vec, 3> h{gp_Vec(apex, a), gp_Vec(apex, pole) * w, gp_Vec(apex, b)};
+  if (!(w > 0.))
+    return false;
+  std::array<gp_Vec, 3> h{gp_Vec(apex, a), weightedArcPole(s, apex, w), gp_Vec(apex, b)};
   double c[4] = {};
   constexpr int bin2[3] = {1, 2, 1}, bin3[4] = {1, 3, 3, 1};
   for (int i = 0; i < 3; ++i)
