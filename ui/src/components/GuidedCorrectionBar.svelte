@@ -34,7 +34,7 @@
         label={t('guidance.family')}
       />
     </fieldset>
-    <button class="btn primary" disabled={pending} title={t('guidance.scope')} onclick={tryFamily}>{t('guidance.tryFamily')}</button>
+    <button class="btn" disabled={pending} title={t('guidance.scope')} onclick={tryFamily}>{t('guidance.tryFamily')}</button>
   {:else if canprepare}
     <button class="btn" disabled={pending} onclick={onprepare} title={t('guidance.prepareHint')}>{t('guidance.prepare')}</button>
     <span class="hint">{t('guidance.prepareHint')}</span>

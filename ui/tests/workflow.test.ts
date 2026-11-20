@@ -880,3 +880,23 @@ test('guided history survives refused edits, recalculates an empty set and expir
   assert.deepEqual(f.state.guidanceHints, []);
   assert.equal(f.workflow.canExport(), false);
 });
+
+
+test('cancel an ordinary automatic build between recognition trials and keep the source preview', async () => {
+  const f = fixture();
+  f.state.options = { ...initial, reconstruction:'auto', auto_tune:true };
+  const old = f.start();
+  await f.uploaded();
+  await f.previewed();
+  assert.ok(f.workflow.canCancelAuto());
+  f.workflow.cancelAuto();
+  assert.ok(f.state.preview);
+  assert.equal(f.workflow.canCancelAuto(), false);
+  assert.ok(f.state.current > old);
+  await f.converted(old);
+  f.flush();
+  await f.previewed();
+  assert.equal(f.count('convert_document'), 1);
+  assert.equal(f.workflow.canExport(), false);
+  assert.equal(f.workflow.canReconstruct(), true);
+});

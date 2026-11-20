@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { FaceClickSequence, requestSuggestedRegion, RegionSelectionQueue } from '../src/lib/region-selection.ts';
 import { SelectionReplies } from '../src/lib/selection.ts';
-import { restoreOptions } from '../src/lib/options-storage.ts';
+import { exactTolerance, restoreOptions } from '../src/lib/options-storage.ts';
 import type { ResultFaces,Options } from '../src/lib/types.ts';
 const document={request_id:7,source_id:2,faces:[{id:0,solid_id:0},{id:1,solid_id:0},{id:2,solid_id:1}]} as ResultFaces;
 const deferred=<T>()=>{let resolve!:(v:T)=>void, reject!:(v:unknown)=>void;const promise=new Promise<T>((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
@@ -39,15 +39,21 @@ test('view/source changes ignore late region and malformed responses never chang
 });
 
 test('preference migration defaults to Auto once, preserves tolerances and later explicit strategy',()=>{
- const initial:Options={input_unit:'mm',reconstruction:'auto',weld_tolerance_mm:1e-6,plane_tolerance_mm:1e-6,cylinder_fit_tolerance_mm:1e-5,max_deviation_mm:0.05};
+ const initial:Options={auto_tune:true,input_unit:'mm',reconstruction:'auto',weld_tolerance_mm:1e-6,plane_tolerance_mm:1e-6,cylinder_fit_tolerance_mm:1e-5,max_deviation_mm:0.05};
  const old={...initial,input_unit:'inch',reconstruction:'surfaces',plane_tolerance_mm:1e-7};
- assert.deepEqual(restoreOptions(initial,null,JSON.stringify(old)),{...old,reconstruction:'auto'});
- assert.deepEqual(restoreOptions(initial,JSON.stringify(old),null),old);
+ assert.deepEqual(restoreOptions(initial,null,JSON.stringify(old)),{...old,reconstruction:'auto',auto_tune:false});
+ assert.deepEqual(restoreOptions(initial,JSON.stringify(old),null),{...old,auto_tune:false});
  const relief:Options={...initial,reconstruction:'height_patch'};
  assert.deepEqual(restoreOptions(initial,JSON.stringify(relief),null),relief);
  assert.equal(restoreOptions(initial,null,JSON.stringify(relief)).reconstruction,'auto');
  assert.deepEqual(restoreOptions(initial,'{',null),initial);
  assert.deepEqual(restoreOptions(initial,'null','null'),initial);
+ const typedDefault = exactTolerance(initial, 'plane_tolerance_mm', initial.plane_tolerance_mm);
+ assert.equal(typedDefault.auto_tune, false);
+ assert.equal(restoreOptions(initial, JSON.stringify(typedDefault), null).auto_tune, false);
+ const {auto_tune, ...legacy} = initial;
+ assert.equal(restoreOptions(initial, JSON.stringify(legacy), null).auto_tune, true);
+ assert.equal(restoreOptions(initial, JSON.stringify({...legacy,max_deviation_mm:0.01}), null).auto_tune, false);
 });
 
 test('rapid wall requests keep one active calculation and only the latest queued request',async()=>{

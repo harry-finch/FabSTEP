@@ -33,6 +33,7 @@
     hint,
     invalid = false,
     disabled = false,
+    confirmEqualEdit = false,
     onbegin,
     onend,
     modified = false,
@@ -53,6 +54,7 @@
     hint?: string;
     invalid?: boolean;
     disabled?: boolean;
+    confirmEqualEdit?: boolean;
     onbegin?: () => void;
     onend?: () => void;
     modified?: boolean;
@@ -97,15 +99,18 @@
     return Math.round(v * k) / k;
   };
 
+  let typed = false;
   function commit() {
-    if (text === fmt(shown(value))) return;
+    const explicit = typed && confirmEqualEdit;
+    typed = false;
+    if (!explicit && text === fmt(shown(value))) return;
     const v = parse(text);
     if (v === undefined) {
       text = fmt(shown(value));
       return;
     }
     const m = clampModel(model(v));
-    if (m !== value) onchange(m);
+    if (m !== value || explicit) onchange(m);
     text = fmt(shown(m));
   }
 
@@ -115,6 +120,7 @@
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
+      typed = false;
       text = fmt(shown(value));
       el.blur();
     }
@@ -190,6 +196,7 @@
     inputmode="decimal"
     {disabled}
     bind:value={text}
+    oninput={() => { typed = true; }}
     onfocus={(e) => {
       focused = true;
       (e.currentTarget as HTMLInputElement).select();

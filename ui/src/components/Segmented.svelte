@@ -9,7 +9,7 @@
     label,
   }: {
     options: { id: T; label: string; hint?: string }[];
-    value: T;
+    value: T | null;
     onchange: (v: T) => void;
     label: string;
   } = $props();
@@ -31,7 +31,7 @@
       type="button"
       role="radio"
       aria-checked={o.id === value}
-      tabindex={o.id === value ? 0 : -1}
+      tabindex={o.id === value || (value === null && i === 0) ? 0 : -1}
       class:on={o.id === value}
       use:tip={o.hint}
       onclick={() => onchange(o.id)}

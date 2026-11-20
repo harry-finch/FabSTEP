@@ -65,6 +65,7 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
   // Opening a source prepares its preview. Conversion starts only after an
   // explicit request for this source, then options retain their live recalculation.
   let reconstructionRequested = false;
+  let ordinaryAutoId: number | null = null;
 
   function clearTimer() {
     if (timer !== undefined) {
@@ -164,6 +165,7 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
       if (state.processing?.requestId === id) {
         state.processing.phase = 'converting';
       }
+      ordinaryAutoId = !large && opts.reconstruction === 'auto' ? id : null;
       const converted = await bridge.invoke<ConversionResult>(large ? 'convert_large_document' : 'convert_document', { requestId: id, sourceId: key, options: opts, ...(large ? { confirmed: true } : {}) });
       if (!disposed && id === state.current && converted.request_id === id) {
         state.selectedId = '';
@@ -185,6 +187,7 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
       }
     }
     finally {
+      ordinaryAutoId = null;
       if (state.processing?.requestId === id) {
         state.processing = null;
       }
@@ -272,6 +275,17 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     clearTimer();
     state.queued = true;
     await run();
+  }
+
+  function canCancelAuto() {
+    return !disposed && state.busy && ordinaryAutoId === state.current;
+  }
+
+  function cancelAuto() {
+    if (!canCancelAuto()) return;
+    reconstructionRequested = false;
+    invalidate(true);
+    state.noteKey = 'workspace.cancelled';
   }
 
   async function cancelLarge() {
@@ -400,5 +414,5 @@ export function createWorkflow(state: WorkflowState, deps: WorkflowDependencies)
     state.queued = false;
     state.processing = null;
   }
-  return { invalidate, run, load, setSource, reconstruct, cancelLarge, canReconstruct, mutateGuidance, canExport, exportStep, dispose };
+  return { invalidate, run, load, setSource, reconstruct, canCancelAuto, cancelAuto, cancelLarge, canReconstruct, mutateGuidance, canExport, exportStep, dispose };
 }

@@ -10,6 +10,8 @@
   import Scissors from '@lucide/svelte/icons/scissors';
   import Sun from '@lucide/svelte/icons/sun';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import Segmented from './components/Segmented.svelte';
+  import { faceCounts, measuredCeilingMm } from './lib/result-summary';
   import ParameterSearch from './components/ParameterSearch.svelte';
   import { ParameterSearchReplies, proposedTolerance, type SearchToken, type ParameterSearchResponse } from './lib/parameter-search';
   import Section from './components/Section.svelte';
@@ -27,7 +29,7 @@
   import GuidedCorrectionBar from './components/GuidedCorrectionBar.svelte';
   import StepSourceInspection from './components/StepSourceInspection.svelte';
   import SectionTool from './components/SectionTool.svelte';
-  import { restoreOptions } from './lib/options-storage';
+  import { exactTolerance, restoreOptions } from './lib/options-storage';
   import { FacePaintQueue } from './lib/face-paint';
   import { RegionSelectionQueue } from './lib/region-selection';
   import { canPrepareCorrection, guidedFaces, guidedFamilyLabel, isGuidedRefusal } from './lib/guided';
@@ -50,11 +52,11 @@
   import { theme } from './lib/theme.svelte';
   import { i18n, LOCALES, t, type Key } from './lib/i18n.svelte';
   import type { Options, ConversionResult, DocumentPreview, ConversionBody, SelectionTopology, ResultFaces, GuidanceHistory, GuidedFamily, GuidedReport } from './lib/types';
-  const initial: Options = { input_unit:'mm', weld_tolerance_mm:0.000001, plane_tolerance_mm:0.000001, reconstruction:'auto', cylinder_fit_tolerance_mm:0.00001, max_deviation_mm:0.05 };
+  const initial: Options = { auto_tune:true, input_unit:'mm', weld_tolerance_mm:0.000001, plane_tolerance_mm:0.000001, reconstruction:'auto', cylinder_fit_tolerance_mm:0.00001, max_deviation_mm:0.05 };
   let options = $state<Options>({ ...initial });
   const positiveOr = (value: unknown, fallback: number): number => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
   function serializableOptions(value: Options): Options {
-    return { ...value, weld_tolerance_mm:positiveOr(value.weld_tolerance_mm, initial.weld_tolerance_mm), plane_tolerance_mm:positiveOr(value.plane_tolerance_mm, initial.plane_tolerance_mm), cylinder_fit_tolerance_mm:positiveOr(value.cylinder_fit_tolerance_mm, initial.cylinder_fit_tolerance_mm), max_deviation_mm:positiveOr(value.max_deviation_mm, initial.max_deviation_mm) };
+    return { ...value, auto_tune:value.auto_tune === true && value.reconstruction === 'auto', weld_tolerance_mm:positiveOr(value.weld_tolerance_mm, initial.weld_tolerance_mm), plane_tolerance_mm:positiveOr(value.plane_tolerance_mm, initial.plane_tolerance_mm), cylinder_fit_tolerance_mm:positiveOr(value.cylinder_fit_tolerance_mm, initial.cylinder_fit_tolerance_mm), max_deviation_mm:positiveOr(value.max_deviation_mm, initial.max_deviation_mm) };
   }
   try { options = restoreOptions(initial,localStorage.getItem('fabstep.options.v2'),localStorage.getItem('fabstep.options.v1')); } catch { /* stockage optionnel */ }
   let bytes = $state.raw<Uint8Array | null>(null), name = $state(''), result = $state.raw<ConversionResult | null>(null), preview = $state.raw<DocumentPreview | null>(null);
@@ -362,7 +364,7 @@
   const parameterReplies = new ParameterSearchReplies();
   let parameterProposal = $state<{token:SearchToken; response:ParameterSearchResponse}|null>(null);
   let parameterError = $state<unknown>(null);
-  const allowParameterSearch = $derived(options.reconstruction !== 'planar' && options.reconstruction !== 'height_patch');
+  const allowParameterSearch = $derived(options.reconstruction !== 'auto' && options.reconstruction !== 'planar' && options.reconstruction !== 'height_patch');
   const canSearch = $derived(!!bytes && !!native() && sourceId !== null && uploadedSourceId === sourceId && preview?.request_id === current && !busy && !processing && allowParameterSearch && !guidanceHints.length && !guidedAttempt && validPreferences(options));
   function clearParameterSearch() { parameterReplies.clear(); parameterProposal = null; parameterError = null; }
   async function searchParameters() {
@@ -372,9 +374,9 @@
     processing = {requestId:id, phase:'searching', startedAt:performance.now()};
     try {
       const response = await native()!.invoke<ParameterSearchResponse>('search_parameters', {requestId:id,sourceId:key,options:opts});
-      if (parameterReplies.accepts(token,current,sourceId,options,response.request_id)) parameterProposal = {token,response};
+      if (parameterReplies.accepts(token,current,sourceId,serializableOptions(options),response.request_id)) parameterProposal = {token,response};
     } catch (e) {
-      if (parameterReplies.accepts(token,current,sourceId,options)) parameterError = e;
+      if (parameterReplies.accepts(token,current,sourceId,serializableOptions(options))) parameterError = e;
     } finally {
       if (processing?.requestId === id && processing.phase === 'searching') processing = null;
       busy = false;
@@ -383,9 +385,9 @@
   }
   function applyParameterProposal() {
     const proposal = parameterProposal;
-    if (!canSearch || !proposal || !parameterReplies.accepts(proposal.token,current,sourceId,options,proposal.response.request_id)) return;
+    if (!canSearch || !proposal || !parameterReplies.accepts(proposal.token,current,sourceId,serializableOptions(options),proposal.response.request_id)) return;
     const value = proposedTolerance(proposal.response.report);
-    if (value !== null && value !== options.cylinder_fit_tolerance_mm) change({cylinder_fit_tolerance_mm:value});
+    if (value !== null && value !== options.cylinder_fit_tolerance_mm) changeTolerance('cylinder_fit_tolerance_mm', value);
   }
   // Façade vivante : le contrôleur et les workers partagent les mêmes runes et le verrou moteur.
   const workflowState: WorkflowState = {
@@ -470,12 +472,13 @@
   type Tolerance = 'weld_tolerance_mm' | 'plane_tolerance_mm' | 'cylinder_fit_tolerance_mm' | 'max_deviation_mm';
   let scrubbedTolerance: Tolerance | null = null;
   function changeTolerance(field: Tolerance, value: number) {
-    if (value === options[field]) return;
+    if (value === options[field] && options.auto_tune === false) return;
+    const updated = exactTolerance(options, field, value);
     if (field === scrubbedTolerance) {
-      options = { ...options, [field]: value };
+      options = updated;
       invalidate(true);
     } else {
-      change({ [field]: value });
+      change(updated);
     }
   }
   function finishToleranceScrub() {
@@ -524,6 +527,10 @@
   // Les avertissements de tous les corps restent visibles même si un seul corps est inspecté.
   // Les comptes de couverture et remarques techniques restent consultables dans Détails.
   const fmt = (n: number) => new Intl.NumberFormat(i18n.locale === 'fr' ? 'fr-FR' : 'en-GB', { maximumFractionDigits:6 }).format(n);
+  const families = $derived(result ? faceCounts(result.cad) : []);
+  const measuredMax = $derived(result ? measuredCeilingMm(result.bodies) : null);
+  const expertLabels = { surfaces:'workspace.surfacesChoice', cylinders:'workspace.cylinderChoice', primitives:'workspace.primitivesMode', height_patch:'workspace.heightPatchChoice' } as const;
+  const expertMode = $derived(options.reconstruction === 'auto' || options.reconstruction === 'planar' ? null : options.reconstruction);
   const selectedBody = $derived(stepView || mappedSource ? null : result?.bodies.find(body => body.id === selectedId) ?? null);
   const selectedPreview = $derived(stepView || mappedSource ? null : preview?.bodies.find(body => body.id === selectedId) ?? null);
   const selection = $derived(stepView || mappedSource ? null : selectedBody ?? (selectedId ? null : result?.bodies.length === 1 ? result.bodies[0] : null));
@@ -591,7 +598,7 @@
       <strong>FabSTEP</strong>
       <span>{t('workspace.tagline')}</span>
     </div>
-    <button class="btn" class:primary={!result} onclick={() => input.click()} title="⌘/Ctrl+O">
+    <button class="btn" class:primary={!bytes && !name} onclick={() => input.click()} title="⌘/Ctrl+O">
       <FileUp size={14}/>
       {t('workspace.open')}
     </button>
@@ -785,6 +792,15 @@
         <strong class:success={!!result && !error} class:danger={!!error}>
           {error ? t(errorTitle) : processing ? t(`processing.${processing.phase}Title`) : result ? t('workspace.ready') : bytes && !native() ? t('workspace.native') : (preview || largeTriangles) ? t('workspace.sourceReady') : t('workspace.waiting')}
         </strong>
+        {#if result}
+          <p class="result-summary">
+            {t(result.cad.faces === 1 ? 'buildIntent.oneFace' : 'buildIntent.faces', { n:fmt(result.cad.faces) })}
+            {' · '}{families.map(({ family, count }) => `${fmt(count)} ${t(`buildIntent.${family}${count === 1 ? '1' : 'N'}`)}`).join(', ')}
+            {#if measuredMax !== null}
+              <span title={t('buildIntent.sampledHint')}>{' · '}{t('buildIntent.measured', { value:fmt(measuredMax) })}</span>
+            {/if}
+          </p>
+        {/if}
         {#if !result && !error && !processing}
           <p class="muted">{bytes ? t(native() ? 'workspace.reconstructHint' : 'workspace.nativeNote') : t('workspace.emptyNext')}</p>
         {/if}
@@ -792,8 +808,29 @@
           <p class="message warning"><TriangleAlert size={14}/><span>{t('workspace.largeWarning', { n: largeTriangles.toLocaleString(i18n.locale) })}</span></p>
           <p class="muted">{t('workspace.largeLimits')}</p>
         {/if}
+        {#if processing?.phase === 'converting' && workflow.canCancelAuto()}
+          <button class="btn" onclick={() => workflow.cancelAuto()}>{t('workspace.largeCancel')}</button>
+        {/if}
         {#if largeTriangles && (processing || cancelling) && busy}
           <button class="btn" disabled={cancelling} onclick={() => workflow.cancelLarge()}>{t(cancelling ? 'workspace.largeCancelling' : 'workspace.largeCancel')}</button>
+        {/if}
+        {#if bytes && !result}{@render unitControl()}{/if}
+        {#if bytes}
+          {#if guidanceHints.length || guidanceHistory || guidedAttempt}
+            <p class="message warning" role="note">{t('guidance.optionsResetWarning')}</p>
+          {/if}
+          <Segmented label={t('workspace.mode')}
+            options={[{id:'auto', label:t('workspace.autoChoice')}, {id:'planar', label:t('buildIntent.facets')}]}
+            value={expertMode ? null : options.reconstruction}
+            onchange={mode => { if (mode !== options.reconstruction) change({reconstruction:mode}); }}/>
+          {#if expertMode}
+            <span class="muted">{t('buildIntent.expert')} · {t(expertLabels[expertMode])}</span>
+          {:else if options.reconstruction === 'auto' && !options.auto_tune && !largeTriangles}
+            <div class="tolerance-status">
+              <span class="muted">{t('buildIntent.fixed')}</span>
+              <button class="btn quiet" onclick={() => change({...initial, input_unit:options.input_unit})}>{t('buildIntent.resume')}</button>
+            </div>
+          {/if}
         {/if}
         {#if bytes && native() && (preview || largeTriangles) && !result && !guidedAttempt}
           <button class="btn primary" disabled={!canReconstruct} onclick={() => reconstruct(largeTriangles !== null)} title={t('workspace.reconstructHint')}>
@@ -823,7 +860,7 @@
             <span>{format === '3mf' ? t('workspace.preview3mf') : t('workspace.nativeNote')}</span>
           </p>
         {/if}
-        {#each notices.filter(item => visibleDiagnostic(item.diagnostic)) as item}
+        {#each result ? [] : notices.filter(item => visibleDiagnostic(item.diagnostic)) as item}
           <p class="message" class:warning={item.diagnostic.severity === 'warning'}>
             <TriangleAlert size={14}/>
             <span>
@@ -936,98 +973,6 @@
           {/if}
         </Section>
       {/if}
-      <div class="document-controls">
-        {#if guidanceHints.length || guidanceHistory || guidedAttempt}
-          <p class="message warning" role="note">{t('guidance.optionsResetWarning')}</p>
-        {/if}
-        {#if format === '3mf'}
-          <div class="property" title={t('workspace.unitLocked')}>
-            <span>
-              {t('workspace.unit3mf')}
-              <span class="hint">ⓘ</span>
-            </span>
-            <strong>
-              {(preview ? unitText(preview.source.unit) : null) ?? (processing?.phase === 'preview' ? t('workspace.unitReading') : t('workspace.unitUnknown'))}
-            </strong>
-          </div>
-          <p class="muted">
-            {preview ? (preview.source.unit_origin === 'default' ? t('workspace.unitDefault') : t('workspace.unitDeclared')) : t('workspace.unitLocked')}
-          </p>
-        {:else}
-          <label class="property" title={t('workspace.unitHint')}>
-            <span>
-              {t('workspace.unit')}
-              <span class="hint">ⓘ</span>
-            </span>
-            <select class="input" value={options.input_unit} onchange={(e) => change({ input_unit:e.currentTarget.value as 'mm'|'inch' })}>
-              <option value="mm">{t('workspace.mm')} (mm)</option>
-              <option value="inch">{t('workspace.inch')} (in)</option>
-            </select>
-          </label>
-        {/if}
-        <Disclosure id="ux4-advanced" label={t('workspace.advanced')}>
-          <label class="property mode-property">
-            <span>{t('workspace.mode')}</span>
-            <select
-              class="input"
-              value={options.reconstruction}
-              onchange={(e) => change({ reconstruction:e.currentTarget.value as Options['reconstruction'] })}
-            >
-              <option value="auto">{t('workspace.autoChoice')}</option>
-              <option value="planar">{t('workspace.planarChoice')}</option>
-              <option value="surfaces">{t('workspace.surfacesChoice')}</option>
-              <option value="cylinders">{t('workspace.cylinderChoice')}</option>
-              <option value="primitives">{t('workspace.primitivesMode')}</option>
-              <option value="height_patch">{t('workspace.heightPatchChoice')}</option>
-            </select>
-          </label>
-          <p class="muted">{options.reconstruction === 'auto' ? t('workspace.autoIntent') : options.reconstruction === 'height_patch' ? t('workspace.heightPatchIntent') : t('workspace.manualIntent')}</p>
-          {@render toleranceField('weld_tolerance_mm', 'workspace.weld', 'workspace.weldHint', 0.000001)}
-          {@render toleranceField('plane_tolerance_mm', 'workspace.plane', 'workspace.planeHint', 0.000001)}
-          {#if options.reconstruction !== 'planar' || stepView || !!guidedAttempt || !validPreferences(options)}
-            {#if options.reconstruction === 'height_patch'}
-              {@render toleranceField('cylinder_fit_tolerance_mm', 'workspace.heightTolerance', 'workspace.heightToleranceHint', 0.000001)}
-            {:else}
-              {@render toleranceField('cylinder_fit_tolerance_mm', 'workspace.fitTolerance', 'workspace.fitToleranceHint', 0.000001)}
-            {/if}
-            {@render toleranceField('max_deviation_mm', 'workspace.maxDeviation', 'workspace.maxDeviationHint', 0.01)}
-            {#if options.reconstruction !== 'height_patch'}<p class="muted">{t('workspace.toleranceExplanation')}</p>{/if}
-          {/if}
-          <Disclosure id="reconstruction-limits" label={t('workspace.reconstructionLimits')}>
-            <p class="muted">{t('workspace.brepLimit')}</p>
-            <p class="muted">
-              {options.reconstruction === 'auto' ? t('workspace.autoIntent') : options.reconstruction === 'height_patch' ? t('workspace.heightPatchLimit') : options.reconstruction === 'surfaces' ? t('workspace.surfacesLimit') : options.reconstruction === 'primitives' ? t('workspace.primitivesLimit') : options.reconstruction === 'cylinders' ? t('workspace.cylinderLimit') : t('workspace.limit')}
-            </p>
-            {#if options.reconstruction !== 'planar' && options.reconstruction !== 'auto'}
-              <p class="muted">{t('workspace.recognitionRefusal')}</p>
-            {/if}
-          </Disclosure>
-          {#if allowParameterSearch && !recognitionFailed}
-            <ParameterSearch
-              enabled={canSearch}
-              searching={processing?.phase === 'searching'}
-              report={parameterProposal?.response.report ?? null}
-              currentTolerance={options.cylinder_fit_tolerance_mm}
-              error={parameterError ? errorText(parameterError) : ''}
-              {errorText}
-              onsearch={searchParameters}
-              onapply={applyParameterProposal}
-            />
-          {/if}
-        </Disclosure>
-        {#if allowParameterSearch && recognitionFailed}
-          <ParameterSearch
-            enabled={canSearch}
-            searching={processing?.phase === 'searching'}
-            report={parameterProposal?.response.report ?? null}
-            currentTolerance={options.cylinder_fit_tolerance_mm}
-            error={parameterError ? errorText(parameterError) : ''}
-            {errorText}
-            onsearch={searchParameters}
-            onapply={applyParameterProposal}
-          />
-        {/if}
-      </div>
       {#if !stepView && !mappedSource && (result?.bodies.length ?? preview?.bodies.length ?? 0) > 1}
         <div class="body-selector">
           <label class="property">
@@ -1046,6 +991,86 @@
         </div>
       {/if}
       <Section id="workshop-result-details" title={t('workspace.resultDetails')} open={false}>
+        {#if result}
+          {#each result.bodies as body}
+            {#if body.auto_adjustment}
+              {@const adjustment = body.auto_adjustment}
+              <div class="document-controls">
+                <strong>{t('buildIntent.adjustment', {body:bodyText(body)})}</strong>
+                <div class="metric"><span>{t('workspace.plane')}</span><strong>{settingValue(adjustment.requested_plane_tolerance_mm)} → {settingValue(adjustment.plane_tolerance_mm)} mm</strong></div>
+                <div class="metric"><span>{t('workspace.fitTolerance')}</span><strong>{settingValue(adjustment.requested_cylinder_fit_tolerance_mm)} → {settingValue(adjustment.cylinder_fit_tolerance_mm)} mm</strong></div>
+              </div>
+            {/if}
+          {/each}
+          {@render unitControl()}
+        {/if}
+        <div class="document-controls">
+          <Disclosure id="ux4-advanced" label={t('workspace.advanced')}>
+            <label class="property mode-property">
+              <span>{t('buildIntent.expert')}</span>
+              <select
+                class="input"
+                value={expertMode ?? ''}
+                onchange={(e) => change({ reconstruction:e.currentTarget.value as Options['reconstruction'] })}
+              >
+                <option value="" disabled>{t('buildIntent.standard')}</option>
+                <option value="surfaces">{t('workspace.surfacesChoice')}</option>
+                <option value="cylinders">{t('workspace.cylinderChoice')}</option>
+                <option value="primitives">{t('workspace.primitivesMode')}</option>
+                <option value="height_patch">{t('workspace.heightPatchChoice')}</option>
+              </select>
+            </label>
+            {#if options.reconstruction === 'auto' && options.auto_tune && !largeTriangles}
+              <p class="muted">{t('buildIntent.autoHelp')}</p>
+            {:else if expertMode}
+              <p class="muted">{t(options.reconstruction === 'height_patch' ? 'workspace.heightPatchIntent' : 'workspace.manualIntent')}</p>
+            {/if}
+            {@render toleranceField('weld_tolerance_mm', 'workspace.weld', 'workspace.weldHint', 0.000001)}
+            {@render toleranceField('plane_tolerance_mm', 'workspace.plane', 'workspace.planeHint', 0.000001)}
+            {#if options.reconstruction !== 'planar' || stepView || !!guidedAttempt || !validPreferences(options)}
+              {#if options.reconstruction === 'height_patch'}
+                {@render toleranceField('cylinder_fit_tolerance_mm', 'workspace.heightTolerance', 'workspace.heightToleranceHint', 0.000001)}
+              {:else}
+                {@render toleranceField('cylinder_fit_tolerance_mm', 'workspace.fitTolerance', 'workspace.fitToleranceHint', 0.000001)}
+              {/if}
+              {@render toleranceField('max_deviation_mm', 'workspace.maxDeviation', 'workspace.maxDeviationHint', 0.01)}
+              {#if options.reconstruction !== 'height_patch'}<p class="muted">{t('workspace.toleranceExplanation')}</p>{/if}
+            {/if}
+            <Disclosure id="reconstruction-limits" label={t('workspace.reconstructionLimits')}>
+              <p class="muted">{t('workspace.brepLimit')}</p>
+              <p class="muted">
+                {options.reconstruction === 'auto' ? t('workspace.autoIntent') : options.reconstruction === 'height_patch' ? t('workspace.heightPatchLimit') : options.reconstruction === 'surfaces' ? t('workspace.surfacesLimit') : options.reconstruction === 'primitives' ? t('workspace.primitivesLimit') : options.reconstruction === 'cylinders' ? t('workspace.cylinderLimit') : t('workspace.limit')}
+              </p>
+              {#if options.reconstruction !== 'planar' && options.reconstruction !== 'auto'}
+                <p class="muted">{t('workspace.recognitionRefusal')}</p>
+              {/if}
+            </Disclosure>
+            {#if allowParameterSearch && !recognitionFailed}
+              <ParameterSearch
+                enabled={canSearch}
+                searching={processing?.phase === 'searching'}
+                report={parameterProposal?.response.report ?? null}
+                currentTolerance={options.cylinder_fit_tolerance_mm}
+                error={parameterError ? errorText(parameterError) : ''}
+                {errorText}
+                onsearch={searchParameters}
+                onapply={applyParameterProposal}
+              />
+            {/if}
+          </Disclosure>
+          {#if allowParameterSearch && recognitionFailed}
+            <ParameterSearch
+              enabled={canSearch}
+              searching={processing?.phase === 'searching'}
+              report={parameterProposal?.response.report ?? null}
+              currentTolerance={options.cylinder_fit_tolerance_mm}
+              error={parameterError ? errorText(parameterError) : ''}
+              {errorText}
+              onsearch={searchParameters}
+              onapply={applyParameterProposal}
+            />
+          {/if}
+        </div>
         <Section id="mesh" title={t('workspace.mesh')}>
           <div class="metric">
             <span>{t('workspace.triangles')}</span>
@@ -1143,7 +1168,7 @@
             </Disclosure>
           {/if}
           {#if result}
-            <Disclosure id="applied-settings" label={t('workspace.appliedSettings')}>
+            <Disclosure id="applied-settings" label={t(result.bodies.some(body => body.auto_adjustment) ? 'buildIntent.requested' : 'workspace.appliedSettings')}>
               <div class="metric">
                 <span>{t('workspace.mode')}</span>
                 <strong>
@@ -1216,6 +1241,33 @@
     <div class="drop-overlay">{t('workspace.drop')}</div>
   {/if}
 </div>
+{#snippet unitControl()}
+  {#if format === '3mf'}
+    <div class="property" title={t('workspace.unitLocked')}>
+      <span>
+        {t('workspace.unit3mf')}
+        <span class="hint">ⓘ</span>
+      </span>
+      <strong>
+        {(preview ? unitText(preview.source.unit) : null) ?? (processing?.phase === 'preview' ? t('workspace.unitReading') : t('workspace.unitUnknown'))}
+      </strong>
+    </div>
+    <p class="muted">
+      {preview ? (preview.source.unit_origin === 'default' ? t('workspace.unitDefault') : t('workspace.unitDeclared')) : t('workspace.unitLocked')}
+    </p>
+  {:else}
+    <label class="property" title={t('workspace.unitHint')}>
+      <span>
+        {t('workspace.unit')}
+        <span class="hint">ⓘ</span>
+      </span>
+      <select class="input" value={options.input_unit} onchange={(e) => change({ input_unit:e.currentTarget.value as 'mm'|'inch' })}>
+        <option value="mm">{t('workspace.mm')} (mm)</option>
+        <option value="inch">{t('workspace.inch')} (in)</option>
+      </select>
+    </label>
+  {/if}
+{/snippet}
 {#snippet toleranceField(field: Tolerance, label: Key, hint: Key, step: number)}
   <NumField
     label={t(label)}
@@ -1224,6 +1276,7 @@
     kind="plain"
     unit="mm"
     decimals="exact"
+    confirmEqualEdit
     {step}
     invalid={!Number.isFinite(options[field]) || options[field] <= 0}
     onchange={(value) => changeTolerance(field, value)}
@@ -1233,6 +1286,8 @@
 {/snippet}
 
 <style>
+  .tolerance-status { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s1); }
+  .result-summary { margin: 0; line-height: 1.45; font-variant-numeric: tabular-nums; }
   .app {
     height: 100%;
     display: flex;
