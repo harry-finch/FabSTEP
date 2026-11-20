@@ -4,6 +4,8 @@
 
 ## Version et validation courantes
 
+Le build de développement passe la recette V-1275 et le rejeu complet du workspace (757 tests réussis, 18 optionnels ignorés). Les trois nouveaux domaines sont en recette dans FabBoard. La décision A-136 porte sur le délai du helper pour Flansch. Le premier jalon de distribution dans l’ordre actuel est R-019.
+
 - `artifacts/release/1.0.0/FabSTEP.app` reste le paquet autonome signé ad hoc, accepté sur un autre Mac et dans Fusion le 9 novembre (V-1115). Pas de signature Developer ID ni notarisation revendiquée.
 - `artifacts/FabSTEP.app` est le build macOS de développement de cette branche. Il inclut les lots géométriques jusqu’à R-111, le relief bicubique, la correction sphérique et le constructeur de zones toriques du helper. Il comprend aussi les corrections R-112, la préparation de coupe mono-corps et le rapport compact du helper. La candidate autonome est dans `artifacts/audit-neon/candidate/`. Son démarrage et les deux protocoles ont été vérifiés sur ce Mac avec Homebrew bloqué.
 - La branche de développement `atelier/carte-ecarts` comprend l’historique des corrections, le chargement de la vue 3D à la première ouverture et les permissions de la fenêtre locale (V-1270/V-1271). L’atelier propose la boîte de découpe en vue Source et Résultat STEP, la recherche de parois similaires après correction guidée et la carte **Écart au maillage** sur un STEP ordinaire. Sur le bossage borgne, le maximum affiché est de 0,00925 mm au seuil de 0,05 mm. Les essais du bureau et du moteur figurent en V-1267/V-1268.

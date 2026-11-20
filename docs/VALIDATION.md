@@ -2904,3 +2904,17 @@ Le helper release de `artifacts/FabSTEP.app` a reçu le fichier original de 540�
 L’échéance a arrêté le processus. Les échantillons de pile à la 25ᵉ minute et dans la dernière minute placent le calcul dans le premier appel à `measure_solid` du constructeur d’atlas, avant l’écriture du STEP. Le second contrôle après relecture restait à faire. Le banc à deux threads accélère les deux pièces publiques mais ne qualifie pas la conversion de Flansch dans le délai du bureau.
 
 **Piste de reprise.** Sur 24 raccords rationnels d’un secteur public, 56 paires ont des boîtes qui se recouvrent et 45 de ces paires partagent un sommet. Pour les 11 autres, une enveloppe du domaine triangulaire pourrait établir une séparation supérieure à 0,00001 mm. Pour qualifier ce filtre, vérifier l’inclusion des bords physiques et de leurs tolérances après transfert, puis mesurer les groupes effectivement évités sur le témoin public. Aucun gain de temps n’a été établi sur Flansch. Le détail des essais de subdivision et de parallélisme figure ci-dessus.
+
+### Recette avant distribution, 20 novembre 2026
+
+`sh scripts/check.sh` termine avec succès sur macOS arm64 / OCCT 7.9.3. Le profil de tests garde les assertions de débogage et compile core, cad et verify avec opt-level 2. Le workspace a été rejoué après les derniers contrôles de position et de découverte des bouchons.
+
+| Vérification | Résultat |
+|---|---|
+| Workspace final | 757 réussis, 18 optionnels ignorés, 0 échec |
+| Interface | 250 réussis, Svelte sans erreur ni avertissement, build Vite réussi |
+| Bureau | 56 tests de service et 1 test de permissions réussis. Le relais avec le vrai helper est passé séparément |
+| Worker et séries de profil large | 11 tests worker et 184 tests du profil large réussis, 5 optionnels ignorés dans ce profil |
+| Outillage | 31 tests Python, 4 contrôles de version OCCT, formatage Rust, Clippy strict et lint FabBoard réussis |
+
+La recette WKWebView en protocole embarqué compte zéro requête pour le module Viewport à vide, une après ouverture du premier STL et toujours une après le second. Les STEP de ces deux ouvertures se réimportent avec 263 et 6 faces. La sélection source identifie les deux parois de l’arbre percé et le congé du bloc composé. Après la suite, les deux exécutables de `artifacts/FabSTEP.app` ont été comparés octet par octet aux sorties du build de développement. Les recettes interactives FabBoard et la décision de durée A-136 restent ouvertes.

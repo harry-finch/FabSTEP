@@ -1,5 +1,7 @@
 # Journal d'ingénierie
 
+**20 novembre 2026 — Avant distribution.** L’atelier permet d’éditer, d’annuler et de rétablir les indications. L’arbre à perçage transversal donne quatre faces, le bloc avec deux perçages et un congé en donne dix. Les secteurs coniques et l’octant découpé complètent les témoins de R-117. La preuve des domaines est décrite dans ADR-0047. V-1270 à V-1275 consignent les recettes et l’échéance du helper sur Flansch (30 minutes, pic de 2,63 Gio).
+
 **19 novembre 2026 — Contre-expertise Argon.** Mesure des optimisations du core et de la fidélité sur la rampe publique et Flansch, suppression des listes de sélection inutilisées par le helper en Auto monocorps, ajout de contre-exemples aux interférences OCCT. Les décisions sont dans [le registre d’intégration](docs/INT_AUDIT_01.md#contre-expertise-argon-du-19-novembre). R-113 à R-115 suivent les contours interrompus, la composition locale et la fragmentation des plans en f32.
 
 **19 novembre 2026 — Audit NEON, R-112.** Sept lots intégrés sur `audit/neon`. Le helper gros STL produit un rapport privé de 2 261 octets sur la rampe publique et accompagne la candidate autonome. Les contrôles d’interférence avant et après transfert restent nécessaires pour Flansch. Mesures, décisions, essais de compatibilité et conditions de reprise figurent dans le [registre NEON](docs/INT_AUDIT_01.md#neon--audit-du-19-novembre-2026-r-112).
