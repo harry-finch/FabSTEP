@@ -8,7 +8,7 @@ Le banc public R-122 a servi à vérifier la fusion plane R-123 et les domaines 
 
 Le rejeu V-1287 de Flansch a atteint le plafond de trente minutes. Avant un nouvel essai post-v1, mesurer le coût des colliers non coplanaires sur une petite pièce publique. Les qualifications intermédiaires utilisent de petits solides indépendants. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 102 livrés sur 131** (78 %)
+**Avancement : 102 livrés sur 132** (77 %)
 
 ## Restant à faire
 
@@ -60,15 +60,17 @@ Le rejeu V-1287 de Flansch a atteint le plafond de trente minutes. Avant un nouv
    F3 et F4 · Rouvrir séparément les deux essais de V-1276 si un groupe chaud représentatif permet de démontrer un gain.
 24. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon post-v1
    Flansch reste ouvert après le gel v1. Le dernier essai atteint 30 minutes et 2,78 Gio avant écriture. Reproduire le coût des colliers sur un témoin public.
-25. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
+25. **[R-133 Choisir une intention et ajuster automatiquement la reconstruction courbe](roadmap/items/R-133-choisir-une-intention-et-ajuster-automatiquement.md)** · À tester · jalon atelier
+   Tester en Rust des tolérances bornées, valider le meilleur candidat et rendre les réglages manuels et le résultat lisibles.
+26. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
    Construire et qualifier la distribution sur Windows et Linux.
-26. **[R-021 Étudier la réutilisation entre instances 3MF](roadmap/items/R-021-etudier-la-reutilisation-entre-instances-3mf.md)** · Idée · jalon audit
+27. **[R-021 Étudier la réutilisation entre instances 3MF](roadmap/items/R-021-etudier-la-reutilisation-entre-instances-3mf.md)** · Idée · jalon audit
    AUD-006 — Démontrer un gain sur plusieurs instances ; établir un contrat tenant compte des transformations, de l’arrondi, du soudage et de la provenance avant tout cache
-27. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
+28. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
-28. **[R-118 Exporter un rapport Markdown en CLI et exposer une passerelle MCP locale](roadmap/items/R-118-exporter-un-rapport-markdown-en-cli-et-exposer.md)** · Idée · jalon post-v1
+29. **[R-118 Exporter un rapport Markdown en CLI et exposer une passerelle MCP locale](roadmap/items/R-118-exporter-un-rapport-markdown-en-cli-et-exposer.md)** · Idée · jalon post-v1
    Ajouter une sortie Markdown lisible à fabstep-cli (--report) et un wrapper MCP optionnel appelant la CLI locale, sans modifier le moteur ni l'atelier bureau.
-29. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
+30. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
    Signer et notariser le paquet macOS ; ces étapes restent ouvertes.
 
 ## Actions à faire
@@ -89,6 +91,7 @@ Le rejeu V-1287 de Flansch a atteint le plafond de trente minutes. Avant un nouv
 - [ ] [A-140](roadmap/actions/A-140-inspecter-le-flanc-de-la-came-et-le-trou-du.md) Inspecter le flanc de la came et le trou du profilé (tester, R-127)
 - [ ] [A-141](roadmap/actions/A-141-inspecter-les-coupes-de-la-levre-du-cone-et-de.md) Inspecter les coupes de la lèvre, du cône et de la sphère (tester, R-125)
 - [ ] [A-142](roadmap/actions/A-142-inspecter-la-levre-du-percage-et-le-coin-a-trois.md) Inspecter la lèvre du perçage et le coin à trois rayons (tester, R-129)
+- [ ] [A-144](roadmap/actions/A-144-essayer-automatique-facettes-et-la-navigation-3d.md) Essayer Automatique, Facettes et la navigation 3D sur les deux octants (tester, R-133)
 
 ## Livré
 

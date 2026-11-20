@@ -1,5 +1,7 @@
 # Journal d'ingénierie
 
+**20 novembre 2026 — Reconstruction et navigation R-133.** Le choix Automatique ou Facettes passe dans l’inspecteur. La présélection Rust trouve une surface sphérique sur l’octant translaté en STL f32, avec un seul candidat transmis à la CAO. L’utilisateur peut verrouiller ses tolérances. Les gestes de caméra du STEP s’appliquent également à la source. [Qualification sur les octants et le cylindre dense](docs/VALIDATION.md#v-1290--intention-recherche-bornée-et-navigation-r-133)
+
 **20 novembre 2026 — Gel fonctionnel v1.** La passe AUDIT-03 resserre la borne des perçages arrondis, aligne les parcours Auto et traite les cas limites de topologie, de transfert natif, de mémoire en attente et de restauration WebGL. [Registre et résultats](docs/INT_AUDIT_01.md#audit-03--gel-fonctionnel-v1).
 
 **20 novembre 2026 — R-122 à R-132.** Le corpus public vérifie les formes et les coûts sur deux densités. Les plans résiduels adjacents aux tores, les parois interrompues, les profils mixtes de révolution et d’extrusion, les motifs de perçages et deux familles de congés ont été qualifiés. Les deux modes expérimentaux de contrôle des interférences restent dans le banc après comparaison sur trois solides. A-136 fixe trente minutes pour le calcul isolé. La recette a également corrigé le transfert d’un tronc de cône après une surface exacte et préservé les profils DXF elliptiques. Un rejeu du STL Flansch a atteint le délai au contrôle des intersections, avec un pic de 2,78 Gio. Voir V-1277 à V-1287.

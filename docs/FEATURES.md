@@ -30,3 +30,5 @@ L’utilisateur confirme l’aperçu et l’export natifs du boîtier à 26 face
 ## Atelier post-v1
 
 Le build de développement propose la reconstruction automatique avec repli contrôlé, les indications sur une zone source, la sélection de faces STEP, les profils et coupes DXF, ainsi que le mode gros STL dans un processus isolé. Le domaine vérifié de chaque famille et les essais utilisateur figurent dans [STATUS](../STATUS.md) et la [feuille de route](../ROADMAP.md).
+
+**Reconstruction automatique et navigation (R-133).** Dans l’inspecteur, choisir **Automatique** pour reconnaître les surfaces ou **Facettes** pour garder les faces planes. Le résultat donne les familles obtenues et, lorsqu’il a été mesuré dans les deux sens sur tous les corps, l’écart maximal échantillonné. Une saisie de tolérance dans **Avancé** impose ces valeurs exactes. **Rétablir les tolérances automatiques** réactive la recherche avec les valeurs initiales. Un ajustement accepté figure dans **Détails techniques**. Les deux vues utilisent le clic droit glissé pour tourner, le bouton central glissé pour déplacer et la molette pour zoomer.
