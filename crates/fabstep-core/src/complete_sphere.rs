@@ -22,6 +22,14 @@ pub fn recognize_complete_sphere(
     a: &Analysis,
     o: &Options,
 ) -> Result<RoundedRecognition, FabError> {
+    recognize(a, o, None)
+}
+
+pub(crate) fn recognize(
+    a: &Analysis,
+    o: &Options,
+    validated: Option<&[Vec<usize>]>,
+) -> Result<RoundedRecognition, FabError> {
     if o.reconstruction != ReconstructionMode::Surfaces {
         return Err(FabError::new(
             "recognition.disabled",
@@ -41,12 +49,21 @@ pub fn recognize_complete_sphere(
             ));
         }
     }
-    validate_analysis(a)?;
+    if validated.is_none() {
+        validate_analysis(a)?;
+    }
     let mut work = Work::default();
     work.spend(a.mesh.triangles.len().saturating_mul(12) + a.mesh.vertices.len())?;
     // This also proves connectedness, opposite edge incidences, and a single
     // disk-like link at every vertex, excluding pinched pseudomanifolds.
-    let adjacency = crate::pipeline::validate_topology(&a.mesh)?;
+    let owned;
+    let adjacency = match validated {
+        Some(adjacency) => adjacency,
+        None => {
+            owned = crate::pipeline::validate_topology(&a.mesh)?;
+            &owned
+        }
+    };
     let vertices = a.mesh.vertices.len();
     let triangles = a.mesh.triangles.len();
     let edges = triangles * 3 / 2;
@@ -60,7 +77,7 @@ pub fn recognize_complete_sphere(
     // allowed: they occur naturally between equal-angle latitude samples.
     let segmentation = crate::planar::build_with_provenance(
         &a.mesh,
-        &adjacency,
+        adjacency,
         o.plane_tolerance_mm.max(o.cylinder_fit_tolerance_mm),
     )?;
     for plane in &segmentation.model.faces {

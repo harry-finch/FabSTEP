@@ -28,6 +28,7 @@ pub(crate) fn augment(
     result: &mut RoundedRecognition,
     o: &Options,
     scope: Option<&BTreeSet<usize>>,
+    adjacency: &[Vec<usize>],
 ) -> Result<(), FabError> {
     let model = &result.model.revolved.mixed;
     let mut work = Work::default();
@@ -39,7 +40,6 @@ pub(crate) fn augment(
     if candidates.len() < 2 {
         return Ok(());
     }
-    let adjacency = crate::pipeline::validate_topology(&a.mesh)?;
     let mut edges: BTreeMap<Edge, Vec<usize>> = BTreeMap::new();
     let mut vertex_triangles = vec![Vec::new(); a.mesh.vertices.len()];
     for (t, &[a, b, c]) in a.mesh.triangles.iter().enumerate() {
@@ -71,7 +71,7 @@ pub(crate) fn augment(
                 &owners,
                 [&candidates[i], &candidates[j]],
                 candidates.len() == 2 && a.mesh.triangles.len() <= 4096,
-                &adjacency,
+                adjacency,
                 &edges,
                 &vertex_triangles,
                 o,

@@ -4,6 +4,8 @@ use crate::math::*;
 use crate::*;
 use std::collections::BTreeSet;
 
+pub(crate) mod tuning;
+
 pub fn recognize_automatic(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
     recognize(a, o, None)
 }
@@ -30,21 +32,32 @@ fn recognize(
     scope: Option<&BTreeSet<usize>>,
 ) -> Result<RoundedRecognition, FabError> {
     validate(a, o)?;
+    let adjacency = crate::pipeline::validate_topology(&a.mesh)?;
+    recognize_with_adjacency(a, o, scope, &adjacency)
+}
+
+type CompleteRecognizer =
+    fn(&Analysis, &Options, Option<&[Vec<usize>]>) -> Result<RoundedRecognition, FabError>;
+
+fn recognize_with_adjacency(
+    a: &Analysis,
+    o: &Options,
+    scope: Option<&BTreeSet<usize>>,
+    adjacency: &[Vec<usize>],
+) -> Result<RoundedRecognition, FabError> {
     let active = Options {
         reconstruction: ReconstructionMode::Surfaces,
         ..o.clone()
     };
-    let adjacency = crate::pipeline::validate_topology(&a.mesh)?;
-    let mut result = match crate::rounded::recognize_auto_patches(a, &active, scope, &adjacency) {
+    let mut result = match crate::rounded::recognize_auto_patches(a, &active, scope, adjacency) {
         Ok(r) => r,
         Err(e) if e.code == "recognition.unsupported" => {
             let mut complete = None;
             for attempt in [
-                crate::recognize_complete_torus
-                    as fn(&Analysis, &Options) -> Result<RoundedRecognition, FabError>,
-                crate::recognize_complete_sphere,
+                crate::complete_torus::recognize as CompleteRecognizer,
+                crate::complete_sphere::recognize,
             ] {
-                match attempt(a, &active) {
+                match attempt(a, &active, Some(adjacency)) {
                     Ok(r) => {
                         complete = Some(r);
                         break;
@@ -61,7 +74,7 @@ fn recognize(
             }
             match complete {
                 Some(r) => r,
-                None => planar(a, o, &adjacency)?,
+                None => planar(a, o, adjacency)?,
             }
         }
         Err(e) => return Err(e),
@@ -84,11 +97,10 @@ fn recognize(
         == 0
     {
         for attempt in [
-            crate::recognize_complete_torus
-                as fn(&Analysis, &Options) -> Result<RoundedRecognition, FabError>,
-            crate::recognize_complete_sphere,
+            crate::complete_torus::recognize as CompleteRecognizer,
+            crate::complete_sphere::recognize,
         ] {
-            match attempt(a, &active) {
+            match attempt(a, &active, Some(adjacency)) {
                 Ok(r) => {
                     result = r;
                     break;
@@ -113,7 +125,7 @@ fn recognize(
         refresh(a, o, &mut result)?;
         return Ok(result);
     }
-    crate::partial::chain::augment(a, &mut result, o, scope)?;
+    crate::partial::chain::augment(a, &mut result, o, scope, adjacency)?;
     if scope.is_none()
         && result.report.cylinders
             + result.report.cones
@@ -125,7 +137,7 @@ fn recognize(
         if let Some(shaft) = crate::drilled_shaft::candidate(
             a,
             o,
-            &adjacency,
+            adjacency,
             &mut crate::recognition::Work::default(),
         ) {
             return Ok(shaft);
@@ -133,7 +145,7 @@ fn recognize(
     }
     safe_planes(a, &mut result)?;
     if scope.is_none() {
-        recover_planar_output(a, o, &adjacency, &mut result)?;
+        recover_planar_output(a, o, adjacency, &mut result)?;
     }
     refresh(a, o, &mut result)?;
     Ok(result)

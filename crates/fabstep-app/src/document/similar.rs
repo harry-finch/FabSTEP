@@ -547,6 +547,7 @@ impl DocumentStep {
         };
         for i in std::iter::once(first).chain((0..doc.bodies.len()).filter(|&i| i != first)) {
             let body = &doc.bodies[i];
+            let options = source.effective_options(&body.id);
             let component = &mappings[i];
             let mapping = &component.analysis_to_source_triangles;
             let body_rows = rows.get(body.id.as_str()).ok_or_else(unavailable)?;
@@ -575,7 +576,7 @@ impl DocumentStep {
                 }
             }
             let r = control.run(ConversionPhase::Recognition, Some(i), || {
-                fabstep_core::recognize_automatic(&body.analysis, &source.options)
+                fabstep_core::recognize_automatic(&body.analysis, &options)
             })?;
             if coupled(&r) {
                 if i == first {
@@ -589,7 +590,7 @@ impl DocumentStep {
                     &inspected,
                     &mut faces,
                     normal,
-                    &source.options,
+                    &options,
                     &mut || control.check(ConversionPhase::Recognition, Some(i)),
                 )?;
             } else {
@@ -622,7 +623,7 @@ impl DocumentStep {
                         continue;
                     };
                     if faces.claimed[seed]
-                        || !s.matches(template, source.options.cylinder_fit_tolerance_mm)
+                        || !s.matches(template, options.cylinder_fit_tolerance_mm)
                         || inspected.faces[faces.native[seed]].family == s.family
                         || !seen.insert((s.partial, index))
                     {
@@ -666,7 +667,9 @@ impl DocumentStep {
                 last,
                 &doc.bodies[first],
                 &mappings[first],
-                source.options.cylinder_fit_tolerance_mm,
+                source
+                    .effective_options(&doc.bodies[first].id)
+                    .cylinder_fit_tolerance_mm,
                 &mut || control.check(ConversionPhase::Recognition, Some(first)),
             )?;
         }

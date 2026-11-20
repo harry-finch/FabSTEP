@@ -398,7 +398,10 @@ fn execute_job(directory: &Path) -> Result<bool, FabError> {
     let _job = Job::acquire(directory)?;
     let mut identity = Identity::default();
     let result = (|| {
-        let request = read_request(directory, &mut identity)?;
+        let mut request = read_request(directory, &mut identity)?;
+        // The isolated large-STL job has a fixed time and memory budget,
+        // including when it contains several individually small bodies.
+        request.options.auto_tune = false;
         let source = read_limited(
             &directory.join("source.stl"),
             SOURCE_LIMIT,

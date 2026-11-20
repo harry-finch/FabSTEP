@@ -429,3 +429,56 @@ fn oversized_input_and_occupied_destination_fail_before_parsing() {
     );
     assert_eq!(fs::read(&target).unwrap(), b"existing");
 }
+
+#[test]
+fn auto_reports_its_adjustment_and_respects_an_explicit_default() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("translated-octant.stl");
+    let output = dir.path().join("result.step");
+    // The extra rounding in this f32 placement fragments the three plane fans.
+    fs::write(
+        &input,
+        include_bytes!("../../../fixtures/r133-translated-octant.stl"),
+    )
+    .unwrap();
+    for manual in [false, true] {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_fabstep"));
+        command
+            .arg("convert")
+            .arg(&input)
+            .arg("-o")
+            .arg(&output)
+            .args(["--mode", "auto", "--force", "--json"]);
+        if manual {
+            command.args(["--plane", "0.000001"]);
+        }
+        let run = command.output().unwrap();
+        assert!(
+            run.status.success(),
+            "{}",
+            String::from_utf8_lossy(&run.stderr)
+        );
+        let report: serde_json::Value = serde_json::from_slice(&run.stdout).unwrap();
+        let body = &report["bodies"][0];
+        assert_eq!(report["settings"]["max_deviation_mm"], 0.05);
+        assert_eq!(report["settings"]["plane_tolerance_mm"], 1e-6);
+        assert_eq!(body["settings"]["max_deviation_mm"], 0.05);
+        if manual {
+            assert!(body.get("auto_adjustment").is_none());
+            assert_eq!(body["cad"]["spherical_faces"], 0);
+            assert_eq!(body["settings"]["plane_tolerance_mm"], 1e-6);
+        } else {
+            assert_eq!(body["cad"]["faces"], 4);
+            assert_eq!(body["cad"]["spherical_faces"], 1);
+            let selected = body["auto_adjustment"]["plane_tolerance_mm"]
+                .as_f64()
+                .unwrap();
+            assert!(selected > 1e-6);
+            assert_eq!(body["settings"]["plane_tolerance_mm"], selected);
+            assert_eq!(
+                body["auto_adjustment"]["requested_plane_tolerance_mm"],
+                1e-6
+            );
+        }
+    }
+}

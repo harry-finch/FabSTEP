@@ -1,9 +1,10 @@
 //! Documents placés en millimètres, sans fusion ni export partiel.
 use crate::product_name::product_name;
 use crate::{
-    controlled, convert_analysis_with_face_tokens, convert_analysis_with_recognized,
-    precision_diagnostic, triangle_model, ConversionCheckpoint, ConversionControl, ConversionPhase,
-    ConversionReport, ProcessingSettings, Recognized, SourceProofCache,
+    auto_adjustment, controlled, convert_analysis_with_face_tokens,
+    convert_analysis_with_recognized, precision_diagnostic, triangle_model, ConversionCheckpoint,
+    ConversionControl, ConversionPhase, ConversionReport, ProcessingSettings, Recognized,
+    SourceProofCache,
 };
 use fabstep_cad::{combine_steps, validate_sources_separated, CadReport, StepPart};
 use fabstep_core::{
@@ -232,9 +233,22 @@ struct ConversionSource {
     bytes: Arc<Vec<u8>>,
     format: InputFormat,
     options: Options,
+    adjusted_body: Option<(String, crate::AutoAdjustment)>,
     hints: Vec<GuidanceReport>,
     next_hint_id: u64,
     history: GuidanceHistory,
+}
+
+impl ConversionSource {
+    fn effective_options(&self, body: &str) -> Options {
+        self.adjusted_body
+            .as_ref()
+            .filter(|(id, _)| id == body)
+            .map_or_else(
+                || self.options.clone(),
+                |(_, adjustment)| adjustment.effective(&self.options),
+            )
+    }
 }
 
 impl DocumentStep {
@@ -472,6 +486,7 @@ impl DocumentStep {
             source.format,
             &source.options,
             source.hints.clone(),
+            &mut AutoRun::Replay(source.adjusted_body.as_ref()),
             control,
             DocumentOutput::WithProvenance,
         )?;
@@ -530,7 +545,7 @@ impl DocumentStep {
             let region = control.run(ConversionPhase::Recognition, Some(index), || {
                 fabstep_core::automatic_region(
                     &document.bodies[index].analysis,
-                    &source.options,
+                    &source.effective_options(&face.analysis_body_id),
                     seed,
                 )
             })?;
@@ -879,15 +894,10 @@ pub(crate) fn convert_document_with_source_proofs(
     source_proofs: Option<&mut SourceProofCache>,
 ) -> Result<DocumentConversion, FabError> {
     controlled(check_current, |control| {
-        let (document, body_sources) = control.run(ConversionPhase::Analysis, None, || {
-            analyze_document_with_provenance(bytes, format, options)
-        })?;
-        let conversion = convert_analyzed_document(
-            document,
-            body_sources,
+        let conversion = convert_ordinary_document(
+            bytes,
             format,
             options,
-            Vec::new(),
             control,
             DocumentOutput::ExportOnly(source_proofs),
         )?;
@@ -906,25 +916,15 @@ pub fn convert_document_with_provenance(
     options: &Options,
 ) -> Result<ProvenancedDocumentConversion, FabError> {
     controlled(&mut |_| Ok(()), |control| {
-        // Copy only after import has enforced the source-size limits.
-        let (document, body_sources) = analyze_document_with_provenance(bytes, format, options)?;
-        let mut result = convert_analyzed_document(
-            document,
-            body_sources,
+        let mut result = convert_ordinary_document(
+            bytes,
             format,
             options,
-            Vec::new(),
             control,
             DocumentOutput::WithProvenance,
         )?;
-        result.step.source = Some(ConversionSource {
-            bytes: Arc::new(bytes.to_vec()),
-            format,
-            options: options.clone(),
-            hints: Vec::new(),
-            next_hint_id: 1,
-            history: GuidanceHistory::default(),
-        });
+        // Copy only after import has enforced the source-size limits.
+        result.remember_source(Arc::new(bytes.to_vec()), format, options);
         Ok(result)
     })
 }
@@ -945,28 +945,89 @@ pub fn convert_shared_document_with_provenance_controlled(
     check_current: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
 ) -> Result<ProvenancedDocumentConversion, FabError> {
     controlled(check_current, |control| {
-        let (document, body_sources) = control.run(ConversionPhase::Analysis, None, || {
-            analyze_document_with_provenance(&bytes, format, options)
-        })?;
-        let mut result = convert_analyzed_document(
-            document,
-            body_sources,
+        let mut result = convert_ordinary_document(
+            &bytes,
             format,
             options,
-            Vec::new(),
             control,
             DocumentOutput::WithProvenance,
         )?;
-        result.step.source = Some(ConversionSource {
+        result.remember_source(bytes, format, options);
+        Ok(result)
+    })
+}
+
+impl ProvenancedDocumentConversion {
+    fn remember_source(&mut self, bytes: Arc<Vec<u8>>, format: InputFormat, options: &Options) {
+        self.step.source = Some(ConversionSource {
             bytes,
             format,
             options: options.clone(),
+            adjusted_body: self
+                .report
+                .bodies
+                .iter()
+                .find_map(|b| b.conversion.auto_adjustment.map(|a| (b.id.clone(), a))),
             hints: Vec::new(),
             next_hint_id: 1,
             history: GuidanceHistory::default(),
         });
-        Ok(result)
-    })
+    }
+}
+
+/// One shared pure-Rust work budget and at most one speculative native build
+/// for the entire document, independently of the number of STL/3MF components.
+enum AutoRun<'a> {
+    Screen {
+        budget: fabstep_core::AutomaticTuningBudget,
+        attempted: bool,
+        applied: bool,
+    },
+    Replay(Option<&'a (String, crate::AutoAdjustment)>),
+}
+
+fn convert_ordinary_document(
+    bytes: &[u8],
+    format: InputFormat,
+    options: &Options,
+    control: &mut ConversionControl<'_>,
+    mut output: DocumentOutput<'_>,
+) -> Result<ProvenancedDocumentConversion, FabError> {
+    let mut convert = |tuning: &mut AutoRun<'_>, control: &mut ConversionControl<'_>| {
+        let (document, sources) = control.run(ConversionPhase::Analysis, None, || {
+            analyze_document_with_provenance(bytes, format, options)
+        })?;
+        let output = match &mut output {
+            DocumentOutput::WithProvenance => DocumentOutput::WithProvenance,
+            DocumentOutput::ExportOnly(cache) => DocumentOutput::ExportOnly(cache.as_deref_mut()),
+        };
+        convert_analyzed_document(
+            document,
+            sources,
+            format,
+            options,
+            vec![],
+            tuning,
+            control,
+            output,
+        )
+    };
+    let mut tuning = AutoRun::Screen {
+        budget: Default::default(),
+        attempted: false,
+        applied: false,
+    };
+    let result = convert(&mut tuning, control);
+    // An individually valid changed body can still make the final document
+    // invalid (e.g. contact with another component). Rebuild using the original
+    // settings. A cancellation is final even if it occurs during combination.
+    if result.is_err()
+        && control.interruption().is_none()
+        && matches!(tuning, AutoRun::Screen { applied: true, .. })
+    {
+        return convert(&mut AutoRun::Replay(None), control);
+    }
+    result
 }
 
 enum DocumentOutput<'a> {
@@ -974,12 +1035,14 @@ enum DocumentOutput<'a> {
     ExportOnly(Option<&'a mut SourceProofCache>),
 }
 
+#[allow(clippy::too_many_arguments)]
 fn convert_analyzed_document(
     document: DocumentAnalysis,
     body_sources: Vec<BodySourceTriangles>,
     format: InputFormat,
     options: &Options,
     mut guidance_hints: Vec<GuidanceReport>,
+    tuning: &mut AutoRun<'_>,
     control: &mut ConversionControl<'_>,
     output: DocumentOutput<'_>,
 ) -> Result<ProvenancedDocumentConversion, FabError> {
@@ -1033,13 +1096,21 @@ fn convert_analyzed_document(
         document.bodies.into_iter().zip(body_sources).enumerate()
     {
         control.check(ConversionPhase::Body, Some(body_index))?;
+        let replay = match tuning {
+            AutoRun::Replay(Some((id, adjustment))) if id == &body.id => Some(*adjustment),
+            _ => None,
+        };
+        let effective = replay.map(|adjustment| adjustment.effective(options));
+        let options = effective.as_ref().unwrap_or(options);
         let hints = guidance_hints
             .iter_mut()
             .filter(|hint| hint.analysis_body_id == body.id)
             .collect::<Vec<_>>();
         // Match the single-STL entry point: a certified native blend gets the
         // first opportunity, then ordinary partitioned and analytic surfaces.
-        let blend = if hints.is_empty() {
+        // Replaying an adjusted body must retain its proved rounded domain.
+        // Native blends and partitioned domains were already tried at import.
+        let blend = if hints.is_empty() && replay.is_none() {
             crate::native_blends::try_build(
                 &mut body.analysis,
                 options,
@@ -1053,6 +1124,7 @@ fn convert_analyzed_document(
             None
         };
         let partitioned = if blend.is_none()
+            && replay.is_none()
             && hints.is_empty()
             && options.reconstruction == ReconstructionMode::Auto
         {
@@ -1064,7 +1136,7 @@ fn convert_analyzed_document(
         } else {
             None
         };
-        let conversion = if let Some(built) = blend {
+        let mut conversion = if let Some(built) = blend {
             if keep_auto_faces {
                 built.append_sources(
                     &source.preview_body_id, &body.id, &source.analysis_to_source_triangles, &mut source_faces,
@@ -1106,13 +1178,24 @@ fn convert_analyzed_document(
                 Ok((family,selected))
             }).collect::<Result<Vec<_>, FabError>>()?;
             (|| {
-                let candidate = control.run(ConversionPhase::Recognition, Some(body_index), || {
-                    if requests.is_empty() {
-                        fabstep_core::recognize_automatic(&body.analysis, options)
-                    } else {
-                        fabstep_core::recognize_automatic_guided(&body.analysis, options, &requests)
+                let mut improved = None;
+                let candidate = match tuning {
+                    AutoRun::Screen { budget, attempted, .. } if requests.is_empty() && !*attempted && options.auto_tune => {
+                        auto_adjustment::candidates(&body.analysis, options, budget, control, body_index)
+                            .map(|(baseline, alternative)| {
+                                *attempted = alternative.is_some();
+                                improved = alternative;
+                                baseline
+                            })
                     }
-                });
+                    _ => control.run(ConversionPhase::Recognition, Some(body_index), || {
+                        if requests.is_empty() {
+                            fabstep_core::recognize_automatic(&body.analysis, options)
+                        } else {
+                            fabstep_core::recognize_automatic_guided(&body.analysis, options, &requests)
+                        }
+                    }),
+                };
                 #[cfg(feature = "large-stl")]
                 if requests.is_empty() && single_stl
                     && body.analysis.mesh.triangles.len() > 100_000
@@ -1133,10 +1216,15 @@ fn convert_analyzed_document(
                             .into_iter().map(|t| source.analysis_to_source_triangles[t]).collect();
                 }
                 let first = source_faces.len() + 1;
-                let count = rounded_source_faces(&body.id, &source, &recognized, keep_auto_faces.then_some(&mut source_faces))?;
-                let tokens = (first..first + count).collect::<Vec<_>>();
-                convert_analysis_with_recognized(body.analysis, options, Some(&tokens),
-                    Some(Recognized::Rounded(recognized)), control, body_index, source_proofs.as_deref_mut())
+                auto_adjustment::build(body.analysis, options, (recognized, improved), control,
+                    |analysis, selected, recognized, control| {
+                        // A rejected native proposal must not leave any of its rows in the sidecar.
+                        source_faces.truncate(first - 1);
+                        let count = rounded_source_faces(&body.id, &source, &recognized, keep_auto_faces.then_some(&mut source_faces))?;
+                        let tokens = (first..first + count).collect::<Vec<_>>();
+                        convert_analysis_with_recognized(analysis, selected, Some(&tokens),
+                            Some(Recognized::Rounded(recognized)), control, body_index, source_proofs.as_deref_mut())
+                    })
             })()
         } else if !hints.is_empty() {
             let selections = hints.iter().map(|hint| {
@@ -1194,6 +1282,12 @@ fn convert_analyzed_document(
             convert_analysis_with_face_tokens(body.analysis, options, face_tokens.as_deref(), control, body_index, source_proofs.as_deref_mut())
         }
         .map_err(|e| body_error(e, &body.id, &body.name))?;
+        if let AutoRun::Screen { applied, .. } = tuning {
+            *applied |= conversion.report.auto_adjustment.is_some();
+        }
+        if replay.is_some() {
+            conversion.report.auto_adjustment = replay;
+        }
         step_size = step_size.saturating_add(conversion.step_bytes.len());
         if step_size > 128 * 1024 * 1024 {
             return Err(FabError::new(
@@ -1755,6 +1849,7 @@ mod tests {
             InputFormat::Stl,
             &options,
             vec![previous],
+            &mut AutoRun::Replay(None),
             &mut ConversionControl::new(&mut |_| Ok(())),
             DocumentOutput::WithProvenance,
         )

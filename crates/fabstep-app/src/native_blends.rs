@@ -188,6 +188,7 @@ impl Built {
         Conversion {
             step_bytes: self.step.bytes,
             report: ConversionReport {
+                auto_adjustment: None,
                 settings: ProcessingSettings::from(options),
                 analysis,
                 cad: self.step.report,

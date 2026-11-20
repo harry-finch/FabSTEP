@@ -21,6 +21,7 @@ Options :
   --unit        Unité des coordonnées STL, absente du format (défaut explicite : mm)
   --force       Autoriser le remplacement du fichier de sortie
 
+En mode auto, toute tolérance fournie explicitement impose les réglages exacts.
 Mode cylinders : plans, cylindres complets et partiels ; bossages, trous et encoches.
 Les cylindres partiels incluent les parois décalées et les petits raccords contextuels prouvés.
 Mode primitives : ajoute les cônes et chanfreins prouvés, dont les chaînes de pentes alternées
@@ -111,6 +112,7 @@ fn run() -> Result<(), FabError> {
                     .ok_or_else(|| usage("Tolérance manquante."))?
                     .parse::<f64>()
                     .map_err(|_| usage("Tolérance non numérique."))?;
+                options.auto_tune = false;
                 match arg.as_str() {
                     "--weld" => options.weld_tolerance_mm = value,
                     "--plane" => options.plane_tolerance_mm = value,
@@ -273,7 +275,22 @@ fn run() -> Result<(), FabError> {
                 .map_err(|e| io_error(e.error))?;
         }
         if json {
-            let bodies: Vec<_> = result.report.bodies.iter().map(|b| serde_json::json!({"id":b.id,"name":b.name,"provenance":b.provenance,"mesh":b.conversion.analysis.report,"cad":b.conversion.cad,"recognition":b.conversion.recognition,"mixed_recognition":b.conversion.mixed_recognition,"revolved_recognition":b.conversion.revolved_recognition,"rounded_recognition":b.conversion.rounded_recognition,"rounded_box_recognition":b.conversion.rounded_box_recognition,"height_patch_recognition":b.conversion.height_patch_recognition,"cubic_prism_recognition":b.conversion.cubic_prism_recognition,"oblique_lip_recognition":b.conversion.oblique_lip_recognition,"oblique_band_recognition":b.conversion.oblique_band_recognition,"fidelity":b.conversion.fidelity})).collect();
+            let bodies: Vec<_> = result.report.bodies.iter().map(|body| {
+                let c = &body.conversion;
+                let mut json = serde_json::json!({
+                    "id": body.id, "name": body.name, "provenance": body.provenance,
+                    "mesh": c.analysis.report, "cad": c.cad, "settings": c.settings,
+                    "recognition": c.recognition, "mixed_recognition": c.mixed_recognition,
+                    "revolved_recognition": c.revolved_recognition, "rounded_recognition": c.rounded_recognition,
+                    "rounded_box_recognition": c.rounded_box_recognition, "height_patch_recognition": c.height_patch_recognition,
+                    "cubic_prism_recognition": c.cubic_prism_recognition, "oblique_lip_recognition": c.oblique_lip_recognition,
+                    "oblique_band_recognition": c.oblique_band_recognition, "fidelity": c.fidelity,
+                });
+                if let Some(adjustment) = &c.auto_adjustment {
+                    json["auto_adjustment"] = serde_json::json!(adjustment);
+                }
+                json
+            }).collect();
             let mut report = serde_json::json!({"output":path,"settings":result.report.settings,"source":result.report.source,"cad":result.report.cad,"bodies":bodies,"diagnostics":result.report.diagnostics,"native_validated":true});
             if bodies.len() == 1 {
                 for key in [

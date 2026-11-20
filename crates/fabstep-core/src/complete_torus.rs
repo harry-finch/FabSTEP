@@ -30,6 +30,14 @@ struct Torus {
 /// no candidate. A different genus is unsupported; a failed genus-one proof
 /// is blocking and must never be retried as a convenient different primitive.
 pub fn recognize_complete_torus(a: &Analysis, o: &Options) -> Result<RoundedRecognition, FabError> {
+    recognize(a, o, None)
+}
+
+pub(crate) fn recognize(
+    a: &Analysis,
+    o: &Options,
+    validated: Option<&[Vec<usize>]>,
+) -> Result<RoundedRecognition, FabError> {
     if o.reconstruction != ReconstructionMode::Surfaces {
         return Err(FabError::new(
             "recognition.disabled",
@@ -49,11 +57,20 @@ pub fn recognize_complete_torus(a: &Analysis, o: &Options) -> Result<RoundedReco
             ));
         }
     }
-    validate_analysis(a)?;
+    if validated.is_none() {
+        validate_analysis(a)?;
+    }
     let mut work = Work::default();
     let triangle_count = a.mesh.triangles.len();
     work.spend(triangle_count.saturating_mul(12) + a.mesh.vertices.len())?;
-    let adjacency = crate::pipeline::validate_topology(&a.mesh)?;
+    let owned;
+    let adjacency = match validated {
+        Some(adjacency) => adjacency,
+        None => {
+            owned = crate::pipeline::validate_topology(&a.mesh)?;
+            &owned
+        }
+    };
     let edge_count = triangle_count * 3 / 2;
     if a.mesh.vertices.len() as isize - edge_count as isize + triangle_count as isize != 0 {
         return Err(FabError::new(
@@ -63,7 +80,7 @@ pub fn recognize_complete_torus(a: &Analysis, o: &Options) -> Result<RoundedReco
     }
     let segmentation = crate::planar::build_with_provenance(
         &a.mesh,
-        &adjacency,
+        adjacency,
         o.plane_tolerance_mm.max(o.cylinder_fit_tolerance_mm),
     )?;
     for plane in &segmentation.model.faces {

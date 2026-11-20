@@ -87,6 +87,8 @@ pub struct Options {
     /// Region growth additionally requires almost parallel triangle normals.
     pub plane_tolerance_mm: f64,
     pub reconstruction: ReconstructionMode,
+    /// Allow bounded automatic proposals. Callers with explicit tolerances set this to false.
+    pub auto_tune: bool,
     pub cylinder_fit_tolerance_mm: f64,
     pub max_deviation_mm: f64,
 }
@@ -97,6 +99,7 @@ impl Default for Options {
             weld_tolerance_mm: 1e-6,
             plane_tolerance_mm: 1e-6,
             reconstruction: ReconstructionMode::Planar,
+            auto_tune: true,
             cylinder_fit_tolerance_mm: 1e-5,
             max_deviation_mm: 0.05,
         }
@@ -573,7 +576,7 @@ impl RoundedModel {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RoundedFaceRef {
     /// 0 is the convex shaft wall, 1 the concave transverse bore.
@@ -695,6 +698,7 @@ mod automatic;
 mod guided_plane;
 pub use automatic::{
     automatic_region, guided_rounded_region, recognize_automatic, recognize_automatic_guided,
+    tuning::{recognize_automatic_candidates, AutomaticCandidate, AutomaticTuningBudget},
 };
 mod stl;
 pub use mixed::{

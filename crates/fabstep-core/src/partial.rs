@@ -625,8 +625,9 @@ pub(crate) fn augment(
     owners: &mut [Option<MixedFaceRef>],
     o: &Options,
     work: &mut Work,
+    adjacency: &[Vec<usize>],
 ) -> Result<Residual, FabError> {
-    augment_policy(a, model, owners, o, work, false)
+    augment_policy(a, model, owners, o, work, adjacency, false)
 }
 pub(crate) fn augment_auto(
     a: &Analysis,
@@ -634,8 +635,9 @@ pub(crate) fn augment_auto(
     owners: &mut [Option<MixedFaceRef>],
     o: &Options,
     work: &mut Work,
+    adjacency: &[Vec<usize>],
 ) -> Result<Residual, FabError> {
-    augment_policy(a, model, owners, o, work, true)
+    augment_policy(a, model, owners, o, work, adjacency, true)
 }
 fn augment_policy(
     a: &Analysis,
@@ -643,6 +645,7 @@ fn augment_policy(
     owners: &mut [Option<MixedFaceRef>],
     o: &Options,
     work: &mut Work,
+    adjacency: &[Vec<usize>],
     automatic: bool,
 ) -> Result<Residual, FabError> {
     let mut candidates = candidates(model, o, work)?;
@@ -654,7 +657,6 @@ fn augment_policy(
     if candidates.is_empty() && normal_ends.is_none() {
         return Ok(Residual::default());
     }
-    let adjacency = crate::pipeline::validate_topology(&a.mesh)?;
     let mut edges: BTreeMap<Edge, Vec<usize>> = BTreeMap::new();
     let mut vertex_triangles = vec![Vec::new(); a.mesh.vertices.len()];
     for (t, &[a, b, c]) in a.mesh.triangles.iter().enumerate() {
@@ -681,7 +683,7 @@ fn augment_policy(
                 owners,
                 &candidates,
                 [i, j],
-                &adjacency,
+                adjacency,
                 &edges,
                 &vertex_triangles,
                 o,
@@ -720,7 +722,7 @@ fn augment_policy(
                 owners,
                 &candidates,
                 [i, j],
-                &adjacency,
+                adjacency,
                 &edges,
                 &vertex_triangles,
                 o,

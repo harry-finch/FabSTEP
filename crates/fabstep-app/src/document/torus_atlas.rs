@@ -203,6 +203,7 @@ pub(super) fn convert(
     Ok(Conversion {
         step_bytes: step.bytes,
         report: ConversionReport {
+            auto_adjustment: None,
             settings: ProcessingSettings::from(options),
             analysis,
             cad: step.report,

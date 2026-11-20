@@ -23,6 +23,7 @@ type SourcePreparationStart = (SourcePreparationContext, Option<Arc<PreparedSour
 fn same_options(a: &Options, b: &Options) -> bool {
     a.input_unit == b.input_unit
         && a.reconstruction == b.reconstruction
+        && a.auto_tune == b.auto_tune
         && a.weld_tolerance_mm.to_bits() == b.weld_tolerance_mm.to_bits()
         && a.plane_tolerance_mm.to_bits() == b.plane_tolerance_mm.to_bits()
         && a.cylinder_fit_tolerance_mm.to_bits() == b.cylinder_fit_tolerance_mm.to_bits()
@@ -294,6 +295,10 @@ mod tests {
     fn source_preparation_checks_every_option_field_exactly() {
         let base = Options::default();
         for changed in [
+            Options {
+                auto_tune: !base.auto_tune,
+                ..base.clone()
+            },
             Options {
                 input_unit: fabstep_core::InputUnit::Inch,
                 ..base.clone()

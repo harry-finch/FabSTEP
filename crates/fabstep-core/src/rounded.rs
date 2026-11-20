@@ -286,6 +286,27 @@ pub(crate) fn recognize_auto_patches(
     recognize_validated(a, o, true, scope, AutoProofMode::Retain, adjacency)
 }
 
+// Project the whole observed loop in its plane. The same radial residual is
+// used to nominate a bounded retry and to build the recognizer's actual rim.
+pub(crate) fn fit_planar_ring(
+    vertices: &[V],
+    lp: &[usize],
+    normal: V,
+    tolerance: f64,
+) -> Option<(V, V, crate::recognition::CircleFit)> {
+    let frame = Frame::new(vertices[lp[0]], normal);
+    let points: Vec<_> = lp
+        .iter()
+        .map(|&v| {
+            let p = frame.project(vertices[v]);
+            [p[0], p[1]]
+        })
+        .collect();
+    let fit = fit_circle(&points, tolerance)?;
+    let center = frame.lift([fit.center[0], fit.center[1], 0.]);
+    Some((center, frame.axis, fit))
+}
+
 fn segmented_rims(
     a: &Analysis,
     o: &Options,
@@ -299,22 +320,19 @@ fn segmented_rims(
                 continue;
             }
             work.spend(lp.len())?;
-            let frame = Frame::new(a.mesh.vertices[lp[0]], face.normal);
-            let points: Vec<_> = lp
-                .iter()
-                .map(|&v| {
-                    let p = frame.project(a.mesh.vertices[v]);
-                    [p[0], p[1]]
-                })
-                .collect();
-            let Some(fit) = fit_circle(&points, o.cylinder_fit_tolerance_mm) else {
+            let Some((center, axis, fit)) = fit_planar_ring(
+                &a.mesh.vertices,
+                lp,
+                face.normal,
+                o.cylinder_fit_tolerance_mm,
+            ) else {
                 continue;
             };
             rims.push(Rim {
                 vertices: lp.clone(),
                 region,
-                center: frame.lift([fit.center[0], fit.center[1], 0.]),
-                axis: frame.axis,
+                center,
+                axis,
                 radius: fit.radius,
             });
         }
@@ -914,6 +932,7 @@ fn recognize_validated(
             &mut partial_owners,
             o,
             &mut work,
+            adjacency,
         ) {
             Ok(proof) => Some(proof),
             Err(e)

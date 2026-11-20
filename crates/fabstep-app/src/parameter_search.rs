@@ -162,6 +162,8 @@ fn search_with_source_proofs(
         check_current()?;
         let mut trial_options = options.clone();
         trial_options.cylinder_fit_tolerance_mm = fit;
+        // Explicit proposals test exactly the selected radial tolerance.
+        trial_options.auto_tune = false;
         let mut interruption = None;
         let result = convert_document_with_source_proofs(
             bytes,

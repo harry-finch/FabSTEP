@@ -17,6 +17,8 @@ use serde::{Deserialize, Serialize};
 
 pub use fabstep_core::{SOURCE_MAX_TRIANGLES, SOURCE_MAX_VERTICES};
 
+mod auto_adjustment;
+pub use auto_adjustment::AutoAdjustment;
 mod control;
 use control::{controlled, ConversionControl};
 pub use control::{ConversionCheckpoint, ConversionPhase};
@@ -68,7 +70,7 @@ fn precision_diagnostic(options: &Options) -> Option<fabstep_core::Diagnostic> {
     custom.then(|| fabstep_core::Diagnostic {
         code: "precision.custom_tolerances".into(),
         severity: fabstep_core::Severity::Info,
-        message: "Des tolérances choisies diffèrent des valeurs initiales. Les réglages sont consignés dans le rapport ; aucune adaptation automatique.".into(),
+        message: "Les tolérances demandées diffèrent des valeurs initiales. Les réglages sont consignés dans le rapport.".into(),
         count: 1,
     })
 }
@@ -76,6 +78,8 @@ fn precision_diagnostic(options: &Options) -> Option<fabstep_core::Diagnostic> {
 #[derive(Debug, Clone, Serialize)]
 pub struct ConversionReport {
     pub settings: ProcessingSettings,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_adjustment: Option<AutoAdjustment>,
     pub analysis: Analysis,
     pub cad: CadReport,
     pub recognition: Option<Recognition>,
@@ -270,8 +274,39 @@ fn convert_analysis_with_face_tokens(
     }
     let recognized = match options.reconstruction {
         ReconstructionMode::Planar => None,
-        ReconstructionMode::Auto
-        | ReconstructionMode::Cylinders
+        ReconstructionMode::Auto => {
+            let partition = control.run(ConversionPhase::Recognition, Some(body_index), || {
+                recognize_partitioned_body(&analysis, options)
+            })?;
+            if partition.is_none() {
+                let choices = auto_adjustment::candidates(
+                    &analysis,
+                    options,
+                    &mut Default::default(),
+                    control,
+                    body_index,
+                )?;
+                return auto_adjustment::build(
+                    analysis,
+                    options,
+                    choices,
+                    control,
+                    |a, o, r, control| {
+                        convert_analysis_with_recognized(
+                            a,
+                            o,
+                            face_tokens,
+                            Some(Recognized::Rounded(r)),
+                            control,
+                            body_index,
+                            source_proofs.as_deref_mut(),
+                        )
+                    },
+                );
+            }
+            partition
+        }
+        ReconstructionMode::Cylinders
         | ReconstructionMode::Primitives
         | ReconstructionMode::HeightPatch
         | ReconstructionMode::Surfaces => Some(control.run(
@@ -575,6 +610,7 @@ fn convert_analysis_with_recognized(
             .extend(report.diagnostics.iter().cloned());
     }
     let mut report = ConversionReport {
+        auto_adjustment: None,
         settings: ProcessingSettings::from(options),
         analysis,
         cad: result.report,

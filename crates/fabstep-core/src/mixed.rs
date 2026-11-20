@@ -519,8 +519,14 @@ fn recognize_scoped(
                 })
             })
             .collect::<Vec<_>>();
-        let partial =
-            crate::partial::augment(analysis, &mut model, &mut mixed_owners, options, &mut work)?;
+        let partial = crate::partial::augment(
+            analysis,
+            &mut model,
+            &mut mixed_owners,
+            options,
+            &mut work,
+            &adjacency,
+        )?;
         owners = mixed_owners
             .into_iter()
             .map(|owner| owner.map(ScopedFaceRef::Mixed))
