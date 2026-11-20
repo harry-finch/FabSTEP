@@ -65,3 +65,7 @@ La qualification AUD-202 sur la rampe et le secteur publics reporte la subdivisi
 ## Ordre du prochain essai privé
 
 Attendre la fin des développements de reconnaissance R-123 à R-129. Qualifier leurs gains sur le corpus public R-122 et examiner, si le coût résiduel le justifie, les essais bornés R-130 et R-131. Le prochain rejeu privé complet partira du STL original avec les contrôles avant et après transfert et la fidélité dans les deux sens. A-136 confirme le plafond de 30 minutes pour tout essai.
+
+## Rejeu après R-122 à R-131
+
+Le 20 novembre, le helper du nouveau paquet a atteint 1 800,07 s sur les 540 170 triangles originaux. Pic de 2,78 Gio. Deux relevés situent le travail dans les intersections de l’atlas avant écriture. Aucun STEP exportable. R-085 reste ouvert. La suite consiste à reproduire le coût des colliers non coplanaires sur un petit témoin public et à démontrer un gain avec les vérifications complètes. Mesures en V-1287. A-136 maintient trente minutes dans tous les modes.
