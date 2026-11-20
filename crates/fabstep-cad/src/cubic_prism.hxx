@@ -134,6 +134,32 @@ bool parallel(const gp_Dir &a, const gp_Dir &b) {
 }
 bool close(const gp_Pnt &a, const gp_Pnt &b) { return a.Distance(b) <= eps; }
 
+// An independent STEP can contain other linear extrusions. Only this
+// analytic face layout can represent the certified piece. Construction and
+// reimport of a declared prism always use verify(), including its trims.
+bool candidate(const TopTools_IndexedMapOfShape &faces) {
+  if (faces.Extent() != 6 && faces.Extent() != 7)
+    return false;
+  int planes = 0, cylinders = 0, walls = 0;
+  for (int i = 1; i <= faces.Extent(); ++i) {
+    const BRepAdaptor_Surface support(TopoDS::Face(faces(i)), false);
+    switch (support.GetType()) {
+    case GeomAbs_Plane: ++planes; break;
+    case GeomAbs_Cylinder: ++cylinders; break;
+    case GeomAbs_SurfaceOfExtrusion: {
+      const auto basis = support.BasisCurve();
+      const auto kind = basis->GetType();
+      if ((kind != GeomAbs_BSplineCurve && kind != GeomAbs_BezierCurve) || basis->Degree() != 3)
+        return false;
+      ++walls;
+      break;
+    }
+    default: return false;
+    }
+  }
+  return planes == 5 && walls == 1 && cylinders <= 1;
+}
+
 Proof verify(const TopoDS_Shape &solid, Status s) {
   TopTools_IndexedMapOfShape faces;
   TopExp::MapShapes(solid, TopAbs_FACE, faces);

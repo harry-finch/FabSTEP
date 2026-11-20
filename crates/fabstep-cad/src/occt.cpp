@@ -2845,11 +2845,11 @@ std::vector<RevolutionGrid> check_meshing_resolution(const TopoDS_Shape& shape, 
   size_t estimated_curved_triangles = 0;
   std::vector<RevolutionGrid> grids;
   for (TopExp_Explorer body(shape,TopAbs_SOLID); body.More(); body.Next()) {
-    // Limit the four-face signature check on large trimmed atlases.
-    TopTools_IndexedMapOfShape band_faces;
+    // Both analytic signatures contain at most seven faces.
+    TopTools_IndexedMapOfShape small_body_faces;
     for (TopExp_Explorer face(body.Current(),TopAbs_FACE);
-         face.More() && band_faces.Extent()<5; face.Next()) band_faces.Add(face.Current());
-    if(oblique_band::candidate(band_faces)) {
+         face.More() && small_body_faces.Extent()<8; face.Next()) small_body_faces.Add(face.Current());
+    if(oblique_band::candidate(small_body_faces)) {
       const auto band=oblique_band::verify(body.Current(),mesh_failed);
       if(!band.domain.sphere)for(const auto& edge:band.branches)
         junctions.emplace(edges.FindIndex(edge),oblique_band::hyperbola_segments(edge,deflection));
@@ -2897,7 +2897,7 @@ std::vector<RevolutionGrid> check_meshing_resolution(const TopoDS_Shape& shape, 
           junctions.emplace(edges.FindIndex(it.Current()), 1.);
         break;
       }
-      if (native.GetType() == GeomAbs_SurfaceOfExtrusion) {
+      if (native.GetType() == GeomAbs_SurfaceOfExtrusion && cubic_prism::candidate(small_body_faces)) {
         const auto proof=cubic_prism::verify(body.Current(),mesh_failed);
         const auto& f=proof.frame;
         const double second=6.*std::max(std::abs(f.b-2.*f.a),std::abs(f.a-2.*f.b));
@@ -3428,7 +3428,7 @@ void read_result_topology(STEPControl_Reader& reader, TopoDS_Compound& document,
       face_map.Add(face);
       native_faces.push_back(face);
       size_t family = 5;
-      switch (BRepAdaptor_Surface(face).GetType()) {
+      switch (BRepAdaptor_Surface(face,false).GetType()) {
         case GeomAbs_Plane: family = 0; break;
         case GeomAbs_Cylinder: family = 1; break;
         case GeomAbs_Cone: family = 2; break;
@@ -3436,8 +3436,11 @@ void read_result_topology(STEPControl_Reader& reader, TopoDS_Compound& document,
         case GeomAbs_Torus: family = 4; break;
         case GeomAbs_SurfaceOfRevolution: family = 6; break;
         case GeomAbs_SurfaceOfExtrusion:
-          cubic_prism::verify(solid, read_failed);
-          family = 8; break;
+          if (cubic_prism::candidate(body_faces)) {
+            cubic_prism::verify(solid, read_failed);
+            family = 8;
+          }
+          break;
         case GeomAbs_BSplineSurface:
           if(!atlas) {
             if(rolling_domain::candidate(body_faces)) { rolling_domain::verify(solid,read_failed); break; }

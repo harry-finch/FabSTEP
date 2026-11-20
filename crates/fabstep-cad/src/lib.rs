@@ -4215,6 +4215,16 @@ mod tests {
         // Native elliptical annular prism, validated after STEP roundtrip:
         // major/minor axes 4/2 mm and 1/.5 mm; height 5 mm; volume 37.5*pi.
         let bytes = include_bytes!("../tests/fixtures/elliptical_ring.step");
+        let display = result_faces(bytes).unwrap();
+        assert_eq!(display.faces.len(), 4);
+        assert_eq!(
+            display
+                .faces
+                .iter()
+                .filter(|face| face.family == ResultFaceFamily::Other)
+                .count(),
+            2
+        );
         let mut caps = 0;
         for face_id in 0..4 {
             let Ok(frame) = planar_face_frame(bytes, face_id) else {
