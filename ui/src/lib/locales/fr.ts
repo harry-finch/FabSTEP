@@ -7,7 +7,7 @@ const fr = {
   similar: {
     search:'Chercher des parois similaires', pending:'Recherche des parois…', count:'Parois proposées · {n}',
     failed:'Recherche indisponible sur ce résultat.', limit:'La liste est limitée au nombre d’indications restant.',
-    wall:'Face {n}', apply:'Appliquer', cancel:'Annuler',
+    wall:'Face {n}', apply:'Appliquer', cancel:'Annuler la recherche',
   },
   clipBox: {toggle:'Boîte de découpe', min:'Min.', max:'Max.', reset:'Réinitialiser', bounds:'Bornes de découpe (mm)', adjust:'Régler les bornes'},
   deviation: {

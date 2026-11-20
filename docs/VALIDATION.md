@@ -2918,3 +2918,23 @@ L’échéance a arrêté le processus. Les échantillons de pile à la 25ᵉ mi
 | Outillage | 31 tests Python, 4 contrôles de version OCCT, formatage Rust, Clippy strict et lint FabBoard réussis |
 
 La recette WKWebView en protocole embarqué compte zéro requête pour le module Viewport à vide, une après ouverture du premier STL et toujours une après le second. Les STEP de ces deux ouvertures se réimportent avec 263 et 6 faces. La sélection source identifie les deux parois de l’arbre percé et le congé du bloc composé. Après la suite, les deux exécutables de `artifacts/FabSTEP.app` ont été comparés octet par octet aux sorties du build de développement. Les recettes interactives FabBoard et la décision de durée A-136 restent ouvertes.
+
+## V-1276 — Contre-épreuves des recommandations AUD-201 à AUD-210
+
+Comparaison sur macOS arm64, OCCT 7.9.3, avec la révision de départ `9f7ae92`. Les décisions pour chaque constat figurent dans le [registre d’intégration](INT_AUDIT_01.md).
+
+| Mesure | Référence | Après | Contrôle associé |
+|---|---:|---:|---|
+| Entrée Vite de production, gzip | 142,99 kB | 87,75 kB | Les sources du cœur de Three.js se trouvent dans le module 3D différé. |
+| Contextes WebGL sur deux ouvertures réussies séparées par une extension refusée et un STL malformé | 3 | 1 | WKWebView garde le même canvas. Zéro dessin de l’ancien cube sur fichier invalide. Le champ de boîte affiche 0,1235 et restitue 0,123456789 au focus et après Échap. |
+| Recherche puis application sur `r120-repeated-bores.stl` | 164 ms / 2 284 ms | 8 ms / 2 133 ms | Médianes de cinq passages par exécutable release, quatre cylindres. |
+| Recherche puis application sur `m4_frustum_instances.3mf` | 22 ms / 450 ms | 1 ms / 428 ms | Deux corps et deux cônes. La reconstruction et la relecture du solide restent comprises dans l’application. |
+| Carte d’écart, source de 34 972 triangles et affichage de 59 052 triangles | 45,94 ms | 39,52 ms | `fixtures/m6a_rounded_box_rotated.step`, source à 0,0006 mm et affichage à 0,00035 mm, onze passages chronométrés après chauffe. |
+| Même source et affichage de 94 204 triangles à 0,00022 mm | 73,68 ms | 59,22 ms | 48 952 sommets. Chaque valeur à son indice initial est identique bit à bit. Les quatre comparaisons incluent aussi la source à 0,03 mm (1 052 triangles). |
+| Analyse et reconnaissance Auto sur la pièce ondulée de V-1263 | 526,13 ms | 486,81 ms | Sept paires alternées, 97 340 triangles. Comparaison du modèle, du rapport et des attributions complets avec la référence, également sur l’arbre percé et l’octant découpé. |
+
+**Interférences.** Sur la rampe, un seul des 32 groupes croisés se divise en composantes connexes. Sur le secteur, 18 sur 105 se divisent. Trois mesures sur les groupes divisibles du secteur donnent une médiane de 4,425 à 4,301 s. Sur la rampe, elle passe de 181 à 190 ms. Les instructions du contrôle complet du secteur baissent d’environ 0,3 %. Le découpage expérimental exige 18 appels OCCT supplémentaires sur ce témoin. Les groupes diagonaux, dont 36 des 442 groupes chauds avant transfert dans les mesures archivées de Flansch, ne bénéficient pas de cette approche.
+
+La rampe n’a aucun collier bilinéaire à quatre pôles. Sur le secteur, 64 supports sont concernés. Parmi les 184 paires croisées qui les impliquent, 15 au plus sont séparables sans sommet commun. Les enlever toutes laisse les mêmes faces dans les composés. Ce comptage mesure une limite supérieure et ne démontre pas une séparation géométrique après transfert. Le banc mono-forme et son prototype conservent les refus des triangles sécants et du fil ouvert ainsi que l’acceptation des raccords licites. L’optimisation retenue porte sur la sélection des faces à tesseller. Les 11 288 triangles de la rampe et les 2 496 triangles du secteur, indices et positions, sont identiques avant et après. Le nouveau banc utilise les témoins publics, sans relancer le STL privé.
+
+**Parcours bureau.** Avec le frontend de production et une fenêtre Tauri instrumentée utilisant les permissions de production, l’essai sur le STL à perçages répétés sélectionne une face, applique l’indication Cylindre, trouve trois autres parois, annule la recherche puis la relance. L’application des trois propositions porte le total à quatre indications et rend l’export STEP disponible. Le premier passage avait actionné l’annulation de l’historique, qui portait le même libellé que la fermeture des propositions.
