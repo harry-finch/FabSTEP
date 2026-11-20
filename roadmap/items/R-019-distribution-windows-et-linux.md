@@ -2,7 +2,7 @@
 id: R-019
 titre: "Distribution — Windows et Linux"
 resume: "Construire et qualifier la distribution sur Windows et Linux."
-statut: en-cours
+statut: a-tester
 jalon: distribution
 cree: 2026-11-13
 maj: 2026-11-20
