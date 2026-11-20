@@ -18,11 +18,15 @@
     if (!box) return;
     const raw = input.value.trim();
     const parsed = Number(i18n.locale === 'fr' ? raw.replace(',', '.') : raw);
-    if (raw && Number.isFinite(parsed)) onlimit(axis, side, parsed);
+    if (raw && Number.isFinite(parsed) && parsed !== box[side][axis]) onlimit(axis, side, parsed);
     input.value = display(box[side][axis]);
   }
-  function display(value: number) {
-    const text = String(value);
+  function display(value: number, exact = false) {
+    const magnitude = Math.abs(value);
+    const text = exact ? String(value)
+      : magnitude > 0 && (magnitude < 0.0001 || magnitude >= 1e8)
+        ? value.toExponential(3)
+        : String(Number(value.toFixed(4)));
     return i18n.locale === 'fr' ? text.replace('.', ',') : text;
   }
 </script>
@@ -46,11 +50,16 @@
           <span>{axis.toUpperCase()}</span>
           {#each sides as side}
             <input class="input tabular" inputmode="decimal" aria-label={axis.toUpperCase() + ' ' + t(side === 'min' ? 'clipBox.min' : 'clipBox.max')}
-              value={display(box[side][axis])}
+              value={display(box[side][axis])} title={display(box[side][axis], true)}
+              onfocus={event => {
+                event.currentTarget.value = display(box![side][axis], true);
+                event.currentTarget.select();
+              }}
+              onblur={event => event.currentTarget.value = display(box![side][axis])}
               onchange={event => edit(event.currentTarget, axis, side)}
               onkeydown={event => {
                 if (event.key === 'Enter') event.currentTarget.blur();
-                if (event.key === 'Escape') { event.stopPropagation(); event.currentTarget.value = display(box![side][axis]); event.currentTarget.blur(); }
+                if (event.key === 'Escape') { event.stopPropagation(); event.currentTarget.value = display(box![side][axis], true); event.currentTarget.blur(); }
               }}/>
           {/each}
         {/each}
@@ -65,6 +74,6 @@
   .active { border-color:var(--accent); color:var(--accent-text); background:var(--bg-panel); }
   fieldset { background:var(--bg-panel); border:1px solid var(--border-strong); border-radius:var(--radius); margin:0; padding:var(--s2); display:grid; gap:var(--s2); }
   legend { background:var(--bg-panel); font-size:var(--fs-xs); color:var(--text-secondary); }
-  .limits { display:grid; grid-template-columns:auto repeat(2, 7ch); align-items:center; gap:var(--s1); font-size:var(--fs-xs); }
+  .limits { display:grid; grid-template-columns:auto repeat(2, 12ch); align-items:center; gap:var(--s1); font-size:var(--fs-xs); }
   input { width:100%; text-align:right; }
 </style>

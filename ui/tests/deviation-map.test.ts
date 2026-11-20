@@ -55,3 +55,28 @@ test('indexed vertices color the correct displayed corners, saturating at the ac
     new Color(stops[('--view-deviation-'+stop) as keyof typeof stops]).toArray());
   assert.deepEqual(colors,new Float32Array(expected));
 });
+
+test('an ineligible document leaves pending on both success and failure', async () => {
+  for (const rejected of [false, true]) {
+    const s = setup();
+    let eligible = true;
+    const pending = s.controller.load(s.bridge, document, () => eligible);
+    eligible = false;
+    if (rejected) s.fail({code:'validation.distance_budget'});
+    else s.reply({request_id:4, source_id:7, map_id:s.calls[0].args.mapId, report});
+    await pending;
+    assert.equal(s.states.at(-1)?.kind, 'off');
+  }
+});
+
+test('ending an obsolete request preserves the next request’s pending state', async () => {
+  const first = setup(), second = setup();
+  const older = first.controller.load(first.bridge, document, () => false);
+  const newer = first.controller.load(second.bridge, document, () => true);
+  first.fail({code:'engine.stale'});
+  await older;
+  assert.equal(first.states.at(-1)?.kind, 'pending');
+  second.reply({request_id:4, source_id:7, map_id:second.calls[0].args.mapId, report});
+  await newer;
+  assert.equal(first.states.at(-1)?.kind, 'ready');
+});

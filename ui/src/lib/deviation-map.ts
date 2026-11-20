@@ -56,7 +56,10 @@ export function createDeviationMap(publish:(state:DeviationState)=>void) {
         publish({kind:budget ? 'overBudget' : 'unavailable'});
       }
     } finally {
-      if (mapId === sequence) cancel = null;
+      if (mapId === sequence) {
+        cancel = null;
+        if (!current()) publish({kind:'off'});
+      }
     }
   }
   return {load, clear};

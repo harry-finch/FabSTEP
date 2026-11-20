@@ -55,3 +55,23 @@ test('selection and paint reach the first visible hit inside the box', () => {
   material.dispose();
   geometry.dispose();
 });
+
+test('source and STEP can pick a coplanar wall at a rounded clipping limit', () => {
+  const camera = new PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.z = 10;
+  camera.lookAt(0, 0, 0);
+  const material = new MeshBasicMaterial({side:DoubleSide});
+  const geometry = new PlaneGeometry(4, 4);
+  const wall = new Mesh(geometry, material);
+  wall.position.z = 2;
+  wall.userData = {stepFaces:[3,3], previewBodyId:'wall', sourceTriangles:[0,1]};
+  const box = new Box3(new Vector3(-2, -2, -1), new Vector3(2, 2, 2 - Number.EPSILON * 2));
+  const ray = new Raycaster(), point = new Vector2(0.1, 0.1);
+  assert.equal(pickVisibleStepFace(ray, [wall], point, camera, box), 3);
+  assert.equal(pickVisibleSourceTriangle(ray, [wall], point, camera, box)?.bodyId, 'wall');
+  box.max.z -= 1e-10;
+  assert.equal(pickVisibleStepFace(ray, [wall], point, camera, box), null);
+  assert.equal(pickVisibleSourceTriangle(ray, [wall], point, camera, box), null);
+  geometry.dispose();
+  material.dispose();
+});

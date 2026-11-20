@@ -37,7 +37,7 @@
   }
   function select(ids:number[]) {
     chosen = ids;
-    if (found) onpreview(previewSimilar(doc, found, chosen));
+    if (found) onpreview(chosen.length ? previewSimilar(doc, found, chosen) : null);
   }
   function apply() {
     if (ticket === null) return;

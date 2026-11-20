@@ -272,3 +272,20 @@ Cette passe reprend les propositions faites sur `0f29e00`. Les résultats détai
 | Estimateur de cercle pour arcs courts | P3 · DEFERRED | R-113 · DEFERRED | Trois pas de Gauss–Newton n’ont gagné aucune candidature sur les témoins bruités décrits en V-1260. L’aptitude d’un autre estimateur, dont Taubin, reste à mesurer sur un cas rejeté à tort. |
 
 Les extensions de contrat envisagées pour les contours libres et la composition seront précisées à partir des témoins avant arbitrage. Les preuves de fermeture, d’interférence et d’écart restent les critères d’export.
+
+### Revue des ajouts atelier et CAO sur 9f7ae92 — 20 novembre
+
+Dix constats. Aucun P0 identifié. Les cinq lots ci-dessous sont indépendants et réversibles par commit. L’intégration garde les contrôles natifs avant et après transfert, les limites actuelles et les actions de recette utilisateur. A-136 reste l’arbitrage sur un éventuel calcul prolongé du modèle privé.
+
+| Lot INT-AUDIT-01 | Périmètre et complexité | Risque et critère de validation |
+|---|---|---|
+| .17 | AUD-201/207, interface Svelte, faible à moyenne | Inspecter les modules de l’entrée de production et le nombre de contextes WKWebView sur des ouvertures successives, y compris en erreur. Tester la fraîcheur de la carte et le picking des bords. |
+| .18 | AUD-208/209, constructeurs natifs et noms de produit, faible | Vérifier les sorties d’erreur, l’absence de publication partielle, les graphèmes et le nom après réimport STEP. |
+| .19 | AUD-205/206 et partie moteur de 210, distances et reconnaissance, moyenne | Mesurer sur des maillages denses. Comparer les distances, les attributions et les décisions géométriques. Vérifier les budgets de travail et l’annulation. |
+| .20 | AUD-203 et partie bureau de 210, application des indications, moyenne | Tester l’identité du STEP, la révision de la sélection, la concurrence, l’annulation et l’application complète des indications. |
+| .21 | AUD-202/204, atlas OCCT, élevée pour le filtre | Qualifier les groupes sur les deux STEP publics, les vrais croisements et les raccords licites. Conserver seulement les optimisations justifiées par le banc. |
+
+| ID | Décision | Priorité | Jalon | État et preuve |
+|---|---|---|---|---|
+| AUD-201 | ACCEPTED | P1 | .17 | DONE · L’entrée de production passe de 477,90 à 278,52 kB (gzip 142,99 à 87,74 kB). Le module Three est chargé avec la vue 3D. Sur WKWebView, la suite cube, extension refusée, STL invalide, cube passe de trois contextes WebGL à un. Le démarrage à vide conserve zéro canvas. |
+| AUD-207 | ADAPTED | P2 | .17 | DONE · Picking tolérant à l’arrondi sur les deux vues, priorité au dernier calcul d’écart, champ numérique compact qui conserve la valeur exacte en édition, message de prévisualisation déplacé, traduction de l’historique et contours stables au changement de palette. Une liste similaire vide rend la sélection courante visible. 253 tests UI, Svelte sans diagnostic. Le module 3D différé atteint 621,73 kB et Vite le signale. |
