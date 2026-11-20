@@ -8,13 +8,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import urllib.request
-import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SDK_NAME = "opencascade-7.9.3-vc14-64"
-SDK_URL = f"https://github.com/Open-Cascade-SAS/OCCT/releases/download/V7_9_3/{SDK_NAME}-combined.zip"
-SDK_SHA256 = "afbef3457fbc4a2bdca0608e0fe284392f51e4c2c42ccbfb9df7168d8e4eb9b3"
+OCCT_REVISION = "a016080bf6738d6aeae020badee4e888ad1540a5"
 
 
 def sha256(path):
@@ -23,34 +19,32 @@ def sha256(path):
 
 
 def prepare_sdk():
-    destination = Path(os.environ["RUNNER_TEMP"]) / "fabstep-sdk"
-    destination.mkdir()
-    archive = destination / "occt.zip"
-    urllib.request.urlretrieve(SDK_URL, archive)
-    if sha256(archive) != SDK_SHA256:
-        raise ValueError("Unexpected OCCT archive digest")
-    with zipfile.ZipFile(archive) as z:
-        z.extractall(destination)
-    with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
-        print(f"OCCT_ROOT={destination / SDK_NAME}", file=env)
+    sdk = Path(os.environ["OCCT_ROOT"])
+    src = ROOT / "occt-source"
+    build = Path(os.environ["RUNNER_TEMP"]) / "occt-build"
+    head = subprocess.check_output(["git", "-C", src, "rev-parse", "HEAD"], text=True).strip()
+    if head != OCCT_REVISION:
+        raise ValueError("Unexpected OCCT revision")
+    # OCCT expands these four toolkits into their complete dependency closure.
+    modules = "FoundationClasses ModelingData ModelingAlgorithms Visualization ApplicationFramework DataExchange DETools Draw"
+    subprocess.run([
+        "cmake", "-S", src, "-B", build, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
+        f"-DINSTALL_DIR={sdk.as_posix()}", "-DINSTALL_DIR_INCLUDE=inc",
+        "-DINSTALL_DIR_LIB=win64/vc14/lib", "-DINSTALL_DIR_BIN=win64/vc14/bin",
+        "-DBUILD_ADDITIONAL_TOOLKITS=TKDESTEP TKOffset TKFillet TKMesh",
+        *(f"-DBUILD_MODULE_{module}=OFF" for module in modules.split()),
+        "-DUSE_FREETYPE=OFF", "-DUSE_TK=OFF", "-DUSE_OPENGL=OFF", "-DUSE_TBB=OFF",
+    ], check=True)
+    subprocess.run(["cmake", "--build", build, "--parallel", "4"], check=True)
+    subprocess.run(["cmake", "--install", build], check=True)
+    for name in ("LICENSE_LGPL_21.txt", "OCCT_LGPL_EXCEPTION.txt"):
+        shutil.copy2(src / name, sdk / name)
 
 
 def bundle_dlls(folder):
     """Copy only the dependency closure loaded from this release's SDK."""
     sdk = Path(os.environ["OCCT_ROOT"])
-    third = sdk.parent / "3rdparty-vc14-64"
-    sources = {
-        "opencascade": sdk / "win64/vc14/bin",
-        "tbb": third / "tbb-2021.13.0-x64/bin",
-        "freetype": third / "freetype-2.13.3-x64/bin",
-    }
-    notices = {
-        "opencascade": [sdk / "LICENSE_LGPL_21.txt", sdk / "OCCT_LGPL_EXCEPTION.txt"],
-        "tbb": [sources["tbb"].parent / "LICENSE.txt"],
-        "freetype": [sources["freetype"].parent / "LICENSE.TXT", sources["freetype"].parent / "docs/FTL.TXT"],
-    }
-    candidates = {p.name.lower(): (group, p) for group, directory in sources.items()
-                  for p in directory.glob("*.dll")}
+    candidates = {p.name.lower(): p for p in (sdk / "win64/vc14/bin").glob("*.dll")}
     tool = shutil.which("llvm-objdump") or Path(os.environ["ProgramFiles"]) / "LLVM/bin/llvm-objdump.exe"
     platform = Path(os.environ["SystemRoot"]) / "System32"
     pending = list(folder.glob("*.exe"))
@@ -69,18 +63,21 @@ def bundle_dlls(folder):
                 if key.startswith(("api-ms-", "ext-ms-")) or (platform / name).is_file():
                     continue
                 raise ValueError(f"Unresolved DLL {name} for {binary.name}")
-            group, src = candidates[key]
+            src = candidates[key]
             output = folder / src.name
             shutil.copyfile(src, output)
             pending.append(output)
-            records[key] = {"component": group, "sha256": sha256(output)}
-    for group in {entry["component"] for entry in records.values()}:
-        target = folder / "Licenses" / group
-        target.mkdir(parents=True)
-        for notice in notices[group]:
-            shutil.copy2(notice, target / notice.name)
-    (folder / "Licenses/windows-sdk.json").write_text(
-        json.dumps({"archive": SDK_URL, "sha256": SDK_SHA256, "dlls": records}, indent=2), encoding="utf-8")
+            records[key] = {"component": "OCCT", "sha256": sha256(output)}
+    if "tkdestep.dll" not in records:
+        raise ValueError("OCCT STEP toolkit missing from native imports")
+    target = folder / "Licenses" / "opencascade"
+    target.mkdir(parents=True)
+    for name in ("LICENSE_LGPL_21.txt", "OCCT_LGPL_EXCEPTION.txt"):
+        shutil.copy2(sdk / name, target / name)
+    (target / "inventory.json").write_text(json.dumps({
+        "source": f"https://github.com/Open-Cascade-SAS/OCCT/tree/{OCCT_REVISION}",
+        "revision": OCCT_REVISION, "version": "7.9.3", "dlls": records,
+    }, indent=2), encoding="utf-8")
 
 
 def smoke(folder, work):

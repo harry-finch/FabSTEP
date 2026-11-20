@@ -2,14 +2,26 @@ name: Release Windows x64
 on:
   push:
     branches: [release/v1.0.0]
+    paths:
+      - 'crates/**'
+      - 'ui/**'
+      - 'fixtures/**'
+      - 'packaging/**'
+      - 'Cargo.*'
+      - 'LICENSE'
+      - 'scripts/release-windows*'
+      - 'scripts/release-notices.py'
+      - 'scripts/package-macos.py'
+      - '.github/workflows/release-windows.yml'
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   portable:
     runs-on: windows-2022
-    timeout-minutes: 90
+    timeout-minutes: 240
     env:
+      OCCT_ROOT: D:\fabstep-occt
       CARGO_INCREMENTAL: '0'
       CARGO_TARGET_DIR: D:\fabstep-target
     steps:
@@ -22,11 +34,32 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Prepare OCCT 7.9.3 and build the UI
+      - uses: actions/cache/restore@v4
+        id: occt
+        with:
+          path: D:\fabstep-occt
+          key: occt-7.9.3-minimal-vs2022-x64-v1
+      - uses: actions/checkout@v4
+        if: steps.occt.outputs.cache-hit != 'true'
+        with:
+          repository: Open-Cascade-SAS/OCCT
+          ref: a016080bf6738d6aeae020badee4e888ad1540a5
+          path: occt-source
+          persist-credentials: false
+      - name: Build OCCT shared libraries from source
+        if: steps.occt.outputs.cache-hit != 'true'
+        shell: cmd
+        run: |
+          call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
+          python scripts/release-windows.py sdk
+      - uses: actions/cache/save@v4
+        if: steps.occt.outputs.cache-hit != 'true'
+        with:
+          path: D:\fabstep-occt
+          key: occt-7.9.3-minimal-vs2022-x64-v1
+      - name: Build the UI
         shell: pwsh
         run: |
-          python scripts/release-windows.py sdk
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           npm --prefix ui ci
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           npm --prefix ui run build

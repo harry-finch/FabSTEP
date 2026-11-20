@@ -2,6 +2,17 @@ name: Package Linux amd64
 on:
   push:
     branches: [release/v1.0.0]
+    paths:
+      - 'crates/**'
+      - 'ui/**'
+      - 'fixtures/**'
+      - 'packaging/**'
+      - 'Cargo.*'
+      - 'LICENSE'
+      - 'scripts/release-linux*'
+      - 'scripts/release-notices.py'
+      - 'scripts/package-macos.py'
+      - '.github/workflows/release-linux.yml'
   workflow_dispatch:
 
 permissions:
