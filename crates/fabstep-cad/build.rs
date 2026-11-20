@@ -13,6 +13,7 @@ fn main() {
         "drilled_shaft_verify.hxx",
         "drilled_shaft_volume.hxx",
         "smooth_revolution.hxx",
+        "revolution_land.hxx",
         "height_patch.hxx",
         "cut_octant_build.hxx",
         "cut_octant_check.hxx",

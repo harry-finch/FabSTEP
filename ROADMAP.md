@@ -46,7 +46,7 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
    G1 · Décrire les voisinages et les triangles de chaque région afin de combiner plusieurs reconnaissances sur un même corps.
 17. **[R-128 Proposer des axes et des motifs de parois répétées](roadmap/items/R-128-proposer-des-axes-et-des-motifs-de-parois.md)** · À tester · jalon post-v1
    G6 · Accélérer la recherche des familles et le guidage en utilisant les normales et la répétition des formes.
-18. **[R-126 Reconstruire une révolution à méridienne mixte](roadmap/items/R-126-reconstruire-une-revolution-a-meridienne-mixte.md)** · En cours · jalon post-v1
+18. **[R-126 Reconstruire une révolution à méridienne mixte](roadmap/items/R-126-reconstruire-une-revolution-a-meridienne-mixte.md)** · À tester · jalon post-v1
    G4 · Reconstituer sur un axe commun des portées, des gorges circulaires et des portions de profil cubiques.
 19. **[R-129 Reconstruire des congés sur arête courbe et des coins à trois rayons](roadmap/items/R-129-reconstruire-des-conges-sur-arete-courbe-et-des.md)** · En cours · jalon post-v1
    G5 · Qualifier d’abord le congé de rayon constant sur arête courbe, puis le raccord entre trois congés inégaux.
@@ -86,6 +86,7 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
 - [ ] [A-135](roadmap/actions/A-135-verifier-l-octant-spherique-et-le-secteur.md) Vérifier l’octant sphérique et le secteur conique (tester, R-117)
 - [ ] [A-137](roadmap/actions/A-137-verifier-le-groupe-circulaire-sur-la-bride.md) Vérifier le groupe circulaire sur la bride percée (tester, R-128)
 - [ ] [A-138](roadmap/actions/A-138-selectionner-le-plan-voisin-du-tore-dans-fusion.md) Sélectionner le plan voisin du tore dans Fusion (tester, R-123)
+- [ ] [A-139](roadmap/actions/A-139-inspecter-la-gorge-et-le-retour-axial-dans.md) Inspecter la gorge et le retour axial dans Fusion (tester, R-126)
 
 ## Livré
 

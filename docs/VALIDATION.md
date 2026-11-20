@@ -2972,3 +2972,5 @@ Sur le flanc du témoin natif, douze triangles sont réunis en une face partagea
 ## V-1280 — Gorges de poulies à méridienne circulaire R-126
 
 Deux profils de poulie construits dans FreeCAD, chacun maillé à deux densités, retrouvent deux épaulements cylindriques, deux plans et une gorge torique. La relecture STEP contrôle le volume, les rayons, les hauteurs des raccords, les deux faces voisines et la correspondance exacte. Les deux écarts sont inférieurs au budget demandé. Les variantes excentrée et hors du cercle conservent le repli. Les deux tests de `cargo test -p fabstep-app --test grooved_pulley --offline --locked` réussissent. Cette première tranche couvre les arcs de 114,6° et 180°.
+
+L’arbre étagé indépendant étend ce contrôle à une méridienne cubique avec retour axial, entre deux portées cylindriques. Ses 12 990 et 14 178 triangles aboutissent chacun à cinq faces et 2 541,15576 mm³. Le test vérifie les quatre anneaux, la partition, les deux directions de fidélité et le réimport. Les trois tests de poulie et d’arbre ont également réussi depuis une extraction propre de l’arbre Git indexé.

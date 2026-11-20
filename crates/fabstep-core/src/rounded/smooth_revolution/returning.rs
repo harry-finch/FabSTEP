@@ -1,5 +1,6 @@
 //! A single cubic axial graph over a strictly monotone affine radius.
 use super::*;
+mod lands;
 
 fn turning_interval(z: [f64; 4], tol: f64) -> Option<[f64; 2]> {
     let [a, b, c, d] = z;
@@ -121,7 +122,7 @@ pub(in super::super) fn candidate(
         }
     }
     work.spend(a.mesh.triangles.len() * 12 + a.mesh.vertices.len() * 8)?;
-    let local: Vec<_> = a
+    let mut local: Vec<_> = a
         .mesh
         .vertices
         .iter()
@@ -130,9 +131,21 @@ pub(in super::super) fn candidate(
             [x, y, z - nodes[0].z]
         })
         .collect();
+    let outer = nodes;
+    let Some(land) = lands::prove(a, s, ends.map(|r| r.region), &outer, &local, tol, work)? else {
+        return Ok(None);
+    };
+    let nodes = &land.inner;
+    let h = nodes[1].z - nodes[0].z;
+    if h <= 16. * tol {
+        return Ok(None);
+    }
+    for p in &mut local {
+        p[2] -= land.lengths[0];
+    }
     let mut wall = vec![false; local.len()];
-    for (&tri, &r) in a.mesh.triangles.iter().zip(&s.triangle_regions) {
-        if !ends.iter().any(|e| e.region == r) {
+    for (i, (&tri, &r)) in a.mesh.triangles.iter().zip(&s.triangle_regions).enumerate() {
+        if land.owners[i].is_none() && !ends.iter().any(|e| e.region == r) {
             for v in tri {
                 wall[v] = true;
             }
@@ -216,10 +229,20 @@ pub(in super::super) fn candidate(
         witness_tolerance_mm: 0.,
     };
     let mut bound = Bound {
-        residual: 0.,
-        curvature: 0.,
+        residual: land.residual,
+        curvature: land.chord,
     };
-    let rings = ring_points(a, &frame, &nodes, &f, tol, &mut bound)?;
+    let rings = ring_points(a, &frame, nodes, &f, tol, &mut bound)?;
+    let cap_rings = if land.indices.iter().any(Option::is_some) {
+        let cap_shape = SmoothRevolution {
+            height_mm: outer[1].z - outer[0].z,
+            ..f.clone()
+        };
+        Some(ring_points(a, &frame, &outer, &cap_shape, tol, &mut bound)?)
+    } else {
+        None
+    };
+    let disk_points = cap_rings.as_ref().unwrap_or(&rings);
     let meridian = Meridian {
         radial: [r0, r1],
         z,
@@ -242,14 +265,18 @@ pub(in super::super) fn candidate(
     // have identical linear lifts modulo 2π. Both boundary circles have
     // degree one (ring_points), so every interior regular chart point has
     // exactly one preimage, including where the physical height turns back.
-    for (&ids, &r) in a.mesh.triangles.iter().zip(&s.triangle_regions) {
+    for (i, (&ids, &r)) in a.mesh.triangles.iter().zip(&s.triangle_regions).enumerate() {
+        if let Some(index) = land.owners[i] {
+            owners.push(RoundedFaceRef::Cylinder { index });
+            continue;
+        }
         if let Some(end) = ends.iter().position(|e| e.region == r) {
             cap_triangle(
                 ids.map(|i| local[i]),
-                ids.map(|i| rings[i]),
+                ids.map(|i| disk_points[i]),
                 end,
                 end,
-                end as f64 * h,
+                outer[end].z - nodes[0].z,
                 o.plane_tolerance_mm,
                 &mut bound,
             )?;
@@ -277,5 +304,34 @@ pub(in super::super) fn candidate(
         "Une méridienne cubique à retour axial relie les deux disques mesurés.",
         "La projection angle–rayon couvre chaque triangle, les deux disques et la méridienne à rayon monotone.",
     );
-    finish(a, o, &nodes, &frame, bound, roundoff, f, owners, proof)
+    let Some(mut result) = finish(a, o, nodes, &frame, bound, roundoff, f, owners, proof)? else {
+        return Ok(None);
+    };
+    let m = &mut result.model.revolved.mixed;
+    for (end, &idx) in land.indices.iter().enumerate() {
+        if idx.is_none() {
+            continue;
+        }
+        let outer_ring = m.rings.len();
+        m.rings.push(CircularRing {
+            center: frame.lift([0., 0., outer[end].z]),
+            axis: frame.axis,
+            radius_mm: outer[end].radius,
+        });
+        m.planes[end].loops = vec![MixedLoop::Circle { ring: outer_ring }];
+        m.cylinders.push(crate::MixedCylinder {
+            rings: if end == 0 {
+                [outer_ring, 0]
+            } else {
+                [1, outer_ring]
+            },
+            inner: false,
+        });
+        result.report.cylinders += 1;
+        result.report.expected_volume_mm3 += PI * outer[end].radius.powi(2) * land.lengths[end];
+    }
+    if !m.cylinders.is_empty() {
+        result.report.diagnostics[0].message="Une méridienne cubique à retour axial rejoint les portées cylindriques sur les anneaux mesurés.".into();
+    }
+    Ok(Some(result))
 }

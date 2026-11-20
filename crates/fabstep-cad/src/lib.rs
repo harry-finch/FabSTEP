@@ -281,6 +281,8 @@ struct NativeSmoothRevolution {
     next_radii: [f64; 3],
     axial: [f64; 2],
     returning: i32,
+    lands: [f64; 2],
+    land_tokens: [usize; 2],
 }
 
 #[repr(C)]
@@ -1811,10 +1813,11 @@ fn build_smooth_revolution(
     let pole = usize::from(f.pole_vertex.is_some());
     let cap_count = 2 - pole;
     if m.planes.len() != cap_count
-        || m.rings.len() != cap_count
+        || m.rings.len() != cap_count + m.cylinders.len()
         || m.vertices.len() > MAX_SOURCE_VERTICES
         || !m.vertices.iter().all(finite)
-        || !m.cylinders.is_empty()
+        || m.cylinders.len() > 2
+        || (!m.cylinders.is_empty() && (pole != 0 || f.axial_controls_mm.is_none()))
         || !m.partial_cylinders.is_empty()
         || !m.arcs.is_empty()
         || !m.elliptic_arcs.is_empty()
@@ -1915,6 +1918,9 @@ fn build_smooth_revolution(
             return Err(invalid());
         }
     }
+    let mut lands = [0.; 2];
+    let mut land_tokens = [0; 2];
+    let mut used = [false; 2];
     for end in pole..2 {
         let ring = &m.rings[f.rings[end]];
         let plane = &m.planes[end - pole];
@@ -1938,11 +1944,30 @@ fn build_smooth_revolution(
                     || (plane.normal[i] - expected_sign * f.axis[i]).abs() > direction_tolerance
             })
             || !unit_direction(&plane.normal)
-            || !matches!(plane.loops.as_slice(), [MixedLoop::Circle {ring}] if *ring == f.rings[end])
+
         {
             return Err(invalid());
         }
+        let [MixedLoop::Circle{ring: cap_index}] = plane.loops.as_slice() else { return Err(invalid()); };
+        if *cap_index != f.rings[end] {
+            let cap = m.rings.get(*cap_index).ok_or_else(invalid)?;
+            let pair = if end == 0 { [*cap_index,f.rings[end]] } else { [f.rings[end],*cap_index] };
+            let slot = m.cylinders.iter().position(|c| !c.inner && c.rings==pair).ok_or_else(invalid)?;
+            if used[slot] || *cap_index<cap_count || !finite(&cap.center) || !unit_direction(&cap.axis)
+                || !cap.radius_mm.is_finite() || (cap.radius_mm-expected_radius).abs()>support_tolerance {
+                return Err(invalid());
+            }
+            let delta:[f64;3]=std::array::from_fn(|k|cap.center[k]-ring.center[k]);
+            let distance=delta.iter().zip(f.axis).map(|(d,z)|d*z).sum::<f64>();
+            lands[end]=expected_sign*distance;
+            if lands[end]<=support_tolerance || (0..3).any(|k|
+                (delta[k]-distance*f.axis[k]).abs()>support_tolerance ||
+                (cap.axis[k]-f.axis[k]).abs()>direction_tolerance) {return Err(invalid());}
+            used[slot]=true;
+            if let Some(tokens)=tokens {land_tokens[end]=tokens.cylinders[slot];}
+        }
     }
+    if used.iter().filter(|v| **v).count()!=m.cylinders.len(){return Err(invalid());}
     let domain = NativeSmoothRevolution {
         origin: f.origin,
         axis: f.axis,
@@ -1952,6 +1977,8 @@ fn build_smooth_revolution(
         next_radii,
         axial,
         returning: i32::from(f.axial_controls_mm.is_some()),
+        lands,
+        land_tokens,
     };
     native_step(|output, error, capacity| unsafe {
         fabstep_build_smooth_revolution_step(

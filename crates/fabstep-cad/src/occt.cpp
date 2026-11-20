@@ -149,6 +149,8 @@ struct UnequalPocketData {
 struct SmoothRevolutionData {
   double origin[3], axis[3], height, radii[4], knot, next_radii[3], axial[2];
   int returning;
+  double lands[2];
+  size_t land_tokens[2];
 };
 
 struct StepOutput {
@@ -2740,16 +2742,33 @@ Handle(Poly_Triangulation) revolution_face_mesh(const RevolutionGrid& grid, cons
     }
     return mesh;
   }
-  const int end = face.IsSame(proof.caps[0]) ? 0 : 1;
+  const int end = face.IsSame(proof.caps[0]) || face.IsSame(proof.lands[0]) ? 0 : 1;
   const int j = (proof.reverse_basis ? 1-end : end)*nv;
-  const auto center = revolution_center(d,end);
+  const auto offset=gp_Vec(direction(d.axis))*(end?d.lands[end]:-d.lands[end]);
+  const auto center=revolution_center(d,end).Translated(offset);
+  if(face.IsSame(proof.lands[end])) {
+    Handle(Poly_Triangulation) mesh=new Poly_Triangulation(2*nu,2*nu,false);
+    const auto p=point(0,j),q=point(1,j);
+    const auto radial=gp_Vec(revolution_center(d,end),p);
+    const bool inward=gp_Vec(p,q).Crossed(offset).Dot(radial)<0.;
+    const bool flip=inward != (face.Orientation()==TopAbs_REVERSED);
+    for(int i=0;i<nu;++i) {
+      const int a=i+1,b=(i+1)%nu+1;
+      const gp_Pnt inner=point(i,j);
+      mesh->SetNode(a,inner);
+      mesh->SetNode(a+nu,inner.Translated(offset));
+      mesh->SetTriangle(2*i+1,flip?Poly_Triangle(a,b+nu,b):Poly_Triangle(a,b,b+nu));
+      mesh->SetTriangle(2*i+2,flip?Poly_Triangle(a,a+nu,b+nu):Poly_Triangle(a,b+nu,a+nu));
+    }
+    return mesh;
+  }
   const auto plane = BRepAdaptor_Surface(face).Plane().Position();
   const auto normal = gp_Vec(plane.XDirection()).Crossed(gp_Vec(plane.YDirection()));
   const bool reversed = gp_Vec(center,point(0,j)).Crossed(gp_Vec(center,point(1,j))).Dot(normal) < 0.;
   Handle(Poly_Triangulation) mesh = new Poly_Triangulation(nu+1,nu,false);
   mesh->SetNode(1,center);
   for (int i = 0; i < nu; ++i) {
-    mesh->SetNode(i+2,point(i,j));
+    mesh->SetNode(i+2,point(i,j).Translated(offset));
     int a = i+2, b = (i+1)%nu+2;
     if (reversed) std::swap(a,b);
     mesh->SetTriangle(i+1,Poly_Triangle(1,a,b));
@@ -2803,7 +2822,7 @@ std::vector<RevolutionGrid> check_meshing_resolution(const TopoDS_Shape& shape, 
           std::abs(d.radii[2]-d.radii[1]), std::abs(d.radii[3]-d.radii[2])}) : d.height;
       const double v = std::ceil(std::max({1.,std::sqrt(3.*second/(8.*deflection)),
                                            3.*first*du/(4.*deflection), second/(mesh_angle*min_speed)}));
-      const double triangles = 2.*u*v + 2.*u;
+      const double triangles = 2.*u*v + 2.*u*(1 + int(d.lands[0]>0.) + int(d.lands[1]>0.));
       if (!std::isfinite(triangles) || triangles > mesh_triangle_limit - estimated_curved_triangles)
         throw too_complex;
       estimated_curved_triangles += static_cast<size_t>(triangles);
@@ -3117,7 +3136,7 @@ void tessellate_ordinary(const TopoDS_Shape& shape, double deflection, MeshOutpu
   std::vector<size_t> grid_owners;
   for (size_t i=0; i<grids.size(); ++i) {
     const auto& p = grids[i].proof;
-    for (const auto& face : {p.wall,p.caps[0],p.caps[1]}) {
+    for (const auto& face : {p.wall,p.caps[0],p.caps[1],p.lands[0],p.lands[1]}) {
       if (face.IsNull()) continue;
       if (grid_faces.Add(face) != static_cast<int>(grid_owners.size()+1))
         throw CadFailure{mesh_failed,"Face de révolution attribuée à plusieurs solides."};
@@ -4311,7 +4330,7 @@ extern "C" int fabstep_build_smooth_revolution_step(const SmoothRevolutionData* 
   if (!domain || (wall_token && !cap_tokens)) return missing_step_argument(output, error, capacity);
   FaceLabels labels;
   auto* tracked = wall_token ? &labels : nullptr;
-  SurfaceCounts expected{domain->radii[0] == 0. ? 1u : 2u,0};
+  SurfaceCounts expected{domain->radii[0] == 0. ? 1u : 2u, size_t(domain->lands[0]>0.) + size_t(domain->lands[1]>0.)};
   expected.revolutions = 1;
   return validated_step([&]{return build_smooth_revolution(*domain,cap_tokens,wall_token,tracked);},
                         expected,output,error,capacity,nullptr,tracked,nullptr,domain);

@@ -6,7 +6,7 @@ constexpr double revolution_period = 2. * 3.14159265358979323846;
 struct RevolutionProof {
   SmoothRevolutionData domain;
   TopoDS_Edge seam;
-  std::array<TopoDS_Face, 2> caps;
+  std::array<TopoDS_Face, 2> caps, lands;
   TopoDS_Face wall;
   bool reverse_basis;
   double max_radius, max_mixed_derivative, max_axial_second_derivative;
@@ -120,7 +120,7 @@ double revolution_volume(const SmoothRevolutionData &d) {
       for (int j = 0; j < 4; ++j)
         for (int k = 0; k < 3; ++k)
           integral += d.radii[i] * d.radii[j] * dz[k] * c3[i] * c3[j] * c2[k] / (3. * c8[i+j+k]);
-    return (revolution_period / 2.) * integral;
+    return (revolution_period / 2.) * (integral + d.lands[0]*d.radii[0]*d.radii[0] + d.lands[1]*d.radii[3]*d.radii[3]);
   }
   double square_integral = 0.;
   const int spans = d.knot ? 2 : 1;
@@ -134,13 +134,15 @@ double revolution_volume(const SmoothRevolutionData &d) {
   return (revolution_period / 2.) * d.height * square_integral;
 }
 
+#include "revolution_land.hxx"
+
 RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolutionData *expected,
                                   Status status) {
   const CadFailure invalid{
       status,
       "La révolution cubique, sa couture ou ses deux disques ne correspondent pas au domaine prouvé."};
   RevolutionProof proof{};
-  std::vector<TopoDS_Face> planes;
+  std::vector<TopoDS_Face> planes, lands;
   for (TopExp_Explorer it(solid, TopAbs_FACE); it.More(); it.Next()) {
     auto face = TopoDS::Face(it.Current());
     switch (BRepAdaptor_Surface(face).GetType()) {
@@ -149,6 +151,9 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
         throw invalid;
       planes.push_back(face);
       break;
+    case GeomAbs_Cylinder:
+      if(lands.size()==2) throw invalid;
+      lands.push_back(face);break;
     case GeomAbs_SurfaceOfRevolution:
       if (!proof.wall.IsNull())
         throw invalid;
@@ -315,6 +320,14 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
     }
     int end =
         circle.Location().Distance(origin) < circle.Location().Distance(revolution_center(d, 1)) ? 0 : 1;
+    const auto joint=revolution_center(d,end);
+    const double side=end?1.:-1.;
+    const double extension=side*gp_Vec(joint,circle.Location()).Dot(axis);
+    if(extension < -revolution_precision) throw invalid;
+    d.lands[end]=extension > revolution_precision ? extension : 0.;
+    if((d.lands[end] && !d.returning) ||
+       (expected && std::abs(expected->lands[end]-d.lands[end])>revolution_precision)) throw invalid;
+    const auto terminal=joint.Translated(axis*(side*d.lands[end]));
     const auto plane = BRepAdaptor_Surface(cap).Plane();
     // A revolved planar face can have an indirect local frame before STEP.
     auto normal = gp_Vec(plane.Position().XDirection()).Crossed(gp_Vec(plane.Position().YDirection()));
@@ -324,15 +337,26 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
         normal.Crossed(axis).Magnitude() * max_radius > revolution_precision ||
         gp_Vec(circle.Axis().Direction()).Crossed(axis).Magnitude() * max_radius > revolution_precision ||
         plane.Distance(circle.Location()) > revolution_precision ||
-        circle.Location().Distance(revolution_center(d, end)) > revolution_precision ||
+        circle.Location().Distance(terminal) > revolution_precision ||
         std::abs(circle.Radius() - radius_control(d, end ? poles.size() - 1 : 0)) > revolution_precision ||
         std::abs(curve.LastParameter() - curve.FirstParameter() - revolution_period) *
                 std::max(1., max_radius) >
             revolution_precision)
       throw invalid;
     rims[end] = edge;
+    if(d.lands[end]) {
+      auto shared=std::find_if(lands.begin(),lands.end(),[&](const auto& f){
+        for(TopExp_Explorer it(f,TopAbs_EDGE);it.More();it.Next()) if(it.Current().IsSame(edge))return true;
+        return false;
+      });
+      if(shared==lands.end()) throw invalid;
+      proof.lands[end]=*shared;
+      rims[end]=revolution_land_rim(*shared,edge,joint,axis,circle.Radius(),d.lands[end],invalid);
+      lands.erase(shared);
+    }
     proof.caps[end] = cap;
   }
+  if(!lands.empty()) throw invalid;
   // Every wall coedge must be a straight UV side of the full parameter
   // rectangle. Scaling tolerances by derivative bounds charges the trim in
   // millimetres, including levels near a steep portion of the meridian.
@@ -424,7 +448,7 @@ RevolutionProof verify_revolution(const TopoDS_Shape &solid, const SmoothRevolut
 
 TopoDS_Solid build_smooth_revolution(const SmoothRevolutionData &d, const size_t *caps, const size_t *wall,
                                      FaceLabels *labels) {
-  if (d.returning && !bounded_axial_return(d))
+  if (std::any_of(std::begin(d.lands),std::end(d.lands),[&](double l){return !std::isfinite(l) || l<0. || l>1.e7 || (l>0. && !d.returning);}) || (d.returning && !bounded_axial_return(d)))
     throw CadFailure{invalid_solid, "La méridienne ne prouve pas une sous-coupe simple entre ses deux disques."};
   const gp_Vec radial(gp_Ax2(point_at(d.origin, 0), direction(d.axis)).XDirection());
   TColgp_Array1OfPnt poles(1, d.knot ? 6 : 4);
@@ -451,12 +475,17 @@ TopoDS_Solid build_smooth_revolution(const SmoothRevolutionData &d, const size_t
       poles(i + 1) = revolution_pole_center(d, i, i / 3.).Translated(radial * d.radii[i]);
     curve = new Geom_BezierCurve(poles);
   }
-  const auto bottom = revolution_center(d, 0), top = revolution_center(d, 1);
+  const gp_Vec axis(direction(d.axis));
+  const auto bottom = revolution_center(d, 0).Translated(axis*-d.lands[0]);
+  const auto top = revolution_center(d, 1).Translated(axis*d.lands[1]);
+  const auto low=poles(1).Translated(axis*-d.lands[0]), high=poles(poles.Upper()).Translated(axis*d.lands[1]);
   BRepBuilderAPI_MakeWire wire;
   if (d.radii[0] != 0.)
-    wire.Add(BRepBuilderAPI_MakeEdge(bottom, poles(1)).Edge());
+    wire.Add(BRepBuilderAPI_MakeEdge(bottom, low).Edge());
+  if (d.lands[0]) wire.Add(BRepBuilderAPI_MakeEdge(low,poles(1)).Edge());
   wire.Add(BRepBuilderAPI_MakeEdge(curve).Edge());
-  wire.Add(BRepBuilderAPI_MakeEdge(poles(poles.Upper()), top).Edge());
+  if (d.lands[1]) wire.Add(BRepBuilderAPI_MakeEdge(poles(poles.Upper()),high).Edge());
+  wire.Add(BRepBuilderAPI_MakeEdge(high, top).Edge());
   wire.Add(BRepBuilderAPI_MakeEdge(top, bottom).Edge());
   BRepBuilderAPI_MakeFace face(wire.Wire(), true);
   BRepPrimAPI_MakeRevol revol(face.Face(), gp_Ax1(bottom, direction(d.axis)), revolution_period, true);
@@ -469,6 +498,7 @@ TopoDS_Solid build_smooth_revolution(const SmoothRevolutionData &d, const size_t
         labels->emplace_back(cap, caps[cap_slot++]);
     }
     labels->emplace_back(proof.wall, *wall);
+    for(int k=0;k<2;++k) if(!proof.lands[k].IsNull()) labels->emplace_back(proof.lands[k],d.land_tokens[k]);
   }
   return solid;
 }

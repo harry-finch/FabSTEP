@@ -2,7 +2,7 @@
 id: R-126
 titre: "Reconstruire une révolution à méridienne mixte"
 resume: "G4 · Reconstituer sur un axe commun des portées, des gorges circulaires et des portions de profil cubiques."
-statut: en-cours
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-20
 maj: 2026-11-20
