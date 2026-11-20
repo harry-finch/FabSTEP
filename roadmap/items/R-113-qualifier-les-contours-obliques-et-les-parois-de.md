@@ -2,10 +2,10 @@
 id: R-113
 titre: "Qualifier les contours obliques et les parois de révolution interrompues"
 resume: "La lèvre torique est qualifiée à deux densités. Sur trois petits STL d’arbres percés, le prototype mesure deux cylindres et produit un STEP valide à quatre faces."
-statut: en-cours
+statut: a-tester
 jalon: v1.0
 cree: 2026-11-19
-maj: 2026-11-19
+maj: 2026-11-20
 livree:
 ---
 

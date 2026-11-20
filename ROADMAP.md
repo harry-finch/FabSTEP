@@ -32,11 +32,11 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
    AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes
 10. **[R-023 Durcir les permissions locales Tauri](roadmap/items/R-023-durcir-les-permissions-locales-tauri.md)** · À tester · jalon audit
    AUD-014 — Définir le manifeste applicatif et tester les commandes autorisées/refusées, fenêtres et origines ; ne pas ajouter un fichier de capacités supposé suffisant
-11. **[R-117 Proposer des cylindres, cônes et sphères par normales sur bandes résiduelles](roadmap/items/R-117-proposer-des-cylindres-cones-et-spheres-par.md)** · En cours · jalon v1.0
+11. **[R-117 Proposer des cylindres, cônes et sphères par normales sur bandes résiduelles](roadmap/items/R-117-proposer-des-cylindres-cones-et-spheres-par.md)** · À tester · jalon v1.0
    Utiliser les rayons de normales et l'angle de normale constant sur les chaînes de bandes non planes pour découvrir des parois interrompues, en conservant toutes les preuves géométriques existantes.
-12. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · En cours · jalon v1.0
+12. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · À tester · jalon v1.0
    La lèvre torique est qualifiée à deux densités. Sur trois petits STL d’arbres percés, le prototype mesure deux cylindres et produit un STEP valide à quatre faces.
-13. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · En cours
+13. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · À tester
    Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto.
 14. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon v1.0
    Les 46 671 faces passent le contrôle géométrique en laboratoire. Le rejeu de Flansch est reporté après les développements de reconnaissance pour limiter la RAM.
