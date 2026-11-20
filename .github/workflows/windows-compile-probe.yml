@@ -16,6 +16,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/cache@v4
+        with:
+          path: D:\fabstep-target
+          key: windows-smoke-rust-v1
       - name: Build desktop and smoke with MSVC
         shell: pwsh
         run: |
@@ -35,8 +39,6 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cargo build --release --locked -p fabstep-cli
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          python scripts/release-notices.py D:\probe-notices
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $base = "$env:RUNNER_TEMP\3rdparty-vc14-64"
           $dirs = Get-ChildItem $base -Filter *.dll -File -Recurse | ForEach-Object DirectoryName | Sort-Object -Unique
           $env:PATH = "$env:OCCT_ROOT\win64\vc14\bin;" + ($dirs -join ";") + ";" + $env:PATH
@@ -44,3 +46,6 @@ jobs:
           Copy-Item "$env:CARGO_TARGET_DIR\release\fabstep.exe" "$dst\fabstep-cli.exe"
           Copy-Item "$env:CARGO_TARGET_DIR\release\fabstep-desktop.exe" "$dst\FabSTEP.exe"
           python -c "from pathlib import Path; import runpy,tempfile; r=runpy.run_path('scripts/release-windows.py'); r['smoke'](Path(r'D:\probe-executables'), Path(tempfile.mkdtemp()))"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python scripts/release-notices.py D:\probe-notices
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }

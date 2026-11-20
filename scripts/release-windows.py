@@ -93,17 +93,31 @@ def smoke(folder, work):
                 cad["faces"] == expected_faces and cad["volume_mm3"] > 0 and
                 b"END-ISO-10303-21;" in output.read_bytes()):
             raise ValueError(f"Unexpected STEP reimport on {fixture}")
-    app = subprocess.Popen([folder / "FabSTEP.exe"], cwd=work)
+    app_env = dict(os.environ, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--force-renderer-accessibility")
+    app = subprocess.Popen([folder / "FabSTEP.exe"], cwd=work, env=app_env)
     try:
-        subprocess.run(["pwsh", "-NoProfile", "-Command", f"""
+        subprocess.run(["powershell", "-NoProfile", "-Command", f"""
+            $ErrorActionPreference = 'Stop'
+            Add-Type -AssemblyName UIAutomationClient
+            Add-Type -AssemblyName UIAutomationTypes
+            $button = New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                [System.Windows.Automation.ControlType]::Button
+            )
             $p = Get-Process -Id {app.pid} -ErrorAction Stop
             for ($i=0; $i -lt 60; $i++) {{
                 $p.Refresh()
                 if ($p.HasExited) {{ throw "Desktop exited before displaying its main window" }}
-                if ($p.MainWindowHandle -ne 0 -and $p.MainWindowTitle -like '*FabSTEP*') {{ exit 0 }}
+                if ($p.MainWindowHandle -ne 0 -and $p.MainWindowTitle -like '*FabSTEP*') {{
+                    $window = [System.Windows.Automation.AutomationElement]::FromHandle($p.MainWindowHandle)
+                    $buttons = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $button)
+                    foreach ($item in $buttons) {{
+                        if ($item.Current.Name -match '(Ouvrir|Open) STL / 3MF') {{ exit 0 }}
+                    }}
+                }}
                 Start-Sleep -Seconds 1
             }}
-            throw "Main window did not open"
+            throw "The main window did not expose the file-open button"
         """], check=True, timeout=75)
     finally:
         if app.poll() is None:
