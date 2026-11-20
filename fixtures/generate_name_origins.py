@@ -9,3 +9,5 @@ write("m3_name_origins", model([
 
 # The first byte of the combining accent would exceed the CAD name budget.
 write("m3_name_grapheme", model([mesh_object(1, name="P" * 59 + "e\u0301 long")], [(1, None)]))
+
+write("m3_name_accent_quote", model([mesh_object(1, name="Pièce '1'")], [(1, None)]))

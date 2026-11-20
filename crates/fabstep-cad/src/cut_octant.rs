@@ -123,3 +123,20 @@ pub(super) fn build(
         )
     })
 }
+
+#[cfg(test)]
+mod ffi_tests {
+    use super::*;
+    use std::ptr::null;
+
+    #[test]
+    fn missing_geometry_returns_a_native_error() {
+        let code = native_step(|output, error, capacity| unsafe {
+            fabstep_build_cut_octant(null(), null(), 1., null(), output, error, capacity)
+        })
+        .err()
+        .unwrap()
+        .code;
+        assert_eq!(code, "cad.invalid_model");
+    }
+}

@@ -305,3 +305,24 @@ fn step_product_name_ends_at_grapheme_boundary_and_report_keeps_source() {
     );
     assert!(!step.contains(&format!("{prefix}e")));
 }
+
+#[test]
+fn step_product_name_survives_accent_and_apostrophe_on_reimport() {
+    let result = convert_document(
+        &fixture("m3_name_accent_quote"),
+        InputFormat::ThreeMf,
+        &Options::default(),
+    )
+    .unwrap();
+    assert_eq!(result.report.bodies[0].name, "Pièce '1'");
+    let step = std::str::from_utf8(&result.step_bytes).unwrap();
+    assert!(step
+        .lines()
+        .any(|line| line.contains("PRODUCT(") && line.contains("''1''")));
+    assert_eq!(result.report.cad.solids, 1);
+    assert!(!result
+        .report
+        .diagnostics
+        .iter()
+        .any(|d| d.code == "document.product_names_adapted"));
+}

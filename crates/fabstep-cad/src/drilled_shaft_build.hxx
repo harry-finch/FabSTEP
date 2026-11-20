@@ -4,6 +4,7 @@
 extern "C" int fabstep_build_drilled_shaft(const DrilledShaftData *d, const size_t *tokens,
                                            StepOutput *output, char *error,
                                            size_t capacity) noexcept {
+  if (!d) return missing_step_argument(output, error, capacity);
   FaceLabels labels;
   auto *tracked = tokens ? &labels : nullptr;
   SurfaceCounts expected{2, 2};

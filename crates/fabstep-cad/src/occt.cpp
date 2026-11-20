@@ -4047,6 +4047,12 @@ void extract_section_profile(const unsigned char* bytes, size_t size, const doub
 #include "torus_atlas_transfer.hxx"
 #include "torus_atlas_build.hxx"
 
+int missing_step_argument(StepOutput* output, char* error, size_t capacity) noexcept {
+  if (output) *output = {};
+  set_error(error, capacity, "Paramètre obligatoire absent du constructeur STEP.");
+  return invalid_model;
+}
+
 template <typename BuildSolid>
 int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
                    char* error, size_t error_capacity,
@@ -4055,6 +4061,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
                    const SmoothRevolutionData* expected_revolution=nullptr,
                    const TorusSectorSolidData* expected_sector=nullptr, const pocket::Domain* expected_pocket=nullptr, const UnequalPocketData* expected_unequal=nullptr,
                    const HeightPatchData* expected_height=nullptr, const DrilledShaftData* expected_shaft=nullptr) noexcept {
+  if (!output) return missing_step_argument(output, error, error_capacity);
   *output = {};
   return with_occt(invalid_model, error, error_capacity, [&](Status& stage) {
     size_t face_count = 0;
@@ -4286,6 +4293,7 @@ extern "C" int fabstep_build_torus_sector_step(const TorusSectorSolidData* domai
 
 extern "C" int fabstep_build_smooth_revolution_step(const SmoothRevolutionData* domain,
     const size_t* cap_tokens, const size_t* wall_token, StepOutput* output, char* error, size_t capacity) noexcept {
+  if (!domain || (wall_token && !cap_tokens)) return missing_step_argument(output, error, capacity);
   FaceLabels labels;
   auto* tracked = wall_token ? &labels : nullptr;
   SurfaceCounts expected{domain->radii[0] == 0. ? 1u : 2u,0};
@@ -4297,6 +4305,7 @@ extern "C" int fabstep_build_smooth_revolution_step(const SmoothRevolutionData* 
 // Rust validates every index, both complete oriented uses and the model bounds.
 extern "C" int fabstep_build_cross_drill_step(const CrossDrillData* domain,
     const size_t* plane_tokens,const size_t* wall_tokens,StepOutput* output,char* error,size_t capacity) noexcept {
+  if (!domain || (wall_tokens && !plane_tokens)) return missing_step_argument(output, error, capacity);
   FaceLabels labels;
   auto* tracked=wall_tokens?&labels:nullptr;
   return validated_step([&]{return build_cross_drill(*domain,plane_tokens,wall_tokens,tracked);},

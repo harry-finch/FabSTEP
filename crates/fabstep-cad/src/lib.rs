@@ -3442,6 +3442,50 @@ pub fn result_faces(bytes: &[u8]) -> Result<ResultFaces, FabError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn missing_step_output_or_drill_domain_is_rejected() {
+        use std::ptr::{null, null_mut};
+        unsafe {
+            assert_eq!(
+                fabstep_build_step(
+                    null(),
+                    0,
+                    null(),
+                    0,
+                    null(),
+                    null(),
+                    null(),
+                    null_mut(),
+                    null_mut(),
+                    0
+                ),
+                1
+            );
+            let mut output = NativeStep {
+                data: null_mut(),
+                size: 1,
+                metrics: Metrics::default(),
+            };
+            assert_eq!(
+                fabstep_build_cross_drill_step(null(), null(), null(), &mut output, null_mut(), 0),
+                1
+            );
+            assert_eq!(output.size, 0);
+            assert!(output.data.is_null());
+            assert_eq!(
+                fabstep_build_smooth_revolution_step(
+                    null(),
+                    null(),
+                    null(),
+                    &mut output,
+                    null_mut(),
+                    0
+                ),
+                1
+            );
+        }
+    }
+
     use fabstep_core::{
         CircularArc, CircularRing, MixedCylinder, MixedPartialCylinder, MixedPlane, PlanarFace,
     };

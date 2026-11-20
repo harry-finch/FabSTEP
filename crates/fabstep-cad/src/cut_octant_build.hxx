@@ -1,6 +1,7 @@
 extern "C" int fabstep_build_cut_octant(
     const double* center, const double* axes, double radius, const size_t* tokens,
     StepOutput* output, char* error, size_t capacity) noexcept {
+  if (!center || !axes) return missing_step_argument(output, error, capacity);
   FaceLabels labels;
   return validated_step([&] {
     const double quarter = std::acos(-1.) / 2.;
