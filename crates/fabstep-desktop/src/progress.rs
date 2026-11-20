@@ -1,6 +1,6 @@
 //! One read-only snapshot of an actual conversion checkpoint, never a counter.
 use super::{lock_error, stale, CacheState, EngineState};
-use fabstep_app::{ConversionCheckpoint, ConversionPhase};
+use fabstep_app::{ConversionCheckpoint, ConversionPhase, InspectedDocumentStep};
 use fabstep_core::FabError;
 use serde::Serialize;
 use std::sync::Arc;
@@ -24,6 +24,7 @@ pub(super) struct ActiveProgress {
     finished: bool,
     body_started: bool,
     snapshot: Option<ConversionProgress>,
+    queued_display: Option<Arc<InspectedDocumentStep>>,
 }
 
 fn phase_name(phase: ConversionPhase) -> &'static str {
@@ -81,6 +82,16 @@ impl ConversionGuard {
         source_id: u64,
         epoch: u64,
     ) -> Result<Self, FabError> {
+        Self::with_queued_display(state, request_id, source_id, epoch, None)
+    }
+
+    pub(super) fn with_queued_display(
+        state: Arc<EngineState>,
+        request_id: u64,
+        source_id: u64,
+        epoch: u64,
+        queued_display: Option<Arc<InspectedDocumentStep>>,
+    ) -> Result<Self, FabError> {
         let generation = {
             let mut cache = state.inner.lock().map_err(lock_error)?;
             if !cache.current(request_id, source_id, epoch) {
@@ -96,6 +107,7 @@ impl ConversionGuard {
                 finished: false,
                 body_started: false,
                 snapshot: None,
+                queued_display,
             });
             generation
         };
@@ -108,6 +120,18 @@ impl ConversionGuard {
                 generation,
             },
         })
+    }
+
+    /// File replacement and guard cancellation both retire the queued inspection.
+    pub(super) fn take_queued_display(&self) -> Result<Arc<InspectedDocumentStep>, FabError> {
+        let observer = &self.observer;
+        let mut cache = observer.state.inner.lock().map_err(lock_error)?;
+        cache
+            .progress
+            .as_mut()
+            .filter(|p| p.generation == observer.generation)
+            .and_then(|p| p.queued_display.take())
+            .ok_or_else(stale)
     }
 
     pub(super) fn observer(&self) -> ProgressObserver {

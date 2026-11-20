@@ -170,9 +170,17 @@ pub(super) async fn apply_similar_guided_regions(
             search_id,
             &candidate_ids,
         )?;
+    // Keep the old STEP unexportable while queued. The cache owns the inspection
+    // until admission, so a new source can release it while the permit is busy.
+    let progress = progress::ConversionGuard::with_queued_display(
+        Arc::clone(&state),
+        request_id,
+        source_id,
+        epoch,
+        Some(display),
+    )?;
     let permit = SEARCH_WORKER.lock().await;
-    let progress =
-        progress::ConversionGuard::new(Arc::clone(&state), request_id, source_id, epoch)?;
+    let display = progress.take_queued_display()?;
     let observer = progress.observer();
     let computed = tauri::async_runtime::spawn_blocking(move || {
         let _permit = permit;

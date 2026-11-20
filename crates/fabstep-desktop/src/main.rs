@@ -1365,6 +1365,45 @@ mod tests {
     }
 
     #[test]
+    fn queued_similar_application_releases_the_display_on_file_replacement() {
+        let state = Arc::new(EngineState::default());
+        let (display, epoch) = {
+            let mut cache = state.inner.lock().unwrap();
+            install_guidance_base(&mut cache, 30);
+            let result = cache.result.as_mut().unwrap();
+            result.display = Some(Arc::new(
+                result
+                    .step
+                    .inspect_display_controlled(&mut |_| Ok(()))
+                    .unwrap(),
+            ));
+            result.similar_generation = 7;
+            result.similar_count = Some(1);
+            let pending = cache
+                .begin_similar_application(31, 30, 30, 7, &[0])
+                .unwrap();
+            assert!(cache.result_snapshot(30, 30).is_err());
+            pending
+        };
+        let weak = Arc::downgrade(&display);
+        let guard = super::progress::ConversionGuard::with_queued_display(
+            Arc::clone(&state),
+            31,
+            30,
+            epoch,
+            Some(display),
+        )
+        .unwrap();
+        assert!(weak.upgrade().is_some());
+        state.inner.lock().unwrap().expect_upload(32).unwrap();
+        assert!(weak.upgrade().is_none());
+        assert_eq!(
+            guard.take_queued_display().unwrap_err().code,
+            "engine.stale"
+        );
+    }
+
+    #[test]
     fn deviation_cancellation_stale_inspection_and_replacement_preserve_export() {
         let mut cache = CacheState::default();
         install_guidance_base(&mut cache, 30);
