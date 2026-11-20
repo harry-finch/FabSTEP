@@ -2,11 +2,11 @@
 id: R-133
 titre: "Choisir une intention et ajuster automatiquement la reconstruction courbe"
 resume: "Tester en Rust des tolérances bornées, valider le meilleur candidat et rendre les réglages manuels et le résultat lisibles."
-statut: a-tester
+statut: livree
 jalon: atelier
 cree: 2026-11-20
 maj: 2026-11-20
-livree:
+livree: 2026-11-20
 ---
 ## But
 

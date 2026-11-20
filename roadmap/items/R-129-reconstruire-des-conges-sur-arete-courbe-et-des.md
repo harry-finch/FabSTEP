@@ -2,11 +2,11 @@
 id: R-129
 titre: "Reconstruire des congés sur arête courbe et des coins à trois rayons"
 resume: "G5 · Qualifier d’abord le congé de rayon constant sur arête courbe, puis le raccord entre trois congés inégaux."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-20
 maj: 2026-11-20
-livree:
+livree: 2026-11-20
 ---
 ## But
 

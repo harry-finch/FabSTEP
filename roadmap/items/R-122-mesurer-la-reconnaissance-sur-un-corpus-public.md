@@ -2,11 +2,11 @@
 id: R-122
 titre: "Mesurer la reconnaissance sur un corpus public reproductible"
 resume: "G7 · Établir une référence sur une douzaine de pièces de plusieurs familles, puis la réutiliser à chaque extension."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-20
 maj: 2026-11-20
-livree:
+livree: 2026-11-20
 ---
 ## But
 

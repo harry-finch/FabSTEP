@@ -2,11 +2,11 @@
 id: R-025
 titre: "Découper les gros modules et mutualiser les helpers au besoin"
 resume: "AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes"
-statut: a-tester
+statut: livree
 jalon: audit
 cree: 2026-11-13
-maj: 2026-11-19
-livree:
+maj: 2026-11-20
+livree: 2026-11-20
 ---
 ## But
 

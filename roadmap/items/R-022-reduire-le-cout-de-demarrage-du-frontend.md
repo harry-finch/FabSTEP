@@ -2,11 +2,11 @@
 id: R-022
 titre: "Réduire le coût de démarrage du frontend"
 resume: "AUD-009 — Mesurer le démarrage réel de la WebView ; retenir un chargement différé ou un découpage uniquement si le gain est démontré"
-statut: a-tester
+statut: livree
 jalon: audit
 cree: 2026-11-13
-maj: 2026-11-19
-livree:
+maj: 2026-11-20
+livree: 2026-11-20
 ---
 ## But
 

@@ -2,11 +2,11 @@
 id: R-130
 titre: "Qualifier deux contrôles d’interférence simultanés"
 resume: "F2 · Mesurer le temps et la mémoire cumulée du helper avant d’adopter la concurrence entre groupes."
-statut: a-tester
+statut: livree
 jalon: audit
 cree: 2026-11-20
 maj: 2026-11-20
-livree:
+livree: 2026-11-20
 ---
 ## But
 

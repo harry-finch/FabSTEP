@@ -1,6 +1,6 @@
 <!-- Généré par FabBoard depuis roadmap/ : ne pas modifier à la main. -->
 
-Les jalons décrivent des critères de sortie, pas des délais garantis. La v1 mécanique et son paquet macOS local ont été acceptés ; les extensions post-v1 livrées appartiennent au build de développement. Le 19 novembre 2026, l’utilisateur a validé en bloc les tests en attente et les lots présentés à la recette. Le périmètre fonctionnel v1 est gelé après AUDIT-03. Le volet Flansch de R-085 et le rapport CLI/MCP de R-118 restent ouverts après ce gel. Les recettes manuelles de l’atelier et de Fusion figurent dans les actions ci-dessous.
+Les jalons décrivent des critères de sortie, pas des délais garantis. La v1 mécanique et son paquet macOS local ont été acceptés ; les extensions post-v1 livrées appartiennent au build de développement. Le 19 novembre 2026, l’utilisateur a validé en bloc les tests en attente et les lots présentés à la recette. Le périmètre fonctionnel v1 est gelé après AUDIT-03. Le volet Flansch de R-085 et le rapport CLI/MCP de R-118 restent ouverts après ce gel. Le 20 novembre, les 17 actions de recette restantes ont été clôturées à la demande de l’utilisateur. Les comptes rendus techniques figurent dans [VALIDATION](docs/VALIDATION.md).
 
 L’[ancienne feuille de route](docs/ROADMAP-avant-fabboard.md) est conservée intégralement pour l’histoire. Elle contient les tableaux, critères et décisions d’origine. Les textes de chaque lot sont aussi conservés dans les éléments. Le [registre INT-AUDIT-01](docs/INT_AUDIT_01.md) garde autorité sur les suites de l’audit ; la [recherche post-v1](docs/POST_V1_RESEARCH.md) détaille les contrats géométriques.
 
@@ -8,95 +8,35 @@ Le banc public R-122 a servi à vérifier la fusion plane R-123 et les domaines 
 
 Le rejeu V-1287 de Flansch a atteint le plafond de trente minutes. Avant un nouvel essai post-v1, mesurer le coût des colliers non coplanaires sur une petite pièce publique. Les qualifications intermédiaires utilisent de petits solides indépendants. Les prochains lots portent sur une famille de formes utilisable sur plusieurs pièces. Pour une amélioration issue de Flansch, vérifier aussi une pièce indépendante via la conversion STL → STEP de l’application. Suivre le résultat de ces essais dans le chantier concerné (chaînes coniques, révolutions courbes, congés, boîtiers ou perçages).
 
-**Avancement : 102 livrés sur 132** (77 %)
+**Avancement : 126 livrés sur 132** (95 %)
 
 ## Restant à faire
 
-1. **[R-115 Récupérer les plans fragmentés par la quantification du STL](roadmap/items/R-115-recuperer-les-plans-fragmentes-par-la.md)** · À tester · jalon v1.0
-   Le bloc tourné et la pièce pliée donnent respectivement six et sept faces planes en Auto. Les 96 triangles de chaque STL conservent leur attribution après relecture du STEP.
-2. **[R-116 Estimer les normales sur copie Taubin en lecture seule](roadmap/items/R-116-estimer-les-normales-sur-copie-taubin-en-lecture.md)** · À tester · jalon v1.0
-   Calculer des normales lissées sur une copie temporaire sans déplacer les sommets source, uniquement pour stabiliser la segmentation et la découverte de candidats sur les STL quantifiés ou bruités.
-3. **[R-119 Isoler une zone interne par boîte de découpe visuelle 3D](roadmap/items/R-119-isoler-une-zone-interne-par-boite-de-decoupe.md)** · À tester · jalon atelier
-   Ajouter une boîte de découpe visuelle manipulable dans la vue 3D (Source et Résultat STEP) pour inspecter, sélectionner et corriger des cavités internes sans modifier le solide ni l'export.
-4. **[R-120 Proposer une correction guidée sur les parois similaires](roadmap/items/R-120-proposer-une-correction-guidee-sur-les-parois.md)** · À tester · jalon atelier
-   Après une correction guidée acceptée, rechercher en lecture seule les parois géométriquement analogues du document, les prévisualiser puis appliquer celles qui passent les preuves strictes après accord explicite.
-5. **[R-121 Afficher la carte de chaleur d'écart 3D sur le résultat STEP](roadmap/items/R-121-afficher-la-carte-de-chaleur-d-ecart-3d-sur-le.md)** · À tester · jalon atelier
-   Superposer dans la vue Résultat STEP une coloration par écart échantillonné au maillage source avec légende en millimètres, calculée à la demande en lecture seule sans affecter l'export.
-6. **[R-024 Préserver les caractères composés dans les noms de produits tronqués](roadmap/items/R-024-preserver-les-caracteres-composes-dans-les-noms-de-produits-tronques.md)** · À tester · jalon audit
-   AUD-011 — Reproduire les cas Unicode utiles ; conserver le nom source et éviter une dépendance disproportionnée pour ce seul besoin
-7. **[R-022 Réduire le coût de démarrage du frontend](roadmap/items/R-022-reduire-le-cout-de-demarrage-du-frontend.md)** · À tester · jalon audit
-   AUD-009 — Mesurer le démarrage réel de la WebView ; retenir un chargement différé ou un découpage uniquement si le gain est démontré
-8. **[R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md)** · À tester · jalon atelier
-   Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
-9. **[R-025 Découper les gros modules et mutualiser les helpers au besoin](roadmap/items/R-025-decouper-les-gros-modules-et-mutualiser-les-helpers-au-besoin.md)** · À tester · jalon audit
-   AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes
-10. **[R-023 Durcir les permissions locales Tauri](roadmap/items/R-023-durcir-les-permissions-locales-tauri.md)** · À tester · jalon audit
-   AUD-014 — Définir le manifeste applicatif et tester les commandes autorisées/refusées, fenêtres et origines ; ne pas ajouter un fichier de capacités supposé suffisant
-11. **[R-117 Proposer des cylindres, cônes et sphères par normales sur bandes résiduelles](roadmap/items/R-117-proposer-des-cylindres-cones-et-spheres-par.md)** · À tester · jalon v1.0
-   Utiliser les rayons de normales et l'angle de normale constant sur les chaînes de bandes non planes pour découvrir des parois interrompues, en conservant toutes les preuves géométriques existantes.
-12. **[R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md)** · À tester · jalon v1.0
-   La lèvre torique est qualifiée à deux densités. Sur trois petits STL d’arbres percés, le prototype mesure deux cylindres et produit un STEP valide à quatre faces.
-13. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · À tester
-   Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto.
-14. **[R-122 Mesurer la reconnaissance sur un corpus public reproductible](roadmap/items/R-122-mesurer-la-reconnaissance-sur-un-corpus-public.md)** · À tester · jalon post-v1
-   G7 · Établir une référence sur une douzaine de pièces de plusieurs familles, puis la réutiliser à chaque extension.
-15. **[R-123 Fusionner les faces planes voisines des raccords toriques](roadmap/items/R-123-fusionner-les-faces-planes-voisines-des-raccords.md)** · À tester · jalon post-v1
-   F1 · Mesurer puis réduire les faces résiduelles et les chaînes de petits raccords sur deux pièces publiques.
-16. **[R-124 Composer des régions qui partagent un bord vérifié](roadmap/items/R-124-composer-des-regions-qui-partagent-un-bord.md)** · À tester · jalon post-v1
-   G1 · Décrire les voisinages et les triangles de chaque région afin de combiner plusieurs reconnaissances sur un même corps.
-17. **[R-128 Proposer des axes et des motifs de parois répétées](roadmap/items/R-128-proposer-des-axes-et-des-motifs-de-parois.md)** · À tester · jalon post-v1
-   G6 · Accélérer la recherche des familles et le guidage en utilisant les normales et la répétition des formes.
-18. **[R-126 Reconstruire une révolution à méridienne mixte](roadmap/items/R-126-reconstruire-une-revolution-a-meridienne-mixte.md)** · À tester · jalon post-v1
-   G4 · Reconstituer sur un axe commun des portées, des gorges circulaires et des portions de profil cubiques.
-19. **[R-127 Reconstruire une extrusion droite à profil libre](roadmap/items/R-127-reconstruire-une-extrusion-droite-a-profil-libre.md)** · À tester · jalon post-v1
-   G3 · Reconnaître un contour extrudé composé de segments, d’arcs et de portions cubiques.
-20. **[R-129 Reconstruire des congés sur arête courbe et des coins à trois rayons](roadmap/items/R-129-reconstruire-des-conges-sur-arete-courbe-et-des.md)** · À tester · jalon post-v1
-   G5 · Qualifier d’abord le congé de rayon constant sur arête courbe, puis le raccord entre trois congés inégaux.
-21. **[R-130 Qualifier deux contrôles d’interférence simultanés](roadmap/items/R-130-qualifier-deux-controles-d-interference.md)** · À tester · jalon audit
-   F2 · Mesurer le temps et la mémoire cumulée du helper avant d’adopter la concurrence entre groupes.
-22. **[R-125 Étendre l’atlas aux parois analytiques interrompues](roadmap/items/R-125-etendre-l-atlas-aux-parois-analytiques.md)** · À tester · jalon post-v1
-   G2 et suite de F1 · Partager des contours vérifiés entre tores, plans et parois cylindriques, puis étendre famille par famille.
-23. **[R-131 Réévaluer sur preuve le découpage et le filtrage des groupes OCCT](roadmap/items/R-131-reevaluer-sur-preuve-le-decoupage-et-le-filtrage.md)** · À tester · jalon audit
-   F3 et F4 · Rouvrir séparément les deux essais de V-1276 si un groupe chaud représentatif permet de démontrer un gain.
-24. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon post-v1
+1. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon post-v1
    Flansch reste ouvert après le gel v1. Le dernier essai atteint 30 minutes et 2,78 Gio avant écriture. Reproduire le coût des colliers sur un témoin public.
-25. **[R-133 Choisir une intention et ajuster automatiquement la reconstruction courbe](roadmap/items/R-133-choisir-une-intention-et-ajuster-automatiquement.md)** · À tester · jalon atelier
-   Tester en Rust des tolérances bornées, valider le meilleur candidat et rendre les réglages manuels et le résultat lisibles.
-26. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
+2. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
    Construire et qualifier la distribution sur Windows et Linux.
-27. **[R-021 Étudier la réutilisation entre instances 3MF](roadmap/items/R-021-etudier-la-reutilisation-entre-instances-3mf.md)** · Idée · jalon audit
+3. **[R-021 Étudier la réutilisation entre instances 3MF](roadmap/items/R-021-etudier-la-reutilisation-entre-instances-3mf.md)** · Idée · jalon audit
    AUD-006 — Démontrer un gain sur plusieurs instances ; établir un contrat tenant compte des transformations, de l’arrondi, du soudage et de la provenance avant tout cache
-28. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
+4. **[R-055 3MF Production — références multi-modèles](roadmap/items/R-055-3mf-production-references-multi-modeles.md)** · Idée · jalon post-v1
    Étendre l’import au-delà de 3MF Core ; les références Production restent actuellement refusées.
-29. **[R-118 Exporter un rapport Markdown en CLI et exposer une passerelle MCP locale](roadmap/items/R-118-exporter-un-rapport-markdown-en-cli-et-exposer.md)** · Idée · jalon post-v1
+5. **[R-118 Exporter un rapport Markdown en CLI et exposer une passerelle MCP locale](roadmap/items/R-118-exporter-un-rapport-markdown-en-cli-et-exposer.md)** · Idée · jalon post-v1
    Ajouter une sortie Markdown lisible à fabstep-cli (--report) et un wrapper MCP optionnel appelant la CLI locale, sans modifier le moteur ni l'atelier bureau.
-30. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
+6. **[R-018 Distribution — signature Developer ID et notarisation](roadmap/items/R-018-distribution-signature-developer-id-et-notarisation.md)** · Idée · jalon distribution
    Signer et notariser le paquet macOS ; ces étapes restent ouvertes.
-
-## Actions à faire
-
-- [ ] [A-126](roadmap/actions/A-126-controler-le-toit-quantifie-a-six-faces-dans.md) Contrôler le toit quantifié à six faces dans Fusion (tester, R-116)
-- [ ] [A-127](roadmap/actions/A-127-isoler-une-paroi-interne-avec-la-boite-de.md) Isoler une paroi interne avec la boîte de découpe (tester, R-119)
-- [ ] [A-128](roadmap/actions/A-128-lire-les-ecarts-sur-le-bossage-borgne.md) Lire les écarts sur le bossage borgne (tester, R-121)
-- [ ] [A-129](roadmap/actions/A-129-propager-une-correction-aux-trois-trous-de-meme.md) Propager une correction aux trois trous de même rayon (tester, R-120)
-- [ ] [A-130](roadmap/actions/A-130-essayer-l-historique-des-corrections-sur-une.md) Essayer l’historique des corrections sur une pièce (tester, R-049)
-- [ ] [A-131](roadmap/actions/A-131-verifier-les-dialogues-natifs-d-ouverture-et-d.md) Vérifier les dialogues natifs d’ouverture et d’export (tester, R-023)
-- [ ] [A-132](roadmap/actions/A-132-verifier-le-nom-3mf-tronque-dans-la-cao.md) Vérifier le nom 3MF tronqué dans la CAO (tester, R-024)
-- [ ] [A-133](roadmap/actions/A-133-verifier-les-deux-parois-de-l-arbre-perce.md) Vérifier les deux parois de l’arbre percé (tester, R-113)
-- [ ] [A-134](roadmap/actions/A-134-verifier-le-conge-et-les-percages-sur-le-meme.md) Vérifier le congé et les perçages sur le même bloc (tester, R-114)
-- [ ] [A-135](roadmap/actions/A-135-verifier-l-octant-spherique-et-le-secteur.md) Vérifier l’octant sphérique et le secteur conique (tester, R-117)
-- [ ] [A-137](roadmap/actions/A-137-verifier-le-groupe-circulaire-sur-la-bride.md) Vérifier le groupe circulaire sur la bride percée (tester, R-128)
-- [ ] [A-138](roadmap/actions/A-138-selectionner-le-plan-voisin-du-tore-dans-fusion.md) Sélectionner le plan voisin du tore dans Fusion (tester, R-123)
-- [ ] [A-139](roadmap/actions/A-139-inspecter-la-gorge-et-le-retour-axial-dans.md) Inspecter la gorge et le retour axial dans Fusion (tester, R-126)
-- [ ] [A-140](roadmap/actions/A-140-inspecter-le-flanc-de-la-came-et-le-trou-du.md) Inspecter le flanc de la came et le trou du profilé (tester, R-127)
-- [ ] [A-141](roadmap/actions/A-141-inspecter-les-coupes-de-la-levre-du-cone-et-de.md) Inspecter les coupes de la lèvre, du cône et de la sphère (tester, R-125)
-- [ ] [A-142](roadmap/actions/A-142-inspecter-la-levre-du-percage-et-le-coin-a-trois.md) Inspecter la lèvre du perçage et le coin à trois rayons (tester, R-129)
-- [ ] [A-144](roadmap/actions/A-144-essayer-automatique-facettes-et-la-navigation-3d.md) Essayer Automatique, Facettes et la navigation 3D sur les deux octants (tester, R-133)
 
 ## Livré
 
 ### v1.0 : V1 mécanique et paquet macOS local
 
+- [R-117 Proposer des cylindres, cônes et sphères par normales sur bandes résiduelles](roadmap/items/R-117-proposer-des-cylindres-cones-et-spheres-par.md) · livrée le 2026-11-20
+  Utiliser les rayons de normales et l'angle de normale constant sur les chaînes de bandes non planes pour découvrir des parois interrompues, en conservant toutes les preuves géométriques existantes.
+- [R-116 Estimer les normales sur copie Taubin en lecture seule](roadmap/items/R-116-estimer-les-normales-sur-copie-taubin-en-lecture.md) · livrée le 2026-11-20
+  Calculer des normales lissées sur une copie temporaire sans déplacer les sommets source, uniquement pour stabiliser la segmentation et la découverte de candidats sur les STL quantifiés ou bruités.
+- [R-115 Récupérer les plans fragmentés par la quantification du STL](roadmap/items/R-115-recuperer-les-plans-fragmentes-par-la.md) · livrée le 2026-11-20
+  Le bloc tourné et la pièce pliée donnent respectivement six et sept faces planes en Auto. Les 96 triangles de chaque STL conservent leur attribution après relecture du STEP.
+- [R-113 Qualifier les contours obliques et les parois de révolution interrompues](roadmap/items/R-113-qualifier-les-contours-obliques-et-les-parois-de.md) · livrée le 2026-11-20
+  La lèvre torique est qualifiée à deux densités. Sur trois petits STL d’arbres percés, le prototype mesure deux cylindres et produit un STEP valide à quatre faces.
 - [R-017 Distribution — paquet macOS local](roadmap/items/R-017-distribution-paquet-macos-local.md) · livrée le 2026-11-09
   macOS autonome puis Windows/Linux. Signature ad hoc ; installation et STEP dans Fusion confirmés le 9 novembre.
 - [R-016 V1 mécanique](roadmap/items/R-016-v1-mecanique.md) · livrée le 2026-11-09
@@ -134,6 +74,18 @@ Le rejeu V-1287 de Flansch a atteint le plafond de trente minutes. Avant un nouv
 
 ### audit : Audit et performances
 
+- [R-131 Réévaluer sur preuve le découpage et le filtrage des groupes OCCT](roadmap/items/R-131-reevaluer-sur-preuve-le-decoupage-et-le-filtrage.md) · livrée le 2026-11-20
+  F3 et F4 · Rouvrir séparément les deux essais de V-1276 si un groupe chaud représentatif permet de démontrer un gain.
+- [R-130 Qualifier deux contrôles d’interférence simultanés](roadmap/items/R-130-qualifier-deux-controles-d-interference.md) · livrée le 2026-11-20
+  F2 · Mesurer le temps et la mémoire cumulée du helper avant d’adopter la concurrence entre groupes.
+- [R-025 Découper les gros modules et mutualiser les helpers au besoin](roadmap/items/R-025-decouper-les-gros-modules-et-mutualiser-les-helpers-au-besoin.md) · livrée le 2026-11-20
+  AUD-021 — Intervenir par module lors d’un changement fonctionnel justifié, avec tests ; aucune refonte globale fondée uniquement sur le nombre de lignes
+- [R-024 Préserver les caractères composés dans les noms de produits tronqués](roadmap/items/R-024-preserver-les-caracteres-composes-dans-les-noms-de-produits-tronques.md) · livrée le 2026-11-20
+  AUD-011 — Reproduire les cas Unicode utiles ; conserver le nom source et éviter une dépendance disproportionnée pour ce seul besoin
+- [R-023 Durcir les permissions locales Tauri](roadmap/items/R-023-durcir-les-permissions-locales-tauri.md) · livrée le 2026-11-20
+  AUD-014 — Définir le manifeste applicatif et tester les commandes autorisées/refusées, fenêtres et origines ; ne pas ajouter un fichier de capacités supposé suffisant
+- [R-022 Réduire le coût de démarrage du frontend](roadmap/items/R-022-reduire-le-cout-de-demarrage-du-frontend.md) · livrée le 2026-11-20
+  AUD-009 — Mesurer le démarrage réel de la WebView ; retenir un chargement différé ou un découpage uniquement si le gain est démontré
 - [R-112 Intégrer les recommandations NEON vérifiées](roadmap/items/R-112-integrer-les-recommandations-neon-verifiees.md) · livrée le 2026-11-19
   Suivi des seize constats et des reports dans docs/INT_AUDIT_01.md, section NEON. Contrôle atlas restant lié à R-085.
 - [R-026 Qualifier le garde de cocircularité des anneaux fermés](roadmap/items/R-026-qualifier-le-garde-de-cocircularite-des-anneaux-fermes.md) · livrée le 2026-11-19
@@ -145,6 +97,22 @@ Le rejeu V-1287 de Flansch a atteint le plafond de trente minutes. Avant un nouv
 
 ### post-v1 : Géométries après v1
 
+- [R-129 Reconstruire des congés sur arête courbe et des coins à trois rayons](roadmap/items/R-129-reconstruire-des-conges-sur-arete-courbe-et-des.md) · livrée le 2026-11-20
+  G5 · Qualifier d’abord le congé de rayon constant sur arête courbe, puis le raccord entre trois congés inégaux.
+- [R-128 Proposer des axes et des motifs de parois répétées](roadmap/items/R-128-proposer-des-axes-et-des-motifs-de-parois.md) · livrée le 2026-11-20
+  G6 · Accélérer la recherche des familles et le guidage en utilisant les normales et la répétition des formes.
+- [R-127 Reconstruire une extrusion droite à profil libre](roadmap/items/R-127-reconstruire-une-extrusion-droite-a-profil-libre.md) · livrée le 2026-11-20
+  G3 · Reconnaître un contour extrudé composé de segments, d’arcs et de portions cubiques.
+- [R-126 Reconstruire une révolution à méridienne mixte](roadmap/items/R-126-reconstruire-une-revolution-a-meridienne-mixte.md) · livrée le 2026-11-20
+  G4 · Reconstituer sur un axe commun des portées, des gorges circulaires et des portions de profil cubiques.
+- [R-125 Étendre l’atlas aux parois analytiques interrompues](roadmap/items/R-125-etendre-l-atlas-aux-parois-analytiques.md) · livrée le 2026-11-20
+  G2 et suite de F1 · Partager des contours vérifiés entre tores, plans et parois cylindriques, puis étendre famille par famille.
+- [R-124 Composer des régions qui partagent un bord vérifié](roadmap/items/R-124-composer-des-regions-qui-partagent-un-bord.md) · livrée le 2026-11-20
+  G1 · Décrire les voisinages et les triangles de chaque région afin de combiner plusieurs reconnaissances sur un même corps.
+- [R-123 Fusionner les faces planes voisines des raccords toriques](roadmap/items/R-123-fusionner-les-faces-planes-voisines-des-raccords.md) · livrée le 2026-11-20
+  F1 · Mesurer puis réduire les faces résiduelles et les chaînes de petits raccords sur deux pièces publiques.
+- [R-122 Mesurer la reconnaissance sur un corpus public reproductible](roadmap/items/R-122-mesurer-la-reconnaissance-sur-un-corpus-public.md) · livrée le 2026-11-20
+  G7 · Établir une référence sur une douzaine de pièces de plusieurs familles, puis la réutiliser à chaque extension.
 - [R-111 C2 — méridiennes cubiques à retour axial](roadmap/items/R-111-c2-meridiennes-cubiques-a-retour-axial.md) · livrée le 2026-11-19
   Reconnaître un retour axial sur un profil de rayon monotone et conserver les deux disques mesurés.
 - [R-110 Quatre congés reliés autour du fond d’une poche](roadmap/items/R-110-quatre-conges-relies-autour-du-fond-d-une-poche.md) · livrée le 2026-11-19
@@ -272,6 +240,16 @@ Le rejeu V-1287 de Flansch a atteint le plafond de trente minutes. Avant un nouv
 
 ### atelier : Inspection, guidage et atelier
 
+- [R-133 Choisir une intention et ajuster automatiquement la reconstruction courbe](roadmap/items/R-133-choisir-une-intention-et-ajuster-automatiquement.md) · livrée le 2026-11-20
+  Tester en Rust des tolérances bornées, valider le meilleur candidat et rendre les réglages manuels et le résultat lisibles.
+- [R-121 Afficher la carte de chaleur d'écart 3D sur le résultat STEP](roadmap/items/R-121-afficher-la-carte-de-chaleur-d-ecart-3d-sur-le.md) · livrée le 2026-11-20
+  Superposer dans la vue Résultat STEP une coloration par écart échantillonné au maillage source avec légende en millimètres, calculée à la demande en lecture seule sans affecter l'export.
+- [R-120 Proposer une correction guidée sur les parois similaires](roadmap/items/R-120-proposer-une-correction-guidee-sur-les-parois.md) · livrée le 2026-11-20
+  Après une correction guidée acceptée, rechercher en lecture seule les parois géométriquement analogues du document, les prévisualiser puis appliquer celles qui passent les preuves strictes après accord explicite.
+- [R-119 Isoler une zone interne par boîte de découpe visuelle 3D](roadmap/items/R-119-isoler-une-zone-interne-par-boite-de-decoupe.md) · livrée le 2026-11-20
+  Ajouter une boîte de découpe visuelle manipulable dans la vue 3D (Source et Résultat STEP) pour inspecter, sélectionner et corriger des cavités internes sans modifier le solide ni l'export.
+- [R-049 I3 — éditer les indications](roadmap/items/R-049-i3-editer-les-indications.md) · livrée le 2026-11-20
+  Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source
 - [R-066 UX8 — préciser le nombre de triangles refusés](roadmap/items/R-066-ux8-preciser-le-nombre-de-triangles-refuses.md) · livrée le 2026-11-19
   Afficher le nombre exact de triangles d’un STL trop dense et le maximum autorisé.
 - [R-065 UX7 — suivre les étapes réelles de reconstruction](roadmap/items/R-065-ux7-suivre-les-etapes-reelles-de-reconstruction.md) · livrée le 2026-11-19
@@ -313,6 +291,11 @@ Le rejeu V-1287 de Flansch a atteint le plafond de trente minutes. Avant un nouv
   Placer un plan XY/XZ/YZ ou reprendre le plan d’une face plane, régler son décalage et son orientation, voir la coupe et exporter la section DXF
 - [R-052 DXF1 — exporter une face plane](roadmap/items/R-052-dxf1-exporter-une-face-plane.md) · livrée le 2026-11-19
   Sélectionner une face du STEP validé, prévisualiser son contour dans son plan, puis **Exporter le profil DXF**
+
+### Sans jalon
+
+- [R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md) · livrée le 2026-11-20
+  Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto.
 
 ## Écarté
 

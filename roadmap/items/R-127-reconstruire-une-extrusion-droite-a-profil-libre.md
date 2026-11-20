@@ -2,11 +2,11 @@
 id: R-127
 titre: "Reconstruire une extrusion droite à profil libre"
 resume: "G3 · Reconnaître un contour extrudé composé de segments, d’arcs et de portions cubiques."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-20
 maj: 2026-11-20
-livree:
+livree: 2026-11-20
 ---
 ## But
 
