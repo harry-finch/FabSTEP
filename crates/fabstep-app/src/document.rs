@@ -1035,18 +1035,23 @@ fn convert_analyzed_document(
             .iter_mut()
             .filter(|hint| hint.analysis_body_id == body.id)
             .collect::<Vec<_>>();
-        let prism = if hints.is_empty() && options.reconstruction == ReconstructionMode::Auto {
+        let partitioned = if hints.is_empty() && options.reconstruction == ReconstructionMode::Auto
+        {
             control
                 .run(ConversionPhase::Recognition, Some(body_index), || {
-                    fabstep_core::recognize_cubic_prism(&body.analysis, options)
+                    crate::recognize_partitioned_body(&body.analysis, options)
                 })
                 .map_err(|e| body_error(e, &body.id, &body.name))?
         } else {
             None
         };
-        let corner = if hints.is_empty() && prism.is_none() {
+        let corner = if hints.is_empty() && partitioned.is_none() {
             crate::unequal_corner::try_build(
-                &body.analysis, options, source_faces.len() + 1, body_index, control,
+                &body.analysis,
+                options,
+                source_faces.len() + 1,
+                body_index,
+                control,
             )
             .map_err(|e| body_error(e, &body.id, &body.name))?
         } else {
@@ -1059,12 +1064,12 @@ fn convert_analyzed_document(
                 )?;
             }
             built.finish(body.analysis, options, control, body_index)
-        } else if options.reconstruction == ReconstructionMode::HeightPatch || prism.is_some() {
+        } else if options.reconstruction == ReconstructionMode::HeightPatch || partitioned.is_some() {
             if !hints.is_empty() {
                 return Err(FabError::new("guidance.unsupported_family", "Cette approximation se calcule sur le corps entier."));
             }
-            let recognized = if let Some(r) = prism {
-                Recognized::CubicPrism(r)
+            let recognized = if let Some(r) = partitioned {
+                r
             } else {
                 Recognized::HeightPatch(control.run(ConversionPhase::Recognition, Some(body_index), ||
                     fabstep_core::recognize_height_patch(&body.analysis, options))
@@ -1073,6 +1078,7 @@ fn convert_analyzed_document(
             let (owners, count) = match &recognized {
                 Recognized::CubicPrism(r) => (&r.triangle_faces, 6 + usize::from(r.model.bore.is_some())),
                 Recognized::HeightPatch(r) => (&r.triangle_faces, 6),
+                Recognized::ObliqueLip(r) => (&r.triangle_faces, 5),
                 _ => unreachable!(),
             };
             let first = source_faces.len() + 1;

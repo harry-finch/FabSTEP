@@ -14,6 +14,7 @@ extern "C" void fabstep_prepare_isolated_atlas_checks() noexcept {
 #include "torus_atlas_triangle.hxx"
 #include "torus_atlas_pcurve.hxx"
 #include <GeomConvert.hxx>
+#include <GeomConvert_BSplineCurveToBezierCurve.hxx>
 #include <BRepOffsetAPI_ThruSections.hxx>
 #include <BRepBuilderAPI_MakeVertex.hxx>
 #include <Geom_BezierSurface.hxx>
@@ -1514,6 +1515,7 @@ void check_edge_incidence(const TopoDS_Shape& shape, const TopTools_IndexedMapOf
   }
 }
 
+#include "oblique_lip.hxx"
 #include "smooth_revolution.hxx"
 #include "cubic_prism.hxx"
 #include "height_patch.hxx"
@@ -1540,6 +1542,7 @@ struct SolidMeasurement {
   std::optional<HeightPatchData> height;
   bool atlas=false;
   std::optional<DrilledShaftData> shaft;
+  std::optional<oblique_lip::Frame> lip;
   std::optional<cubic_prism::Frame> prism;
   std::optional<corner_domain::Data> corner;
 };
@@ -2233,8 +2236,11 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   }
   std::optional<SmoothRevolutionData> revolution;
   if (found.revolutions) revolution = verify_revolution(shape,expected_revolution,status).domain;
+  std::optional<oblique_lip::Frame> lip;
+  if (partial_torus && found.planar==3 && found.partial==1 && found.toroidal==1 && faces.Extent()==5)
+    lip=oblique_lip::verify(shape,status).frame;
   std::optional<TorusSectorSolidData> sector;
-  if ((partial_torus && !atlas) || expected_sector)
+  if ((partial_torus && !atlas && !lip) || expected_sector)
     sector = torus_sector::verify(shape,expected_sector,status).domain;
   std::optional<pocket::Domain> pocket_geometry;
   if (found.elliptic_cylinders || expected_pocket)
@@ -2279,6 +2285,9 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     if (!std::isfinite(error) || error < 0. || !std::isfinite(ideal) ||
         std::abs(properties.Mass()-ideal) > ideal * 1.e-8)
       throw CadFailure{status, "Le volume du solide diffère de l’intégrale du profil cubique."};
+  } else if (lip) {
+    const auto error=BRepGProp::VolumeProperties(shape,properties,1.e-10,true);
+    oblique_lip::need(std::isfinite(error) && error>=0.,status,"Volume intégré de la lèvre indisponible.");
   } else if (sector) {
     BRepGProp::VolumeProperties(shape, properties, 1.e-11, true);
     const double expected_volume = torus_sector::Geometry(*sector).volume();
@@ -2333,7 +2342,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     check_rounded_box_geometry(shape, faces, result, *rounded_box, status);
   }
   if (unequal) unequal_pocket::volume(expected_unequal ? *expected_unequal : *unequal,result.volume,status);
-  return {result, found, rounded_box, drill, revolution, sector, pocket_geometry, unequal, height, atlas, shaft ? std::optional<DrilledShaftData>(shaft->domain) : std::nullopt, prism,corner};
+  return {result, found, rounded_box, drill, revolution, sector, pocket_geometry, unequal, height, atlas, shaft ? std::optional<DrilledShaftData>(shaft->domain) : std::nullopt, lip, prism,corner};
 }
 
 CadMetrics measure(const TopoDS_Shape& shape, SurfaceCounts expected, Status status,
@@ -2635,7 +2644,7 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
 
   stage = write_failed;
   const bool includes_atlas=std::any_of(before.begin(),before.end(),[](const auto& b){return b.report.atlas;});
-  const bool exact_labels=includes_atlas || std::any_of(before.begin(),before.end(),[](const auto& b){return b.report.prism.has_value() || b.report.corner;});
+  const bool exact_labels=includes_atlas || std::any_of(before.begin(),before.end(),[](const auto& b){return b.report.prism.has_value() || b.report.corner || b.report.lip;});
   auto output_buffer = write_bounded_step([&](STEPControl_Writer& writer, bool compact) {
     DESTEP_Parameters parameters;
     parameters.WriteSurfaceCurMode = !compact;
@@ -2684,6 +2693,10 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
     if(before[i].report.corner) {
       corner_domain::need(report.corner.has_value(),stage);
       corner_domain::same(*before[i].report.corner,*report.corner,stage);
+    }
+    if (before[i].report.lip) {
+      oblique_lip::need(report.lip.has_value(),stage,"Perte de la lèvre.");
+      oblique_lip::same(*before[i].report.lip,*report.lip,stage);
     }
     if (before[i].report.prism) {
       cubic_prism::need(report.prism.has_value(),stage);
@@ -2815,6 +2828,14 @@ std::vector<RevolutionGrid> check_meshing_resolution(const TopoDS_Shape& shape, 
     for (TopExp_Explorer face(body.Current(),TopAbs_FACE); face.More(); face.Next()) {
       const BRepAdaptor_Surface native(TopoDS::Face(face.Current()));
       if (torus_sector::partial_torus(native)) {
+        TopTools_IndexedMapOfShape body_faces;
+        TopExp::MapShapes(body.Current(),TopAbs_FACE,body_faces);
+        if(body_faces.Extent()==5) {
+          const auto lip=oblique_lip::verify(body.Current(),mesh_failed);
+          for(const auto& curve:lip.splines)
+            junctions.emplace(edges.FindIndex(curve),oblique_lip::segments(curve,deflection,mesh_too_complex));
+          break;
+        }
         torus_sector::verify(body.Current(),nullptr,mesh_failed);
         break;
       }
@@ -4131,7 +4152,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
                    FaceLabels* labels = nullptr,const CrossDrillData* expected_drill=nullptr,
                    const SmoothRevolutionData* expected_revolution=nullptr,
                    const TorusSectorSolidData* expected_sector=nullptr, const pocket::Domain* expected_pocket=nullptr, const UnequalPocketData* expected_unequal=nullptr,
-                   const HeightPatchData* expected_height=nullptr, const DrilledShaftData* expected_shaft=nullptr, const cubic_prism::Data* expected_prism=nullptr) noexcept {
+                   const HeightPatchData* expected_height=nullptr, const DrilledShaftData* expected_shaft=nullptr, const cubic_prism::Data* expected_prism=nullptr, const oblique_lip::Data* expected_lip=nullptr) noexcept {
   if (!output) return missing_step_argument(output, error, error_capacity);
   *output = {};
   return with_occt(invalid_model, error, error_capacity, [&](Status& stage) {
@@ -4149,6 +4170,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
 
     std::optional<corner_domain::Data> corner;
     if(expected.height_patches==1 && expected.cylindrical==3) corner=corner_domain::inspect(solid,stage).data;
+    if (expected_lip) oblique_lip::same(oblique_lip::input(*expected_lip,stage),oblique_lip::verify(solid,stage).frame,stage);
     if (expected_prism) cubic_prism::same(cubic_prism::input(*expected_prism,stage),cubic_prism::verify(solid,stage).frame,stage);
     if(expected_height) height_patch::verify(solid,stage,expected_height);
 
@@ -4162,11 +4184,11 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
       // The default STEP healing stage rewrites some swept profile faces. The
       // sector was already checked above; transfer those exact TShapes so its
       // face tokens reach the corresponding ADVANCED_FACE entities.
-      if (corner || expected_prism || expected_height || expected_sector || expected_pocket || expected_unequal || expected_shaft) writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
+      if (corner || expected_lip || expected_prism || expected_height || expected_sector || expected_pocket || expected_unequal || expected_shaft) writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
       if (writer.Transfer(solid, STEPControl_ManifoldSolidBrep, parameters) != IFSelect_RetDone) {
         throw CadFailure{stage, "Impossible de traduire le solide en STEP."};
       }
-      if (labels && !write_face_labels(writer, *labels) && (corner || expected_prism || expected_height || expected_sector || expected_pocket || expected_unequal || expected_shaft))
+      if (labels && !write_face_labels(writer, *labels) && (corner || expected_lip || expected_prism || expected_height || expected_sector || expected_pocket || expected_unequal || expected_shaft))
         throw CadFailure{write_failed,"Les identités de faces analytiques ne sont pas transférables."};
     });
 
@@ -4175,6 +4197,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     std::istream stream(&input_buffer);
     const auto reopened = read_step(stream);
     if(corner) corner_domain::same(*corner,corner_domain::inspect(reopened,stage).data,stage);
+    if (expected_lip) oblique_lip::same(oblique_lip::input(*expected_lip,stage),oblique_lip::verify(reopened,stage).frame,stage);
     if (expected_prism) cubic_prism::same(cubic_prism::input(*expected_prism,stage),cubic_prism::verify(reopened,stage).frame,stage);
     if (expected_height) height_patch::verify(reopened,stage,expected_height);
     const CadMetrics after = measure(reopened, expected, stage, expected_box,expected_drill,expected_revolution,expected_sector,expected_pocket,expected_unequal,expected_shaft);
@@ -4366,6 +4389,25 @@ extern "C" int fabstep_build_mixed_step(
 }
 
 #include "unequal_corner_ffi.hxx"
+
+extern "C" int fabstep_build_oblique_lip(const oblique_lip::Data* data,const size_t* tokens,size_t count,
+    StepOutput* output,char* error,size_t capacity) noexcept {
+  if(!data || (tokens?count!=5:count!=0)) return missing_step_argument(output,error,capacity);
+  FaceLabels labels;
+  auto* tracked=tokens?&labels:nullptr;
+  return validated_step([&] {
+    const auto solid=oblique_lip::build(oblique_lip::input(*data,invalid_model));
+    if(tokens) {
+      const auto proof=oblique_lip::verify(solid,invalid_solid);
+      for(size_t i=0;i<5;++i) {
+        oblique_lip::need(tokens[i] && tokens[i]<=face_token_limit && std::find(tokens,tokens+i,tokens[i])==tokens+i,
+                          invalid_model,"Jeton de face de lèvre invalide.");
+        labels.emplace_back(proof.faces[i],tokens[i]);
+      }
+    }
+    return solid;
+  },{3,1,1,0,0,1},output,error,capacity,nullptr,tracked,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,data);
+}
 
 extern "C" int fabstep_build_cubic_prism(const cubic_prism::Data* data, const size_t* tokens, size_t count,
     StepOutput* output, char* error, size_t capacity) noexcept {

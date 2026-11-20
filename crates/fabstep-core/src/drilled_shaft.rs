@@ -180,7 +180,7 @@ impl DrilledShaft {
     }
 }
 
-fn circle(points: &[V], axis: V, tol: f64) -> Option<(V, f64)> {
+pub(crate) fn circle(points: &[V], axis: V, tol: f64) -> Option<(V, f64)> {
     let origin = *points.first()?;
     let q: Vec<_> = points
         .iter()

@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 mod height_patch;
 pub mod torus_atlas;
+pub mod oblique_lip;
 pub mod unequal_corner;
 pub use height_patch::{recognize_height_patch, HeightPatch, HeightPatchRecognition};
 

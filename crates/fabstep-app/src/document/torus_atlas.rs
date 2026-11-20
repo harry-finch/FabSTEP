@@ -213,6 +213,7 @@ pub(super) fn convert(
             rounded_box_recognition: None,
             height_patch_recognition: None,
             cubic_prism_recognition: None,
+            oblique_lip_recognition: None,
             fidelity,
         },
     })

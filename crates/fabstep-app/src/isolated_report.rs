@@ -115,12 +115,21 @@ impl From<&BodyReport> for CompactBodyReport {
                     planar_faces: r.model.mixed.planes.len(),
                 }
             }),
-            rounded_recognition: data.rounded_recognition.as_ref().map(|r| {
-                CompactPlaneRecognition {
+            rounded_recognition: data
+                .rounded_recognition
+                .as_ref()
+                .map(|r| CompactPlaneRecognition {
                     report: r.report.clone(),
                     planar_faces: r.model.revolved.mixed.planes.len(),
-                }
-            }),
+                })
+                .or_else(|| {
+                    data.oblique_lip_recognition
+                        .as_ref()
+                        .map(|r| CompactPlaneRecognition {
+                            report: r.report.clone(),
+                            planar_faces: 3,
+                        })
+                }),
             rounded_box_recognition: data.rounded_box_recognition.as_ref().map(|r| {
                 CompactRecognition {
                     report: r.report.clone(),

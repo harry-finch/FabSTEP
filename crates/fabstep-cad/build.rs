@@ -45,6 +45,7 @@ fn main() {
         "torus_atlas_transfer.hxx",
         "trim_edge_samples.hxx",
         "oblique_pocket.hxx",
+        "oblique_lip.hxx",
         "unequal_pocket.hxx",
         "cross_drill_build.hxx",
         "cross_drill_junction.hxx",

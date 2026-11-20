@@ -87,6 +87,8 @@ pub struct ConversionReport {
     pub height_patch_recognition: Option<fabstep_core::HeightPatchRecognition>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cubic_prism_recognition: Option<fabstep_core::CubicPrismRecognition>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub oblique_lip_recognition: Option<fabstep_core::oblique_lip::ObliqueLipRecognition>,
     pub fidelity: Option<FidelityReport>,
 }
 
@@ -109,6 +111,7 @@ pub enum Recognized {
     RoundedBox(RoundedBoxRecognition),
     HeightPatch(fabstep_core::HeightPatchRecognition),
     CubicPrism(fabstep_core::CubicPrismRecognition),
+    ObliqueLip(fabstep_core::oblique_lip::ObliqueLipRecognition),
 }
 impl Recognized {
     pub fn report(&self) -> &RecognitionReport {
@@ -120,8 +123,21 @@ impl Recognized {
             Self::RoundedBox(r) => &r.report,
             Self::HeightPatch(r) => &r.report,
             Self::CubicPrism(r) => &r.report,
+            Self::ObliqueLip(r) => &r.report,
         }
     }
+}
+
+/// Exact whole-body domains that publish one source-owner index per triangle.
+fn recognize_partitioned_body(
+    analysis: &Analysis,
+    options: &Options,
+) -> Result<Option<Recognized>, FabError> {
+    if let Some(prism) = fabstep_core::recognize_cubic_prism(analysis, options)? {
+        return Ok(Some(Recognized::CubicPrism(prism)));
+    }
+    fabstep_core::oblique_lip::recognize(analysis, options)
+        .map(|lip| lip.map(Recognized::ObliqueLip))
 }
 
 /// Chaque mode ajoute une preuve sans modifier les modes précédents. Seule
@@ -133,8 +149,8 @@ pub fn recognize_surfaces(analysis: &Analysis, options: &Options) -> Result<Reco
             fabstep_core::recognize_height_patch(analysis, options).map(Recognized::HeightPatch)
         }
         ReconstructionMode::Auto => {
-            if let Some(prism) = fabstep_core::recognize_cubic_prism(analysis, options)? {
-                return Ok(Recognized::CubicPrism(prism));
+            if let Some(body) = recognize_partitioned_body(analysis, options)? {
+                return Ok(body);
             }
             fabstep_core::recognize_automatic(analysis, options).map(Recognized::Rounded)
         }
@@ -235,8 +251,9 @@ fn convert_analysis_with_face_tokens(
     source_proofs: Option<&mut SourceProofCache>,
 ) -> Result<Conversion, FabError> {
     if face_tokens.is_none() {
-        if let Some(built)=unequal_corner::try_build(&analysis,options,1,body_index,control)? {
-            return built.finish(analysis,options,control,body_index);
+        if let Some(built) = unequal_corner::try_build(&analysis, options, 1, body_index, control)?
+        {
+            return built.finish(analysis, options, control, body_index);
         }
     }
     let recognized = match options.reconstruction {
@@ -495,6 +512,7 @@ fn convert_analysis_with_recognized(
                 },
                 Recognized::HeightPatch(r) => fabstep_cad::build_height_patch(&r.model, face_tokens),
                 Recognized::CubicPrism(r) => fabstep_cad::build_cubic_prism(&r.model, face_tokens),
+                Recognized::ObliqueLip(r) => fabstep_cad::build_oblique_lip(&r.model, face_tokens),
                 Recognized::RoundedBox(r) => build_rounded_box_step(&r.model),
             }
         } else if let Some(tokens) = face_tokens {
@@ -533,38 +551,33 @@ fn convert_analysis_with_recognized(
             .diagnostics
             .extend(report.diagnostics.iter().cloned());
     }
-    let (
-        recognition,
-        mixed_recognition,
-        revolved_recognition,
-        rounded_recognition,
-        rounded_box_recognition,
-        height_patch_recognition,
-        cubic_prism_recognition,
-    ) = match recognized {
-        Some(Recognized::Extrusion(r)) => (Some(r), None, None, None, None, None, None),
-        Some(Recognized::Mixed(r)) => (None, Some(r), None, None, None, None, None),
-        Some(Recognized::Revolved(r)) => (None, None, Some(r), None, None, None, None),
-        Some(Recognized::Rounded(r)) => (None, None, None, Some(r), None, None, None),
-        Some(Recognized::RoundedBox(r)) => (None, None, None, None, Some(r), None, None),
-        Some(Recognized::HeightPatch(r)) => (None, None, None, None, None, Some(r), None),
-        Some(Recognized::CubicPrism(r)) => (None, None, None, None, None, None, Some(r)),
-        None => (None, None, None, None, None, None, None),
+    let mut report = ConversionReport {
+        settings: ProcessingSettings::from(options),
+        analysis,
+        cad: result.report,
+        fidelity,
+        recognition: None,
+        mixed_recognition: None,
+        revolved_recognition: None,
+        rounded_recognition: None,
+        rounded_box_recognition: None,
+        height_patch_recognition: None,
+        cubic_prism_recognition: None,
+        oblique_lip_recognition: None,
     };
+    match recognized {
+        Some(Recognized::Extrusion(r)) => report.recognition = Some(r),
+        Some(Recognized::Mixed(r)) => report.mixed_recognition = Some(r),
+        Some(Recognized::Revolved(r)) => report.revolved_recognition = Some(r),
+        Some(Recognized::Rounded(r)) => report.rounded_recognition = Some(r),
+        Some(Recognized::RoundedBox(r)) => report.rounded_box_recognition = Some(r),
+        Some(Recognized::HeightPatch(r)) => report.height_patch_recognition = Some(r),
+        Some(Recognized::CubicPrism(r)) => report.cubic_prism_recognition = Some(r),
+        Some(Recognized::ObliqueLip(r)) => report.oblique_lip_recognition = Some(r),
+        None => {}
+    }
     Ok(Conversion {
-        report: ConversionReport {
-            settings: ProcessingSettings::from(options),
-            analysis,
-            cad: result.report,
-            recognition,
-            mixed_recognition,
-            revolved_recognition,
-            rounded_recognition,
-            rounded_box_recognition,
-            height_patch_recognition,
-            cubic_prism_recognition,
-            fidelity,
-        },
+        report,
         step_bytes: result.bytes,
     })
 }

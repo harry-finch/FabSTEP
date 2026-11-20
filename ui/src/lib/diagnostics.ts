@@ -16,6 +16,7 @@ const technicalRemarks = new Set([
   'recognition.unequal_pocket_fitted',
   'recognition.rounded_box_intent_assumed',
   'recognition.height_patch_fitted',
+  'recognition.oblique_lip_fitted',
   'recognition.cubic_extrusion_assumed',
   'recognition.unequal_corner_fitted',
 ]);
