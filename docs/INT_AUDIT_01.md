@@ -299,3 +299,20 @@ Dix constats. Aucun P0 identifié. Les cinq lots ci-dessous sont indépendants e
 | AUD-210 | ADAPTED | P3 | .19 / .20 | DONE pour les correctifs locaux · L’octant vérifie au préalable le budget maximal des quatre disques. Le refus d’incidence des perçages couvre neuf ou dix faces. Le bureau donne priorité à la révision périmée avant l’examen des identifiants. La fermeture cyclique du dernier intervalle de normales est volontaire et fournit son point terminal. Le découpage de l’unité de compilation OCCT et le constructeur commun de RoundedModel restent différés en l’absence de bénéfice mesuré sur une modification concrète. |
 
 Bilan des dix lignes : deux ACCEPTED, sept ADAPTED et une DEFERRED. Les suggestions transversales de nettoyage sont secondaires. Le test ACL compare les commandes déclarées à l’autorité Tauri réellement résolue. Un parseur Rust supplémentaire apporterait du coût pour un changement hypothétique de syntaxe. Les variantes de normalisation des vecteurs ont des contrats d’erreur et des seuils distincts. La purge périodique des caches n’est pas intégrée au développement. Les sujets produit R-019 et R-118 restent dans leurs fiches FabBoard.
+
+## AUDIT-03 — Gel fonctionnel v1
+
+La branche de finition part de `af03f0b`. Les huit constats du rapport fourni ont été vérifiés sur cet état. Les essais et mesures reproductibles figurent en [V-1288](VALIDATION.md#v-1288--correctifs-du-gel-fonctionnel-v1). Chaque lot peut être rétabli par son commit.
+
+| Constat | Décision | Lot | Statut | Motif et preuve |
+|---|---|---|---|---|
+| AUD-301 | ADAPTED | INT-AUDIT-01.25 | DONE | La borne du core couvre les plans et les cylindres. La CAO restitue aussi la borne du raccord et de ses rives avant et après transfert. Le contrôle des dimensions et du volume utilise le maximum des deux, augmenté du soudage. Le test natif montre un raccord dont la borne dépasse celle des supports. |
+| AUD-302 | ACCEPTED | INT-AUDIT-01.24 | DONE | La certification d’un prisme cubique depuis le core exige la topologie fermée avant de retenir le candidat. Une couture ouverte à sommets géométriquement confondus est refusée. |
+| AUD-303 | ACCEPTED | INT-AUDIT-01.25 | DONE | Le STL seul et le parcours document Auto essaient d’abord le raccord natif puis les familles partitionnées. Les indications manuelles gardent leur parcours propre. |
+| AUD-304 | ADAPTED | INT-AUDIT-01.25 | DONE | La recherche réutilise le contrôle d’une source strictement identique. L’export mono-corps des familles partitionnées conserve le contrôle exhaustif des propriétaires, sans leurs listes par face. Le calcul du nombre de faces courbes utilise une soustraction saturante. Hors recherche, un candidat refusé peut conduire à une seconde validation de source. Ce compromis évite une copie supplémentaire du maillage en conversion ordinaire. |
+| AUD-305 | ACCEPTED | INT-AUDIT-01.24 | DONE | Trois constructeurs vérifient le domaine fourni avant utilisation. Le test de la poche couvre aussi un tableau de jetons de parois sans ses jetons de plans. Le refus réinitialise la sortie. |
+| AUD-306 | ADAPTED | INT-AUDIT-01.24 | DONE | Le balayage est déjà borné sous π. La preuve du plan et de l’orientation utilise désormais directement le pôle pondéré. L’essai approche le demi-tour à une valeur flottante près. |
+| AUD-307 | ADAPTED | INT-AUDIT-01.22 | DONE | La commande invalide immédiatement l’ancien STEP exportable. L’état de l’opération garde la tessellation pendant l’attente et la libère au remplacement du fichier. Une référence faible seule aurait aussi perdu la base d’une requête valide. |
+| AUD-308 | ADAPTED | INT-AUDIT-01.23 | DONE | Three.js gère la perte et la restauration du contexte. FabSTEP programme un dessin lorsque le contexte revient. La sonde du cube dans WKWebView reproduit l’absence de dessin puis vérifie sa restauration sur le même canvas. |
+
+Trois constats sont acceptés tels quels et cinq adaptés après examen. Les qualifications orientées de R-129 et le délai de Flansch restent des limites de la version. Le comparatif commercial du rapport ne constitue pas un essai comparatif sur le corpus FabSTEP.

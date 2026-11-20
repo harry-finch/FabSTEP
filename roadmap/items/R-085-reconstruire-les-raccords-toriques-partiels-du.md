@@ -1,11 +1,11 @@
 ---
 id: R-085
 titre: "Reconstruire les raccords toriques partiels du pourtour de Flansch"
-resume: "Les 46 671 faces passent le contrôle géométrique en laboratoire. Le rejeu de Flansch est reporté après les développements de reconnaissance pour limiter la RAM."
+resume: "Flansch reste ouvert après le gel v1. Le dernier essai atteint 30 minutes et 2,78 Gio avant écriture. Reproduire le coût des colliers sur un témoin public."
 statut: en-cours
-jalon: v1.0
+jalon: post-v1
 cree: 2026-11-18
-maj: 2026-11-19
+maj: 2026-11-20
 livree:
 ---
 
