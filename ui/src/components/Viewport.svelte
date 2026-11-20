@@ -39,6 +39,8 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); host.appendChild(renderer.domElement);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = false;
+    controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
+    controls.mouseButtons.MIDDLE = THREE.MOUSE.PAN;
     const transform=new TransformControls(camera,renderer.domElement),planeAnchor=new THREE.Object3D();scene.add(planeAnchor);scene.add(transform.getHelper());transform.enabled=false;transform.setSpace('local');transform.setSize(0.85);
     const manipulation=new SectionManipulationGesture();let endingManipulation=false,cancellingManipulation=false,disposing=false,primaryPointer:number|null=null;
     let frame = 0;
@@ -120,18 +122,20 @@
     }
     const paintDown=(e:PointerEvent)=>{
       if(paint.pointer!==null){finishPaint(false);gesture.cancel();clicks.clear();}
-      if(!selectionMode||!stepPreview||sectionMode||manipulation.blocksPicking()||e.button!==0||e.isPrimary===false||e.altKey)return;
-      gesture.down(e,true);paint.begin(e.pointerId,e.clientX,e.clientY);paintDocument=stepPreview;
-      controls.enabled=false;renderer.domElement.setPointerCapture(e.pointerId);
+      if(!selectionMode||sectionMode||manipulation.blocksPicking()||e.button!==0||e.isPrimary===false||e.altKey)return;
+      // Claim the selection button before OrbitControls in either view.
+      gesture.down(e, !!stepPreview);
+      if (stepPreview) {
+        paint.begin(e.pointerId,e.clientX,e.clientY);
+        paintDocument=stepPreview;
+        controls.enabled=false;
+      }
+      renderer.domElement.setPointerCapture(e.pointerId);
       e.preventDefault();e.stopImmediatePropagation();
     };
     const paintLost=(e:PointerEvent)=>{if(paint.pointer===e.pointerId){finishPaint(false);gesture.cancel();clicks.clear();}};
     updatePicking=()=>{
       finishPaint(false);gesture.cancel();clicks.clear();
-      const selecting=selectionMode&&!!stepPreview&&!sectionMode;
-      controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;
-      controls.mouseButtons.RIGHT=selecting?THREE.MOUSE.ROTATE:THREE.MOUSE.PAN;
-      controls.mouseButtons.MIDDLE=selecting?THREE.MOUSE.PAN:THREE.MOUSE.DOLLY;
     };
     const cancelPaintKey=(e:KeyboardEvent)=>{if(e.key==='Escape'&&paint.pointer!==null){e.preventDefault();e.stopImmediatePropagation();finishPaint(false);gesture.cancel();clicks.clear();}};
     window.addEventListener('keydown',cancelPaintKey,true);
