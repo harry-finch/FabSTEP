@@ -154,6 +154,7 @@ fn four_equal_bores_apply_together_and_leave_the_different_radius_faceted() {
     assert_eq!(found.candidates.len(), 3);
     for c in &found.candidates {
         assert_eq!(c.family, "cylinder");
+        assert_eq!(c.pattern, Some("linear"));
         assert!((c.radius_mm.unwrap() - 3.).abs() < 1e-6);
         assert!(c.face_ids.len() > 10);
     }
@@ -430,4 +431,51 @@ fn placed_cones_spherical_caps_and_toroidal_fillets_repeat_across_bodies() {
             "exact"
         );
     }
+}
+
+#[test]
+fn flange_guidance_only_labels_existing_compatible_bores() {
+    let source = include_bytes!("../../../../../fixtures/repeated_patterns/flange.stl");
+    let options = Options::default();
+    let planar = convert_document_with_provenance(source, InputFormat::Stl, &options).unwrap();
+    let faces = planar.step.result_faces().unwrap();
+    let mesh = &planar.report.bodies[0].conversion.analysis.mesh;
+    let seed = faces
+        .source_correspondence
+        .faces
+        .iter()
+        .find(|row| {
+            row.source_triangle_ids.iter().all(|&t| {
+                mesh.triangles[t].iter().all(|&v| {
+                    let [x, y, _] = mesh.vertices[v];
+                    ((x - 16.).hypot(y) - 2.).abs() < 1e-4
+                })
+            })
+        })
+        .unwrap()
+        .face_id;
+    let accepted = planar.step.guided_cylinder(&[seed]).unwrap();
+    let step = Arc::new(accepted.step);
+    let displayed = Arc::new(step.inspect_display_controlled(&mut |_| Ok(())).unwrap());
+    let found = displayed
+        .similar_regions_controlled(&mut |_| Ok(()))
+        .unwrap();
+    assert_eq!(found.candidates.len(), 5);
+    let mut positions = BTreeSet::new();
+    for candidate in &found.candidates {
+        assert_eq!(candidate.pattern, Some("circular"));
+        assert!((candidate.radius_mm.unwrap() - 2.).abs() < 1e-5);
+        // Identify the actual bolt position from its exact source triangles.
+        let source = &displayed.faces().source_correspondence.faces[candidate.face_ids[0]];
+        let [x, y, _] = mesh.vertices[mesh.triangles[source.source_triangle_ids[0]][0]];
+        let slot = ((y.atan2(x) / std::f64::consts::FRAC_PI_4).round() as i32).rem_euclid(8);
+        assert!(positions.insert(slot));
+    }
+    assert_eq!(positions, BTreeSet::from([1, 3, 4, 5, 7]));
+    let ids = found.candidates.iter().map(|p| p.id).collect::<Vec<_>>();
+    let result = displayed
+        .apply_similar_controlled(&ids, &mut |_| Ok(()))
+        .unwrap();
+    assert_eq!(result.report.cad.cylindrical_faces, 6);
+    assert_eq!(result.report.cad.solids, 1);
 }

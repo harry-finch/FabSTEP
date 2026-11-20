@@ -44,6 +44,13 @@
     const ids = chosen, searchId = ticket;
     ticket = null; cancel(); onapply(ids, searchId);
   }
+  const pattern = $derived(found?.candidates.find(candidate => candidate.pattern)?.pattern);
+  const members = $derived(found?.candidates.filter(candidate => candidate.pattern && candidate.pattern === pattern).map(candidate => candidate.id) ?? []);
+  const allMembers = $derived(members.every(id => chosen.includes(id)));
+  function togglePattern() {
+    const others = chosen.filter(id => !members.includes(id));
+    select(allMembers ? others : [...others, ...members]);
+  }
   const fmt = $derived(new Intl.NumberFormat(i18n.locale,{maximumSignificantDigits:4}));
 </script>
 
@@ -55,6 +62,12 @@
   {#if found}
     <p role="status">{t('similar.count',{n:found.candidates.length})}</p>
     {#if found.truncated}<p>{t('similar.limit')}</p>{/if}
+    {#if pattern}
+      <label>
+        <input type="checkbox" checked={allMembers} indeterminate={!allMembers && members.some(id => chosen.includes(id))} onchange={togglePattern}/>
+        {t(`similar.${pattern}`,{n:members.length})}
+      </label>
+    {/if}
     {#each found.candidates as candidate (candidate.id)}
       <label>
         <input type="checkbox" checked={chosen.includes(candidate.id)}

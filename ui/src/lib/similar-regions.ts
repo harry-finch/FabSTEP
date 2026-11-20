@@ -3,7 +3,7 @@ let lastSearch = Date.now() * 1000;
 export function nextSimilarSearch() { return ++lastSearch; }
 
 export type SimilarCandidate = {
-  id:number; family:string; face_ids:number[]; radius_mm:number|null; semi_angle_rad:number|null;
+  id:number; family:string; face_ids:number[]; pattern?:'linear'|'circular'; radius_mm:number|null; semi_angle_rad:number|null;
 };
 export type SimilarRegions = {candidates:SimilarCandidate[]; truncated:boolean};
 export function previewSimilar(document:ResultFaces, regions:SimilarRegions, chosen:number[]) {

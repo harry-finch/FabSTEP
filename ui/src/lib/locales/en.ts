@@ -7,6 +7,7 @@ type Shape<T> = { [K in keyof T]: T[K] extends string ? string : Shape<T[K]> };
 const en: Shape<typeof fr> = {
   viewport: { loadFailed: 'The 3D view could not be loaded.', retry: 'Retry' },
   similar: {
+    linear:'Linear pattern · {n} walls', circular:'Circular pattern · {n} walls',
     search:'Find similar walls', pending:'Searching for walls…', count:'Suggested walls · {n}',
     failed:'Search unavailable for this result.', limit:'The list is limited to the remaining guidance slots.',
     wall:'Face {n}', apply:'Apply', cancel:'Cancel search',
@@ -40,6 +41,7 @@ const en: Shape<typeof fr> = {
   engine: { toric_sector_endpoints_projected: "The torus sector endpoints were adjusted. The deviation bound includes their displacement.",
     unequal_pocket_fitted: "The two fillets of different radii share a curved edge.",
     closed_pocket_fitted: "The four floor fillets meet along four elliptical arcs.",
+    atlas_planes_merged: "Coplanar triangles were joined into planar faces with verified boundaries.",
     trimmed_tori_fitted: "The toroidal surfaces were reconstructed with their boundaries.",
     u_pocket_fitted: "The three floor fillets meet along two elliptical arcs.",
     adjacent_pocket_fitted: "The two pocket fillets meet along an elliptical arc.",

@@ -46,7 +46,7 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
    F1 · Mesurer puis réduire les faces résiduelles et les chaînes de petits raccords sur deux pièces publiques.
 17. **[R-126 Reconstruire une révolution à méridienne mixte](roadmap/items/R-126-reconstruire-une-revolution-a-meridienne-mixte.md)** · En cours · jalon post-v1
    G4 · Reconstituer sur un axe commun des portées, des gorges circulaires et des portions de profil cubiques.
-18. **[R-128 Proposer des axes et des motifs de parois répétées](roadmap/items/R-128-proposer-des-axes-et-des-motifs-de-parois.md)** · En cours · jalon post-v1
+18. **[R-128 Proposer des axes et des motifs de parois répétées](roadmap/items/R-128-proposer-des-axes-et-des-motifs-de-parois.md)** · À tester · jalon post-v1
    G6 · Accélérer la recherche des familles et le guidage en utilisant les normales et la répétition des formes.
 19. **[R-129 Reconstruire des congés sur arête courbe et des coins à trois rayons](roadmap/items/R-129-reconstruire-des-conges-sur-arete-courbe-et-des.md)** · En cours · jalon post-v1
    G5 · Qualifier d’abord le congé de rayon constant sur arête courbe, puis le raccord entre trois congés inégaux.
@@ -84,6 +84,7 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
 - [ ] [A-133](roadmap/actions/A-133-verifier-les-deux-parois-de-l-arbre-perce.md) Vérifier les deux parois de l’arbre percé (tester, R-113)
 - [ ] [A-134](roadmap/actions/A-134-verifier-le-conge-et-les-percages-sur-le-meme.md) Vérifier le congé et les perçages sur le même bloc (tester, R-114)
 - [ ] [A-135](roadmap/actions/A-135-verifier-l-octant-spherique-et-le-secteur.md) Vérifier l’octant sphérique et le secteur conique (tester, R-117)
+- [ ] [A-137](roadmap/actions/A-137-verifier-le-groupe-circulaire-sur-la-bride.md) Vérifier le groupe circulaire sur la bride percée (tester, R-128)
 
 ## Livré
 

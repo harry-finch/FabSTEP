@@ -5,6 +5,7 @@
 const fr = {
   viewport: { loadFailed: 'Impossible de charger la vue 3D.', retry: 'Réessayer' },
   similar: {
+    linear:'Répétition linéaire · {n} parois', circular:'Répétition circulaire · {n} parois',
     search:'Chercher des parois similaires', pending:'Recherche des parois…', count:'Parois proposées · {n}',
     failed:'Recherche indisponible sur ce résultat.', limit:'La liste est limitée au nombre d’indications restant.',
     wall:'Face {n}', apply:'Appliquer', cancel:'Annuler la recherche',
@@ -38,6 +39,7 @@ const fr = {
   engine: { toric_sector_endpoints_projected: "Les extrémités du secteur torique ont été ajustées. La borne d’écart inclut leur déplacement.",
     unequal_pocket_fitted: "Les deux congés de rayons différents partagent une arête courbe.",
     closed_pocket_fitted: "Les quatre congés du fond se rejoignent sur quatre arcs d’ellipse.",
+    atlas_planes_merged: "Les triangles coplanaires ont été réunis en faces planes avec leurs contours vérifiés.",
     trimmed_tori_fitted: "Les surfaces toriques ont été reconstruites avec leurs contours.",
     u_pocket_fitted: "Les trois congés du fond se rejoignent sur deux arcs d’ellipse.",
     adjacent_pocket_fitted: "Les deux congés se rejoignent le long d’un arc d’ellipse.",

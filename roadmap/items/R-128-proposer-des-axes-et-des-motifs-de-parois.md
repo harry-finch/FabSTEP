@@ -2,7 +2,7 @@
 id: R-128
 titre: "Proposer des axes et des motifs de parois répétées"
 resume: "G6 · Accélérer la recherche des familles et le guidage en utilisant les normales et la répétition des formes."
-statut: en-cours
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-20
 maj: 2026-11-20
@@ -33,3 +33,7 @@ R-122 et R-120. Les pièces de R-126 et R-127 fournissent des axes de référenc
 ## Vérifications de l'utilisateur
 
 Prévisualiser les parois similaires et vérifier que l’emplacement vide et le trou de diamètre différent restent exclus.
+
+## Qualification
+
+V-1278. Le guidage propose les motifs linéaires et circulaires des cylindres déjà vérifiés sur un même corps. L’estimation de l’axe utilise les normales pondérées par aire. De trois à seize occurrences sont examinées, avec au moins quatre pour un cercle et au plus 32 emplacements. L’export conserve uniquement les occurrences sélectionnées et prouvées.

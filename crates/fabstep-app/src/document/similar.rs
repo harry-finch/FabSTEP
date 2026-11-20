@@ -1,6 +1,8 @@
 //! Find missing repetitions of the last accepted wall on the immutable STEP.
 //! Candidate IDs are local to this document. Applying them repeats discovery
 //! and submits the complete set of indications to the ordinary validator.
+mod pattern;
+
 use super::*;
 use fabstep_cad::ResultFaceFamily;
 use fabstep_core::{RoundedFaceRef, RoundedRecognition};
@@ -13,6 +15,8 @@ pub struct SimilarCandidate {
     pub face_ids: Vec<usize>,
     pub radius_mm: Option<f64>,
     pub semi_angle_rad: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pattern: Option<&'static str>,
 }
 
 #[derive(Debug, Serialize)]
@@ -295,6 +299,7 @@ fn support(
 }
 
 struct Proposal {
+    cylinder: Option<pattern::Wall>,
     display: SimilarCandidate,
     hint: GuidanceReport,
 }
@@ -319,6 +324,7 @@ impl Search {
         source: &BodySourceTriangles,
         region: &[usize],
         faces: Vec<usize>,
+        cylinder: Option<pattern::Wall>,
     ) {
         if self.proposals.len() == self.capacity {
             self.truncated = true;
@@ -330,7 +336,9 @@ impl Search {
             .collect();
         let family = support.family_name();
         self.proposals.push(Proposal {
+            cylinder,
             display: SimilarCandidate {
+                pattern: None,
                 id: self.proposals.len(),
                 family,
                 face_ids: faces.clone(),
@@ -418,7 +426,7 @@ impl DocumentStep {
         checkpoint: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
     ) -> Result<SimilarRegions, FabError> {
         controlled(checkpoint, |control| {
-            let (search, _, _) = self.find_similar(display, control)?;
+            let (search, _, _) = self.find_similar(display, true, control)?;
             control.check(ConversionPhase::Finish, None)?;
             Ok(SimilarRegions {
                 candidates: search.proposals.into_iter().map(|p| p.display).collect(),
@@ -449,7 +457,8 @@ impl DocumentStep {
             if ids.len() != chosen.len() {
                 return Err(invalid());
             }
-            let (search, document, mappings) = self.find_similar(display.as_deref(), control)?;
+            let (search, document, mappings) =
+                self.find_similar(display.as_deref(), false, control)?;
             // The desktop consumed this publication. Release its mesh before the rebuild.
             drop(display);
             if ids.last().is_none_or(|&i| i >= search.proposals.len()) {
@@ -487,6 +496,7 @@ impl DocumentStep {
     fn find_similar(
         &self,
         display: Option<&InspectedDocumentStep>,
+        describe_pattern: bool,
         control: &mut ConversionControl<'_>,
     ) -> Result<(Search, DocumentAnalysis, Vec<BodySourceTriangles>), FabError> {
         control.check(ConversionPhase::ResultInspection, None)?;
@@ -527,6 +537,7 @@ impl DocumentStep {
             .position(|b| b.id == last.analysis_body_id)
             .ok_or_else(unavailable)?;
         let mut reference = None;
+        let mut anchor = None;
         let mut plane_normal = None;
         let mut search = Search {
             proposals: Vec::new(),
@@ -585,14 +596,18 @@ impl DocumentStep {
                 let ends = cylinder_ends(&r);
                 if i == first {
                     // An accepted torus/chain may also own its neighbouring support.
-                    reference = last
+                    let reference_owner = last
                         .selected_source_triangle_ids
                         .iter()
                         .chain(&last.reconstructed_source_triangle_ids)
                         .filter_map(|s| mapping.binary_search(s).ok())
-                        .filter_map(|t| support(&r, &ends, r.triangle_faces[t]))
-                        .map(|(_, s)| s)
-                        .find(|s| last.family == "auto" || s.family_name() == last.family);
+                        .map(|t| r.triangle_faces[t])
+                        .filter_map(|owner| Some((owner, support(&r, &ends, owner)?.1)))
+                        .find(|(_, s)| last.family == "auto" || s.family_name() == last.family);
+                    if let Some((owner, support)) = reference_owner {
+                        anchor = pattern::Wall::from_owner(&r, owner);
+                        reference = Some(support);
+                    }
                     if reference.is_none() {
                         return Err(unavailable());
                     }
@@ -624,7 +639,14 @@ impl DocumentStep {
                     let Some(ids) = faces.whole_faces(&region, &inspected) else {
                         continue;
                     };
-                    search.record(s, body, component, &region, ids);
+                    search.record(
+                        s,
+                        body,
+                        component,
+                        &region,
+                        ids,
+                        pattern::Wall::from_owner(&r, owner),
+                    );
                     for t in region {
                         faces.claimed[t] = true;
                     }
@@ -637,6 +659,16 @@ impl DocumentStep {
             if search.truncated {
                 break;
             }
+        }
+        if let Some(anchor) = anchor.filter(|_| describe_pattern) {
+            search.label_patterns(
+                anchor,
+                last,
+                &doc.bodies[first],
+                &mappings[first],
+                source.options.cylinder_fit_tolerance_mm,
+                &mut || control.check(ConversionPhase::Recognition, Some(first)),
+            )?;
         }
         Ok((search, doc, mappings))
     }
@@ -788,7 +820,7 @@ impl Search {
                 height: 1.,
                 meridian: None,
             };
-            self.record(plane, body, component, &region, ids);
+            self.record(plane, body, component, &region, ids, None);
             if self.truncated {
                 break;
             }
