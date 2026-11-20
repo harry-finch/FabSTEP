@@ -580,3 +580,14 @@ Le banc retrouve tous les triangles des cinq faces d’une lèvre oblique et des
 ## 2026-11-19 — Inspection des écarts et corrections répétées
 
 La vue STEP mesure à la demande les distances des sommets affichés au maillage soudé. La boîte de découpe permet de choisir une paroi intérieure et la recherche de parois similaires propose les répétitions de la dernière indication acceptée. Les tests du bureau portent sur le bossage borgne et une plaque à cinq perçages. Le noyau récupère aussi des plans fragmentés sur le toit quantifié et deux cylindres de faible ouverture. Les preuves par témoin et les limites sont décrites en V-1265 à V-1269.
+
+
+## 2026-11-20 — Nettoyage direct approuvé A+B
+
+Sur `fabboard/nettoyage-2026-11-20`, issue de `atelier/carte-ecarts` à `a0741ec6`, l’inventaire a commencé sur un dépôt propre. L’utilisateur a demandé explicitement la suppression directe, puis confirmé les lots A+B de [A-143](roadmap/actions/A-143-choisir-les-fichiers-a-supprimer-directement.md) par « je valide ! ». Sa consigne remplace le passage par la Corbeille prévu dans la skill fab-cleanup pour cette opération.
+
+Les 29 chemins ont été validés à nouveau par `fabboard clean trash --dry-run`, sans refus et sans déplacement. Après contrôle des chemins, de leur confinement au projet et de l’absence de fichiers suivis, les 21 chemins reconstructibles et les huit `.DS_Store` ont été supprimés par liste explicite avec `shutil.rmtree` et `unlink`. Aucun passage par la Corbeille ; les éléments des nettoyages précédents qui s’y trouvent n’ont pas été touchés. Volume retiré estimé : 36 001 992 704 octets (33,5 Gio). Le projet passe de 43 491 020 800 à 7489036288 octets, soit 40,5 à 7,0 Gio.
+
+Les 29 chemins sont absents ; aucun fichier suivi n’est supprimé. Les empreintes de contenu SHA-256 des deux applications et du dossier de la candidate NEON sont identiques avant/après. Les fichiers CAO, corpus, rapports, journaux, sources de laboratoire, dépôts imbriqués, illustrations et historiques sont conservés. Le scan détecte encore 6914048 octets de caches du formateur Python maintenu hors du périmètre approuvé.
+
+`cargo fmt --all -- --check` et `git diff --check` ont réussi. Aucun test, Clippy, contrôle UI ou build après nettoyage n’est revendiqué : le report au prochain développement est conservé dans la proposition approuvée. Réinstaller les dépendances UI avec `npm --prefix ui ci` avant `scripts/check.sh` ; compiler le worker séparément du bureau. Aucun merge ni push.
