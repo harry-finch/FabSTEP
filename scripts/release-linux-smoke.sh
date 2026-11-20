@@ -33,7 +33,7 @@ runuser -u fabstep-smoke -- xvfb-run -a -s "-screen 0 1600x1000x24" dbus-run-ses
     trap "kill $desktop $wm 2>/dev/null || true" EXIT
     for attempt in $(seq 1 45); do
         kill -0 "$desktop"
-        window=$(xdotool search --onlyvisible --pid "$desktop" --name "^FabSTEP" | tail -1) || true
+        window=$(xdotool search --all --onlyvisible --pid "$desktop" --name "^FabSTEP" | tail -1) || true
         if [ -n "$window" ]; then
             import -window "$window" /tmp/fabstep-smoke.png
             tesseract /tmp/fabstep-smoke.png /tmp/fabstep-smoke -l eng 2>/dev/null

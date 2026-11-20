@@ -30,7 +30,7 @@ jobs:
       - name: Prepare clean runtime
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates git xvfb xauth xdotool dbus-x11 python3 openbox x11-utils imagemagick tesseract-ocr-eng fonts-dejavu-core
+          apt-get install -y --no-install-recommends ca-certificates git xvfb xauth xdotool dbus-x11 python3 openbox x11-utils imagemagick tesseract-ocr tesseract-ocr-eng fonts-dejavu-core
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
