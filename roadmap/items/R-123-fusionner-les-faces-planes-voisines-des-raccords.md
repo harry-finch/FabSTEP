@@ -39,3 +39,5 @@ Ouvrir la pièce publique dans Fusion et sélectionner d’un clic la plage plan
 ## Qualification
 
 V-1279. La rampe passe de 659 à 442 faces et le secteur de 962 à 583 sur le parcours Auto du helper. Le flanc de référence partage six arcs réels avec le tore après réimport. Les plages à plusieurs boucles restent dans le repli certifié.
+
+Sur la rampe, les faces planes passent de 439 à 222 et les 219 colliers subsistent. Sur le secteur, les faces planes passent de 640 à 261 et les 320 colliers subsistent. La chaîne plane au contact du tore est supprimée sur le témoin natif. La réduction des chaînes de colliers non coplanaires reste un objectif ouvert.
