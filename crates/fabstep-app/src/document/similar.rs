@@ -352,9 +352,9 @@ impl Search {
 }
 
 /// Retain only topology and provenance while recognising the source.
-struct NativeFaces {
-    faces: Vec<fabstep_cad::ResultFace>,
-    source: Vec<ResultFaceSource>,
+struct NativeFaces<'a> {
+    faces: &'a [fabstep_cad::ResultFace],
+    source: &'a [ResultFaceSource],
 }
 
 struct BodyFaces {
@@ -391,7 +391,7 @@ impl BodyFaces {
         Ok(Self { native, claimed })
     }
 
-    fn whole_faces(&self, region: &[usize], inspected: &NativeFaces) -> Option<Vec<usize>> {
+    fn whole_faces(&self, region: &[usize], inspected: &NativeFaces<'_>) -> Option<Vec<usize>> {
         if region.iter().any(|&i| self.claimed[i]) {
             return None;
         }
@@ -409,8 +409,17 @@ impl DocumentStep {
         &self,
         checkpoint: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
     ) -> Result<SimilarRegions, FabError> {
+        self.similar_regions(None, checkpoint)
+    }
+
+    fn similar_regions(
+        &self,
+        display: Option<&InspectedDocumentStep>,
+        checkpoint: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
+    ) -> Result<SimilarRegions, FabError> {
         controlled(checkpoint, |control| {
-            let search = self.find_similar(control)?;
+            let (search, _, _) = self.find_similar(display, control)?;
+            control.check(ConversionPhase::Finish, None)?;
             Ok(SimilarRegions {
                 candidates: search.proposals.into_iter().map(|p| p.display).collect(),
                 truncated: search.truncated,
@@ -423,6 +432,15 @@ impl DocumentStep {
         chosen: &[usize],
         checkpoint: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
     ) -> Result<ProvenancedDocumentConversion, FabError> {
+        self.apply_similar(None, chosen, checkpoint)
+    }
+
+    fn apply_similar(
+        &self,
+        display: Option<Arc<InspectedDocumentStep>>,
+        chosen: &[usize],
+        checkpoint: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
+    ) -> Result<ProvenancedDocumentConversion, FabError> {
         controlled(checkpoint, |control| {
             if chosen.is_empty() || chosen.len() > 16 {
                 return Err(invalid());
@@ -431,7 +449,9 @@ impl DocumentStep {
             if ids.len() != chosen.len() {
                 return Err(invalid());
             }
-            let search = self.find_similar(control)?;
+            let (search, document, mappings) = self.find_similar(display.as_deref(), control)?;
+            // The desktop consumed this publication. Release its mesh before the rebuild.
+            drop(display);
             if ids.last().is_none_or(|&i| i >= search.proposals.len()) {
                 return Err(invalid());
             }
@@ -460,26 +480,42 @@ impl DocumentStep {
             {
                 return Err(limit());
             }
-            Self::rebuild_guidance(next, control)
+            Self::rebuild_analyzed_guidance(next, document, mappings, control)
         })
     }
 
-    fn find_similar(&self, control: &mut ConversionControl<'_>) -> Result<Search, FabError> {
+    fn find_similar(
+        &self,
+        display: Option<&InspectedDocumentStep>,
+        control: &mut ConversionControl<'_>,
+    ) -> Result<(Search, DocumentAnalysis, Vec<BodySourceTriangles>), FabError> {
         control.check(ConversionPhase::ResultInspection, None)?;
         let source = self.guidance_source().ok_or_else(unavailable)?;
         let last = source.hints.last().ok_or_else(unavailable)?;
-        let inspected = control.run(ConversionPhase::ResultInspection, None, || {
-            let inspected = self.result_faces()?;
-            if inspected.source_correspondence.status != "exact" {
-                return Err(unavailable());
-            }
-            Ok(NativeFaces {
-                faces: inspected.result.faces,
-                source: inspected.source_correspondence.faces,
-            })
-        })?;
+        // Headless clients can discover regions before displaying the STEP.
+        // Drop their temporary tessellation before analysing the source.
+        let owned;
+        let (faces, correspondence) = if let Some(published) = display {
+            (
+                &published.display.result.faces,
+                &published.display.source_correspondence,
+            )
+        } else {
+            let inspection = control.run(ConversionPhase::ResultInspection, None, || {
+                self.result_faces()
+            })?;
+            owned = (inspection.result.faces, inspection.source_correspondence);
+            (&owned.0, &owned.1)
+        };
+        if correspondence.status != "exact" {
+            return Err(unavailable());
+        }
+        let inspected = NativeFaces {
+            faces,
+            source: &correspondence.faces,
+        };
         let mut rows = BTreeMap::<&str, Vec<&ResultFaceSource>>::new();
-        for row in &inspected.source {
+        for row in inspected.source {
             rows.entry(&row.analysis_body_id).or_default().push(row);
         }
         let (doc, mappings) = control.run(ConversionPhase::Analysis, None, || {
@@ -517,7 +553,14 @@ impl DocumentStep {
                     || (last.family == "auto"
                         && inspected.faces[id].family == ResultFaceFamily::Plane)
                 {
-                    plane_normal = Some(self.planar_face_frame(id)?.normal);
+                    plane_normal = Some(control.run(
+                        ConversionPhase::Recognition,
+                        Some(i),
+                        || match display {
+                            Some(published) => published.reference_normal(id),
+                            None => self.planar_face_frame(id).map(|frame| frame.normal),
+                        },
+                    )?);
                 }
             }
             let r = control.run(ConversionPhase::Recognition, Some(i), || {
@@ -531,12 +574,12 @@ impl DocumentStep {
             }
             if let Some(normal) = plane_normal {
                 search.planes(
-                    body,
-                    component,
+                    (body, component),
                     &inspected,
                     &mut faces,
                     normal,
                     &source.options,
+                    &mut || control.check(ConversionPhase::Recognition, Some(i)),
                 )?;
             } else {
                 let ends = cylinder_ends(&r);
@@ -557,6 +600,9 @@ impl DocumentStep {
                 let template = reference.ok_or_else(unavailable)?;
                 let mut seen = BTreeSet::new();
                 for (seed, &owner) in r.triangle_faces.iter().enumerate() {
+                    if seed % 1024 == 0 {
+                        control.check(ConversionPhase::Recognition, Some(i))?;
+                    }
                     let Some((index, s)) = support(&r, &ends, owner) else {
                         continue;
                     };
@@ -568,6 +614,7 @@ impl DocumentStep {
                         continue;
                     }
                     search.spend(r.triangle_faces.len())?;
+                    control.check(ConversionPhase::Recognition, Some(i))?;
                     let region =
                         match fabstep_core::guided_rounded_region(&r, s.guidance(), &[seed]) {
                             Ok(region) => region,
@@ -591,8 +638,36 @@ impl DocumentStep {
                 break;
             }
         }
-        control.check(ConversionPhase::Finish, None)?;
-        Ok(search)
+        Ok((search, doc, mappings))
+    }
+}
+
+impl InspectedDocumentStep {
+    fn reference_normal(&self, id: usize) -> Result<[f64; 3], FabError> {
+        if self.reference_plane.get().is_none() {
+            let normal = self.step.planar_face_frame(id)?.normal;
+            let _ = self.reference_plane.set((id, normal));
+        }
+        self.reference_plane
+            .get()
+            .filter(|(cached, _)| *cached == id)
+            .map(|&(_, normal)| normal)
+            .ok_or_else(unavailable)
+    }
+
+    pub fn similar_regions_controlled(
+        &self,
+        checkpoint: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
+    ) -> Result<SimilarRegions, FabError> {
+        self.step.similar_regions(Some(self), checkpoint)
+    }
+
+    pub fn apply_similar_controlled(
+        self: Arc<Self>,
+        chosen: &[usize],
+        checkpoint: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
+    ) -> Result<ProvenancedDocumentConversion, FabError> {
+        Arc::clone(&self.step).apply_similar(Some(self), chosen, checkpoint)
     }
 }
 
@@ -608,16 +683,19 @@ impl Search {
     /// Only whole unclaimed STEP faces enter the ordinary guided plane proof.
     fn planes(
         &mut self,
-        body: &AnalyzedBody,
-        component: &BodySourceTriangles,
-        inspected: &NativeFaces,
+        (body, component): (&AnalyzedBody, &BodySourceTriangles),
+        inspected: &NativeFaces<'_>,
         faces: &mut BodyFaces,
         normal: [f64; 3],
         options: &Options,
+        checkpoint: &mut impl FnMut() -> Result<(), FabError>,
     ) -> Result<(), FabError> {
         let mut parts: BTreeMap<usize, (Vec<usize>, f64, f64)> = BTreeMap::new();
         let mesh = &body.analysis.mesh;
         for (i, &triangle) in mesh.triangles.iter().enumerate() {
+            if i % 1024 == 0 {
+                checkpoint()?;
+            }
             let face = faces.native[i];
             if inspected.faces[face].family != ResultFaceFamily::Plane {
                 continue;
@@ -644,6 +722,9 @@ impl Search {
             let mut pending = vec![id];
             while let Some(face) = pending.pop() {
                 self.spend(1)?;
+                if self.work.is_multiple_of(1024) {
+                    checkpoint()?;
+                }
                 let Some((triangles, low, high)) = parts.get(&face) else {
                     continue;
                 };
@@ -660,6 +741,7 @@ impl Search {
                 continue;
             }
             self.spend(mesh.triangles.len())?;
+            checkpoint()?;
             region.sort_unstable();
             let recognized = match fabstep_core::recognize_guided_surfaces(
                 &body.analysis,

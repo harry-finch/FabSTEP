@@ -34,7 +34,7 @@ impl CachedStep {
     pub(super) fn start_deviation(
         &mut self,
         map_id: u64,
-    ) -> Result<Arc<DocumentResultFaces>, FabError> {
+    ) -> Result<Arc<InspectedDocumentStep>, FabError> {
         if map_id <= self.deviation_generation {
             return Err(stale());
         }
@@ -113,7 +113,7 @@ pub(super) async fn result_deviation_map(
     let mut check_worker = job_current.clone();
     let task_step = Arc::clone(&step);
     let report = tauri::async_runtime::spawn_blocking(move || {
-        task_step.display_deviations_controlled(&display, &mut check_worker)
+        task_step.display_deviations_controlled(display.faces(), &mut check_worker)
     })
     .await;
     job_current()?;

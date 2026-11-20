@@ -127,8 +127,27 @@ fn four_equal_bores_apply_together_and_leave_the_different_radius_faceted() {
         .face_id;
     let guided = planar.step.guided_cylinder(&[seed]).unwrap();
     assert_eq!(guided.report.cad.cylindrical_faces, 1);
-    let found = guided
-        .step
+    let step = Arc::new(guided.step);
+    let displayed = Arc::new(step.inspect_display_controlled(&mut |_| Ok(())).unwrap());
+    let inspections = || {
+        step.result_inspections
+            .load(std::sync::atomic::Ordering::Relaxed)
+    };
+    let before = inspections();
+    let mut in_body = 0;
+    let cancelled = displayed
+        .similar_regions_controlled(&mut |point| {
+            if point.phase == ConversionPhase::Recognition && point.body_index == Some(0) {
+                in_body += 1;
+                if in_body == 4 {
+                    return Err(FabError::new("engine.stale", "annulé"));
+                }
+            }
+            Ok(())
+        })
+        .unwrap_err();
+    assert_eq!(cancelled.code, "engine.stale");
+    let found = displayed
         .similar_regions_controlled(&mut |_| Ok(()))
         .unwrap();
     assert!(!found.truncated);
@@ -139,8 +158,7 @@ fn four_equal_bores_apply_together_and_leave_the_different_radius_faceted() {
         assert!(c.face_ids.len() > 10);
     }
     assert_eq!(
-        guided
-            .step
+        Arc::clone(&displayed)
             .apply_similar_controlled(&[0, 0], &mut |_| Ok(()))
             .err()
             .unwrap()
@@ -148,26 +166,50 @@ fn four_equal_bores_apply_together_and_leave_the_different_radius_faceted() {
         "guidance.invalid_selection"
     );
     assert_eq!(
-        guided
-            .step
+        Arc::clone(&displayed)
             .apply_similar_controlled(&[3], &mut |_| Ok(()))
             .err()
             .unwrap()
             .code,
         "guidance.invalid_selection"
     );
-    let bytes = guided.step.bytes().to_vec();
-    let err = guided
-        .step
+    let bytes = step.bytes().to_vec();
+    let err = Arc::clone(&displayed)
         .apply_similar_controlled(&[1], &mut |_| Err(FabError::new("engine.stale", "annulé")))
         .err()
         .unwrap();
     assert_eq!(err.code, "engine.stale");
-    assert_eq!(guided.step.bytes(), bytes);
-    let all = guided
-        .step
-        .apply_similar_controlled(&[2, 0, 1], &mut |_| Ok(()))
+    assert_eq!(step.bytes(), bytes);
+    let mut phases = Vec::new();
+    let old_display = Arc::downgrade(&displayed);
+    let all = displayed
+        .apply_similar_controlled(&[2, 0, 1], &mut |point| {
+            if point.phase == ConversionPhase::Build {
+                assert!(old_display.upgrade().is_none());
+            }
+            phases.push(point.phase);
+            Ok(())
+        })
         .unwrap();
+    assert_eq!(
+        inspections(),
+        before,
+        "search and apply share the published face IDs"
+    );
+    assert_eq!(
+        phases
+            .iter()
+            .filter(|&&phase| phase == ConversionPhase::Analysis)
+            .count(),
+        2,
+        "one analysis, bracketed by two checkpoints"
+    );
+    assert_eq!(
+        phases
+            .iter()
+            .position(|&phase| phase == ConversionPhase::Finish),
+        Some(phases.len() - 1)
+    );
     assert_eq!(all.report.cad.solids, 1);
     assert_eq!(all.report.cad.cylindrical_faces, 4);
     assert_eq!(all.report.guidance_hints.len(), 4);
@@ -251,12 +293,15 @@ fn repeated_fragmented_planes_preserve_component_identity_and_report_capacity() 
         .step
         .guided_surface(&roof, GuidanceFamily::Plane)
         .unwrap();
-    let found = accepted
-        .step
+    let step = Arc::new(accepted.step);
+    let displayed = Arc::new(step.inspect_display_controlled(&mut |_| Ok(())).unwrap());
+    assert!(displayed.reference_plane.get().is_none());
+    let found = displayed
         .similar_regions_controlled(&mut |_| Ok(()))
         .unwrap();
     assert_eq!(found.candidates.len(), 15);
-    let accepted_faces = accepted.step.result_faces().unwrap();
+    assert!(displayed.reference_plane.get().is_some());
+    let accepted_faces = displayed.faces();
     assert!(found
         .candidates
         .iter()
@@ -270,9 +315,17 @@ fn repeated_fragmented_planes_preserve_component_identity_and_report_capacity() 
         .candidates
         .iter()
         .all(|c| c.family == "plane" && c.face_ids.len() == 2));
-    let applied = accepted
-        .step
-        .apply_similar_controlled(&[1], &mut |_| Ok(()))
+    let mut rebuilt = false;
+    let applied = displayed
+        .apply_similar_controlled(&[1], &mut |point| {
+            if point.phase == ConversionPhase::Build {
+                rebuilt = true;
+            }
+            if point.phase == ConversionPhase::ResultInspection && point.body_index.is_some() {
+                assert!(rebuilt, "the reference plane belongs to the previous STEP");
+            }
+            Ok(())
+        })
         .unwrap();
     assert_eq!(applied.report.guidance_hints.len(), 2);
     assert_eq!(applied.report.cad.faces + 1, accepted.report.cad.faces);

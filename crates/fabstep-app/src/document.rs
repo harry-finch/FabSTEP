@@ -132,6 +132,25 @@ pub struct DocumentResultFaces {
     pub source_correspondence: ResultSourceCorrespondence,
 }
 
+/// A read-only display and the exact conversion that produced its face IDs.
+#[derive(Debug, Serialize)]
+#[serde(transparent)]
+pub struct InspectedDocumentStep {
+    #[serde(skip)]
+    step: Arc<DocumentStep>,
+    display: DocumentResultFaces,
+    // A published result has one immutable last indication. Only its native
+    // plane normal is needed across a search and its subsequent application.
+    #[serde(skip)]
+    reference_plane: OnceLock<(usize, [f64; 3])>,
+}
+
+impl InspectedDocumentStep {
+    pub fn faces(&self) -> &DocumentResultFaces {
+        &self.display
+    }
+}
+
 /// Reads only the validated output bytes; no source ordering or proximity is
 /// used to assign STEP faces to recognition regions or imported triangles.
 pub fn result_faces(step_bytes: &[u8]) -> Result<DocumentResultFaces, FabError> {
@@ -432,12 +451,21 @@ impl DocumentStep {
     }
 
     fn rebuild_guidance(
-        mut source: ConversionSource,
+        source: ConversionSource,
         control: &mut ConversionControl<'_>,
     ) -> Result<ProvenancedDocumentConversion, FabError> {
         let (document, body_sources) = control.run(ConversionPhase::Analysis, None, || {
             analyze_document_with_provenance(&source.bytes, source.format, &source.options)
         })?;
+        Self::rebuild_analyzed_guidance(source, document, body_sources, control)
+    }
+
+    fn rebuild_analyzed_guidance(
+        mut source: ConversionSource,
+        document: DocumentAnalysis,
+        body_sources: Vec<BodySourceTriangles>,
+        control: &mut ConversionControl<'_>,
+    ) -> Result<ProvenancedDocumentConversion, FabError> {
         let mut result = convert_analyzed_document(
             document,
             body_sources,
@@ -609,6 +637,18 @@ impl DocumentStep {
             control.run(ConversionPhase::ResultInspection, None, || {
                 self.result_faces()
             })
+        })
+    }
+
+    /// Bind the published inspection to its source STEP for subsequent operations.
+    pub fn inspect_display_controlled(
+        self: &Arc<Self>,
+        check_current: &mut dyn FnMut(ConversionCheckpoint) -> Result<(), FabError>,
+    ) -> Result<InspectedDocumentStep, FabError> {
+        Ok(InspectedDocumentStep {
+            step: Arc::clone(self),
+            display: self.result_faces_controlled(check_current)?,
+            reference_plane: OnceLock::new(),
         })
     }
 

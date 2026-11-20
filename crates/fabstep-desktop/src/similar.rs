@@ -14,6 +14,28 @@ pub(super) struct SimilarResponse {
 static SEARCH_WORKER: tauri::async_runtime::Mutex<()> = tauri::async_runtime::Mutex::const_new(());
 
 impl CacheState {
+    pub(super) fn begin_similar_application(
+        &mut self,
+        request_id: u64,
+        source_id: u64,
+        base_request_id: u64,
+        search_id: u64,
+        candidate_ids: &[usize],
+    ) -> Result<(Arc<InspectedDocumentStep>, u64), FabError> {
+        if request_id <= base_request_id {
+            return Err(stale());
+        }
+        self.result_snapshot(base_request_id, source_id)?;
+        self.check_similar_selection(search_id, candidate_ids)?;
+        let display = self
+            .result
+            .as_ref()
+            .and_then(|r| r.display.clone())
+            .ok_or_else(stale)?;
+        let (_, epoch) = self.begin_guidance(request_id, source_id, base_request_id)?;
+        Ok((display, epoch))
+    }
+
     pub(super) fn check_similar_selection(
         &self,
         search_id: u64,
@@ -67,19 +89,21 @@ pub(super) async fn find_similar_guided_regions(
     state: State<'_, Arc<EngineState>>,
 ) -> Result<SimilarResponse, FabError> {
     let state = Arc::clone(state.inner());
-    let (step, epoch) = {
+    let (step, epoch, display) = {
         let mut cache = state.inner.lock().map_err(lock_error)?;
-        let snapshot = cache.result_snapshot(request_id, source_id)?;
+        let (step, epoch) = cache.result_snapshot(request_id, source_id)?;
         let result = cache.result.as_mut().ok_or_else(stale)?;
-        if search_id <= result.similar_generation || result.display.is_none() {
+        // A queued search must not pin the tessellation after file replacement.
+        let display = Arc::downgrade(result.display.as_ref().ok_or_else(stale)?);
+        if search_id <= result.similar_generation {
             return Err(stale());
         }
         result.similar_generation = search_id;
         result.similar_count = None;
         result.similar_cancelled = false;
-        snapshot
+        (step, epoch, display)
     };
-    let _permit = SEARCH_WORKER.lock().await;
+    let permit = SEARCH_WORKER.lock().await;
     let current = {
         let state = Arc::clone(&state);
         let step = Arc::clone(&step);
@@ -98,10 +122,11 @@ pub(super) async fn find_similar_guided_regions(
         }
     };
     current()?;
+    let display = display.upgrade().ok_or_else(stale)?;
     let worker_current = current.clone();
-    let task_step = Arc::clone(&step);
     let computed = tauri::async_runtime::spawn_blocking(move || {
-        task_step.similar_regions_controlled(&mut |_| worker_current())
+        let _permit = permit;
+        display.similar_regions_controlled(&mut |_| worker_current())
     })
     .await;
     current()?;
@@ -134,16 +159,24 @@ pub(super) async fn apply_similar_guided_regions(
     state: State<'_, Arc<EngineState>>,
 ) -> Result<Response<DocumentReport>, FabError> {
     let state = Arc::clone(state.inner());
-    let (step, epoch) = {
-        let mut cache = state.inner.lock().map_err(lock_error)?;
-        cache.check_similar_selection(search_id, &candidate_ids)?;
-        cache.begin_guidance(request_id, source_id, base_request_id)?
-    };
+    let (display, epoch) = state
+        .inner
+        .lock()
+        .map_err(lock_error)?
+        .begin_similar_application(
+            request_id,
+            source_id,
+            base_request_id,
+            search_id,
+            &candidate_ids,
+        )?;
+    let permit = SEARCH_WORKER.lock().await;
     let progress =
         progress::ConversionGuard::new(Arc::clone(&state), request_id, source_id, epoch)?;
     let observer = progress.observer();
     let computed = tauri::async_runtime::spawn_blocking(move || {
-        step.apply_similar_controlled(&candidate_ids, &mut |checkpoint| {
+        let _permit = permit;
+        display.apply_similar_controlled(&candidate_ids, &mut |checkpoint| {
             observer.checkpoint(checkpoint)
         })
     })

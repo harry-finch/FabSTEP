@@ -1,8 +1,8 @@
 //! Coque Tauri et accès aux fichiers. Le calcul ne bloque jamais le fil de l'interface.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use fabstep_app::{
-    DocumentPreview, DocumentReport, DocumentResultFaces, DocumentSelectionTopology, DocumentStep,
-    InputFormat,
+    DocumentPreview, DocumentReport, DocumentSelectionTopology, DocumentStep, InputFormat,
+    InspectedDocumentStep,
 };
 use fabstep_core::{export_planar_face_dxf, FabError, Options, PlanarFaceProfile};
 use serde::Serialize;
@@ -69,7 +69,7 @@ struct CachedSource {
     bytes: Arc<Vec<u8>>,
 }
 struct CachedStep {
-    display: Option<Arc<DocumentResultFaces>>,
+    display: Option<Arc<InspectedDocumentStep>>,
     similar_generation: u64,
     similar_count: Option<usize>,
     similar_cancelled: bool,
@@ -512,7 +512,7 @@ struct ResultFacesResponse {
     request_id: u64,
     source_id: u64,
     #[serde(flatten)]
-    report: Arc<DocumentResultFaces>,
+    report: Arc<InspectedDocumentStep>,
 }
 
 #[derive(Serialize)]
@@ -589,7 +589,7 @@ async fn result_faces(
     let task_step = Arc::clone(&step);
     let worker_state = Arc::clone(&state);
     let report = tauri::async_runtime::spawn_blocking(move || {
-        task_step.result_faces_controlled(&mut |_| {
+        task_step.inspect_display_controlled(&mut |_| {
             if worker_state
                 .inner
                 .lock()
@@ -1312,10 +1312,35 @@ mod tests {
         let mut cache = CacheState::default();
         install_guidance_base(&mut cache, 30);
         let (document, epoch) = cache.result_snapshot(30, 30).unwrap();
+        let display = Arc::new(
+            document
+                .inspect_display_controlled(&mut |_| Ok(()))
+                .unwrap(),
+        );
+        let mut expected = serde_json::to_value(display.faces()).unwrap();
+        expected["request_id"] = serde_json::json!(30);
+        expected["source_id"] = serde_json::json!(30);
+        let response = super::ResultFacesResponse {
+            request_id: 30,
+            source_id: 30,
+            report: Arc::clone(&display),
+        };
+        assert_eq!(serde_json::to_value(response).unwrap(), expected);
         let result = cache.result.as_mut().unwrap();
+        result.display = Some(display);
         result.similar_generation = 7;
         result.similar_count = Some(3);
         assert!(cache.check_similar_selection(7, &[2, 0]).is_ok());
+        for (request, source, base) in [(31, 30, 29), (30, 30, 30), (31, 29, 30)] {
+            assert_eq!(
+                cache
+                    .begin_similar_application(request, source, base, 7, &[])
+                    .unwrap_err()
+                    .code,
+                "engine.stale"
+            );
+        }
+        assert!(cache.current_result(30, 30, epoch, &document));
         for ids in [vec![], vec![0, 0], vec![3]] {
             assert_eq!(
                 cache.check_similar_selection(7, &ids).unwrap_err().code,
@@ -1349,7 +1374,9 @@ mod tests {
             result.start_deviation(1).unwrap_err().code,
             "step.deviation_unavailable"
         );
-        result.display = Some(Arc::new(step.result_faces().unwrap()));
+        result.display = Some(Arc::new(
+            step.inspect_display_controlled(&mut |_| Ok(())).unwrap(),
+        ));
         result.cancel_deviation(2);
         assert_eq!(result.start_deviation(2).unwrap_err().code, "engine.stale");
         result.start_deviation(3).unwrap();
@@ -1359,7 +1386,14 @@ mod tests {
         assert!(!cache.current_deviation(30, 30, epoch, &step, 3));
         assert!(cache.current_result(30, 30, epoch, &step));
         let simulated_budget_refusal = step.display_deviations_controlled(
-            cache.result.as_ref().unwrap().display.as_ref().unwrap(),
+            cache
+                .result
+                .as_ref()
+                .unwrap()
+                .display
+                .as_ref()
+                .unwrap()
+                .faces(),
             &mut || {
                 Err(fabstep_core::FabError::new(
                     "validation.distance_budget",
