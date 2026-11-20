@@ -2938,3 +2938,19 @@ Comparaison sur macOS arm64, OCCT 7.9.3, avec la révision de départ `9f7ae92`.
 La rampe n’a aucun collier bilinéaire à quatre pôles. Sur le secteur, 64 supports sont concernés. Parmi les 184 paires croisées qui les impliquent, 15 au plus sont séparables sans sommet commun. Les enlever toutes laisse les mêmes faces dans les composés. Ce comptage mesure une limite supérieure et ne démontre pas une séparation géométrique après transfert. Le banc mono-forme et son prototype conservent les refus des triangles sécants et du fil ouvert ainsi que l’acceptation des raccords licites. L’optimisation retenue porte sur la sélection des faces à tesseller. Les 11 288 triangles de la rampe et les 2 496 triangles du secteur, indices et positions, sont identiques avant et après. Le nouveau banc utilise les témoins publics, sans relancer le STL privé.
 
 **Parcours bureau.** Avec le frontend de production et une fenêtre Tauri instrumentée utilisant les permissions de production, l’essai sur le STL à perçages répétés sélectionne une face, applique l’indication Cylindre, trouve trois autres parois, annule la recherche puis la relance. L’application des trois propositions porte le total à quatre indications et rend l’export STEP disponible. Le premier passage avait actionné l’annulation de l’historique, qui portait le même libellé que la fermeture des propositions.
+
+**Nom produit.** Le CLI a exporté `fixtures/m3_name_accent_quote.3mf`. FreeCAD a ouvert un solide valide de volume 1 000 mm³ avec le libellé « Pièce '1' 2 ». Le suffixe numérique ajouté par OCCT est accepté par le contrôle de réimport.
+
+Le build local `artifacts/FabSTEP.app` a été reconstruit par `sh scripts/build-macos-dev.sh`. Les deux exécutables ont été comparés octet par octet avec les sorties de compilation. SHA-256 bureau `0a8b37a59b835243fa931692cd5d9e20a16cd030f0baffc5d23039d2d6219e91`, helper `de828541937c24616c29a9b0b3bc37e5318c48204b48713b6700df528c16b82b`.
+
+**Recette intégrée.** `sh scripts/check.sh` termine avec le code 0. Profil de tests avec assertions de débogage, core, cad et verify compilés à opt-level 2. Les quatre tests applicatifs de parois similaires ont également été rejoués sur la révision finale de ce module.
+
+| Contrôle | Résultat |
+|---|---|
+| Workspace | 763 réussis dans 157 suites, 18 optionnels ignorés |
+| Bureau | 57 réussis, suivi du passage de relais réel au helper réussi séparément |
+| Worker / profil gros STL | 11 réussis pour le binaire, 186 réussis et 5 optionnels ignorés pour les séries `large-stl` |
+| Interface | 253 réussis. Svelte sans erreur ni avertissement. Build réussi avec un avertissement Vite sur la taille du module 3D différé. |
+| Outillage | 31 tests Python, 4 tests de détection SDK, formatage et Clippy strict sur les trois graphes Cargo, lint FabBoard réussis |
+
+Le banc d’interférences a été rejoué séparément. Cette recette ne comprend pas un nouveau calcul sur Flansch, un essai dans Fusion ou une distribution Windows/Linux.

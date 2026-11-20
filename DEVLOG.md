@@ -1,5 +1,7 @@
 # Journal d'ingénierie
 
+**20 novembre 2026 — Revue AUD-201 à AUD-210.** La vue 3D conserve son contexte entre fichiers. La recherche des parois similaires réutilise le STEP affiché et l’application reconstruit chaque corps à partir d’une seule analyse. La carte de chaleur et le repli planaire Auto réutilisent leurs calculs. La subdivision des groupes OCCT et le filtre des colliers restent différés après mesure sur les deux pièces publiques. Voir [les décisions par constat](docs/INT_AUDIT_01.md) et [les résultats V-1276](docs/VALIDATION.md#v-1276--contre-épreuves-des-recommandations-aud-201-à-aud-210).
+
 **20 novembre 2026 — Avant distribution.** L’atelier permet d’éditer, d’annuler et de rétablir les indications. L’arbre à perçage transversal donne quatre faces, le bloc avec deux perçages et un congé en donne dix. Les secteurs coniques et l’octant découpé complètent les témoins de R-117. La preuve des domaines est décrite dans ADR-0047. V-1270 à V-1275 consignent les recettes et l’échéance du helper sur Flansch (30 minutes, pic de 2,63 Gio).
 
 **19 novembre 2026 — Contre-expertise Argon.** Mesure des optimisations du core et de la fidélité sur la rampe publique et Flansch, suppression des listes de sélection inutilisées par le helper en Auto monocorps, ajout de contre-exemples aux interférences OCCT. Les décisions sont dans [le registre d’intégration](docs/INT_AUDIT_01.md#contre-expertise-argon-du-19-novembre). R-113 à R-115 suivent les contours interrompus, la composition locale et la fragmentation des plans en f32.
