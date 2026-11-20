@@ -1,0 +1,45 @@
+name: Release Windows x64
+on:
+  push:
+    branches: [release/v1.0.0]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  portable:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_TARGET_DIR: D:\fabstep-target
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.10.0'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare OCCT 7.9.3 and build the UI
+        shell: pwsh
+        run: |
+          python scripts/release-windows.py sdk
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm --prefix ui ci
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm --prefix ui run build
+      - name: Build the native desktop and CLI
+        shell: pwsh
+        run: |
+          cargo build --locked --release --manifest-path crates/fabstep-desktop/Cargo.toml --features custom-protocol
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo build --locked --release -p fabstep-cli
+      - name: Verify native conversions and desktop window from the portable package
+        run: python scripts/release-windows.py package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FabSTEP-Windows-x86_64
+          path: artifacts/windows/*.zip
+          if-no-files-found: error

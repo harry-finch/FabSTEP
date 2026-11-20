@@ -1,4 +1,32 @@
 {
+  "dlopen2": {
+    "files": {
+      "LICENSE": {
+        "sha256": "39fa265207450e77c62e90c5594a06c085b655d8374c7ced4bf7894b6bd95dd2",
+        "url": "https://raw.githubusercontent.com/OpenByteDev/dlopen2/{revision}/LICENSE"
+      }
+    },
+    "repository": "https://github.com/OpenByteDev/dlopen2",
+    "revisions": [
+      "cc80e4a0a90d499b677fdf7743699b4b3a43a989"
+    ]
+  },
+  "libappindicator-sys": {
+    "files": {
+      "LICENSE-APACHE": {
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "url": "https://raw.githubusercontent.com/tauri-apps/libappindicator-rs/{revision}/LICENSE-APACHE"
+      },
+      "LICENSE-MIT": {
+        "sha256": "eb227437252b2a7a9c1fc342c93ade1f3d7ce38cc6dd754f613db07d53ceff0b",
+        "url": "https://raw.githubusercontent.com/tauri-apps/libappindicator-rs/{revision}/LICENSE-MIT"
+      }
+    },
+    "repository": "",
+    "revisions": [
+      "eafd1e3682a1247f595410266091e9684021cb6f"
+    ]
+  },
   "objc2": {
     "files": {
       "LICENSE.md": {
@@ -74,6 +102,19 @@
     "repository": "https://github.com/tauri-apps/tauri",
     "revisions": [
       "6f6ab1207bb3923c2721fbc67d2fdb1c8deb0c7a"
+    ]
+  },
+  "webview2-rs": {
+    "files": {
+      "LICENSE": {
+        "sha256": "0dcf41516e608bbcb6cdc5229feb7b86fe4a643b85e7df251133c93408fdac73",
+        "url": "https://raw.githubusercontent.com/wravery/webview2-rs/{revision}/LICENSE"
+      }
+    },
+    "repository": "https://github.com/wravery/webview2-rs",
+    "revisions": [
+      "b74dc5e2b394044bea5191052868ce7a106c202c",
+      "dffa41a8a46d3f5565eefbff2de57d38d399f158"
     ]
   }
 }

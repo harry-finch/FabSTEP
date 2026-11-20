@@ -14,7 +14,7 @@ Le rejeu V-1287 de Flansch a atteint le plafond de trente minutes. Avant un nouv
 
 1. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon post-v1
    Flansch reste ouvert après le gel v1. Le dernier essai atteint 30 minutes et 2,78 Gio avant écriture. Reproduire le coût des colliers sur un témoin public.
-2. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
+2. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · En cours · jalon distribution
    Construire et qualifier la distribution sur Windows et Linux.
 3. **[R-021 Étudier la réutilisation entre instances 3MF](roadmap/items/R-021-etudier-la-reutilisation-entre-instances-3mf.md)** · Idée · jalon audit
    AUD-006 — Démontrer un gain sur plusieurs instances ; établir un contrat tenant compte des transformations, de l’arrondi, du soudage et de la provenance avant tout cache
