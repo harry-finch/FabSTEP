@@ -69,6 +69,15 @@ jobs:
           cargo build --locked --release --manifest-path crates/fabstep-desktop/Cargo.toml --features custom-protocol
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cargo build --locked --release -p fabstep-cli
+      - name: Retain qualification inputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-qualification-executables
+          path: |
+            D:/fabstep-target/release/fabstep-desktop.exe
+            D:/fabstep-target/release/fabstep.exe
+          retention-days: 3
+          if-no-files-found: error
       - name: Verify native conversions and desktop window from the portable package
         run: python scripts/release-windows.py package
       - uses: actions/upload-artifact@v4
