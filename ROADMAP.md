@@ -38,28 +38,28 @@ Le prochain essai de Flansch aura lieu après la fin des développements de reco
    La lèvre torique est qualifiée à deux densités. Sur trois petits STL d’arbres percés, le prototype mesure deux cylindres et produit un STEP valide à quatre faces.
 13. **[R-114 Composer deux reconnaissances locales sur un même solide](roadmap/items/R-114-composer-deux-reconnaissances-locales-sur-un.md)** · À tester
    Qualifier un témoin mêlant deux familles déjà reconnues et un témoin à revendications incompatibles. Définir la propriété des triangles et des arêtes communes avant de modifier Auto.
-14. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon v1.0
-   Les 46 671 faces passent le contrôle géométrique en laboratoire. Le rejeu de Flansch est reporté après les développements de reconnaissance pour limiter la RAM.
-15. **[R-122 Mesurer la reconnaissance sur un corpus public reproductible](roadmap/items/R-122-mesurer-la-reconnaissance-sur-un-corpus-public.md)** · À tester · jalon post-v1
+14. **[R-122 Mesurer la reconnaissance sur un corpus public reproductible](roadmap/items/R-122-mesurer-la-reconnaissance-sur-un-corpus-public.md)** · À tester · jalon post-v1
    G7 · Établir une référence sur une douzaine de pièces de plusieurs familles, puis la réutiliser à chaque extension.
-16. **[R-123 Fusionner les faces planes voisines des raccords toriques](roadmap/items/R-123-fusionner-les-faces-planes-voisines-des-raccords.md)** · À tester · jalon post-v1
+15. **[R-123 Fusionner les faces planes voisines des raccords toriques](roadmap/items/R-123-fusionner-les-faces-planes-voisines-des-raccords.md)** · À tester · jalon post-v1
    F1 · Mesurer puis réduire les faces résiduelles et les chaînes de petits raccords sur deux pièces publiques.
-17. **[R-124 Composer des régions qui partagent un bord vérifié](roadmap/items/R-124-composer-des-regions-qui-partagent-un-bord.md)** · À tester · jalon post-v1
+16. **[R-124 Composer des régions qui partagent un bord vérifié](roadmap/items/R-124-composer-des-regions-qui-partagent-un-bord.md)** · À tester · jalon post-v1
    G1 · Décrire les voisinages et les triangles de chaque région afin de combiner plusieurs reconnaissances sur un même corps.
-18. **[R-128 Proposer des axes et des motifs de parois répétées](roadmap/items/R-128-proposer-des-axes-et-des-motifs-de-parois.md)** · À tester · jalon post-v1
+17. **[R-128 Proposer des axes et des motifs de parois répétées](roadmap/items/R-128-proposer-des-axes-et-des-motifs-de-parois.md)** · À tester · jalon post-v1
    G6 · Accélérer la recherche des familles et le guidage en utilisant les normales et la répétition des formes.
-19. **[R-126 Reconstruire une révolution à méridienne mixte](roadmap/items/R-126-reconstruire-une-revolution-a-meridienne-mixte.md)** · En cours · jalon post-v1
+18. **[R-126 Reconstruire une révolution à méridienne mixte](roadmap/items/R-126-reconstruire-une-revolution-a-meridienne-mixte.md)** · En cours · jalon post-v1
    G4 · Reconstituer sur un axe commun des portées, des gorges circulaires et des portions de profil cubiques.
-20. **[R-129 Reconstruire des congés sur arête courbe et des coins à trois rayons](roadmap/items/R-129-reconstruire-des-conges-sur-arete-courbe-et-des.md)** · En cours · jalon post-v1
+19. **[R-129 Reconstruire des congés sur arête courbe et des coins à trois rayons](roadmap/items/R-129-reconstruire-des-conges-sur-arete-courbe-et-des.md)** · En cours · jalon post-v1
    G5 · Qualifier d’abord le congé de rayon constant sur arête courbe, puis le raccord entre trois congés inégaux.
-21. **[R-127 Reconstruire une extrusion droite à profil libre](roadmap/items/R-127-reconstruire-une-extrusion-droite-a-profil-libre.md)** · En cours · jalon post-v1
+20. **[R-127 Reconstruire une extrusion droite à profil libre](roadmap/items/R-127-reconstruire-une-extrusion-droite-a-profil-libre.md)** · En cours · jalon post-v1
    G3 · Reconnaître un contour extrudé composé de segments, d’arcs et de portions cubiques.
-22. **[R-130 Qualifier deux contrôles d’interférence simultanés](roadmap/items/R-130-qualifier-deux-controles-d-interference.md)** · En cours · jalon audit
+21. **[R-130 Qualifier deux contrôles d’interférence simultanés](roadmap/items/R-130-qualifier-deux-controles-d-interference.md)** · En cours · jalon audit
    F2 · Mesurer le temps et la mémoire cumulée du helper avant d’adopter la concurrence entre groupes.
-23. **[R-125 Étendre l’atlas aux parois analytiques interrompues](roadmap/items/R-125-etendre-l-atlas-aux-parois-analytiques.md)** · En cours · jalon post-v1
+22. **[R-125 Étendre l’atlas aux parois analytiques interrompues](roadmap/items/R-125-etendre-l-atlas-aux-parois-analytiques.md)** · En cours · jalon post-v1
    G2 et suite de F1 · Partager des contours vérifiés entre tores, plans et parois cylindriques, puis étendre famille par famille.
-24. **[R-131 Réévaluer sur preuve le découpage et le filtrage des groupes OCCT](roadmap/items/R-131-reevaluer-sur-preuve-le-decoupage-et-le-filtrage.md)** · En cours · jalon audit
+23. **[R-131 Réévaluer sur preuve le découpage et le filtrage des groupes OCCT](roadmap/items/R-131-reevaluer-sur-preuve-le-decoupage-et-le-filtrage.md)** · En cours · jalon audit
    F3 et F4 · Rouvrir séparément les deux essais de V-1276 si un groupe chaud représentatif permet de démontrer un gain.
+24. **[R-085 Reconstruire les raccords toriques partiels du pourtour de Flansch](roadmap/items/R-085-reconstruire-les-raccords-toriques-partiels-du.md)** · En cours · jalon v1.0
+   Les 46 671 faces passent le contrôle géométrique en laboratoire. Le rejeu de Flansch est reporté après les développements de reconnaissance pour limiter la RAM.
 25. **[R-019 Distribution — Windows et Linux](roadmap/items/R-019-distribution-windows-et-linux.md)** · Idée · jalon distribution
    Construire et qualifier la distribution sur Windows et Linux.
 26. **[R-021 Étudier la réutilisation entre instances 3MF](roadmap/items/R-021-etudier-la-reutilisation-entre-instances-3mf.md)** · Idée · jalon audit
