@@ -1640,11 +1640,15 @@ pub fn build_rounded_step_with_token_groups(
 
 mod adjacent_pocket;
 mod cubic_prism;
+mod rolling_bore;
+pub use rolling_bore::build_rolling_bore;
 mod unequal_corner;
 pub use unequal_corner::build_unequal_corner;
 mod cut_octant;
 mod drilled_shaft;
+mod oblique_band;
 mod oblique_lip;
+pub use oblique_band::build_oblique_band;
 mod oblique_pocket;
 pub use oblique_lip::build_oblique_lip;
 mod stock_fillet;
@@ -1951,30 +1955,53 @@ fn build_smooth_revolution(
                     || (plane.normal[i] - expected_sign * f.axis[i]).abs() > direction_tolerance
             })
             || !unit_direction(&plane.normal)
-
         {
             return Err(invalid());
         }
-        let [MixedLoop::Circle{ring: cap_index}] = plane.loops.as_slice() else { return Err(invalid()); };
+        let [MixedLoop::Circle { ring: cap_index }] = plane.loops.as_slice() else {
+            return Err(invalid());
+        };
         if *cap_index != f.rings[end] {
             let cap = m.rings.get(*cap_index).ok_or_else(invalid)?;
-            let pair = if end == 0 { [*cap_index,f.rings[end]] } else { [f.rings[end],*cap_index] };
-            let slot = m.cylinders.iter().position(|c| !c.inner && c.rings==pair).ok_or_else(invalid)?;
-            if used[slot] || *cap_index<cap_count || !finite(&cap.center) || !unit_direction(&cap.axis)
-                || !cap.radius_mm.is_finite() || (cap.radius_mm-expected_radius).abs()>support_tolerance {
+            let pair = if end == 0 {
+                [*cap_index, f.rings[end]]
+            } else {
+                [f.rings[end], *cap_index]
+            };
+            let slot = m
+                .cylinders
+                .iter()
+                .position(|c| !c.inner && c.rings == pair)
+                .ok_or_else(invalid)?;
+            if used[slot]
+                || *cap_index < cap_count
+                || !finite(&cap.center)
+                || !unit_direction(&cap.axis)
+                || !cap.radius_mm.is_finite()
+                || (cap.radius_mm - expected_radius).abs() > support_tolerance
+            {
                 return Err(invalid());
             }
-            let delta:[f64;3]=std::array::from_fn(|k|cap.center[k]-ring.center[k]);
-            let distance=delta.iter().zip(f.axis).map(|(d,z)|d*z).sum::<f64>();
-            lands[end]=expected_sign*distance;
-            if lands[end]<=support_tolerance || (0..3).any(|k|
-                (delta[k]-distance*f.axis[k]).abs()>support_tolerance ||
-                (cap.axis[k]-f.axis[k]).abs()>direction_tolerance) {return Err(invalid());}
-            used[slot]=true;
-            if let Some(tokens)=tokens {land_tokens[end]=tokens.cylinders[slot];}
+            let delta: [f64; 3] = std::array::from_fn(|k| cap.center[k] - ring.center[k]);
+            let distance = delta.iter().zip(f.axis).map(|(d, z)| d * z).sum::<f64>();
+            lands[end] = expected_sign * distance;
+            if lands[end] <= support_tolerance
+                || (0..3).any(|k| {
+                    (delta[k] - distance * f.axis[k]).abs() > support_tolerance
+                        || (cap.axis[k] - f.axis[k]).abs() > direction_tolerance
+                })
+            {
+                return Err(invalid());
+            }
+            used[slot] = true;
+            if let Some(tokens) = tokens {
+                land_tokens[end] = tokens.cylinders[slot];
+            }
         }
     }
-    if used.iter().filter(|v| **v).count()!=m.cylinders.len(){return Err(invalid());}
+    if used.iter().filter(|v| **v).count() != m.cylinders.len() {
+        return Err(invalid());
+    }
     let domain = NativeSmoothRevolution {
         origin: f.origin,
         axis: f.axis,
@@ -3180,6 +3207,7 @@ fn native_error(status: i32, error: &[c_char; 512]) -> FabError {
         20 => "dxf.section_invalid_plane",
         21 => "cad.atlas_plane_unproven",
         22 => "cad.corner_unproven",
+        23 => "cad.rolling_bore_unproven",
         _ => "cad.kernel_failure",
     };
     // C++ termine toujours le tampon d'erreur par un octet nul.

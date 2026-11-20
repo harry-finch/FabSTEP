@@ -40,6 +40,8 @@ const fr = {
     unequal_pocket_fitted: "Les deux congés de rayons différents partagent une arête courbe.",
     closed_pocket_fitted: "Les quatre congés du fond se rejoignent sur quatre arcs d’ellipse.",
     unequal_corner_fitted:"Les trois congés de rayons distincts et l’intérieur du raccord ont été vérifiés sur le maillage.",
+    oblique_band_fitted: "La paroi courbe et les deux branches de sa coupe oblique ont été vérifiées sur le maillage.",
+    rolling_bore_fitted: "Le rayon du congé et sa jonction avec les deux parois cylindriques ont été vérifiés.",
     oblique_lip_fitted: "La lèvre torique coupée et sa paroi cylindrique ont été ajustées au maillage.",
     cubic_extrusion_assumed: "Le flanc courbe a été reconstruit par extrusion d’un profil cubique ajusté au maillage.",
     atlas_planes_merged: "Les triangles coplanaires ont été réunis en faces planes avec leurs contours vérifiés.",

@@ -1,8 +1,10 @@
 //! Géométrie pure et déterministe de FabSTEP, en millimètres.
 use serde::{Deserialize, Serialize};
 mod height_patch;
-pub mod torus_atlas;
+pub mod oblique_band;
 pub mod oblique_lip;
+pub mod rolling_bore;
+pub mod torus_atlas;
 pub mod unequal_corner;
 pub use height_patch::{recognize_height_patch, HeightPatch, HeightPatchRecognition};
 

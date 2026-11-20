@@ -44,6 +44,14 @@ export function attributions(results:BodyResult[]):Attribution[] {
   return results.map(body => {
     let entries:{kind:string; index?:number}[] | null = null;
     let bounds:Partial<Record<SurfaceFamily, number>> = {};
+    if (body.oblique_band_recognition || body.oblique_lip_recognition) {
+      const band = body.oblique_band_recognition;
+      const owners = band?.triangle_faces ?? body.oblique_lip_recognition!.triangle_faces;
+      const roles:SurfaceFamily[] = band ? ['plane','plane','plane',band.model.family] : ['plane','plane','plane','cylinder','torus'];
+      const complete = owners.length === body.analysis.mesh.triangles.length && new Set(owners).size === roles.length
+        && owners.every(owner => Number.isInteger(owner) && owner >= 0 && owner < roles.length);
+      return { analysisBodyId:body.id, families:complete ? owners.map(owner => roles[owner]) : null };
+    }
     if (body.cubic_prism_recognition) {
       const { model, triangle_faces: owners } = body.cubic_prism_recognition;
       const count = model.bore ? 7 : 6;

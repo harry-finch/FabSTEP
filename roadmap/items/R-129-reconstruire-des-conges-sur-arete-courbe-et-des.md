@@ -2,7 +2,7 @@
 id: R-129
 titre: "Reconstruire des congés sur arête courbe et des coins à trois rayons"
 resume: "G5 · Qualifier d’abord le congé de rayon constant sur arête courbe, puis le raccord entre trois congés inégaux."
-statut: en-cours
+statut: a-tester
 jalon: post-v1
 cree: 2026-11-20
 maj: 2026-11-20
@@ -33,3 +33,7 @@ R-122, R-124 et les voisins analytiques de R-125. Comparer avec les coins déjà
 ## Vérifications de l'utilisateur
 
 Inspecter le raccord tout autour du perçage et les trois rayons dans le coin de référence.
+
+## Qualification
+
+Le coin à trois rayons donne dix faces sur les quatre témoins. Le perçage à une ouverture arrondie donne cinq faces sur les quatre témoins, avec au plus 0,031081 mm d’écart échantillonné. Les recettes V-1281 et V-1285 précisent les limites du domaine et du contrôle BOP externe.

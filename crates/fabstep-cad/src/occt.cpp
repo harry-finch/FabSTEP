@@ -1,4 +1,5 @@
 #include "unequal_corner_certificate.hxx"
+#include "rolling_bore_certificate.hxx"
 #include "trim_edge_cache.hxx"
 #include "trimmed_torus_mesh.hxx"
 #include "trim_native_fan_mesh.hxx"
@@ -61,6 +62,7 @@ extern "C" void fabstep_prepare_isolated_atlas_checks() noexcept {
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <BRepPrimAPI_MakePrism.hxx>
 #include <BRepPrimAPI_MakeSphere.hxx>
+#include <BRepPrimAPI_MakeCone.hxx>
 #include <BRepPrimAPI_MakeTorus.hxx>
 #include <BRep_Builder.hxx>
 #include <BRep_Tool.hxx>
@@ -322,7 +324,7 @@ enum Status {
   mesh_failed, mesh_too_complex, bodies_not_separated, document_too_large, separation_budget,
   profile_face_not_found, profile_not_planar,
   profile_unsupported_curve, profile_invalid, profile_too_complex,
-  section_coplanar, section_tangent, section_open, section_invalid_plane, atlas_plane_unproven, corner_unproven
+  section_coplanar, section_tangent, section_open, section_invalid_plane, atlas_plane_unproven, corner_unproven, rolling_bore_unproven
 };
 
 struct CadFailure {
@@ -1515,13 +1517,16 @@ void check_edge_incidence(const TopoDS_Shape& shape, const TopTools_IndexedMapOf
   }
 }
 
+#include "rolling_bore_shape.hxx"
 #include "oblique_lip.hxx"
+#include "oblique_band.hxx"
 #include "smooth_revolution.hxx"
 #include "cubic_prism.hxx"
 #include "height_patch.hxx"
 #include "torus_sector.hxx"
 #include "unequal_pocket.hxx"
 #include "unequal_corner.hxx"
+#include "rolling_bore_domain.hxx"
 
 struct RoundedBoxFrame {
   gp_Pnt center;
@@ -1545,6 +1550,8 @@ struct SolidMeasurement {
   std::optional<oblique_lip::Frame> lip;
   std::optional<cubic_prism::Frame> prism;
   std::optional<corner_domain::Data> corner;
+  std::optional<oblique_band::Domain> band;
+  std::optional<rolling_domain::Data> rolling;
 };
 
 bool quarter_turn(double span) {
@@ -2103,6 +2110,8 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   SurfaceCounts found{};
   size_t quarter_cylinders = 0;
   const bool atlas=atlas_domain::matches(faces);
+  std::optional<oblique_band::Domain> band;
+  if(oblique_band::candidate(faces)) band=oblique_band::verify(shape,status).domain;
   bool partial_torus = false;
   // An unlabelled reimport must have the complete network signature before
   // checking the incident pocket walls on a 14- or 15-face solid.
@@ -2179,6 +2188,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
         break;
       case GeomAbs_Sphere:
         ++found.spherical;
+        if (band) break;
         if (surface.LastUParameter() - surface.FirstUParameter() < 2.0 * std::acos(-1.0) - 1.0e-9) {
           if ((expected && expected->spherical_octants == 0) ||
               !quarter_turn(surface.LastUParameter() - surface.FirstUParameter()) ||
@@ -2201,13 +2211,15 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
   std::optional<DrilledShaftProof> shaft;
   std::optional<UnequalPocketData> unequal;
   std::optional<corner_domain::Data> corner;
+  std::optional<rolling_domain::Data> rolling;
+  if(rolling_domain::candidate(faces)) rolling=rolling_domain::verify(shape,status).data;
   if(corner_domain::candidate(faces)) corner=corner_domain::verify(shape,status).data;
   if (cylinder_spline && found.planar==2 && found.cylindrical==2 && faces.Extent()==4) {
     try { shaft=verify_drilled_shaft(shape,0.); }
     catch(const std::exception& e){throw CadFailure{status,e.what()};}
   } else if (cylinder_spline && found.planar==11 && found.cylindrical==2 && found.partial==2 && faces.Extent()==13) {
     unequal=unequal_pocket::verify(shape,expected_unequal,status).data;
-  } else if (cylinder_spline && !corner) found.cross_drills=1;
+  } else if (cylinder_spline && !corner && !rolling) found.cross_drills=1;
   if (expected_shaft && (!shaft || !same_shaft_geometry(*expected_shaft,shaft->domain)))
     throw CadFailure{status,"Les axes, les rayons ou la position du perçage ont changé."};
   if (expected_unequal && !unequal)
@@ -2270,7 +2282,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     const double volume=prism->volume();
     cubic_prism::need(std::isfinite(error) && error>=0. && std::isfinite(volume) &&
                       std::abs(properties.Mass()-volume)<=std::max(1.e-8,volume*1.e-8),status);
-  } else if (corner) {
+  } else if (corner || rolling || band) {
     BRepGProp::VolumeProperties(shape,properties,1.e-11,true);
   } else if (found.height_patches && !atlas) {
     const auto patch=height_patch::verify(shape,status);
@@ -2342,7 +2354,7 @@ SolidMeasurement measure_solid(const TopoDS_Shape& shape, Status status,
     check_rounded_box_geometry(shape, faces, result, *rounded_box, status);
   }
   if (unequal) unequal_pocket::volume(expected_unequal ? *expected_unequal : *unequal,result.volume,status);
-  return {result, found, rounded_box, drill, revolution, sector, pocket_geometry, unequal, height, atlas, shaft ? std::optional<DrilledShaftData>(shaft->domain) : std::nullopt, lip, prism,corner};
+  return {result, found, rounded_box, drill, revolution, sector, pocket_geometry, unequal, height, atlas, shaft ? std::optional<DrilledShaftData>(shaft->domain) : std::nullopt, lip, prism,corner,band,rolling};
 }
 
 CadMetrics measure(const TopoDS_Shape& shape, SurfaceCounts expected, Status status,
@@ -2644,7 +2656,7 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
 
   stage = write_failed;
   const bool includes_atlas=std::any_of(before.begin(),before.end(),[](const auto& b){return b.report.atlas;});
-  const bool exact_labels=includes_atlas || std::any_of(before.begin(),before.end(),[](const auto& b){return b.report.prism.has_value() || b.report.corner || b.report.lip;});
+  const bool exact_labels=includes_atlas || std::any_of(before.begin(),before.end(),[](const auto& b){return b.report.prism.has_value() || b.report.corner || b.report.rolling || b.report.lip || b.report.band;});
   auto output_buffer = write_bounded_step([&](STEPControl_Writer& writer, bool compact) {
     DESTEP_Parameters parameters;
     parameters.WriteSurfaceCurMode = !compact;
@@ -2690,6 +2702,14 @@ void combine(const StepPartInput* parts, size_t count, CadMetrics* body_reports,
                                 before[i].report.pocket ? &*before[i].report.pocket : nullptr,
                                 before[i].report.unequal ? &*before[i].report.unequal : nullptr,
                                 before[i].report.shaft ? &*before[i].report.shaft : nullptr);
+    if(before[i].report.band){
+      oblique_lip::need(report.band.has_value(),stage,"La bande a disparu au transfert.");
+      oblique_band::same(*before[i].report.band,*report.band,stage);
+    }
+    if(before[i].report.rolling) {
+      rolling_domain::need(report.rolling.has_value(),stage,"Perte du raccord du perçage.");
+      rolling_domain::same(*before[i].report.rolling,*report.rolling,stage);
+    }
     if(before[i].report.corner) {
       corner_domain::need(report.corner.has_value(),stage);
       corner_domain::same(*before[i].report.corner,*report.corner,stage);
@@ -2825,6 +2845,16 @@ std::vector<RevolutionGrid> check_meshing_resolution(const TopoDS_Shape& shape, 
   size_t estimated_curved_triangles = 0;
   std::vector<RevolutionGrid> grids;
   for (TopExp_Explorer body(shape,TopAbs_SOLID); body.More(); body.Next()) {
+    // Limit the four-face signature check on large trimmed atlases.
+    TopTools_IndexedMapOfShape band_faces;
+    for (TopExp_Explorer face(body.Current(),TopAbs_FACE);
+         face.More() && band_faces.Extent()<5; face.Next()) band_faces.Add(face.Current());
+    if(oblique_band::candidate(band_faces)) {
+      const auto band=oblique_band::verify(body.Current(),mesh_failed);
+      if(!band.domain.sphere)for(const auto& edge:band.branches)
+        junctions.emplace(edges.FindIndex(edge),oblique_band::hyperbola_segments(edge,deflection));
+      continue;
+    }
     for (TopExp_Explorer face(body.Current(),TopAbs_FACE); face.More(); face.Next()) {
       const BRepAdaptor_Surface native(TopoDS::Face(face.Current()));
       if (torus_sector::partial_torus(native)) {
@@ -2842,6 +2872,11 @@ std::vector<RevolutionGrid> check_meshing_resolution(const TopoDS_Shape& shape, 
       if (native.GetType() == GeomAbs_BSplineSurface) {
         TopTools_IndexedMapOfShape faces;
         TopExp::MapShapes(body.Current(),TopAbs_FACE,faces);
+        if(rolling_domain::candidate(faces)) {
+          const auto proof=rolling_domain::verify(body.Current(),mesh_failed);
+          rolling_domain::mesh(proof,deflection,edges,junctions,estimated_curved_triangles,mesh_triangle_limit);
+          break;
+        }
         if(corner_domain::candidate(faces)) {
           const auto proof=corner_domain::verify(body.Current(),mesh_failed);
           const double divisions=corner_domain::mesh_divisions(proof.patch,deflection);
@@ -3405,6 +3440,7 @@ void read_result_topology(STEPControl_Reader& reader, TopoDS_Compound& document,
           family = 8; break;
         case GeomAbs_BSplineSurface:
           if(!atlas) {
+            if(rolling_domain::candidate(body_faces)) { rolling_domain::verify(solid,read_failed); break; }
             if(corner_domain::candidate(body_faces)) { corner_domain::verify(solid,read_failed); break; }
             height_patch::verify(solid, read_failed);
             family=7;
@@ -4152,7 +4188,7 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
                    FaceLabels* labels = nullptr,const CrossDrillData* expected_drill=nullptr,
                    const SmoothRevolutionData* expected_revolution=nullptr,
                    const TorusSectorSolidData* expected_sector=nullptr, const pocket::Domain* expected_pocket=nullptr, const UnequalPocketData* expected_unequal=nullptr,
-                   const HeightPatchData* expected_height=nullptr, const DrilledShaftData* expected_shaft=nullptr, const cubic_prism::Data* expected_prism=nullptr, const oblique_lip::Data* expected_lip=nullptr) noexcept {
+                   const HeightPatchData* expected_height=nullptr, const DrilledShaftData* expected_shaft=nullptr, const cubic_prism::Data* expected_prism=nullptr, const oblique_lip::Data* expected_lip=nullptr, const rolling_bore::SourceProof* rolling_witness=nullptr, const oblique_band::Data* expected_band=nullptr) noexcept {
   if (!output) return missing_step_argument(output, error, error_capacity);
   *output = {};
   return with_occt(invalid_model, error, error_capacity, [&](Status& stage) {
@@ -4169,7 +4205,10 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     const CadMetrics before = measure(solid, expected, stage, expected_box,expected_drill,expected_revolution,expected_sector,expected_pocket,expected_unequal,expected_shaft);
 
     std::optional<corner_domain::Data> corner;
+    std::optional<rolling_domain::Data> rolling;
+    if(rolling_witness) rolling=rolling_domain::inspect(solid,stage).data;
     if(expected.height_patches==1 && expected.cylindrical==3) corner=corner_domain::inspect(solid,stage).data;
+    if(expected_band) oblique_band::same(oblique_band::input(*expected_band,stage),oblique_band::verify(solid,stage).domain,stage);
     if (expected_lip) oblique_lip::same(oblique_lip::input(*expected_lip,stage),oblique_lip::verify(solid,stage).frame,stage);
     if (expected_prism) cubic_prism::same(cubic_prism::input(*expected_prism,stage),cubic_prism::verify(solid,stage).frame,stage);
     if(expected_height) height_patch::verify(solid,stage,expected_height);
@@ -4184,11 +4223,11 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
       // The default STEP healing stage rewrites some swept profile faces. The
       // sector was already checked above; transfer those exact TShapes so its
       // face tokens reach the corresponding ADVANCED_FACE entities.
-      if (corner || expected_lip || expected_prism || expected_height || expected_sector || expected_pocket || expected_unequal || expected_shaft) writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
+      if (expected_band || rolling || corner || expected_lip || expected_prism || expected_height || expected_sector || expected_pocket || expected_unequal || expected_shaft) writer.SetShapeProcessFlags(ShapeProcess::OperationsFlags{});
       if (writer.Transfer(solid, STEPControl_ManifoldSolidBrep, parameters) != IFSelect_RetDone) {
         throw CadFailure{stage, "Impossible de traduire le solide en STEP."};
       }
-      if (labels && !write_face_labels(writer, *labels) && (corner || expected_lip || expected_prism || expected_height || expected_sector || expected_pocket || expected_unequal || expected_shaft))
+      if (labels && !write_face_labels(writer, *labels) && (expected_band || rolling || corner || expected_lip || expected_prism || expected_height || expected_sector || expected_pocket || expected_unequal || expected_shaft))
         throw CadFailure{write_failed,"Les identités de faces analytiques ne sont pas transférables."};
     });
 
@@ -4196,7 +4235,14 @@ int validated_step(BuildSolid build, SurfaceCounts expected, StepOutput* output,
     StepInputBuffer input_buffer(output_buffer->data(), output_buffer->size());
     std::istream stream(&input_buffer);
     const auto reopened = read_step(stream);
+    if (rolling_witness) {
+      const auto transferred = rolling_domain::inspect(reopened,stage);
+      rolling_domain::same(*rolling,transferred.data,stage);
+      if (!rolling_witness->accepts(transferred.faces[4]))
+        throw CadFailure{rolling_bore_unproven,"Le raccord du perçage réimporté dépasse le budget d’écart."};
+    }
     if(corner) corner_domain::same(*corner,corner_domain::inspect(reopened,stage).data,stage);
+    if(expected_band) oblique_band::same(oblique_band::input(*expected_band,stage),oblique_band::verify(reopened,stage).domain,stage);
     if (expected_lip) oblique_lip::same(oblique_lip::input(*expected_lip,stage),oblique_lip::verify(reopened,stage).frame,stage);
     if (expected_prism) cubic_prism::same(cubic_prism::input(*expected_prism,stage),cubic_prism::verify(reopened,stage).frame,stage);
     if (expected_height) height_patch::verify(reopened,stage,expected_height);
@@ -4389,6 +4435,27 @@ extern "C" int fabstep_build_mixed_step(
 }
 
 #include "unequal_corner_ffi.hxx"
+
+#include "rolling_bore_build.hxx"
+
+extern "C" int fabstep_build_oblique_band(const oblique_band::Data* data,const size_t* tokens,size_t count,
+    StepOutput* output,char* error,size_t capacity) noexcept {
+  if(!data || (tokens?count!=4:count!=0))return missing_step_argument(output,error,capacity);
+  FaceLabels labels;auto tracked=tokens?&labels:nullptr;
+  SurfaceCounts expected{3,0};
+  if(data->sphere==1)expected.spherical=1;else{expected.conical=1;expected.partial_conical=1;}
+  return validated_step([&]{
+    const auto solid=oblique_band::build(oblique_band::input(*data,invalid_model));
+    if(tokens) {
+      const auto proof=oblique_band::verify(solid,invalid_solid);
+      for(size_t i=0;i<4;++i) {
+        oblique_lip::need(tokens[i] && tokens[i]<=face_token_limit && std::find(tokens,tokens+i,tokens[i])==tokens+i,invalid_model,"Jeton de bande invalide.");
+        labels.emplace_back(proof.faces[i],tokens[i]);
+      }
+    }
+    return solid;
+  },expected,output,error,capacity,nullptr,tracked,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,data);
+}
 
 extern "C" int fabstep_build_oblique_lip(const oblique_lip::Data* data,const size_t* tokens,size_t count,
     StepOutput* output,char* error,size_t capacity) noexcept {

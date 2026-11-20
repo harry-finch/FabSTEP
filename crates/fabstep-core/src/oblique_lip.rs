@@ -72,15 +72,6 @@ impl ObliqueLip {
     fn cut(&self, z: f64) -> f64 {
         self.cut_offset_mm + self.slope * z
     }
-    fn span(&self, f: usize, v: f64) -> f64 {
-        let (r, z) = self.profile(f, v);
-        (-self.cut(z) / r).acos()
-    }
-    fn point(&self, f: usize, [s, v]: UV) -> V {
-        let (r, z) = self.profile(f, v);
-        let u = s * self.span(f, v);
-        [-r * u.cos(), -r * u.sin(), z]
-    }
     // For q=cut(z)/rho, bound its first two derivatives using q*rho=cut(z).
     // The denominator also keeps both intersection branches away from tangency.
     fn hessian(&self, f: usize) -> Option<[f64; 3]> {

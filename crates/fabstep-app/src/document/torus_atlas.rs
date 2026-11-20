@@ -214,6 +214,7 @@ pub(super) fn convert(
             height_patch_recognition: None,
             cubic_prism_recognition: None,
             oblique_lip_recognition: None,
+            oblique_band_recognition: None,
             fidelity,
         },
     })

@@ -1,4 +1,4 @@
-import type { Diagnostic } from './types.ts';
+import type { ConversionBody, Diagnostic, RecognitionReport } from './types.ts';
 
 // These known remarks explain the explicitly chosen reconstruction and settings.
 // Geometry changes and unknown codes remain visible, regardless of severity.
@@ -16,6 +16,8 @@ const technicalRemarks = new Set([
   'recognition.unequal_pocket_fitted',
   'recognition.rounded_box_intent_assumed',
   'recognition.height_patch_fitted',
+  'recognition.oblique_band_fitted',
+  'recognition.rolling_bore_fitted',
   'recognition.oblique_lip_fitted',
   'recognition.cubic_extrusion_assumed',
   'recognition.unequal_corner_fitted',
@@ -58,4 +60,16 @@ export function triangleLimitCounts(code:unknown, message:unknown):{count:number
   const count = Number(match[1]), limit = Number(match[2]);
   return Number.isSafeInteger(count) && Number.isSafeInteger(limit) && limit > 0 && count > limit
     ? {count,limit} : null;
+}
+
+
+/** Full bodies and the worker's compact summaries expose the same certified measurements. */
+export function recognitionReport(body: ConversionBody | null): RecognitionReport | null {
+  if (!body) return null;
+  return body.recognition?.report ?? body.mixed_recognition?.report ?? body.revolved_recognition?.report
+    ?? body.rounded_recognition?.report ?? body.rounded_box_recognition?.report
+    ?? ('cubic_prism_recognition' in body ? body.cubic_prism_recognition?.report : null)
+    ?? ('oblique_lip_recognition' in body ? body.oblique_lip_recognition?.report : null)
+    ?? ('oblique_band_recognition' in body ? body.oblique_band_recognition?.report : null)
+    ?? null;
 }

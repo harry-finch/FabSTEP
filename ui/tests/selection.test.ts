@@ -296,3 +296,13 @@ test('a cubic extrusion attributes the measured wall and the optional bore', () 
   body.cubic_prism_recognition!.model.bore=null;
   assert.equal(attributions([body])[0].families,null);
 });
+
+test('oblique cuts attribute their wall only for complete source ownership', () => {
+  for (const family of ['cone','sphere'] as const) {
+    const body={id:'part',analysis:{mesh:{triangles:Array(4).fill([0,1,2])}},
+      oblique_band_recognition:{model:{family},triangle_faces:[3,1,0,2]}} as unknown as BodyResult;
+    assert.deepEqual(attributions([body])[0].families,[family,'plane','plane','plane']);
+    body.oblique_band_recognition!.triangle_faces=[3,3,0,2];
+    assert.equal(attributions([body])[0].families,null);
+  }
+});

@@ -118,7 +118,7 @@ impl DrilledShaft {
     /// Bound the chart displacement of the entire rim by its endpoint errors
     /// and max(second derivative)*angular step squared / 8. Cylinder charts
     /// use physical arc length, so mapping a chart back into 3D is nonexpansive.
-    fn rim(&self, which: usize, ids: &[usize], points: &[V]) -> Option<[f64; 2]> {
+    pub(crate) fn rim(&self, which: usize, ids: &[usize], points: &[V]) -> Option<[f64; 2]> {
         let (r, big, y0, z0) = (
             self.bore_radius_mm,
             self.radius_mm,
@@ -214,7 +214,7 @@ fn area(uv: [[f64; 2]; 3]) -> f64 {
     let [a, b, c] = uv;
     (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
 }
-fn wall(tri: [V; 3], r: f64, sense: f64, tol: f64, area3: f64) -> Option<f64> {
+pub(crate) fn wall(tri: [V; 3], r: f64, sense: f64, tol: f64, area3: f64) -> Option<f64> {
     let mut uv = tri.map(|p| [p[1].atan2(p[0]), p[2]]);
     let start = uv[0][0];
     for p in &mut uv {

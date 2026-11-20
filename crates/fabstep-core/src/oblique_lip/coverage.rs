@@ -28,19 +28,20 @@ pub(crate) struct Chart<'a> {
     pub profile: &'a dyn Fn(f64) -> (f64, f64),
     pub ordinate: &'a dyn Fn(V) -> f64,
     pub hessian: [f64; 3],
-    pub limits: (usize,usize,f64),
-    pub cylindrical: bool,
+    pub limits: (usize, usize, f64),
+    pub radial_slope: Option<f64>,
+    pub cut_chord: Option<&'a dyn Fn(f64, f64) -> f64>,
     pub depth: usize,
 }
 impl Chart<'_> {
-    fn span(&self,v:f64)->f64 {
-        let (r,z)=(self.profile)(v);
-        (-self.frame.cut(z)/r).acos()
+    fn span(&self, v: f64) -> f64 {
+        let (r, z) = (self.profile)(v);
+        (-self.frame.cut(z) / r).acos()
     }
-    fn point(&self,[s,v]: UV)->V {
-        let (r,z)=(self.profile)(v);
-        let u=s*self.span(v);
-        [-r*u.cos(),-r*u.sin(),z]
+    fn point(&self, [s, v]: UV) -> V {
+        let (r, z) = (self.profile)(v);
+        let u = s * self.span(v);
+        [-r * u.cos(), -r * u.sin(), z]
     }
 }
 struct TriangleBound<'a, 'm> {
@@ -61,7 +62,10 @@ impl TriangleBound<'_, '_> {
             .fold(0., f64::max);
         let (ds, dv) = (width(q, 0), width(q, 1));
         let bound = drift
-            + (self.chart.hessian[0] * ds * ds + 2. * self.chart.hessian[1] * ds * dv + self.chart.hessian[2] * dv * dv) / 8.
+            + (self.chart.hessian[0] * ds * ds
+                + 2. * self.chart.hessian[1] * ds * dv
+                + self.chart.hessian[2] * dv * dv)
+                / 8.
             + 1e-10;
         if bound <= self.limit {
             return Some(bound);
@@ -90,24 +94,45 @@ pub(super) fn chart(
     limit: f64,
     work: &mut usize,
 ) -> Option<Certificate> {
-    let chart = Chart{
-        frame:m,
-        profile:&|v| m.profile(f,v),
-        ordinate:&|[x,y,z]| if f==CYLINDER {z} else {(z-m.shoulder()).atan2(x.hypot(y)-m.major_radius_mm)},
-        hessian:m.hessian(f)?,
-        limits:if f==CYLINDER {(BOTTOM,TORUS,m.shoulder())} else {(CYLINDER,TOP,FRAC_PI_2)},
-        cylindrical:f==CYLINDER,
-        depth:4,
+    let chart = Chart {
+        frame: m,
+        profile: &|v| m.profile(f, v),
+        ordinate: &|[x, y, z]| {
+            if f == CYLINDER {
+                z
+            } else {
+                (z - m.shoulder()).atan2(x.hypot(y) - m.major_radius_mm)
+            }
+        },
+        hessian: m.hessian(f)?,
+        limits: if f == CYLINDER {
+            (BOTTOM, TORUS, m.shoulder())
+        } else {
+            (CYLINDER, TOP, FRAC_PI_2)
+        },
+        radial_slope: (f == CYLINDER).then_some(0.),
+        cut_chord: None,
+        depth: 4,
     };
-    prove_chart(&chart,p,tris,owners,masks,borders,f,fit,limit,work)
+    prove_chart(&chart, p, tris, owners, masks, borders, f, fit, limit, work)
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn prove_chart(chart:&Chart<'_>,p:&[V],tris:&[[usize;3]],owners:&[usize],masks:&[u8],
-    borders:&[Border],f:usize,fit:f64,limit:f64,work:&mut usize)->Option<Certificate>{
-    let m=chart.frame;
-    let (lo,hi,vmax)=chart.limits;
-    let h=chart.hessian;
+pub(crate) fn prove_chart(
+    chart: &Chart<'_>,
+    p: &[V],
+    tris: &[[usize; 3]],
+    owners: &[usize],
+    masks: &[u8],
+    borders: &[Border],
+    f: usize,
+    fit: f64,
+    limit: f64,
+    work: &mut usize,
+) -> Option<Certificate> {
+    let m = chart.frame;
+    let (lo, hi, vmax) = chart.limits;
+    let h = chart.hessian;
     let mut uv = vec![[0.; 2]; p.len()];
     let mut drift = vec![0.; p.len()];
     let mut cert = Certificate {
@@ -126,7 +151,7 @@ pub(crate) fn prove_chart(chart:&Chart<'_>,p:&[V],tris:&[[usize;3]],owners:&[usi
         } else if has(hi) {
             vmax
         } else {
-            (chart.ordinate)([x,y,z])
+            (chart.ordinate)([x, y, z])
         };
         let angle = (-y).atan2(-x);
         let s = if has(CUT) {
@@ -144,11 +169,9 @@ pub(crate) fn prove_chart(chart:&Chart<'_>,p:&[V],tris:&[[usize;3]],owners:&[usi
         }
         cert.drift = cert.drift.max(drift[i]);
     }
-    let mut bound = TriangleBound {
-        chart,
-        limit,
-        work,
-    };
+    let mut bound = TriangleBound { chart, limit, work };
+    let mut radial = 0_f64;
+    let mut tangential = 0_f64;
     for (&t, &owner) in tris.iter().zip(owners) {
         if f != owner {
             continue;
@@ -157,18 +180,23 @@ pub(crate) fn prove_chart(chart:&Chart<'_>,p:&[V],tris:&[[usize;3]],owners:&[usi
         if det(q) <= 1e-12 {
             return None;
         }
-        let upper = if !chart.cylindrical {
-            bound.triangle(q, t.map(|i| p[i]), 0)?
-        } else {
-            // Develop the wall in angle/height. Generatrices contribute zero
-            // curvature. Its two non-linear trim branches are bounded below.
-            let developed = q.map(|[s, v]| [s * chart.span(v), v]);
-            if det(developed) <= 1e-12 {
+        let upper = if chart.radial_slope.is_some() {
+            // For a linear radius, use barycentric weights proportional to
+            // lambda_i*r_i. Then z/r and angle are affine coordinates of the
+            // projected triangle; the only interpolation error is angular sag.
+            let developed = q.map(|[s, z]| [s * chart.span(z), z / (chart.profile)(z).0]);
+            if det(developed) <= 1e-14 {
                 return None;
             }
-            let chord = m.outer_radius_mm * width(developed, 0).powi(2) / 8.;
+            let local_radius = q.iter().map(|s| (chart.profile)(s[1]).0).fold(0., f64::max);
+            let chord = local_radius * width(developed, 0).powi(2) / 8.;
             cert.chord = cert.chord.max(chord);
+            radial = radial.max(chord);
+            tangential = tangential.max(chord * width(developed, 0) / 3.);
+
             chord + t.map(|i| drift[i]).into_iter().fold(0., f64::max) + 1e-10
+        } else {
+            bound.triangle(q, t.map(|i| p[i]), 0)?
         };
         cert.bound = cert.bound.max(upper);
     }
@@ -185,16 +213,21 @@ pub(crate) fn prove_chart(chart:&Chart<'_>,p:&[V],tris:&[[usize;3]],owners:&[usi
             if s != t || s.abs() != 1. {
                 return None;
             }
-            if chart.cylindrical {
-                let q = m.cut(v).abs().max(m.cut(w).abs()) / m.outer_radius_mm;
-                let second = q * (m.slope / m.outer_radius_mm).powi(2) / (1. - q * q).powf(1.5);
-                trim = trim.max(m.outer_radius_mm * second * (w - v).powi(2) / 8.);
+            if let Some(k) = chart.radial_slope {
+                // cut/r = offset/r0 + (slope-offset*k/r0)*(z/r).
+                let (rv, rw) = ((chart.profile)(v).0, (chart.profile)(w).0);
+                let q = (m.cut(v) / rv).abs().max((m.cut(w) / rw).abs());
+                let slope = m.slope - m.cut_offset_mm * k / m.outer_radius_mm;
+                let second = q * slope * slope / (1. - q * q).powf(1.5);
+                trim = trim.max(m.outer_radius_mm * second * (w / rw - v / rv).powi(2) / 8.);
             }
             (
                 if s > 0. { 1 } else { 3 },
                 s * v,
                 s * w,
-                h[2] * (w - v).powi(2) / 8.,
+                chart
+                    .cut_chord
+                    .map_or_else(|| h[2] * (w - v).powi(2) / 8., |bound| bound(v, w)),
             )
         } else {
             if (other != lo && other != hi) || v != w || v != if other == lo { 0. } else { vmax } {
@@ -237,7 +270,17 @@ pub(crate) fn prove_chart(chart:&Chart<'_>,p:&[V],tris:&[[usize;3]],owners:&[usi
     if (0..4).any(|i| endpoints[i].1 != endpoints[(i + 1) % 4].0) {
         return None;
     }
-    cert.bound += trim;
+    if chart.radial_slope.is_some_and(|k| k != 0.) {
+        // In the interpolated radial frame E[theta-mean]=0. Since
+        // 1-cos(x)<=x²/2 and |sin(x)-x|<=|x|³/6, the angular sag C
+        // has tangential component <= C*span/3. A trim correction of
+        // angle delta adds <=r*delta²/2 radially and <=r*delta tangentially.
+        cert.bound = (radial + trim * trim / (2. * m.outer_radius_mm)).hypot(tangential + trim)
+            + cert.drift
+            + 1e-10;
+    } else {
+        cert.bound += trim;
+    }
     (cert.bound <= limit).then_some(cert)
 }
 

@@ -192,7 +192,7 @@ fn run() -> Result<(), FabError> {
             };
             let mut body_report = serde_json::json!({"id":body.id,"name":body.name,"provenance":body.provenance,"mesh":body.analysis.report,
                 "recognition":null,"mixed_recognition":null,"revolved_recognition":null,"rounded_recognition":null,
-                "rounded_box_recognition":null,"height_patch_recognition":null,"cubic_prism_recognition":null,"oblique_lip_recognition":null});
+                "rounded_box_recognition":null,"height_patch_recognition":null,"cubic_prism_recognition":null,"oblique_lip_recognition":null,"oblique_band_recognition":null});
             if let Some(recognized) = &recognition {
                 use fabstep_app::Recognized::*;
                 let (key, value) = match recognized {
@@ -204,6 +204,7 @@ fn run() -> Result<(), FabError> {
                     HeightPatch(r) => ("height_patch_recognition", serde_json::json!(r)),
                     CubicPrism(r) => ("cubic_prism_recognition", serde_json::json!(r)),
                     ObliqueLip(r) => ("oblique_lip_recognition", serde_json::json!(r)),
+                    ObliqueBand(r) => ("oblique_band_recognition", serde_json::json!(r)),
                 };
                 body_report[key] = value;
             }
@@ -235,6 +236,7 @@ fn run() -> Result<(), FabError> {
                 report["height_patch_recognition"] = bodies[0]["height_patch_recognition"].clone();
                 report["cubic_prism_recognition"] = bodies[0]["cubic_prism_recognition"].clone();
                 report["oblique_lip_recognition"] = bodies[0]["oblique_lip_recognition"].clone();
+                report["oblique_band_recognition"] = bodies[0]["oblique_band_recognition"].clone();
                 report["rounded_box_recognition"] = bodies[0]["rounded_box_recognition"].clone();
             }
             print_json(&report)?;
@@ -271,7 +273,7 @@ fn run() -> Result<(), FabError> {
                 .map_err(|e| io_error(e.error))?;
         }
         if json {
-            let bodies: Vec<_> = result.report.bodies.iter().map(|b| serde_json::json!({"id":b.id,"name":b.name,"provenance":b.provenance,"mesh":b.conversion.analysis.report,"cad":b.conversion.cad,"recognition":b.conversion.recognition,"mixed_recognition":b.conversion.mixed_recognition,"revolved_recognition":b.conversion.revolved_recognition,"rounded_recognition":b.conversion.rounded_recognition,"rounded_box_recognition":b.conversion.rounded_box_recognition,"height_patch_recognition":b.conversion.height_patch_recognition,"cubic_prism_recognition":b.conversion.cubic_prism_recognition,"oblique_lip_recognition":b.conversion.oblique_lip_recognition,"fidelity":b.conversion.fidelity})).collect();
+            let bodies: Vec<_> = result.report.bodies.iter().map(|b| serde_json::json!({"id":b.id,"name":b.name,"provenance":b.provenance,"mesh":b.conversion.analysis.report,"cad":b.conversion.cad,"recognition":b.conversion.recognition,"mixed_recognition":b.conversion.mixed_recognition,"revolved_recognition":b.conversion.revolved_recognition,"rounded_recognition":b.conversion.rounded_recognition,"rounded_box_recognition":b.conversion.rounded_box_recognition,"height_patch_recognition":b.conversion.height_patch_recognition,"cubic_prism_recognition":b.conversion.cubic_prism_recognition,"oblique_lip_recognition":b.conversion.oblique_lip_recognition,"oblique_band_recognition":b.conversion.oblique_band_recognition,"fidelity":b.conversion.fidelity})).collect();
             let mut report = serde_json::json!({"output":path,"settings":result.report.settings,"source":result.report.source,"cad":result.report.cad,"bodies":bodies,"diagnostics":result.report.diagnostics,"native_validated":true});
             if bodies.len() == 1 {
                 for key in [
@@ -284,6 +286,7 @@ fn run() -> Result<(), FabError> {
                     "height_patch_recognition",
                     "cubic_prism_recognition",
                     "oblique_lip_recognition",
+                    "oblique_band_recognition",
                     "fidelity",
                 ] {
                     report[key] = bodies[0][key].clone();
@@ -348,6 +351,12 @@ fn run() -> Result<(), FabError> {
                 let recognition_report = recognition_report.or_else(|| {
                     body.conversion
                         .oblique_lip_recognition
+                        .as_ref()
+                        .map(|r| &r.report)
+                });
+                let recognition_report = recognition_report.or_else(|| {
+                    body.conversion
+                        .oblique_band_recognition
                         .as_ref()
                         .map(|r| &r.report)
                 });

@@ -7,7 +7,7 @@ struct Disk {
     point: V,
 }
 
-pub(crate) fn supports(a: &Analysis, fit: f64, plane: f64) -> Option<(ObliqueLip, Vec<usize>)> {
+fn disks(a: &Analysis, plane: f64, limit: usize) -> Option<Vec<Disk>> {
     let m = &a.mesh;
     let adj = crate::pipeline::validate_topology(m).ok()?;
     let area: Vec<_> = m
@@ -50,6 +50,9 @@ pub(crate) fn supports(a: &Analysis, fit: f64, plane: f64) -> Option<(ObliqueLip
         }
         let mut loops = crate::planar::boundaries(m, &ids).ok()?;
         if loops.len() != 1 || !(8..=512).contains(&loops[0].len()) {
+            if limit > 3 {
+                continue;
+            }
             return None;
         }
         disks.push(Disk {
@@ -58,10 +61,14 @@ pub(crate) fn supports(a: &Analysis, fit: f64, plane: f64) -> Option<(ObliqueLip
             normal: n,
             rim: loops.pop()?,
         });
-        if disks.len() > 3 {
+        if disks.len() > limit {
             return None;
         }
     }
+    Some(disks)
+}
+pub(crate) fn supports(a: &Analysis, fit: f64, plane: f64) -> Option<(ObliqueLip, Vec<usize>)> {
+    let disks = disks(a, plane, 3)?;
     if disks.len() != 3 {
         return None;
     }
@@ -72,6 +79,58 @@ pub(crate) fn supports(a: &Analysis, fit: f64, plane: f64) -> Option<(ObliqueLip
     if pairs.next().is_some() {
         return None;
     }
+    fit_disks(&a.mesh, &disks, i, j, k, fit)
+}
+// A subdivided generator strip of a conical mesh can itself be polygonally
+// planar. Only a cutting chord intersecting BOTH measured radii transversely
+// may be their third support plane.
+pub(crate) fn band_supports(
+    a: &Analysis,
+    fit: f64,
+    plane: f64,
+) -> Option<(ObliqueLip, Vec<usize>)> {
+    let disks = disks(a, plane, 64)?;
+    let mut result = None;
+    let mut attempts = 0;
+    for i in 0..disks.len() {
+        for j in i + 1..disks.len() {
+            if dot(disks[i].normal, disks[j].normal) >= -1. + 1e-10 {
+                continue;
+            }
+            for k in 0..disks.len() {
+                if k == i || k == j {
+                    continue;
+                }
+                // Bound circle fitting even on a mesh with many parallel strips.
+                attempts += 1;
+                if attempts > 256 {
+                    return None;
+                }
+                let Some((m, owners)) = fit_disks(&a.mesh, &disks, i, j, k, fit) else {
+                    continue;
+                };
+                if m.cut(0.).abs() >= 0.97 * m.outer_radius_mm
+                    || m.cut(m.height_mm).abs() >= 0.97 * m.major_radius_mm
+                {
+                    continue;
+                }
+                if result.is_some() {
+                    return None;
+                }
+                result = Some((m, owners));
+            }
+        }
+    }
+    result
+}
+fn fit_disks(
+    m: &crate::Mesh,
+    disks: &[Disk],
+    i: usize,
+    j: usize,
+    k: usize,
+    fit: f64,
+) -> Option<(ObliqueLip, Vec<usize>)> {
     let cut = &disks[k];
     let cap = |i: usize| {
         let d = &disks[i];

@@ -6,6 +6,8 @@ FabSTEP transforme des maillages STL et 3MF Core en solides STEP pour poursuivre
 
 ## Développement après la v1
 
+Le mode **Automatique** reconnaît aussi des poulies à gorge torique, des arbres à retour axial cubique et des extrusions à flanc courbe, dont un profilé percé. Une coupe oblique peut conserver les faces cylindriques, coniques, sphériques ou toriques comprises dans les domaines vérifiés. Les [témoins et limites de reconnaissance](docs/adr/0048-certified-surface-domains.md) décrivent les cas pris en charge.
+
 Pour reconstruire une bosse ou une selle sur un socle rectangulaire aligné sur XY, ouvrir **Avancé**, choisir **Relief sur base rectangulaire** puis lancer la reconstruction. Le toit bicubique et ses quatre limites sont contrôlés à partir des triangles. Deux pièces d’essai et la commande de validation figurent dans [le corpus des reliefs](fixtures/height_patch/README.md).
 
 En **Automatique**, FabSTEP peut retrouver le trou traversant d’une plaque inclinée lorsque les deux ouvertures, la paroi cylindrique et les six faces extérieures sont vérifiables. Un clic sur la paroi du STEP sélectionne le cylindre entier. Un [STL de démonstration](fixtures/inclined_plate_hole.stl) permet de tester un perçage de Ø6 mm.

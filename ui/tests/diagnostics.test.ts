@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { visibleDiagnostic, triangleLimitCounts } from '../src/lib/diagnostics.ts';
+import { recognitionReport, visibleDiagnostic, triangleLimitCounts } from '../src/lib/diagnostics.ts';
 import type { Diagnostic } from '../src/lib/types.ts';
 
 const notice = (code:string, severity:Diagnostic['severity'] = 'warning'):Diagnostic => ({code,severity,message:'Native detail',count:1});
@@ -32,4 +32,16 @@ test('STL limit diagnostics expose exact counts without inventing values for leg
   assert.deepEqual(triangleLimitCounts('input.too_many_triangles','STL : 540170 triangles ; limite : 100000.'),{count:540170,limit:100000});
   for(const message of ['STL limité à 100 000 triangles.','Maillage limité à 100 000 triangles et 300 000 sommets.','STL : 1 triangles ; limite : 100000.','STL : 100001 triangles ; limite : 0.','STL : 9007199254740992 triangles ; limite : 100000.',null]) assert.equal(triangleLimitCounts('input.too_many_triangles',message),null);
   assert.equal(triangleLimitCounts('stl.invalid_length','STL : 540170 triangles ; limite : 100000.'),null);
+});
+
+
+test('inspection reads the same bound in the full and compact recognition reports', () => {
+  const report = {max_deviation_bound_mm:0.0338242};
+  for (const key of ['cubic_prism_recognition','oblique_lip_recognition','oblique_band_recognition','recognition','rounded_recognition']) {
+    const body = { [key]:{report} } as unknown as import('../src/lib/types.ts').ConversionBody;
+    assert.equal(recognitionReport(body),report);
+  }
+  assert.equal(recognitionReport(null),null);
+  const sampled = {fidelity:{source_to_result_mm:0.02}} as import('../src/lib/types.ts').ConversionBody;
+  assert.equal(recognitionReport(sampled),null);
 });

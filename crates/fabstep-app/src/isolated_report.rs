@@ -125,8 +125,10 @@ impl From<&BodyReport> for CompactBodyReport {
                 .or_else(|| {
                     data.oblique_lip_recognition
                         .as_ref()
+                        .map(|r| &r.report)
+                        .or_else(|| data.oblique_band_recognition.as_ref().map(|r| &r.report))
                         .map(|r| CompactPlaneRecognition {
-                            report: r.report.clone(),
+                            report: r.clone(),
                             planar_faces: 3,
                         })
                 }),

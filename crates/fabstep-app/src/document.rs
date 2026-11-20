@@ -1029,7 +1029,9 @@ fn convert_analyzed_document(
         ReconstructionMode::Planar | ReconstructionMode::Auto | ReconstructionMode::HeightPatch
     );
     let mut step_size = 0usize;
-    for (body_index, (body, source)) in document.bodies.into_iter().zip(body_sources).enumerate() {
+    for (body_index, (mut body, source)) in
+        document.bodies.into_iter().zip(body_sources).enumerate()
+    {
         control.check(ConversionPhase::Body, Some(body_index))?;
         let hints = guidance_hints
             .iter_mut()
@@ -1045,9 +1047,9 @@ fn convert_analyzed_document(
         } else {
             None
         };
-        let corner = if hints.is_empty() && partitioned.is_none() {
-            crate::unequal_corner::try_build(
-                &body.analysis,
+        let blend = if hints.is_empty() && partitioned.is_none() {
+            crate::native_blends::try_build(
+                &mut body.analysis,
                 options,
                 source_faces.len() + 1,
                 body_index,
@@ -1057,13 +1059,13 @@ fn convert_analyzed_document(
         } else {
             None
         };
-        let conversion = if let Some(built) = corner {
+        let conversion = if let Some(built) = blend {
             if keep_auto_faces {
                 built.append_sources(
                     &source.preview_body_id, &body.id, &source.analysis_to_source_triangles, &mut source_faces,
                 )?;
             }
-            built.finish(body.analysis, options, control, body_index)
+            Ok(built.finish(body.analysis, options))
         } else if options.reconstruction == ReconstructionMode::HeightPatch || partitioned.is_some() {
             if !hints.is_empty() {
                 return Err(FabError::new("guidance.unsupported_family", "Cette approximation se calcule sur le corps entier."));
@@ -1079,6 +1081,7 @@ fn convert_analyzed_document(
                 Recognized::CubicPrism(r) => (&r.triangle_faces, 6 + usize::from(r.model.bore.is_some())),
                 Recognized::HeightPatch(r) => (&r.triangle_faces, 6),
                 Recognized::ObliqueLip(r) => (&r.triangle_faces, 5),
+                Recognized::ObliqueBand(r) => (&r.triangle_faces,4),
                 _ => unreachable!(),
             };
             let first = source_faces.len() + 1;

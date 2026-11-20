@@ -74,7 +74,7 @@ fn summarize(fit: f64, result: Result<DocumentReport, FabError>) -> ParameterTri
             let bounds = report
                 .bodies
                 .iter()
-                .flat_map(|body| {
+                .map(|body| {
                     let c = &body.conversion;
                     [
                         c.recognition.as_ref().map(|r| &r.report),
@@ -82,12 +82,17 @@ fn summarize(fit: f64, result: Result<DocumentReport, FabError>) -> ParameterTri
                         c.revolved_recognition.as_ref().map(|r| &r.report),
                         c.rounded_recognition.as_ref().map(|r| &r.report),
                         c.rounded_box_recognition.as_ref().map(|r| &r.report),
+                        c.cubic_prism_recognition.as_ref().map(|r| &r.report),
+                        c.oblique_lip_recognition.as_ref().map(|r| &r.report),
+                        c.oblique_band_recognition.as_ref().map(|r| &r.report),
                     ]
                     .into_iter()
                     .flatten()
                     .map(|r| r.max_deviation_bound_mm)
+                    .reduce(f64::max)
                 })
-                .reduce(f64::max);
+                // A bound for only the other bodies cannot certify the whole trial.
+                .try_fold(0_f64, |maximum, body_bound| Some(maximum.max(body_bound?)));
             let sampled = report
                 .bodies
                 .iter()
@@ -98,13 +103,8 @@ fn summarize(fit: f64, result: Result<DocumentReport, FabError>) -> ParameterTri
                 cylinder_fit_tolerance_mm: fit,
                 outcome: "validated",
                 faces: Some(report.cad.faces),
-                curved_faces: Some(
-                    report.cad.cylindrical_faces
-                        + report.cad.conical_faces
-                        + report.cad.spherical_faces
-                        + report.cad.toroidal_faces
-                        + report.cad.revolution_faces,
-                ),
+                // Include audited spline patches and extruded curves as well as named primitives.
+                curved_faces: Some(report.cad.faces - report.cad.planar_faces),
                 max_deviation_bound_mm: bounds,
                 max_sampled_distance_mm: sampled,
                 error: None,
@@ -220,6 +220,60 @@ mod tests {
             candidates(&Options::default()).unwrap_err().code,
             "search.analytic_mode_required"
         );
+    }
+    #[test]
+    fn trials_retain_the_certified_bound_of_each_partitioned_body() {
+        let options = Options {
+            reconstruction: ReconstructionMode::Auto,
+            ..Default::default()
+        };
+        for bytes in [
+            include_bytes!("../../../fixtures/cubic_extrusion/cam-coarse.stl").as_slice(),
+            include_bytes!("../../../fixtures/oblique_lip/cap-coarse.stl").as_slice(),
+            include_bytes!("../../../fixtures/oblique_bands/cone1-coarse.stl").as_slice(),
+        ] {
+            let converted = crate::convert_document(bytes, InputFormat::Stl, &options).unwrap();
+            let body = &converted.report.bodies[0].conversion;
+            let expected = body
+                .cubic_prism_recognition
+                .as_ref()
+                .map(|r| &r.report)
+                .or_else(|| body.oblique_lip_recognition.as_ref().map(|r| &r.report))
+                .or_else(|| body.oblique_band_recognition.as_ref().map(|r| &r.report))
+                .unwrap()
+                .max_deviation_bound_mm;
+            let curved = converted.report.cad.faces - converted.report.cad.planar_faces;
+            assert!(curved > 0);
+            let trial = summarize(options.cylinder_fit_tolerance_mm, Ok(converted.report));
+            assert_eq!(trial.curved_faces, Some(curved));
+            assert_eq!(trial.max_deviation_bound_mm, Some(expected));
+        }
+    }
+    #[test]
+    fn a_sampled_native_body_cannot_borrow_the_bound_of_another_body() {
+        let opts = Options {
+            reconstruction: ReconstructionMode::Auto,
+            ..Default::default()
+        };
+        let mut measured = crate::convert_document(
+            include_bytes!("../../../fixtures/oblique_bands/cone1-coarse.stl"),
+            InputFormat::Stl,
+            &opts,
+        )
+        .unwrap()
+        .report;
+        let corner = crate::convert_document(
+            include_bytes!("../../../fixtures/unequal_corner/corner-0-coarse.stl"),
+            InputFormat::Stl,
+            &opts,
+        )
+        .unwrap()
+        .report;
+        assert!(corner.bodies[0].conversion.fidelity.is_some());
+        measured.bodies.extend(corner.bodies);
+        let trial = summarize(opts.cylinder_fit_tolerance_mm, Ok(measured));
+        assert!(trial.max_sampled_distance_mm.is_some());
+        assert!(trial.max_deviation_bound_mm.is_none());
     }
     #[test]
     fn ranking_handles_nonmonotonic_results_and_prefers_stricter_ties() {

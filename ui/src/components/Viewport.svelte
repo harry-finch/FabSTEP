@@ -316,7 +316,7 @@
       } else if (!stepPreview && !denseRaw && results.length && showEdges) {
         const points: number[] = [];
         for (const result of results) {
-        const patchOwners = result.rounded_box_recognition?.triangle_faces ?? result.height_patch_recognition?.triangle_faces ?? result.cubic_prism_recognition?.triangle_faces;
+        const patchOwners = result.rounded_box_recognition?.triangle_faces ?? result.height_patch_recognition?.triangle_faces ?? result.cubic_prism_recognition?.triangle_faces ?? result.oblique_lip_recognition?.triangle_faces ?? result.oblique_band_recognition?.triangle_faces;
         if (patchOwners) {
           appendPatchBoundaries(result.analysis.mesh, patchOwners, points);
         } else if (result.rounded_recognition || result.revolved_recognition || result.mixed_recognition) {

@@ -42,6 +42,8 @@ const en: Shape<typeof fr> = {
     unequal_pocket_fitted: "The two fillets of different radii share a curved edge.",
     closed_pocket_fitted: "The four floor fillets meet along four elliptical arcs.",
     unequal_corner_fitted:"The three different fillet radii and the interior of their corner were verified against the mesh.",
+    oblique_band_fitted: "The curved wall and both branches of its oblique cut were verified against the mesh.",
+    rolling_bore_fitted: "The fillet radius and its joins with both cylindrical walls were verified.",
     oblique_lip_fitted: "The trimmed toroidal lip and its cylindrical wall were fitted to the mesh.",
     cubic_extrusion_assumed: "The curved wall was reconstructed by extruding a cubic profile fitted to the mesh.",
     atlas_planes_merged: "Coplanar triangles were joined into planar faces with verified boundaries.",
