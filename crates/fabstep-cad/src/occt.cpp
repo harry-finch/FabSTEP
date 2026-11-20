@@ -1,3 +1,4 @@
+#include "windows_sdk.hxx"
 #include "unequal_corner_certificate.hxx"
 #include "rolling_bore_certificate.hxx"
 #include "trim_edge_cache.hxx"
