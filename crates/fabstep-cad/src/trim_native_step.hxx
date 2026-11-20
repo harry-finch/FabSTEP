@@ -55,6 +55,13 @@ template <class Transfer>
 std::unique_ptr<StepOutputBuffer> write_bounded_step(Transfer transfer, size_t limit = step_document_limit, bool dense = false) {
   for (bool compact : {false, true}) {
     STEPControl_Writer writer;
+    // OCCT 7.9 shares the transfer actor even between new writers. Restore
+    // its standard ToSTEP operations for each document. Exact-domain callers
+    // can then override this policy for their own transfer only.
+    ShapeProcess::OperationsFlags standard;
+    standard.set(ShapeProcess::SplitCommonVertex);
+    standard.set(ShapeProcess::DirectFaces);
+    writer.SetShapeProcessFlags(standard);
     transfer(writer, compact);
     auto buffer = std::make_unique<StepOutputBuffer>(limit);
     AtlasStepStream leaders(*buffer);
