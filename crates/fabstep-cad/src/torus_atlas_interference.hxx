@@ -103,25 +103,29 @@ struct Checker {
     return filter.excludes(a.torus, b.id, b.face, b.tolerance, b.bounds) ||
            filter.excludes(b.torus, a.id, a.face, a.tolerance, a.bounds);
   }
-  void inspect(int x, int y, bool parallel = false) {
+  template <class Visit> void visit(int x, int y, const Visit &accept) {
+    visit(x, y, accept, [](const Entry &, const Entry &) {});
+  }
+  template <class Visit, class Pair>
+  void visit(int x, int y, const Visit &accept, const Pair &record_pair) {
     const auto &a = tree[x];
     const auto &b = tree[y];
     if (x != y && a.box.IsOut(b.box))
       return;
     if (a.left >= 0 && x == y) {
-      inspect(a.left, a.left, parallel);
-      inspect(a.left, a.right, parallel);
-      inspect(a.right, a.right, parallel);
+      visit(a.left, a.left, accept, record_pair);
+      visit(a.left, a.right, accept, record_pair);
+      visit(a.right, a.right, accept, record_pair);
       return;
     }
     if (a.left >= 0 && (b.left < 0 || a.last - a.first >= b.last - b.first)) {
-      inspect(a.left, y, parallel);
-      inspect(a.right, y, parallel);
+      visit(a.left, y, accept, record_pair);
+      visit(a.right, y, accept, record_pair);
       return;
     }
     if (b.left >= 0) {
-      inspect(x, b.left, parallel);
-      inspect(x, b.right, parallel);
+      visit(x, b.left, accept, record_pair);
+      visit(x, b.right, accept, record_pair);
       return;
     }
     TopoDS_Compound group;
@@ -144,6 +148,7 @@ struct Checker {
             ++pairs;
             if (torus_disjoint(faces[i], faces[j]))
               continue;
+            record_pair(faces[i], faces[j]);
             add_b[j - b.first] = true;
             included = true;
           }
@@ -163,6 +168,9 @@ struct Checker {
       throw Failure("Budget de contrôle des interférences dépassé.");
     if (!needs_check)
       return;
+    accept(group);
+  }
+  static void verify_group(const TopoDS_Compound &group, bool parallel) {
     BRepAlgoAPI_Check check;
     check.SetData(group, false, true);
     check.SetRunParallel(parallel);
@@ -170,7 +178,10 @@ struct Checker {
     if (check.HasErrors() || !check.IsValid())
       throw Failure("Le contrôle des auto-intersections du solide a échoué.");
   }
-  void run(const TopTools_IndexedMapOfShape &input) {
+  void inspect(int x, int y, bool parallel = false) {
+    visit(x, y, [parallel](const auto &group) { verify_group(group, parallel); });
+  }
+  void prepare(const TopTools_IndexedMapOfShape &input) {
     if (!faces.empty())
       *this = Checker{};
     filter.neighbors.resize(input.Extent());
@@ -199,8 +210,12 @@ struct Checker {
       const double padding = finite_tolerances ? tolerance : std::numeric_limits<double>::quiet_NaN();
       faces.push_back({f, box, {mid.X(), mid.Y(), mid.Z()}, faces.size(), filter.record(f, padding), padding});
     }
-    if (!faces.empty()) {
+    if (!faces.empty())
       build(0, faces.size());
+  }
+  void run(const TopTools_IndexedMapOfShape &input) {
+    prepare(input);
+    if (!faces.empty()) {
 #ifdef FABSTEP_LARGE_STL_SOURCE
       ScopedCheckPool pool;
       inspect(0, 0, pool.parallel());

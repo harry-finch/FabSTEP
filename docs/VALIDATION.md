@@ -2984,3 +2984,21 @@ Dans le cas du coin, les trois rayons mesurés sont respectivement 2 / 2,5 / 3 m
 ## V-1282 — Lèvre torique et cylindre à coupe oblique R-125
 
 Quatre STL binaires indépendants FreeCAD couvrent deux dimensions à deux densités. Dans Auto, leur nombre de faces passe respectivement de 630, 2 275, 1 005 et 2 198 à cinq. Chaque solide réimporté présente trois plans, un cylindre extérieur et un tore. Les deux branches de la coupe sont contrôlées sur les supports voisins et la correspondance attribue exactement chaque triangle. Les volumes des deux versions de la première pièce valent 1 273,706700 et 1 273,706667 mm³. Ceux de la seconde valent 2 545,456665 et 2 545,456792 mm³. Les maxima mesurés sur les quatre entrées sont 0,037878 mm du STL vers le STEP et 0,039715 mm en sens inverse. Les trois tests core et applicatifs ont été rejoués depuis l’arbre Git indexé. Les contrôles natifs refusent une quasi-tangence et un pôle de la courbe déplacé.
+
+## V-1283 — Ordonnancement et interférences sur atlas publics R-130 / R-131
+
+Sur Apple M4, OCCT 7.9.3, chaque stratégie contrôle exactement la même liste de groupes de faces. Les deux calculs simultanés utilisent deux imports indépendants dans un seul processus. La colonne « pondéré » donne la priorité aux groupes contenant plus de faces spline. Trois répétitions par case. Temps muraux en secondes, médiane et plage. Les compilations concurrentes pendant certains essais augmentent la dispersion.
+
+| Témoin public | Groupes | Un groupe séquentiel | Deux threads internes OCCT | Deux groupes simultanés | Deux groupes pondérés |
+|---|---:|---:|---:|---:|---:|
+| Rampe, 442 faces | 48 | 10.1 (9.8–25.3) | 5.8 (5.8–14.3) | 6.8 (5.3–15.8) | 5.4 (5.2–13.9) |
+| Secteur, 583 faces | 48 | 32.5 (28.3–46.0) | 19.0 (17.3–32.0) | 21.3 (14.3–31.0) | 36.7 (15.3–37.3) |
+| Secteur à 27 stations, 553 faces | 60 | 31.2 (30.8–31.2) | 19.4 (18.0–20.4) | 23.2 (17.1–23.4) | 19.6 (16.2–20.4) |
+
+Sur le secteur à 27 stations, les temps CPU médians correspondants sont 31.1, 35.7, 41.4, 37.6 s. Le maximum RSS observé sur les 36 exécutions est de 300 Mio pour le processus entier. Le résultat conserve les deux threads internes du helper. Les essais ne démontrent pas de gain inter-groupes supérieur à la dispersion.
+
+La sonde compare les membres de chaque groupe par identifiant aux deux imports et exige leur exécution complète. Un nouveau transfert STEP des trois entrées aboutit aux mêmes verdicts. Sur les témoins synthétiques, les triangles sécants sont refusés dans les deux états et les arêtes partagées sont acceptées. Les huit modes refusent le fil ouvert natif. Le processus a été annulé en 0,0016 s après le signal de démarrage des deux contrôles simultanés. Le test bureau qui attend la fin d’un vrai processus avant de rendre la main réussit également.
+
+Pour F3, le graphe biparti augmente les appels de 48 à 58, 48 à 56 et 60 à 63. Pour F4, les trois modèles contiennent respectivement 72, 64 et 54 surfaces bilinéaires à quatre pôles, en plus de 147, 256 et 246 surfaces de degré (3,1). Le filtre de tranche avec tolérances natives garde tous les membres des trois composés publics. Sur deux bandes obliques construites pour vérifier le filtre, il écarte une paire et deux faces avant et après transfert. Le contrôle mono-forme exhaustif confirme le verdict. À distance presque nulle, les deux méthodes refusent le contact. Le découpage et le filtre restent dans le banc. Le groupe privé (1880, 1881) n’a pas été rejoué.
+
+Reproduction du banc avec `sh scripts/qualify-atlas-scheduling.sh artifacts/atlas-scheduling rampe.step secteur.step secteur27.step`. Les deux premiers STEP proviennent des générateurs publics de V-1279. Pour le troisième, utiliser `python3 scripts/qualify-staggered-tori.py secteur27.stl --dense --stations 27` puis reconstruire avec le helper Auto. Le script mesure temps mural, CPU et RSS sur macOS.

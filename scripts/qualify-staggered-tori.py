@@ -11,11 +11,11 @@ def torus_point(minor, rim, height, u, v):
     return (height + minor * (math.sin(v) - 1), rho * math.cos(u), rho * math.sin(u))
 
 
-def generate(output, dense=False, mixed_density=False):
+def generate(output, dense=False, mixed_density=False, stations=32):
     # Independent meridian radii. At their upper rims the shoulders are only
     # 0.008 mm apart radially and differ by 0.00006 mm axially. Staggering
     # angular stations makes the connecting triangle fans nearly tangent.
-    steps = 32
+    steps = stations
     meridians = 48
     vertices = []
     angles = []
@@ -112,7 +112,8 @@ if __name__ == "__main__":
     parser.add_argument("output", type=Path)
     parser.add_argument("--dense", action="store_true", help="exercise the large-STL worker on the same collar")
     parser.add_argument("--mixed-density", action="store_true", help="alternate two and three interior refinement levels with --dense")
+    parser.add_argument("--stations", type=int, choices=(27,32), default=32, help="public R-131 collar benchmark")
     args = parser.parse_args()
     if args.mixed_density and not args.dense:
         parser.error("--mixed-density requires --dense")
-    generate(args.output, args.dense, args.mixed_density)
+    generate(args.output, args.dense, args.mixed_density, args.stations)
