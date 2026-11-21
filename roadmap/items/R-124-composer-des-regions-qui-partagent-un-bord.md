@@ -2,11 +2,11 @@
 id: R-124
 titre: "Composer des régions qui partagent un bord vérifié"
 resume: "G1 · Décrire les voisinages et les triangles de chaque région afin de combiner plusieurs reconnaissances sur un même corps."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-20
 maj: 2026-11-20
-livree:
+livree: 2026-11-20
 ---
 ## But
 

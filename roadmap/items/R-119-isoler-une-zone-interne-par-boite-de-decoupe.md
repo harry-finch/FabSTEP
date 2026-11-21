@@ -2,11 +2,11 @@
 id: R-119
 titre: "Isoler une zone interne par boîte de découpe visuelle 3D"
 resume: "Ajouter une boîte de découpe visuelle manipulable dans la vue 3D (Source et Résultat STEP) pour inspecter, sélectionner et corriger des cavités internes sans modifier le solide ni l'export."
-statut: a-tester
+statut: livree
 jalon: atelier
 cree: 2026-11-19
-maj: 2026-11-19
-livree:
+maj: 2026-11-20
+livree: 2026-11-20
 ---
 
 

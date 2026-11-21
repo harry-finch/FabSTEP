@@ -1,5 +1,7 @@
 # Journal d'ingénierie
 
+**20 novembre 2026 — Clôture de la recette FabBoard.** À la demande de l’utilisateur, les 17 actions de test ouvertes ont été clôturées et les 24 éléments en recette sont passés à « Livré ». Pour R-130 et R-131, la livraison porte sur les résultats du banc. Les essais manuels dans Fusion n’ont pas été rejoués lors de cette clôture.
+
 **20 novembre 2026 — Reconstruction et navigation R-133.** Le choix Automatique ou Facettes passe dans l’inspecteur. La présélection Rust trouve une surface sphérique sur l’octant translaté en STL f32, avec un seul candidat transmis à la CAO. L’utilisateur peut verrouiller ses tolérances. Les gestes de caméra du STEP s’appliquent également à la source. [Qualification sur les octants et le cylindre dense](docs/VALIDATION.md#v-1290--intention-recherche-bornée-et-navigation-r-133)
 
 **20 novembre 2026 — Gel fonctionnel v1.** La passe AUDIT-03 resserre la borne des perçages arrondis, aligne les parcours Auto et traite les cas limites de topologie, de transfert natif, de mémoire en attente et de restauration WebGL. [Registre et résultats](docs/INT_AUDIT_01.md#audit-03--gel-fonctionnel-v1).

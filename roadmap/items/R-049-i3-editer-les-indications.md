@@ -2,11 +2,11 @@
 id: R-049
 titre: "I3 — éditer les indications"
 resume: "Modifier ou retirer une indication, annuler/rétablir et comparer le résultat calculé au maillage source"
-statut: a-tester
+statut: livree
 jalon: atelier
 cree: 2026-11-13
-maj: 2026-11-19
-livree:
+maj: 2026-11-20
+livree: 2026-11-20
 ---
 ## But
 

@@ -2,11 +2,11 @@
 id: R-023
 titre: "Durcir les permissions locales Tauri"
 resume: "AUD-014 — Définir le manifeste applicatif et tester les commandes autorisées/refusées, fenêtres et origines ; ne pas ajouter un fichier de capacités supposé suffisant"
-statut: a-tester
+statut: livree
 jalon: audit
 cree: 2026-11-13
-maj: 2026-11-19
-livree:
+maj: 2026-11-20
+livree: 2026-11-20
 ---
 ## But
 

@@ -2,11 +2,11 @@
 id: R-131
 titre: "Réévaluer sur preuve le découpage et le filtrage des groupes OCCT"
 resume: "F3 et F4 · Rouvrir séparément les deux essais de V-1276 si un groupe chaud représentatif permet de démontrer un gain."
-statut: a-tester
+statut: livree
 jalon: audit
 cree: 2026-11-20
 maj: 2026-11-20
-livree:
+livree: 2026-11-20
 ---
 ## But
 

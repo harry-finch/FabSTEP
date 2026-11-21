@@ -2,11 +2,11 @@
 id: R-125
 titre: "Étendre l’atlas aux parois analytiques interrompues"
 resume: "G2 et suite de F1 · Partager des contours vérifiés entre tores, plans et parois cylindriques, puis étendre famille par famille."
-statut: a-tester
+statut: livree
 jalon: post-v1
 cree: 2026-11-20
 maj: 2026-11-20
-livree:
+livree: 2026-11-20
 ---
 ## But
 

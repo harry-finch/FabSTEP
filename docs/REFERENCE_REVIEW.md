@@ -1,6 +1,6 @@
 # Relecture du brainstorming
 
-Le fichier `FabSTEP-Brainstorming.md` reste la référence exploratoire d'origine. Ses extraits de code et ses sorties annoncées ne constituent pas des résultats vérifiés.
+Le [brainstorming d’origine](https://github.com/harry-finch/FabSTEP/blob/5eca0651224730d286d13ea51b61492eb136b299/FabSTEP-Brainstorming.md) reste la référence exploratoire, conservée dans l’historique Git. Ses extraits de code et ses sorties annoncées ne constituent pas des résultats vérifiés.
 
 ## Points retenus
 

@@ -2,11 +2,11 @@
 id: R-117
 titre: "Proposer des cylindres, cônes et sphères par normales sur bandes résiduelles"
 resume: "Utiliser les rayons de normales et l'angle de normale constant sur les chaînes de bandes non planes pour découvrir des parois interrompues, en conservant toutes les preuves géométriques existantes."
-statut: a-tester
+statut: livree
 jalon: v1.0
 cree: 2026-11-19
 maj: 2026-11-20
-livree:
+livree: 2026-11-20
 ---
 
 

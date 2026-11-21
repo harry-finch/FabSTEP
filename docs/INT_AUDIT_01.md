@@ -1,6 +1,6 @@
 # INT-AUDIT-01 — intégration raisonnée
 
-Date : 10 novembre 2026. Source évaluée : [AUDIT_TECHNIQUE.md](AUDIT_TECHNIQUE.md), conservé sans réécriture. Ce registre est la source de vérité de l’intégration ; les affirmations de l’audit ne sont pas des preuves acquises.
+Date : 10 novembre 2026. Source évaluée : [AUDIT_TECHNIQUE.md](https://github.com/harry-finch/FabSTEP/blob/5eca0651224730d286d13ea51b61492eb136b299/docs/AUDIT_TECHNIQUE.md), conservé sans réécriture dans l’historique Git. Ce registre est la source de vérité de l’intégration ; les affirmations de l’audit ne sont pas des preuves acquises.
 
 ## Qualification et priorités
 
@@ -131,7 +131,7 @@ Prochaines actions utiles après UX4/PERF1 : achever la qualification graphique 
 
 ## NEON — audit du 19 novembre 2026 (R-112)
 
-Rapport local `docs/audit-neon.md`, SHA-256 `3b6819c6683f2d29b9d8c902f50988fbcf19a508fc8f7095b25ffa4d5fc2cc23`. Les identifiants ci-dessous désignent ce rapport. Les lots 1 à 5 ci-dessus concernent le rapport antérieur. Base Git `2e51866`, branche d’intégration `audit/neon`. Le rapport fourni, la skill locale fab-cleanup et son inventaire préexistaient. Référence V-1258 et STATUS avant travaux : 707 tests workspace, 51 bureau, 238 UI. Au démarrage, CLI verte et 12 tests Python réussis, 11 conditionnels ignorés.
+Rapport d’origine [docs/audit-neon.md](https://github.com/harry-finch/FabSTEP/blob/5eca0651224730d286d13ea51b61492eb136b299/docs/audit-neon.md), conservé dans l’historique Git, SHA-256 `3b6819c6683f2d29b9d8c902f50988fbcf19a508fc8f7095b25ffa4d5fc2cc23`. Les identifiants ci-dessous désignent ce rapport. Les lots 1 à 5 ci-dessus concernent le rapport antérieur. Base Git `2e51866`, branche d’intégration `audit/neon`. Le rapport fourni, la skill locale fab-cleanup et son inventaire préexistaient. Référence V-1258 et STATUS avant travaux : 707 tests workspace, 51 bureau, 238 UI. Au démarrage, CLI verte et 12 tests Python réussis, 11 conditionnels ignorés.
 
 ### Qualification et registre
 
