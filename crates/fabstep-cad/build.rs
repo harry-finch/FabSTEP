@@ -7,6 +7,7 @@ mod occt_version;
 fn main() {
     println!("cargo:rerun-if-changed=src/occt.cpp");
     for file in [
+        "windows_sdk.hxx",
         "cross_drill.hxx",
         "drilled_shaft.hxx",
         "drilled_shaft_build.hxx",
@@ -101,19 +102,30 @@ fn main() {
     if env::var_os("CARGO_FEATURE_LARGE_STL").is_some() {
         native.define("FABSTEP_LARGE_STL_SOURCE", None);
     }
-    native
-        .cpp(true)
-        .std("c++17")
-        .flag("-isystem")
-        .flag(&include)
-        .file("src/occt.cpp")
-        .compile("fabstep_occt");
+    native.cpp(true).std("c++17");
+    if native.get_compiler().is_like_msvc() {
+        native
+            .include(&include)
+            .define("_USE_MATH_DEFINES", None)
+            .define("NOMINMAX", None)
+            .flag("/utf-8")
+            .flag("/EHsc")
+            .flag("/bigobj");
+    } else {
+        native.flag("-isystem").flag(&include);
+    }
+    native.file("src/occt.cpp").compile("fabstep_occt");
 
     // Keep outward-rounded interval operations separate from the normal CAD TU.
     let mut proof = cc::Build::new();
     proof.cpp(true).std("c++17");
     if proof.get_compiler().is_like_msvc() {
-        proof.include(&include).flag("/fp:strict");
+        proof
+            .include(&include)
+            .define("NOMINMAX", None)
+            .flag("/utf-8")
+            .flag("/EHsc")
+            .flag("/fp:strict");
     } else {
         proof
             .flag("-fno-fast-math")
@@ -148,6 +160,14 @@ fn main() {
 }
 
 fn sdk_paths(root: &Path) -> Option<(PathBuf, PathBuf)> {
+    // The upstream Windows SDK uses its original vc14 directory with newer MSVC.
+    let windows_include = root.join("inc");
+    let windows_lib = root.join("win64/vc14/lib");
+    if windows_include.join("STEPControl_Writer.hxx").is_file()
+        && windows_lib.join("TKDESTEP.lib").is_file()
+    {
+        return Some((windows_include, windows_lib));
+    }
     let include = root.join("include/opencascade");
     let lib = root.join("lib");
     let has_step = ["libTKDESTEP.dylib", "libTKDESTEP.so"]

@@ -3070,3 +3070,15 @@ Dans WKWebView, le parcours d’inspecteur avec un pont bureau simulé vérifie 
 Deux conversions de chacun des 24 maillages du corpus public R-122 et les deux contre-exemples donnent les mêmes résultats géométriques que la référence versionnée. La vérification interactive sur le poste utilisateur est suivie en A-144.
 
 La suite Rust du workspace en release compte 813 tests réussis et 19 tests optionnels ignorés. Le banc dense a également été exécuté séparément. Les 58 tests du bureau, le transfert vers le véritable helper, les 11 tests du worker et les 186 tests du profil isolé `large-stl` passent (cinq optionnels ignorés dans ce profil). Formatage et Clippy strict passent pour les trois graphes Cargo. Les scripts Python donnent 20 réussites et 11 cas ignorés.
+
+## V-1291 — Distribution publique de FabSTEP 1.0
+
+Le tag public `v1.0` correspond à `f32079a`. La candidate locale de novembre étiquetée `v1.0.0` conserve sa révision historique. Le macOS et le paquet Ubuntu proviennent de `c842fc2`. Les deux seuls fichiers modifiés entre ces révisions sont le script et le workflow de distribution Windows.
+
+| Paquet | Vérification exécutée |
+| --- | --- |
+| macOS 26+, arm64 | Signature ad hoc et 30 bibliothèques embarquées vérifiées après extraction du ZIP. Une fenêtre du bureau a été observée. Quatre conversions CLI et les deux protocoles du helper ont réussi avec les lectures de Homebrew bloquées. La signature Developer ID et la notarisation restent ouvertes. |
+| Ubuntu 26.04, amd64 | Installation du .deb par APT dans un conteneur vierge. Le cube donne six plans, l’octant trois plans et une face sphérique après réimport. L’invitation d’import de WebKitGTK est lisible à l’écran sous Xvfb. [Exécution GitHub](https://github.com/harry-finch/FabSTEP/actions/runs/44827530083) |
+| Windows x64 | Compilation MSVC et OCCT 7.9.3 depuis ses sources. Extraction du ZIP sur un second Windows Server 2022. Le cube donne six plans, l’octant quatre faces et le 3MF deux solides sphériques. UI Automation retrouve le bouton d’ouverture dans WebView2. [Construction](https://github.com/harry-finch/FabSTEP/actions/runs/44828476472) · [Essai du ZIP](https://github.com/harry-finch/FabSTEP/actions/runs/44829424485) |
+
+La [release GitHub](https://github.com/harry-finch/FabSTEP/releases/tag/v1.0) contient les SHA-256 des trois paquets et de l’archive des sources tierces. Les essais de distribution couvrent la fenêtre et les conversions indiquées. Le mode gros STL reste réservé à macOS. Le contrôle macOS général sur le commit de départ `04c099f` a atteint le délai CI de 45 minutes pendant les tests du workspace. Le précédent passage complet de la suite est consigné en V-1290.

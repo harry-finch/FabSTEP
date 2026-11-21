@@ -16,7 +16,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg" alt="License: GPL-3.0-or-later" /></a>
   <img src="https://img.shields.io/badge/engine-Rust%20%2B%20OpenCASCADE%207.9-orange.svg" alt="Rust + OpenCASCADE 7.9" />
   <img src="https://img.shields.io/badge/desktop-Tauri%202%20%2B%20Svelte%205-purple.svg" alt="Tauri 2 + Svelte 5" />
-  <img src="https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-black.svg" alt="macOS Apple Silicon" />
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Ubuntu-black.svg" alt="macOS · Windows · Ubuntu" />
 </p>
 
 ---
@@ -25,7 +25,7 @@
 
 Unlike typical mesh-to-STEP converters that either dump thousands of flat triangles or silently deform your part with heuristic smoothing, FabSTEP **proves every reconstructed surface mathematically**, **reimports every STEP file before letting you export it**, and **never invents geometry that is not in the mesh**.
 
-> **Status:** v1.0 mechanical release accepted; v1 feature freeze completed on `audit/gel-v1` (with macOS Apple Silicon local bundle). See [STATUS.md](STATUS.md) and [ROADMAP.md](ROADMAP.md) for current verification status and upcoming distribution milestones (`R-018` notarization, `R-019` Windows/Linux).
+**[Download FabSTEP 1.0 for macOS, Windows and Ubuntu](https://github.com/harry-finch/FabSTEP/releases/tag/v1.0)**. The release page lists installation instructions, runtime requirements, sources and SHA-256 checksums.
 
 ---
 
@@ -141,7 +141,7 @@ FabSTEP never trusts a freshly constructed solid until it survives round-trip se
 - **BRep solid, not parametric history:** A STEP file contains exact mathematical surfaces and topology, not an editable CAD sketch/feature tree.
 - **Mechanical meshes, not noisy organic 3D scans:** FabSTEP targets closed CAD-origin meshes (STL / 3MF Core). Open shells, self-intersecting meshes, and noisy photogrammetry scans are refused explicitly rather than silently patched.
 - **3MF Core only:** Multi-model references from the 3MF Production extension (common in some slicer project files) are explicitly refused.
-- **Platform:** Native builds are currently qualified on **macOS Apple Silicon (macOS 26+, OCCT 7.9.x)** with ad-hoc signing. Developer ID notarization (`R-018`) and Windows/Linux packages (`R-019`) are tracked in [ROADMAP.md](ROADMAP.md).
+- **Platforms.** macOS 26+ on Apple Silicon (ad hoc signature), Windows x64 (portable ZIP, WebView2) and Ubuntu 26.04 amd64 (Debian package). The isolated large-STL helper is available on macOS.
 
 ---
 

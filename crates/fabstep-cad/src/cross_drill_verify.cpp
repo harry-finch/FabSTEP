@@ -1,3 +1,4 @@
+#include "windows_sdk.hxx"
 #include "cross_drill.hxx"
 #include "cross_drill_certificate.hxx"
 #include <BRepAdaptor_Surface.hxx>

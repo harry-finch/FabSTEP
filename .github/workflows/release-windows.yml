@@ -1,0 +1,87 @@
+name: Release Windows x64
+on:
+  push:
+    branches: [release/v1.0.0]
+    paths:
+      - 'crates/**'
+      - 'ui/**'
+      - 'fixtures/**'
+      - 'packaging/**'
+      - 'Cargo.*'
+      - 'LICENSE'
+      - 'scripts/release-windows*'
+      - 'scripts/release-notices.py'
+      - 'scripts/package-macos.py'
+      - '.github/workflows/release-windows.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  portable:
+    runs-on: windows-2022
+    timeout-minutes: 240
+    env:
+      OCCT_ROOT: D:\fabstep-occt
+      CARGO_INCREMENTAL: '0'
+      CARGO_TARGET_DIR: D:\fabstep-target
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.10.0'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache/restore@v4
+        id: occt
+        with:
+          path: D:\fabstep-occt
+          key: occt-7.9.3-minimal-vs2022-x64-v1
+      - uses: actions/checkout@v4
+        if: steps.occt.outputs.cache-hit != 'true'
+        with:
+          repository: Open-Cascade-SAS/OCCT
+          ref: a016080bf6738d6aeae020badee4e888ad1540a5
+          path: occt-source
+          persist-credentials: false
+      - name: Build OCCT shared libraries from source
+        if: steps.occt.outputs.cache-hit != 'true'
+        shell: cmd
+        run: |
+          call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
+          python scripts/release-windows.py sdk
+      - uses: actions/cache/save@v4
+        if: steps.occt.outputs.cache-hit != 'true'
+        with:
+          path: D:\fabstep-occt
+          key: occt-7.9.3-minimal-vs2022-x64-v1
+      - name: Build the UI
+        shell: pwsh
+        run: |
+          npm --prefix ui ci
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm --prefix ui run build
+      - name: Build the native desktop and CLI
+        shell: pwsh
+        run: |
+          cargo build --locked --release --manifest-path crates/fabstep-desktop/Cargo.toml --features custom-protocol
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo build --locked --release -p fabstep-cli
+      - name: Retain qualification inputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-qualification-executables
+          path: |
+            D:/fabstep-target/release/fabstep-desktop.exe
+            D:/fabstep-target/release/fabstep.exe
+          retention-days: 3
+          if-no-files-found: error
+      - name: Verify native conversions and desktop window from the portable package
+        run: python scripts/release-windows.py package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FabSTEP-Windows-x86_64
+          path: artifacts/windows/*.zip
+          if-no-files-found: error

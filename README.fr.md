@@ -16,7 +16,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-GPL--3.0--or--later-blue.svg" alt="Licence : GPL-3.0-or-later" /></a>
   <img src="https://img.shields.io/badge/moteur-Rust%20%2B%20OpenCASCADE%207.9-orange.svg" alt="Rust + OpenCASCADE 7.9" />
   <img src="https://img.shields.io/badge/bureau-Tauri%202%20%2B%20Svelte%205-purple.svg" alt="Tauri 2 + Svelte 5" />
-  <img src="https://img.shields.io/badge/plateforme-macOS%20Apple%20Silicon-black.svg" alt="macOS Apple Silicon" />
+  <img src="https://img.shields.io/badge/plateforme-macOS%20%7C%20Windows%20%7C%20Ubuntu-black.svg" alt="macOS · Windows · Ubuntu" />
 </p>
 
 ---
@@ -25,7 +25,7 @@
 
 Contrairement aux convertisseurs habituels qui empilent des milliers de triangles plats ou déforment silencieusement votre pièce par lissage heuristique, FabSTEP **prouve mathématiquement chaque surface reconstruite**, **réimporte systématiquement le fichier STEP avant d’autoriser l’export**, et **n’invente jamais une géométrie absente du maillage**.
 
-> **État :** V1 mécanique 1.0 acceptée ; périmètre fonctionnel v1 gelé sur `audit/gel-v1` (paquet local macOS Apple Silicon). Voir [STATUS.md](STATUS.md) et [ROADMAP.md](ROADMAP.md) pour le détail des validations et les prochains jalons de distribution (`R-018` notarisation, `R-019` Windows/Linux).
+**[Télécharger FabSTEP 1.0 pour macOS, Windows et Ubuntu](https://github.com/harry-finch/FabSTEP/releases/tag/v1.0)**. La page de la version indique les modalités d’installation, les prérequis, les sources et les empreintes SHA-256.
 
 ---
 
@@ -141,7 +141,7 @@ FabSTEP ne fait jamais confiance à un solide tant qu’il n’a pas survécu au
 - **Solide BRep, pas d’historique paramétrique :** un fichier STEP contient des surfaces mathématiques exactes et leur topologie, pas un arbre d’esquisses éditable.
 - **Maillages mécaniques, pas de scans 3D organiques bruités :** FabSTEP vise les maillages fermés issus de CAO (STL / 3MF Core). Les coques ouvertes, auto-intersections et scans photogrammétriques bruités sont refusés explicitement plutôt que bricolés en silence.
 - **3MF Core uniquement :** les références multi-modèles de l’extension 3MF Production (fréquentes dans certains projets de slicers) sont refusées explicitement.
-- **Plateforme :** les paquets natifs sont actuellement qualifiés sur **macOS Apple Silicon (macOS 26+, OCCT 7.9.x)** en signature ad hoc. La notarisation Developer ID (`R-018`) et la distribution Windows/Linux (`R-019`) sont suivies dans [ROADMAP.md](ROADMAP.md).
+- **Plateformes.** macOS 26 ou ultérieur sur Apple Silicon (signature ad hoc), Windows x64 (ZIP portable, WebView2) et Ubuntu 26.04 amd64 (paquet Debian). Le mode gros STL avec moteur isolé est disponible sur macOS.
 
 ---
 
